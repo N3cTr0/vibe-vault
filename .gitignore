@@ -1,0 +1,12 @@
+# Obsidian — per-machine UI state & caches (churny, not worth versioning)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+
+# Obsidian trash (deleted-note holding area)
+.trash/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
