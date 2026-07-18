@@ -28,7 +28,7 @@ read/write handles UTF-8 correctly.
 
 ```powershell
 $code = "C:\Obsidian Vaults\Vibe Projects\01 Projects\PartnerTool\Code"
-$out  = "C:\Users\graemel\Projects\PartnerTool"   # rebuild target
+$out  = "C:\Projects\PartnerTool"   # rebuild target
 $enc  = New-Object System.Text.UTF8Encoding($false)   # UTF-8, no BOM
 
 foreach ($note in Get-ChildItem $code -Filter *.md | Where-Object Name -ne "_Code Index.md") {
@@ -57,7 +57,7 @@ Then build per [[Build & Release]] (`dotnet build` / single-file `dotnet publish
 The portable script **supersedes the reference snippet below** (which hardcodes the old host path), but the logic is identical — one note per source file, orphans flagged:
 
 ```powershell
-$repo = "C:\Users\graemel\Projects\PartnerTool"
+$repo = "C:\Projects\PartnerTool"
 $code = "C:\Obsidian Vaults\Vibe Projects\01 Projects\PartnerTool\Code"
 $enc  = New-Object System.Text.UTF8Encoding($false)
 function Lang($e){switch($e){'.cs'{'csharp'}'.xaml'{'xml'}'.csproj'{'xml'}'.wxs'{'xml'}'.manifest'{'xml'}'.md'{'markdown'}'.ps1'{'powershell'}default{''}}}

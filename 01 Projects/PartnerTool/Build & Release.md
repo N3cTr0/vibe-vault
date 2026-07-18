@@ -8,7 +8,7 @@ tags: [partnertool, build]
 ## Dev build (fast iterate)
 
 ```powershell
-dotnet build C:\Users\graemel\Projects\PartnerTool\PartnerTool\PartnerTool.csproj -c Release -v minimal
+dotnet build C:\Projects\PartnerTool\PartnerTool\PartnerTool.csproj -c Release -v minimal
 ```
 
 Outputs to `bin\Release\<tfm>\`. If the exe is locked (`MSB3027`), the app is running — close it first (`Get-Process PartnerTool`).
@@ -47,9 +47,9 @@ excludes `bin/ obj/ dist/ release/ .vs/ *.user *.suo` and WiX intermediates, so 
 
 ```powershell
 $git = "C:\Program Files\Git\cmd\git.exe"
-& $git -C C:\Users\graemel\Projects\PartnerTool add -A
-& $git -C C:\Users\graemel\Projects\PartnerTool commit -m "0.19.x: <what changed>"
-& $git -C C:\Users\graemel\Projects\PartnerTool push
+& $git -C C:\Projects\PartnerTool add -A
+& $git -C C:\Projects\PartnerTool commit -m "0.19.x: <what changed>"
+& $git -C C:\Projects\PartnerTool push
 ```
 
 Commit after the version bump so the commit message and `versions.md` entry agree. GitHub is the

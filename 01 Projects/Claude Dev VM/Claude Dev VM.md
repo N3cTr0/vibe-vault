@@ -5,9 +5,9 @@ tags: [claude-dev-vm, moc]
 
 # Claude Dev VM — Project Hub
 
-> A dedicated Windows 11 virtual machine on the desktop PC (VMware Workstation Pro) that Claude Code gets **full autonomous access to** for development work. Isolation means Claude can run without permission prompts (`--dangerously-skip-permissions`), test elevated / system-changing actions (e.g. [[PartnerTool]] repair features), and any damage is a snapshot revert away. **This note is the reference point for everything about the VM.**
+> A dedicated Windows 11 virtual machine on the desktop PC (VMware Workstation Pro) that Claude Code gets **full autonomous access to** for development work. **As of 2026-07-18 this VM is the *sole* dev environment** — the host is no longer used for coding (it only runs the hypervisor). Isolation means Claude can run without permission prompts (`--dangerously-skip-permissions`), test elevated / system-changing actions (e.g. [[PartnerTool]] repair features), and any damage is a snapshot revert away. **This note is the reference point for everything about the VM.**
 
-- **Status (2026-07-18):** VM fully provisioned — VMware Tools, dev stack, and Claude Code installed; `clean-dev-setup` snapshot taken; PartnerTool cloned to **`C:\Projects\PartnerTool`** (git, remote `N3cTr0/PartnerTool`, `main`). Next: first autonomous test run.
+- **Status (2026-07-18):** VM fully provisioned — VMware Tools, dev stack, and Claude Code installed; `clean-dev-setup` snapshot taken; PartnerTool cloned to **`C:\Projects\PartnerTool`** (git, remote `N3cTr0/PartnerTool`, `main`). **Now the sole dev environment** — first autonomous session (2026-07-18) completed.
 - **Host:** desktop PC, Windows 11 Pro, VMware Workstation Pro (free since Nov 2024 — no license key, downloaded via free Broadcom account)
 - **Guest:** Windows 11 x64
 
@@ -53,14 +53,14 @@ Sizing rationale: Windows 11 grows to ~40 GB after updates, Visual Studio adds 1
 	- [x] Host: GitHub CLI installed
 	- [x] `gh auth login` (user), private GitHub repo created and pushed: https://github.com/N3cTr0/PartnerTool
 	- [x] VM: cloned to `C:\Projects\PartnerTool` (remote `N3cTr0/PartnerTool` over HTTPS; commit `b08d8ab`, working tree clean)
-- [ ] First autonomous test run
+- [x] First autonomous test run (2026-07-18)
 
 ## Working model
 
-- **Code sync via git**, not shared folders — VM clones repos, Claude works on branches, review/pull from the host. Keeps the isolation line clean.
-- **VM GitHub auth = fine-grained PAT**, not full account sign-in: github.com → Settings → Developer settings → Fine-grained tokens; access to **only** the PartnerTool repo, Contents read/write. The autonomous VM then can't touch anything else in the account, and revoking the token is one click.
+- **Code sync via git**, not shared folders — the VM is where working changes live; Claude works on branches and pushes them, review/merge on **GitHub** (the host is retired for dev). Keeps history clean and auditable.
+- **VM GitHub auth = fine-grained PAT**, not full account sign-in: github.com → Settings → Developer settings → Fine-grained tokens; Contents read/write on **only** `PartnerTool` + `vibe-vault` (the [[Restore From Snapshot|vault backup]]). The autonomous VM can't touch anything else in the account, and revoking is one click. **Current PAT expires 2026-08-17 — rotate before then or all pushes stop.**
 - **Snapshot before autonomous runs**; revert if anything goes sideways (~5 seconds).
-- Inside the VM, launch `claude --dangerously-skip-permissions` — the sandboxed-VM case is exactly what that flag is for. Never use it on the host.
+- Inside the VM, launch `claude --dangerously-skip-permissions` from an **elevated** PowerShell (Run as administrator) — elevation gives the system/registry/service/`C:\PCI` access PartnerTool exercises, and the flag suits this isolated dedicated-VM. The `clean-dev-setup` snapshot + repo-scoped PAT are the safety net, not the prompts.
 - Windows in the VM runs unactivated (watermark + personalization limits only); assign a license if it becomes a permanent fixture.
 
 ## Decisions & gotchas
