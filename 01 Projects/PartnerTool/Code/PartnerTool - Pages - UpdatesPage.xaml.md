@@ -197,7 +197,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                             <DataTemplate>
                                 <DockPanel Margin="0,3">
                                     <TextBlock DockPanel.Dock="Left" Width="120" Foreground="#9399B2" FontSize="11" VerticalAlignment="Top"
-                                               Text="{Binding Date, StringFormat={}{0:d MMM yyyy}, Mode=OneWay}"/>
+                                               Text="{Binding Date, StringFormat={}{0:MM/dd/yyyy}, Mode=OneWay}"/>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding Result}" FontSize="11" Foreground="#6C7086" Margin="10,0,0,0" VerticalAlignment="Top"/>
                                     <TextBlock Text="{Binding Title}" Foreground="#CDD6F4" FontSize="11" TextWrapping="Wrap"/>
                                 </DockPanel>

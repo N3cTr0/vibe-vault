@@ -291,7 +291,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                                             Padding="10,4" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
                                             Visibility="{Binding CanDelete, Converter={StaticResource BoolToVis}}"/>
                                     <TextBlock DockPanel.Dock="Right" Foreground="#6C7086" FontSize="11" VerticalAlignment="Center">
-                                        <Run Text="last used "/><Run Text="{Binding LastUsed, StringFormat='{}{0:d MMM yyyy}', Mode=OneWay}"/>
+                                        <Run Text="last used "/><Run Text="{Binding LastUsed, StringFormat='{}{0:MM/dd/yyyy}', Mode=OneWay}"/>
                                     </TextBlock>
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12" FontWeight="SemiBold"/>

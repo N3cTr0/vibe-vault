@@ -91,7 +91,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 <DockPanel Margin="0,4">
                                     <TextBlock DockPanel.Dock="Left" Width="150" Foreground="#9399B2" FontSize="11"
                                                VerticalAlignment="Top"
-                                               Text="{Binding Created, StringFormat={}{0:ddd d MMM yyyy HH:mm}, Mode=OneWay}"/>
+                                               Text="{Binding Created, StringFormat={}{0:MM/dd/yyyy HH:mm}, Mode=OneWay}"/>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding Type}" Foreground="#6C7086"
                                                FontSize="11" Margin="10,0,0,0" VerticalAlignment="Top"/>
                                     <TextBlock Text="{Binding Description}" Foreground="#CDD6F4" FontSize="12" TextWrapping="Wrap"/>

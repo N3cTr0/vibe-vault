@@ -32,7 +32,7 @@ public static class ReportBuilder
         void H(string t) { sb.AppendLine(); sb.AppendLine(t); sb.AppendLine(new string('-', t.Length)); }
 
         sb.AppendLine("PARTNER SUPPORT TOOL — SYSTEM REPORT");
-        sb.AppendLine($"Generated: {s.CapturedAt:dddd, d MMMM yyyy} at {s.CapturedAt:HH:mm:ss}");
+        sb.AppendLine($"Generated: {s.CapturedAt:MM/dd/yyyy} at {s.CapturedAt:HH:mm:ss}");
         sb.AppendLine(new string('=', 60));
 
         H("IDENTITY");
@@ -73,7 +73,7 @@ public static class ReportBuilder
         sb.AppendLine($"  OS version   : {info.OsVersion}");
         sb.AppendLine($"  Feature ver. : {info.WindowsVersion}");
         sb.AppendLine($"  Kernel       : {info.KernelVersion} ({info.KernelArchitecture})");
-        sb.AppendLine($"  Last patched : {(s.Updates.LastInstalled is { } lp ? lp.ToString("d MMM yyyy") : "Unknown")}");
+        sb.AppendLine($"  Last patched : {(s.Updates.LastInstalled is { } lp ? lp.ToString(Dates.Date) : "Unknown")}");
 
         H("PERFORMANCE");
         sb.AppendLine($"  Memory : {perf.RamUsedGb:F1} / {perf.RamTotalGb:F1} GB ({perf.RamPct:F0}%)");
@@ -163,7 +163,7 @@ public static class ReportBuilder
         {
             H("WINDOWS UPDATE HISTORY (recent)");
             foreach (var u in s.Updates.Recent)
-                sb.AppendLine($"  {u.Date:d MMM yyyy}  [{u.Result}]  {u.Title}");
+                sb.AppendLine($"  {u.Date:MM/dd/yyyy}  [{u.Result}]  {u.Title}");
         }
 
         if (s.Diagnostics.Devices.Count > 0)
@@ -173,7 +173,7 @@ public static class ReportBuilder
         }
         H("CRASH DUMPS");
         sb.AppendLine($"  Minidumps: {s.Diagnostics.MinidumpCount}" +
-                      (s.Diagnostics.LatestDump is { } ld ? $" (latest {ld:d MMM yyyy})" : "") +
+                      (s.Diagnostics.LatestDump is { } ld ? $" (latest {ld:MM/dd/yyyy})" : "") +
                       $"  ·  Full memory dump: {(s.Diagnostics.MemoryDump ? "present" : "none")}");
 
         H("SYSTEM EXTRAS");
@@ -215,7 +215,7 @@ public static class ReportBuilder
  .ok{{color:#A6E3A1;}} .warn{{color:#F9E2AF;}} .bad{{color:#F38BA8;}} .info{{color:#89B4FA;}}
 </style></head><body>
 <h1>Partner Support Tool — System Report</h1>
-<div class=""sub"">Progressive Computing &middot; {E(info.Hostname)} &middot; generated {E(s.CapturedAt.ToString("dddd, d MMMM yyyy 'at' HH:mm:ss"))}</div>");
+<div class=""sub"">Progressive Computing &middot; {E(info.Hostname)} &middot; generated {E(s.CapturedAt.ToString(Dates.DateTimeSec))}</div>");
 
         // Table of contents
         sb.Append(@"<div class=""toc"">
@@ -293,7 +293,7 @@ public static class ReportBuilder
         Card("os", "Operating system",
             ("OS version", info.OsVersion), ("Feature version", info.WindowsVersion),
             ("Kernel", $"{info.KernelVersion} ({info.KernelArchitecture})"),
-            ("Last patched", s.Updates.LastInstalled is { } lp ? lp.ToString("d MMM yyyy") : "Unknown"));
+            ("Last patched", s.Updates.LastInstalled is { } lp ? lp.ToString(Dates.Date) : "Unknown"));
 
         Card("perf", "Performance",
             ("Memory", $"{perf.RamUsedGb:F1} / {perf.RamTotalGb:F1} GB ({perf.RamPct:F0}%)"),
@@ -369,7 +369,7 @@ public static class ReportBuilder
 
         // ── Updates / devices / extras ──
         TableCard("updates", "Windows Update history", new[] { "Date", "Result", "Title" },
-            s.Updates.Recent.Select(u => new[] { u.Date.ToString("d MMM yyyy"), u.Result, u.Title }).ToList());
+            s.Updates.Recent.Select(u => new[] { u.Date.ToString(Dates.Date), u.Result, u.Title }).ToList());
 
         TableCard("devices", "Device problems", new[] { "Device", "Problem" },
             s.Diagnostics.Devices.Select(dev => new[] { dev.Name, dev.Problem }).ToList(),
@@ -378,7 +378,7 @@ public static class ReportBuilder
         Card("extras", "System extras",
             ("Power plan", s.Extras.PowerPlan), ("Page file", s.Extras.PageFile), ("Proxy", s.Extras.Proxy),
             ("Crash dumps", $"{s.Diagnostics.MinidumpCount} minidump(s)" +
-                (s.Diagnostics.LatestDump is { } ld ? $", latest {ld:d MMM yyyy}" : "") +
+                (s.Diagnostics.LatestDump is { } ld ? $", latest {ld:MM/dd/yyyy}" : "") +
                 $"; full memory dump {(s.Diagnostics.MemoryDump ? "present" : "none")}"));
 
         sb.Append("</body></html>");

@@ -365,7 +365,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                             Click="NetReset_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="NETWORK STACK RESET" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Resets Winsock and the TCP/IP stack and flushes the DNS cache. Fixes broken connectivity without touching your adapters. ⚠ A RESTART is required afterward to finish."
+                        <TextBlock Text="Resets Winsock and the TCP/IP stack and flushes the DNS cache. Fixes broken connectivity without touching your adapters. ✔ You will NOT lose connectivity — your adapters, internet, and remote (Ninja) session stay active. A restart is needed to fully finish, but you can do that later at a convenient time."
                                    FontSize="11" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtNetResetStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -380,7 +380,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                             Click="NetFullReset_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="NETWORK RESET (REINSTALL ADAPTERS)" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="The full Windows Network reset: removes every network adapter and resets all networking components to defaults — Windows reinstalls the adapters on the next reboot. Last resort; this clears VPN clients, static IPs and saved Wi-Fi networks. ⚠ A RESTART is required."
+                        <TextBlock Text="The full Windows Network reset: removes every network adapter and resets all networking components to defaults — Windows reinstalls the adapters on the next reboot. ⚠ This WILL drop your remote (Ninja) session. The tool restarts the PC automatically to finish — it reconnects once Windows is back up. Last resort; this clears VPN clients, static IPs and saved Wi-Fi networks."
                                    FontSize="11" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtNetFullResetStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>

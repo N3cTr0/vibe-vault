@@ -56,7 +56,7 @@ public partial class UpdatesPage : UserControl
             var info = await System.Threading.Tasks.Task.Run(UpdateHistoryInfo.Collect);
             _allHistory = info.Recent;
             TxtLastPatched.Text = info.LastInstalled is { } lp
-                ? $"Last update installed: {lp:dddd, d MMM yyyy}  ({(int)(DateTime.Now - lp).TotalDays} days ago)"
+                ? $"Last update installed: {lp:MM/dd/yyyy}  ({(int)(DateTime.Now - lp).TotalDays} days ago)"
                 : "Last update date unavailable.";
             IcHistory.ItemsSource     = info.Recent.Take(10).ToList();
             TxtNoHistory.Text         = "No update history available.";
@@ -68,7 +68,7 @@ public partial class UpdatesPage : UserControl
 
     private void MoreHistory_Click(object sender, RoutedEventArgs e)
     {
-        var rows = _allHistory.Select(u => new ListRow(u.Title, u.Date.ToString("dddd, d MMM yyyy"), u.Result));
+        var rows = _allHistory.Select(u => new ListRow(u.Title, u.Date.ToString(Dates.Date), u.Result));
         new ListWindow("Windows Update History", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
@@ -215,6 +215,15 @@ public partial class UpdatesPage : UserControl
 
     private async void UpdateAll_Click(object sender, RoutedEventArgs e)
     {
+        // Not gated (updating is encouraged, not destructive), but set expectations: this runs every
+        // source in sequence, can take a long time, and Windows may schedule a restart to finish.
+        if (!MessageWindow.Confirm("Update All", "Run all updates now?",
+                "This runs Windows Defender, Windows Update, manufacturer drivers, winget apps, the " +
+                "Microsoft Store, and the Office updater one after another. It can take a while, and " +
+                "Windows may need to restart afterward to finish. Continue?",
+                MessageKind.Warning, Window.GetWindow(this)))
+            return;
+
         // App-wide servicing gate: Update All must not overlap Full Repair / WU Reset / CHKDSK etc.
         // (both sides drive CBS/TrustedInstaller; running them together makes one fail — observed
         // as DISM RestoreHealth 0x800F0915).

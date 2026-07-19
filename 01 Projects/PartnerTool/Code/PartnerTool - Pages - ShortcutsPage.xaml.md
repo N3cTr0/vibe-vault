@@ -53,9 +53,11 @@ source-path: PartnerTool\Pages\ShortcutsPage.xaml
                     <UniformGrid Columns="3">
                         <Button Content="Add/Remove Programs"   Style="{StaticResource ToolButton}" Tag="appwiz.cpl"  Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Control Panel"         Style="{StaticResource ToolButton}" Tag="control.exe" Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="Credential Manager"    Style="{StaticResource ToolButton}" Tag="explorer://shell:::{1206F5F1-0569-412C-8FEC-3204630DFB70}" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Environment Variables" Style="{StaticResource ToolButton}" Tag="rundll32://sysdm.cpl,EditEnvironmentVariables" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Group Policy"          Style="{StaticResource ToolButton}" Tag="gpedit.msc"  Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Registry Editor"       Style="{StaticResource ToolButton}" Tag="regedit.exe" Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="System Configuration"  Style="{StaticResource ToolButton}" Tag="msconfig.exe" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="System Properties"     Style="{StaticResource ToolButton}" Tag="sysdm.cpl"   Click="Tool_Click" Margin="0,0,8,8"/>
                     </UniformGrid>
                 </StackPanel>
@@ -68,8 +70,11 @@ source-path: PartnerTool\Pages\ShortcutsPage.xaml
                     <UniformGrid Columns="3">
                         <Button Content="Computer Management" Style="{StaticResource ToolButton}" Tag="compmgmt.msc" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Device Manager"      Style="{StaticResource ToolButton}" Tag="devmgmt.msc"  Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="DirectX Diagnostic"  Style="{StaticResource ToolButton}" Tag="dxdiag.exe"   Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Disk Management"     Style="{StaticResource ToolButton}" Tag="diskmgmt.msc" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Event Viewer"        Style="{StaticResource ToolButton}" Tag="eventvwr.msc" Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="Performance Monitor" Style="{StaticResource ToolButton}" Tag="perfmon.exe"  Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="Resource Monitor"    Style="{StaticResource ToolButton}" Tag="resmon.exe"   Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Services"            Style="{StaticResource ToolButton}" Tag="services.msc" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Task Manager"        Style="{StaticResource ToolButton}" Tag="taskmgr.exe"  Click="Tool_Click" Margin="0,0,8,8"/>
                     </UniformGrid>

@@ -70,7 +70,7 @@ public partial class DiagnosticsPage : UserControl
     {
         var rows = _allEvents.Select(ev => new ListRow(
             ev.Message,
-            $"{ev.Time:ddd d MMM HH:mm}  ·  {ev.Source}  (ID {ev.Id})",
+            $"{ev.Time:MM/dd/yyyy HH:mm}  ·  {ev.Source}  (ID {ev.Id})",
             ev.Level));
         new ListWindow("Recent Errors — last 10 days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
@@ -138,7 +138,7 @@ public partial class DiagnosticsPage : UserControl
             var parts = new List<string>();
             if (d.MinidumpCount > 0)
                 parts.Add($"{d.MinidumpCount} minidump(s)" +
-                          (d.LatestDump is { } dt ? $", latest {dt:ddd d MMM HH:mm}" : ""));
+                          (d.LatestDump is { } dt ? $", latest {dt:MM/dd/yyyy HH:mm}" : ""));
             if (d.MemoryDump) parts.Add("full MEMORY.DMP present");
             TxtDumps.Text       = "● " + string.Join("  ·  ", parts);
             TxtDumps.Foreground = StatusColors.Yellow;
@@ -187,7 +187,7 @@ public partial class DiagnosticsPage : UserControl
             }
             var rows = records.Select(r => new ListRow(
                 r.Message,
-                $"{r.Time:ddd d MMM HH:mm}  ·  {r.Source}",
+                $"{r.Time:MM/dd/yyyy HH:mm}  ·  {r.Source}",
                 "")).ToList();
             new ListWindow("Reliability History (detailed)", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
         }
@@ -198,7 +198,7 @@ public partial class DiagnosticsPage : UserControl
     private void MoreHistory_Click(object sender, RoutedEventArgs e)
     {
         var rows = _allHistory.Select(h => new ListRow(
-            h.When.ToString("dddd, d MMM yyyy"),
+            h.When.ToString(Dates.Date),
             $"Disk free {h.DiskFreeGb:F0} GB   ·   RAM {h.RamPct:F0}%"
               + (h.BatteryWearPct is { } w ? $"   ·   Batt wear {w}%" : "")
               + (h.StabilityIndex is { } s ? $"   ·   Stability {s:F1}/10" : ""),

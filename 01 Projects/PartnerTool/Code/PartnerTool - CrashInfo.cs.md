@@ -76,7 +76,7 @@ public class CrashInfo
                 string note = "";
                 if (times.Count > 1)
                 {
-                    note = $"  —  {times.Count}× since {times[0]:d MMM}";
+                    note = $"  —  {times.Count}× since {times[0]:MM/dd/yyyy}";
                     var mins = times.Select(t => t.TimeOfDay.TotalMinutes).ToList();
                     if (times.Select(t => t.Date).Distinct().Count() >= 3 && mins.Max() - mins.Min() <= 45)
                         note += $", daily ~{TimeSpan.FromMinutes(mins.Average()):hh\\:mm}";

@@ -222,7 +222,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                     <RowDefinition/><RowDefinition/><RowDefinition/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Hostname"        Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtHostname"   Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtHostname"   Style="{StaticResource RowValue}"
+                                           Background="Transparent" Cursor="Hand" ToolTip="Click to copy" MouseLeftButtonUp="CopyField_Click"/>
                                 <Rectangle Grid.Row="1" Grid.ColumnSpan="2"                    Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Logged In User"  Style="{StaticResource RowLabel}"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtUser"        Style="{StaticResource RowValue}"/>
@@ -255,7 +256,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <TextBlock Grid.Row="0"  Grid.Column="1" x:Name="TxtModel"           Style="{StaticResource RowValue}"/>
                                 <Rectangle Grid.Row="1"  Grid.ColumnSpan="2"                         Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="2"  Grid.Column="0" Text="Serial Number"        Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="2"  Grid.Column="1" x:Name="TxtSerial"          Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="2"  Grid.Column="1" x:Name="TxtSerial"          Style="{StaticResource RowValue}"
+                                           Background="Transparent" Cursor="Hand" ToolTip="Click to copy" MouseLeftButtonUp="CopyField_Click"/>
                                 <Rectangle Grid.Row="3"  Grid.ColumnSpan="2"                         Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="4"  Grid.Column="0" Text="BIOS Version"         Style="{StaticResource RowLabel}"/>
                                 <TextBlock Grid.Row="4"  Grid.Column="1" x:Name="TxtBios"            Style="{StaticResource RowValue}"/>
@@ -425,7 +427,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <TextBlock Grid.Row="0"  Grid.Column="1" x:Name="TxtNetType" Style="{StaticResource RowValue}"/>
                                 <Rectangle Grid.Row="1"  Grid.ColumnSpan="2"                Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="2"  Grid.Column="0" Text="IP Address"  Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="2"  Grid.Column="1" x:Name="TxtNetIp"  Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="2"  Grid.Column="1" x:Name="TxtNetIp"  Style="{StaticResource RowValue}"
+                                           Background="Transparent" Cursor="Hand" ToolTip="Click to copy" MouseLeftButtonUp="CopyField_Click"/>
                                 <Rectangle Grid.Row="3"  Grid.ColumnSpan="2"                Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="4"  Grid.Column="0" Text="Subnet Mask" Style="{StaticResource RowLabel}"/>
                                 <TextBlock Grid.Row="4"  Grid.Column="1" x:Name="TxtNetMask" Style="{StaticResource RowValue}"/>
@@ -437,7 +440,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <TextBlock Grid.Row="8"  Grid.Column="1" x:Name="TxtNetDns" Style="{StaticResource RowValue}"/>
                                 <Rectangle Grid.Row="9"  Grid.ColumnSpan="2"                Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="10" Grid.Column="0" Text="MAC Address" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="10" Grid.Column="1" x:Name="TxtNetMac" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="10" Grid.Column="1" x:Name="TxtNetMac" Style="{StaticResource RowValue}"
+                                           Background="Transparent" Cursor="Hand" ToolTip="Click to copy" MouseLeftButtonUp="CopyField_Click"/>
                                 <Rectangle Grid.Row="11" Grid.ColumnSpan="2"                Style="{StaticResource RowDivider}"/>
                                 <TextBlock Grid.Row="12" Grid.Column="0" Text="Assignment"  Style="{StaticResource RowLabel}"/>
                                 <TextBlock Grid.Row="12" Grid.Column="1" x:Name="TxtNetDhcp" Style="{StaticResource RowValue}"/>

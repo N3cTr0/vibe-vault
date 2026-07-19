@@ -72,7 +72,7 @@ public static class SoftwareInventory
         if (raw?.Length == 8 &&
             DateTime.TryParseExact(raw, "yyyyMMdd", null,
                 System.Globalization.DateTimeStyles.None, out var dt))
-            return dt.ToString("dd/MM/yy");
+            return dt.ToString(Dates.Date);
         return "";
     }
 }

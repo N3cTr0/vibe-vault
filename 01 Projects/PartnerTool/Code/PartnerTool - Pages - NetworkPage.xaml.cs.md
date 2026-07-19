@@ -377,7 +377,8 @@ public partial class NetworkPage : UserControl
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (!MessageWindow.Confirm("Network Stack Reset", "Reset the network stack?",
                 "This resets Winsock and the TCP/IP stack and flushes DNS.\n\n" +
-                "A RESTART is required afterward to finish. Continue?",
+                "You won't lose connectivity — your adapters, internet, and remote session stay " +
+                "active. A restart is needed to fully finish, but you can do it later. Continue?",
                 MessageKind.Warning, Window.GetWindow(this)))
             return;
 
@@ -388,7 +389,7 @@ public partial class NetworkPage : UserControl
             await NetRun("netsh.exe", "winsock reset", "Reset Winsock catalog");
             await NetRun("netsh.exe", "int ip reset", "Reset TCP/IP stack");
             await NetRun("ipconfig.exe", "/flushdns", "Flush DNS cache");
-            SetStatus(TxtNetResetStatus, "● Done — restart required", StatusColors.Yellow);
+            SetStatus(TxtNetResetStatus, "● Done — connectivity kept; restart later to finish", StatusColors.Yellow);
         });
     }
 
@@ -399,8 +400,9 @@ public partial class NetworkPage : UserControl
         if (!MessageWindow.Confirm("Network Reset", "Full network reset?",
                 "This removes ALL network adapters and resets every networking component to " +
                 "defaults — Windows reinstalls the adapters on the next reboot.\n\n" +
-                "It will clear VPN clients, static IP settings and saved Wi-Fi networks. " +
-                "Only use this as a last resort.\n\nContinue?",
+                "⚠ This WILL drop your remote session, and the PC will restart automatically to " +
+                "finish (it reconnects after boot). It also clears VPN clients, static IP settings " +
+                "and saved Wi-Fi networks.\n\nOnly use this as a last resort. Continue?",
                 MessageKind.Warning, Window.GetWindow(this)))
             return;
 
@@ -408,8 +410,21 @@ public partial class NetworkPage : UserControl
         await NetGuarded(async () =>
         {
             SetStatus(TxtNetFullResetStatus, "Running…", StatusColors.Yellow);
-            await NetRun("netcfg.exe", "-d", "Network reset (remove + reinstall adapters)");
-            SetStatus(TxtNetFullResetStatus, "● Done — RESTART required to reinstall adapters", StatusColors.Yellow);
+            var code = await NetRun("netcfg.exe", "-d", "Network reset (remove + reinstall adapters)");
+            if (code != 0)
+            {
+                // Don't force a reboot on a reset that didn't take — show the failure instead.
+                SetStatus(TxtNetFullResetStatus, $"● Reset failed (exit {code}) — not restarting", StatusColors.Red);
+                return;
+            }
+            // The adapters only come back after a reboot, and remote connectivity is already going —
+            // so finish the job for the tech: schedule an automatic restart (short delay so this
+            // status paints and the action logs before the box goes down).
+            SetStatus(TxtNetFullResetStatus, "● Done — restarting automatically in ~20s to reinstall adapters…", StatusColors.Yellow);
+            ActivityLog.Action("Network", "Auto-restart after full network reset (shutdown /r /t 20)");
+            await NetRun("shutdown.exe",
+                "/r /t 20 /c \"PartnerTool: finishing the network reset. The PC will restart now and reconnect once Windows is back up.\"",
+                "Restart automatically to finish");
         });
     }
 
@@ -433,9 +448,24 @@ public partial class NetworkPage : UserControl
                 try
                 {
                     var props = ni.GetIPProperties();
+
+                    // Skip the WFP/QoS "Lightweight Filter" pseudo-adapters Windows layers over a real
+                    // NIC: they report Up and share the NIC's MAC but carry no usable IP, so they'd show
+                    // as duplicate cards full of "N/A". Keep only adapters with a real IPv4 or global
+                    // IPv6 address (a genuine link with a link-local-only address is not useful here).
+                    bool hasUsableIp = props.UnicastAddresses.Any(a =>
+                        a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork ||
+                        (a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                         && !a.Address.IsIPv6LinkLocal));
+                    if (!hasUsableIp) continue;
+
                     var ipv4  = props.UnicastAddresses
                         .FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                    var gw    = props.GatewayAddresses.FirstOrDefault()?.Address.ToString() ?? "None";
+                    // Prefer the IPv4 default gateway so this matches the System Info page (which shows
+                    // 10.1.1.1, not the fe80:: link-local that FirstOrDefault() would otherwise pick).
+                    var gw    = (props.GatewayAddresses
+                                    .FirstOrDefault(g => g.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                                 ?? props.GatewayAddresses.FirstOrDefault())?.Address.ToString() ?? "None";
                     var dns   = string.Join(", ", props.DnsAddresses
                         .Where(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                         .Select(a => a.ToString()));

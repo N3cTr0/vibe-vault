@@ -36,7 +36,7 @@ public static class DriversInfo
                 if (string.IsNullOrEmpty(dev)) continue;
                 string date = "";
                 try { if (o["DriverDate"] != null)
-                        date = ManagementDateTimeConverter.ToDateTime(o["DriverDate"].ToString()).ToString("d MMM yyyy"); }
+                        date = ManagementDateTimeConverter.ToDateTime(o["DriverDate"].ToString()).ToString(Dates.Date); }
                 catch { }
                 bool? signed = o["IsSigned"] is bool b ? b : null;
                 list.Add(new DriverItem(dev, o["DriverProviderName"]?.ToString()?.Trim() ?? "—",

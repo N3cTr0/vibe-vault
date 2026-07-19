@@ -227,7 +227,7 @@ public partial class DiskUsagePage : UserControl
         int dirs = vis.Count(i => i.IsDir), files = vis.Count(i => !i.IsDir);
         int hidden = _items.Count(i => i.Hidden);
         string note = (!showHidden && hidden > 0) ? $"  ·  {hidden} hidden (tick to show)" : "";
-        TxtStatus.Text = $"{_resultPrefix} {UsageEntry.FormatSize(total)} in {dirs} folder(s) + {files} file(s){note}  ·  click a folder to browse into it";
+        TxtStatus.Text = $"{_resultPrefix} {UsageEntry.FormatSize(total)} in {dirs} folder(s) + {files} file(s){note}  ·  double-click a folder to browse into it";
     }
 
     private void Hidden_Changed(object sender, RoutedEventArgs e) => ApplyView();

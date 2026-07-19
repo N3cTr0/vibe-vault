@@ -270,6 +270,22 @@ public partial class SystemInfoPage : UserControl
         finally { BtnSmart.IsEnabled = true; }
     }
 
+    // Click-to-copy on the identifiers techs paste into tickets (hostname, serial, IP, MAC).
+    private void CopyField_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not TextBlock { Text: { Length: > 0 } text } tb || text == "—") return;
+        try
+        {
+            Clipboard.SetText(text);
+            var orig = tb.ToolTip;
+            tb.ToolTip = "Copied!";
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.2) };
+            t.Tick += (_, _) => { tb.ToolTip = orig; t.Stop(); };
+            t.Start();
+        }
+        catch { /* clipboard can transiently fail if another app holds it — ignore */ }
+    }
+
     // ── POWER (moved from the old Actions tab) ────────────────────────────
     private bool Confirm(string msg, string title)
         => TechGate.Verify(Window.GetWindow(this))
@@ -382,7 +398,7 @@ public partial class SystemInfoPage : UserControl
         BarRam.Foreground = BarColor(perf.RamPct);
 
         TxtUptime.Text   = perf.UptimeText;
-        TxtLastBoot.Text = perf.BootKnown ? perf.LastBoot.ToString("ddd, d MMM yyyy  HH:mm") : "Unknown";
+        TxtLastBoot.Text = perf.BootKnown ? perf.LastBoot.ToString(Dates.DateTime) : "Unknown";
 
         // ── Storage (physical disks + volumes) ────────────────
         IcDisks.ItemsSource   = hw.Disks;
@@ -506,7 +522,7 @@ public partial class SystemInfoPage : UserControl
             TxtNetMac.Text      = adapter.Mac;
             TxtNetDhcp.Text       = adapter.IpAssignment;
             TxtNetDhcpServer.Text = string.IsNullOrEmpty(adapter.DhcpServer) ? "—" : adapter.DhcpServer;
-            TxtNetLease.Text      = adapter.LeaseExpires is { } le ? le.ToString("ddd, d MMM HH:mm") : "—";
+            TxtNetLease.Text      = adapter.LeaseExpires is { } le ? le.ToString(Dates.DateTime) : "—";
         }
 
         // ── Printers ──────────────────────────────────────────

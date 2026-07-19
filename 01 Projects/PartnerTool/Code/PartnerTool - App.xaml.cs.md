@@ -8,12 +8,15 @@ source-path: PartnerTool\App.xaml.cs
 
 ```csharp
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -33,6 +36,12 @@ public partial class App : Application
         // while pure GDI painting displays fine. So don't sit there as a black rectangle: tell the
         // tech with a native GDI message box (the one dialog type that DOES render there) and exit.
         if (BlockHiddenServiceSession(e.Args)) { Shutdown(); return; }
+
+        // The UI and docs are American English, but the tech's machine can be set to any locale.
+        // Without pinning the culture, numbers render with the OS decimal separator (e.g. "10,0 / 10",
+        // "5,5 GB") and dates as d/M/yy — inconsistent and confusing on a US-English tool. Force en-US
+        // for all formatting on the UI thread, background threads, and WPF binding StringFormat.
+        ForceEnUsCulture();
 
         // Elsewhere-but-not-console (RDP, odd remote stacks): WPF works, but hardware presentation
         // can glitch — fall back to the CPU rasterizer. Free on a normal desktop (sessions match).
@@ -72,6 +81,26 @@ public partial class App : Application
         _ = Task.Run(LogRetention.Prune);
 
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// Pin every formatting path to en-US so numbers and dates read the same on any machine's locale.
+    /// Covers the UI thread, the default culture new threads/Tasks inherit, and WPF's binding
+    /// StringFormat (which reads FrameworkElement.Language, not CurrentCulture).
+    /// </summary>
+    private static void ForceEnUsCulture()
+    {
+        var enUs = new CultureInfo("en-US");
+        // House standard is MM/DD/YYYY (see Dates.cs). en-US defaults to M/d/yyyy, so pin the
+        // short-date pattern — this backstops any default DateTime.ToString() / {0:d} binding.
+        enUs.DateTimeFormat.ShortDatePattern = "MM/dd/yyyy";
+        CultureInfo.DefaultThreadCurrentCulture   = enUs;
+        CultureInfo.DefaultThreadCurrentUICulture = enUs;
+        Thread.CurrentThread.CurrentCulture   = enUs;
+        Thread.CurrentThread.CurrentUICulture = enUs;
+        FrameworkElement.LanguageProperty.OverrideMetadata(
+            typeof(FrameworkElement),
+            new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(enUs.IetfLanguageTag)));
     }
 
     /// <summary>True when the Backstage/hidden-session fallback put WPF into software rendering.</summary>

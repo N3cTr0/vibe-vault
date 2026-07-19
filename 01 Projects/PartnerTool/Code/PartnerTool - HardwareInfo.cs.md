@@ -200,7 +200,7 @@ public class HardwareInfo
                 double vram = o["AdapterRAM"] != null ? Convert.ToDouble(o["AdapterRAM"]) / 1073741824.0 : 0;
                 string drvDate = "";
                 try { if (o["DriverDate"] != null)
-                        drvDate = ManagementDateTimeConverter.ToDateTime(o["DriverDate"].ToString()).ToString("d MMM yyyy"); }
+                        drvDate = ManagementDateTimeConverter.ToDateTime(o["DriverDate"].ToString()).ToString(Dates.Date); }
                 catch { }
                 string res = "";
                 if (o["CurrentHorizontalResolution"] != null && o["CurrentVerticalResolution"] != null)
@@ -223,7 +223,7 @@ public class HardwareInfo
             {
                 hw.BiosVersion = o["SMBIOSBIOSVersion"]?.ToString()?.Trim() ?? "Unknown";
                 try { if (o["ReleaseDate"] != null)
-                        hw.BiosDate = ManagementDateTimeConverter.ToDateTime(o["ReleaseDate"].ToString()).ToString("d MMM yyyy"); }
+                        hw.BiosDate = ManagementDateTimeConverter.ToDateTime(o["ReleaseDate"].ToString()).ToString(Dates.Date); }
                 catch { }
                 break;
             }

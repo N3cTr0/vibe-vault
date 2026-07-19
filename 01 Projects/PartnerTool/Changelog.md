@@ -25,6 +25,47 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.19.16 — 2026-07-19
+Network reset wording + behavior, from supervised testing of the reboot-causing actions.
+### Changed
+- **Network Stack Reset** now states plainly that connectivity is **kept** — adapters, internet, and the
+  remote (Ninja) session stay active; the restart only finalizes the reset and can be done later. (Card text,
+  confirm dialog, and done-status all updated.)
+- **Network Reset (reinstall adapters)** now says it will drop the remote session and **restarts the PC
+  automatically** to finish, and actually does it: on a successful `netcfg -d` it schedules `shutdown /r /t 20`
+  (skipped if the reset returns non-zero, so a failed reset doesn't trigger a pointless reboot).
+
+## 0.19.15 — 2026-07-19
+Follow-ups from a full page-by-page test pass (all 12 pages, zero runtime errors). Fixes one real bug and lands consistency/UX polish.
+### Fixed
+- **Scheduled Tasks always showed "0 scheduled tasks."** `ScheduledTasksInfo` parses `schtasks /query /fo CSV /v`,
+  whose first column is `HostName` and second is `TaskName` — but the header detection assumed `TaskName` was
+  column 0, so the header was never matched, the column indices stayed `-1`, every data row was skipped, and the
+  list came back empty on every machine. Now the header is detected by the presence of a `TaskName` column anywhere.
+### Changed
+- **All formatting pinned to en-US, dates standardized to MM/DD/YYYY.** Numbers and dates followed the machine's
+  locale (e.g. `10,0 / 10`, `5,5 GB`, `18/07/26`), which is inconsistent on a US-English tool. `App` now forces en-US
+  (with a `MM/dd/yyyy` short-date pattern) on the UI thread, new threads/Tasks, and WPF binding `StringFormat`. **House
+  rule: displayed dates are always MM/DD/YYYY** — a new `Dates` helper holds the canonical format strings, every
+  `ToString`/XAML `StringFormat` was moved onto it, external date strings (e.g. `schtasks`) are normalized, and a
+  stray `dd/MM/yy` in the installed-software list was fixed.
+- **Check Disk read-only scan is no longer tech-gated.** `chkdsk C: /scan` is non-destructive and every other scan
+  (temp / installer / feature-update) was already free; the gate now applies only to the `/f /r` repair, matching the
+  page's own "read-only scan is free" rule.
+- **End Process now protects the tool itself.** Critical Windows processes were already blocked (they BSOD); the tool
+  also listed its own process with a live End button. The button now disables for protected rows (`ProcInfo.CanEnd`).
+- **Manage: filtered service count and clearer empty states.** Searching services now shows "N of M services" instead
+  of the full count; the Scheduled Tasks pane distinguishes genuinely-empty from a read failure.
+- **Network: hide WFP/QoS pseudo-adapters** (no usable IP) so only real NICs show, and prefer the IPv4 default gateway
+  so the adapter card matches the System Info page.
+- **Disk Usage: double-click to browse into a folder** (was single-click, which fought the habitual double-click and
+  net-cancelled by landing on the `..` row), and rows now expose a real UI-Automation name instead of the class name.
+- **Confirmations added** before Update All (long-running, may restart) and Install Selected (lists the apps).
+- **System Info: click-to-copy** on Hostname, Serial, IP, and MAC — the identifiers techs paste into tickets.
+- **System Shortcuts:** added System Configuration, Credential Manager, DirectX Diagnostic, Performance Monitor, and
+  Resource Monitor.
+- `MessageWindow` defaults to `CenterOwner`.
+
 ## 0.19.14 — 2026-07-18
 Follow-ups from the full supervised test run (tech gate + monitor + tools, all clean — zero errors).
 ### Changed

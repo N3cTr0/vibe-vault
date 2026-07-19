@@ -76,7 +76,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                 <DataTemplate>
                                     <DockPanel Margin="0,4">
                                         <TextBlock DockPanel.Dock="Left" Width="120" VerticalAlignment="Top" Foreground="#9399B2" FontSize="11"
-                                                   Text="{Binding Time, StringFormat='{}{0:ddd d MMM HH:mm}', Mode=OneWay}"/>
+                                                   Text="{Binding Time, StringFormat='{}{0:MM/dd/yyyy HH:mm}', Mode=OneWay}"/>
                                         <StackPanel>
                                             <TextBlock Text="{Binding StopCode}" Foreground="#F38BA8" FontSize="11" FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11" TextWrapping="Wrap"/>
@@ -94,7 +94,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                 <DataTemplate>
                                     <DockPanel Margin="0,3">
                                         <TextBlock DockPanel.Dock="Left" Width="120" Foreground="#9399B2" FontSize="11"
-                                                   Text="{Binding Time, StringFormat='{}{0:ddd d MMM HH:mm}', Mode=OneWay}"/>
+                                                   Text="{Binding Time, StringFormat='{}{0:MM/dd/yyyy HH:mm}', Mode=OneWay}"/>
                                         <TextBlock Foreground="#CDD6F4" FontSize="11" TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding App, Mode=OneWay}"/>
                                             <Run Text="  ·  " Foreground="#6C7086"/><Run Text="{Binding Module, Mode=OneWay}" Foreground="#6C7086"/><Run Text="{Binding Note, Mode=OneWay}" Foreground="#F9E2AF"/>
@@ -142,7 +142,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="#9399B2" FontSize="11"
-                                                   Text="{Binding When, StringFormat={}{0:d MMM yyyy}, Mode=OneWay}"/>
+                                                   Text="{Binding When, StringFormat={}{0:MM/dd/yyyy}, Mode=OneWay}"/>
                                         <TextBlock Grid.Column="1" Foreground="#CDD6F4" FontSize="11"
                                                    Text="{Binding DiskFreeGb, StringFormat={}{0:F0} GB, Mode=OneWay}"/>
                                         <TextBlock Grid.Column="2" Foreground="#CDD6F4" FontSize="11"
@@ -226,6 +226,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                         <TextBlock Grid.Column="3" Text="{Binding MemMb, StringFormat={}{0:F0} MB}" Foreground="#9399B2"
                                                    FontSize="12" TextAlignment="Right" VerticalAlignment="Center"/>
                                         <Button Grid.Column="4" Content="End" Tag="{Binding Pid}" Click="KillProc_Click"
+                                                IsEnabled="{Binding CanEnd}"
                                                 Style="{StaticResource ActionButton}" Padding="0,4" Margin="8,0,0,0" FontSize="11"/>
                                     </Grid>
                                 </DataTemplate>
@@ -244,7 +245,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                     <DockPanel Margin="0,4">
                                         <TextBlock DockPanel.Dock="Left" Width="120" VerticalAlignment="Top"
                                                    Foreground="#9399B2" FontSize="11"
-                                                   Text="{Binding Time, StringFormat={}{0:ddd d MMM HH:mm}, Mode=OneWay}"/>
+                                                   Text="{Binding Time, StringFormat={}{0:MM/dd/yyyy HH:mm}, Mode=OneWay}"/>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Kind}" Foreground="#CDD6F4" FontSize="11" FontWeight="SemiBold"/>
                                             <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11"
@@ -301,7 +302,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                         <Ellipse Style="{StaticResource EventDot}" DockPanel.Dock="Left"/>
                                         <StackPanel>
                                             <TextBlock FontSize="11">
-                                                <Run Text="{Binding Time, StringFormat={}{0:ddd d MMM HH:mm}, Mode=OneWay}" Foreground="#9399B2"/>
+                                                <Run Text="{Binding Time, StringFormat={}{0:MM/dd/yyyy HH:mm}, Mode=OneWay}" Foreground="#9399B2"/>
                                                 <Run Text="  ·  "/>
                                                 <Run Text="{Binding Source, Mode=OneWay}" Foreground="#CDD6F4"/>
                                                 <Run Text="{Binding Id, StringFormat=(ID {0}), Mode=OneWay}" Foreground="#6C7086"/>

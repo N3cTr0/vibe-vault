@@ -87,7 +87,7 @@ public partial class SecurityPage : UserControl
         TxtRtp.Foreground  = d.RealTimeProtection ? StatusColors.Green : StatusColors.Red;
         TxtTamper.Text     = d.TamperProtection ? "On" : "Off";
         TxtSig.Text        = d.SignatureVersion;
-        TxtSigDate.Text    = d.SignatureUpdated is { } s ? s.ToString("d MMM yyyy HH:mm") : "—";
+        TxtSigDate.Text    = d.SignatureUpdated is { } s ? s.ToString(Dates.DateTime) : "—";
         if (d.SignatureUpdated is { } su)
             TxtSigDate.Foreground = (DateTime.Now - su).TotalDays > 7 ? StatusColors.Yellow : StatusColors.Green;
         TxtQuick.Text      = d.QuickScanAgeDays is { } qa ? $"{qa} day(s) ago" : "—";

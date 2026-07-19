@@ -11,7 +11,7 @@ source-path: PartnerTool\MessageWindow.xaml
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Width="460" SizeToContent="Height" MinWidth="380"
-        ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False" Background="#1E1E2E" Icon="Resources/logo.ico">
 
     <Grid Margin="22">

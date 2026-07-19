@@ -522,7 +522,8 @@ public partial class RepairPage : UserControl
 
     private async void Chkdsk_Click(object sender, RoutedEventArgs e)
     {
-        if (!TechGate.Verify(Window.GetWindow(this))) return;
+        // Read-only scan is free — no tech code (matches the temp/installer/feature scans). `chkdsk
+        // C: /scan` is an online, non-destructive check; scheduling the /f /r repair is gated below.
         if (!BeginServicing("Check Disk (CHKDSK scan)")) return;
         UseLog(ChkdskLogScroll, ChkdskLog);
         Set(TxtChkdskStatus, "Running…", StatusColors.Yellow);

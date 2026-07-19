@@ -309,6 +309,14 @@ public partial class SoftwarePage : UserControl
         PnlLog.Visibility = Visibility.Visible;
         if (apps.Count == 0) { Log("No apps selected."); return; }
 
+        // Confirm the batch — each app runs a winget installer silently and elevated, so show the
+        // tech exactly what's about to be installed before it starts.
+        if (!MessageWindow.Confirm("Install Software", $"Install {apps.Count} app(s)?",
+                "The following will be installed silently via winget:\n\n" +
+                string.Join(", ", apps.Select(a => a.Name)),
+                MessageKind.Warning, Window.GetWindow(this)))
+            return;
+
         _busy = true;
         BtnInstall.IsEnabled = false;
         BtnInstall.Content   = "Installing…";

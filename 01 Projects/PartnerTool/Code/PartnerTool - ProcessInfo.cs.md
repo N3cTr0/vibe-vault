@@ -11,7 +11,14 @@ using System.Diagnostics;
 
 namespace PartnerTool;
 
-public record ProcInfo(int Pid, string Name, double CpuPct, double MemMb);
+public record ProcInfo(int Pid, string Name, double CpuPct, double MemMb)
+{
+    /// <summary>
+    /// False for rows the tool refuses to end — critical Windows processes (which would BSOD) plus
+    /// the tool's own process — so the End button can disable itself instead of failing on click.
+    /// </summary>
+    public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name);
+}
 
 /// <summary>
 /// A lightweight "top processes" snapshot — like the Task Manager Processes tab. CPU% is
@@ -83,12 +90,15 @@ public static class ProcessInfo
 
     public static bool IsCritical(string name) => Critical.Contains(name);
 
+    /// <summary>True for processes the tool must not end: critical Windows procs, or the tool itself.</summary>
+    public static bool IsProtected(int pid, string name) => pid == Environment.ProcessId || IsCritical(name);
+
     public static bool TryKill(int pid)
     {
         try
         {
             using var p = Process.GetProcessById(pid);
-            if (IsCritical(p.ProcessName)) return false;   // never kill a critical process — it BSODs Windows
+            if (IsProtected(pid, p.ProcessName)) return false;   // critical proc BSODs Windows; self would close the tool
             p.Kill();
             return true;
         }

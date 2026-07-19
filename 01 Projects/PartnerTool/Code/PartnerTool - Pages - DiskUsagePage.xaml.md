@@ -44,7 +44,8 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
         <Style x:Key="RowStyle" TargetType="ListViewItem">
             <Setter Property="Padding" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="Row_Click"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}"/>
+            <EventSetter Event="MouseDoubleClick" Handler="Row_Click"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListViewItem">
@@ -112,7 +113,7 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
 
         <StackPanel Grid.Row="0" Margin="20,16,20,4">
             <TextBlock Text="DISK USAGE" Style="{StaticResource CardTitle}"/>
-            <TextBlock Text="Find what's using space, TreeSize/WizTree-style. Pick a drive — NTFS drives get a ⚡ fast scan (reads the Master File Table directly); others fall back to a folder walk. Sizes are 'size on disk' (so cloud-only OneDrive files count as ~0). Click a folder to browse into it, or the '..' row to go up. Click any column header to sort (click again to reverse)."
+            <TextBlock Text="Find what's using space, TreeSize/WizTree-style. Pick a drive — NTFS drives get a ⚡ fast scan (reads the Master File Table directly); others fall back to a folder walk. Sizes are 'size on disk' (so cloud-only OneDrive files count as ~0). Double-click a folder to browse into it, or the '..' row to go up. Click any column header to sort (click again to reverse)."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
             <WrapPanel x:Name="PnlDrives"/>
             <TextBlock x:Name="TxtSummary" Foreground="#9399B2" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>

@@ -34,8 +34,12 @@ public static class ScheduledTasksInfo
                 var cols = SplitCsv(line);
                 if (cols.Count == 0) continue;
 
-                // Header row repeats throughout the output; use it to find columns.
-                if (cols[0].Equals("TaskName", StringComparison.OrdinalIgnoreCase))
+                // Header row repeats throughout the output; use it to find columns. With /v the CSV's
+                // first column is "HostName" and "TaskName" is second — so detect the header by the
+                // presence of a "TaskName" column anywhere, not by assuming it's column 0. (Assuming
+                // column 0 meant the header was never matched, taskCol stayed -1, every row was
+                // skipped, and the list always came back empty — "0 scheduled tasks" on every box.)
+                if (cols.Any(c => c.Equals("TaskName", StringComparison.OrdinalIgnoreCase)))
                 {
                     taskCol   = cols.FindIndex(c => c.Equals("TaskName", StringComparison.OrdinalIgnoreCase));
                     statusCol = cols.FindIndex(c => c.Equals("Status", StringComparison.OrdinalIgnoreCase));
@@ -50,7 +54,10 @@ public static class ScheduledTasksInfo
                 if (string.IsNullOrWhiteSpace(name) || !seen.Add(name)) continue;
                 list.Add(new ScheduledTaskItem(
                     name,
-                    Get(cols, statusCol), Get(cols, nextCol), Get(cols, lastCol), Get(cols, resultCol)));
+                    Get(cols, statusCol),
+                    Dates.ReformatOrKeep(Get(cols, nextCol)),   // schtasks prints dates in the machine locale
+                    Dates.ReformatOrKeep(Get(cols, lastCol)),   // → normalize to MM/DD/YYYY
+                    Get(cols, resultCol)));
             }
         }
         catch { }

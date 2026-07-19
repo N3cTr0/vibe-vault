@@ -37,8 +37,13 @@ public class UsageEntry
     public string PercentText  => IsParent ? "" : $"{Percent:F0}%";
     public string SizeText     => IsParent ? "" : (Sized ? FormatSize(Bytes) : "…");
     public string FilesText    => (IsParent || !IsDir) ? "" : (Sized ? $"{Items:N0}" : "…");
-    public string ModifiedText => (IsParent || Modified == default) ? "" : Modified.ToString("d MMM yy  HH:mm");
+    public string ModifiedText => (IsParent || Modified == default) ? "" : Modified.ToString(Dates.DateTime);
     public string AttrText     => IsParent ? "" : AttrString();
+
+    /// <summary>Label for UI Automation so screen readers announce the row, not "PartnerTool.UsageEntry".</summary>
+    public string AutomationName => IsParent
+        ? "Up one level"
+        : $"{(IsDir ? "Folder" : "File")} {Name}, {SizeText}";
 
     private string AttrString()
     {

@@ -136,7 +136,12 @@ public partial class ManagePage : UserControl
             items = items.Where(s => s.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                                      s.Name.Contains(q, StringComparison.OrdinalIgnoreCase));
 
-        LstServices.ItemsSource = items.ToList();
+        var shown = items.ToList();
+        LstServices.ItemsSource = shown;
+        // Reflect the filter in the count so a search doesn't still read "276 services".
+        TxtSvcStatus.Text = string.IsNullOrEmpty(q)
+            ? $"{_allServices.Count} services"
+            : $"{shown.Count} of {_allServices.Count} services";
     }
 
     private async void SvcStart_Click(object sender, RoutedEventArgs e)   => await Control(sender, "start", false);
@@ -175,7 +180,9 @@ public partial class ManagePage : UserControl
         TxtTasksStatus.Text = "Loading…";
         var tasks = await ScheduledTasksInfo.CollectAsync();
         LstTasks.ItemsSource = tasks;
-        TxtTasksStatus.Text = $"{tasks.Count} scheduled tasks";
+        TxtTasksStatus.Text = tasks.Count > 0
+            ? $"{tasks.Count} scheduled tasks"
+            : "No scheduled tasks found (or they couldn't be read)";
     }
 
     // ── Drivers ──────────────────────────────────────────────
