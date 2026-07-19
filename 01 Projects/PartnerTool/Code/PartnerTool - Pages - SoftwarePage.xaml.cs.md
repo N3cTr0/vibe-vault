@@ -223,6 +223,9 @@ public partial class SoftwarePage : UserControl
     // uninstall the removed app would linger in the list — and stay ticked/locked in the install
     // catalog — until restart without this. Keeps the current search filter.
     private async void SoftwareRefresh_Click(object sender, RoutedEventArgs e)
+        => await RefreshAllAsync();
+
+    private async Task RefreshAllAsync()
     {
         if (_busy || _checking) return;
         BtnSoftwareRefresh.IsEnabled = false;
@@ -252,7 +255,7 @@ public partial class SoftwarePage : UserControl
             : $"{filtered.Count} of {_all.Count}";
     }
 
-    private void UninstallApp_Click(object sender, RoutedEventArgs e)
+    private async void UninstallApp_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: AppEntry app } || string.IsNullOrWhiteSpace(app.Uninstall)) return;
         if (!TechGate.Verify(Window.GetWindow(this))) return;
@@ -271,8 +274,8 @@ public partial class SoftwarePage : UserControl
         }
 
         if (!MessageWindow.Confirm("Uninstall", $"Uninstall {app.Name}?",
-                "This launches the program's own uninstaller. Follow its prompts to finish, then hit " +
-                "the Refresh button above the list to update it.", MessageKind.Warning, Window.GetWindow(this)))
+                "This launches the program's own uninstaller. Follow its prompts to finish — the list " +
+                "refreshes itself when the uninstaller closes.", MessageKind.Warning, Window.GetWindow(this)))
             return;
         ActivityLog.Action("Software", $"Uninstall {app.Name} — {app.Uninstall}");
         try
@@ -294,7 +297,16 @@ public partial class SoftwarePage : UserControl
                     ? new System.Diagnostics.ProcessStartInfo(cmd) { UseShellExecute = true }
                     : new System.Diagnostics.ProcessStartInfo(cmd[..sp], cmd[(sp + 1)..]) { UseShellExecute = true };
             }
-            System.Diagnostics.Process.Start(psi);
+            var proc = System.Diagnostics.Process.Start(psi);
+
+            // Auto-refresh once the uninstaller exits, so the list updates itself. Some uninstallers
+            // hand off to a child and exit immediately — the manual Refresh button stays as fallback.
+            if (proc is not null)
+            {
+                using (proc) { try { await proc.WaitForExitAsync(); } catch { } }
+                await Task.Delay(1500);   // let the registry writes settle before re-reading
+                await RefreshAllAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -377,7 +389,9 @@ public partial class SoftwarePage : UserControl
                 var code = await ProcessRunner.RunAsync(winget,
                     $"install --id {id} -e --silent --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     System.Text.Encoding.UTF8, l => Log($"  {l}"), null, _installCts.Token);
-                Log(code == 0 ? "  ✓ done" : $"  finished (exit {code})");
+                // A cancelled install is a killed process — label it honestly, not "finished (exit -1)".
+                Log(_installCts.IsCancellationRequested ? "  ✗ killed — cancelled"
+                    : code == 0 ? "  ✓ done" : $"  finished (exit {code})");
             }
             if (!_installCts.IsCancellationRequested) Log("━━━ Install complete ━━━");
         }

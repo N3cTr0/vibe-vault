@@ -62,11 +62,41 @@ public partial class NetworkPage : UserControl
         finally { BtnWifiRefresh.IsEnabled = true; }
     }
 
+    private List<Connection> _allConns = [];
+
     private async Task LoadConnectionsAsync()
     {
         BtnConnRefresh.IsEnabled = false;
-        try { IcConnections.ItemsSource = await ConnectionsInfo.CollectAsync(); }
+        try
+        {
+            _allConns = await ConnectionsInfo.CollectAsync();
+            ApplyConnFilter();
+        }
         finally { BtnConnRefresh.IsEnabled = true; }
+    }
+
+    private void ConnFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        => ApplyConnFilter();
+
+    // One box filters every column — process names, addresses, ports, and states all live in
+    // different columns, and a tech's question ("what's chrome doing?", "who has 443 open?")
+    // could target any of them.
+    private void ApplyConnFilter()
+    {
+        var q = TxtConnFilter.Text.Trim();
+        var rows = string.IsNullOrEmpty(q)
+            ? _allConns
+            : _allConns.Where(c =>
+                    c.Process.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.Local.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.Remote.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.State.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    c.Proto.Contains(q, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        IcConnections.ItemsSource = rows;
+        TxtConnCount.Text = rows.Count == _allConns.Count
+            ? $"{_allConns.Count} rows"
+            : $"{rows.Count} of {_allConns.Count}";
     }
 
     private async void ShowWifiPassword_Click(object sender, RoutedEventArgs e)

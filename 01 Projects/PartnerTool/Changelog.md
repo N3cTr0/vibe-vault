@@ -25,6 +25,35 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.19.20 — 2026-07-19
+From a full screenshot review of every page plus a code re-read of the day's diff.
+### Fixed
+- **Advanced Cleanup no longer shows "● Done" when cancelled during its final step.** The `Bail()`
+  chain stopped before `winmgmt /salvagerepository`, so a cancel that killed that step still painted
+  a green Done. Now bails after it like Full Repair does.
+- **System Info memory line read "max 0 GB".** `Win32_PhysicalMemoryArray.MaxCapacityEx` is in
+  KILOBYTES, not bytes — the /2^30 conversion made every machine ~0. Fixed to /2^20, and the display
+  hides "max" when firmware reports less than what's installed (bogus, common on VMs).
+- **AV/EDR engine processes can no longer be ended from Diagnostics.** `MsMpEng` (Defender engine)
+  had a live End button. The protected list now includes Defender/Sentinel/Huntress/Falcon/Cylance
+  engines — mirroring the existing guards on their services and startup entries.
+### Added
+- **Health Check findings are now grouped by category in two columns.** Each category (Security,
+  Stability, Disk, Updates, Junk, …) gets a header with an "n issue(s) / all clear" summary; groups
+  are balanced across the columns by row count. The per-row "Category · " prefix moved into the header.
+- **Uninstall auto-refresh (Software).** The tool now waits for the launched uninstaller to exit and
+  refreshes the installed-software list + install-catalog locks itself. Manual Refresh stays as
+  fallback for uninstallers that hand off to a child process.
+- **Active Connections filter (Network).** One box filters by process, address, port, or state, with
+  a "N of M" count in the card header — answering "what's talking to the internet?" without scrolling.
+- **Update All "last run" summary.** After a run, a persistent line under the description reads e.g.
+  "Last run: 07/19/2026 21:40 — cancelled after 2 of 6 sources."
+### Changed
+- Services search box (Manage) now has placeholder text like the Software page's.
+- A cancelled install now logs "✗ killed — cancelled" instead of "finished (exit -1)".
+- The Manufacturer Update card hides its Open button entirely when not applicable (VMs) instead of
+  showing it permanently grayed.
+
 ## 0.19.19 — 2026-07-19
 Found while live-testing the in-app uninstall (removed PuTTY via the Software page). The removal worked, but the installed-software list never refreshed to reflect it.
 ### Fixed

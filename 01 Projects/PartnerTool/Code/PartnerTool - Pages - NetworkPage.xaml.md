@@ -268,8 +268,39 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                     <DockPanel>
                         <Button x:Name="BtnConnRefresh" DockPanel.Dock="Right" Content="Refresh"
                                 Style="{StaticResource ActionButton}" Click="ConnRefresh_Click"/>
+                        <TextBlock x:Name="TxtConnCount" DockPanel.Dock="Right" Foreground="#6C7086"
+                                   FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <TextBlock Text="ACTIVE CONNECTIONS &amp; LISTENING PORTS" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
+                    <Border Background="#45475A" CornerRadius="6" Padding="10,0" Margin="0,6,0,4">
+                        <TextBox x:Name="TxtConnFilter" Foreground="#CDD6F4" FontSize="12"
+                                 BorderThickness="0" Height="30" VerticalContentAlignment="Center"
+                                 TextChanged="ConnFilter_TextChanged">
+                            <TextBox.Style>
+                                <!-- Placeholder pattern (same as the Software page search box). -->
+                                <Style TargetType="TextBox">
+                                    <Style.Resources>
+                                        <VisualBrush x:Key="ph" Stretch="None" AlignmentX="Left">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="Filter by process, address, port, or state (e.g. chrome, 443, LISTENING)…"
+                                                           Foreground="#6C7086" FontSize="12"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Style.Resources>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Text" Value=""/>
+                                                <Condition Property="IsKeyboardFocused" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="{StaticResource ph}"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
                     <Grid Margin="0,4,0,2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="44"/>

@@ -66,8 +66,32 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <Border x:Name="SecServices" Style="{StaticResource Card}">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Background="#45475A" CornerRadius="6" Padding="10,0" Margin="0,0,0,8">
-                        <TextBox x:Name="TxtSvcSearch" Background="Transparent" Foreground="#CDD6F4" FontSize="12"
-                                 BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="SvcSearch_TextChanged"/>
+                        <TextBox x:Name="TxtSvcSearch" Foreground="#CDD6F4" FontSize="12"
+                                 BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="SvcSearch_TextChanged">
+                            <TextBox.Style>
+                                <!-- Placeholder pattern (same as the Software page): Background must come
+                                     from the Style, not a local attribute, or the trigger can't win. -->
+                                <Style TargetType="TextBox">
+                                    <Style.Resources>
+                                        <VisualBrush x:Key="ph" Stretch="None" AlignmentX="Left">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="Search services by name…" Foreground="#6C7086" FontSize="12"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Style.Resources>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Text" Value=""/>
+                                                <Condition Property="IsKeyboardFocused" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="{StaticResource ph}"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
                     </Border>
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6" LastChildFill="False">
                         <TextBlock Text="Sort by" Foreground="#6C7086" FontSize="11" VerticalAlignment="Center" Margin="0,0,8,0"/>

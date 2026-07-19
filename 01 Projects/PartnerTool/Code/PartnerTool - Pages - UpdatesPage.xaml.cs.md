@@ -87,11 +87,14 @@ public partial class UpdatesPage : UserControl
                     : $"No known update tool for \"{manufacturer}\".";
             TxtMfrStatus.Text       = "● Not applicable";
             TxtMfrStatus.Foreground = StatusColors.Muted;
-            BtnMfr.IsEnabled        = false;
+            // Hide (not just disable) a button that can never work on this machine — a grayed
+            // "Open" reads like something is broken or still loading.
+            BtnMfr.Visibility       = Visibility.Collapsed;
             return;
         }
 
         _mfrTool        = tool;
+        BtnMfr.Visibility = Visibility.Visible;   // in case a prior pass collapsed it
         TxtMfrName.Text = tool.DisplayName;
         TxtMfrDesc.Text = tool.Description;
 
@@ -257,6 +260,8 @@ public partial class UpdatesPage : UserControl
         TaskList.ItemsSource = new[] { _tDefender, _tWinUpdate, _tManufacturer, _tWinget, _tStore, _tOffice };
         PnlTasks.Visibility  = Visibility.Visible;
 
+        string outcome = "completed";
+        int ranCount   = 6;
         try
         {
             // Soft-cancel: finish the current source, then stop before the next (doesn't kill a
@@ -273,19 +278,27 @@ public partial class UpdatesPage : UserControl
         catch (OperationCanceledException)
         {
             Log("━━━ Cancelled — remaining updates skipped ━━━");
+            int skipped = 0;
             foreach (var t in new[] { _tDefender, _tWinUpdate, _tManufacturer, _tWinget, _tStore, _tOffice })
                 if (t is { } tt && (string.IsNullOrEmpty(tt.StatusText) || tt.StatusText == "Pending"))
-                    Set(tt, "Skipped — cancelled", StatusColors.Muted);
+                { Set(tt, "Skipped — cancelled", StatusColors.Muted); skipped++; }
+            ranCount = 6 - skipped;
+            outcome  = $"cancelled after {ranCount} of 6 sources";
         }
         catch (Exception ex)
         {
             Log($"━━━ Stopped — unexpected error: {ex.Message} ━━━");
+            outcome = "stopped by an error";
         }
         finally
         {
             BtnUpdateCancel.Visibility = Visibility.Collapsed;
             BtnUpdateAll.Content   = "Run Again";
             BtnUpdateAll.IsEnabled = true;
+            // Persistent one-line history so a returning tech can see what the last run did
+            // without reading the log. (The per-source statuses above stay too.)
+            TxtUpdateAllSummary.Text = $"Last run: {Dates.FormatWithTime(DateTime.Now)} — {outcome}.";
+            TxtUpdateAllSummary.Visibility = Visibility.Visible;
             SaveLog();
             ServicingLock.Release();
         }

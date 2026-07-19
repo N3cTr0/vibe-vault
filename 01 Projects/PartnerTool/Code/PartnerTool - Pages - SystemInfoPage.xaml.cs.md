@@ -406,9 +406,10 @@ public partial class SystemInfoPage : UserControl
 
         // ── Memory modules ────────────────────────────────────
         IcMemory.ItemsSource = hw.Memory;
+        // Hide "max" when firmware reports nonsense (0, or less than what's installed — common on VMs).
         TxtMemSummary.Text   =
             $"{hw.TotalMemoryGb:F0} GB  ·  {hw.SlotsUsed} of {hw.SlotsTotal} slots used"
-            + (hw.MaxMemoryGb > 0 ? $"  ·  max {hw.MaxMemoryGb:F0} GB" : "");
+            + (hw.MaxMemoryGb >= hw.TotalMemoryGb ? $"  ·  max {hw.MaxMemoryGb:F0} GB" : "");
 
         // ── Graphics ──────────────────────────────────────────
         IcGpus.ItemsSource = hw.Gpus;

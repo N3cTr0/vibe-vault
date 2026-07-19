@@ -149,6 +149,8 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                             <TextBlock Text="UPDATE ALL" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Sequentially runs: Windows Defender signatures, Windows Update, manufacturer drivers (Dell/Lenovo/HP), all apps via winget, Microsoft Store apps, then launches the Microsoft Office updater (which opens its own progress window)."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="TxtUpdateAllSummary" FontSize="11" Foreground="#F9E2AF"
+                                       TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>
                         </StackPanel>
                     </DockPanel>
 

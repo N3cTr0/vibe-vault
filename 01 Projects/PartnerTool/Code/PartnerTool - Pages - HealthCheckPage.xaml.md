@@ -16,6 +16,60 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
         <Style TargetType="ScrollViewer">
             <Setter Property="pt:ScrollChaining.Enabled" Value="True"/>
         </Style>
+
+        <!-- One finding row (shared by both columns) -->
+        <DataTemplate x:Key="FindingTemplate">
+            <Border Background="#242536" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
+                <DockPanel>
+                    <!-- Right: fix checkbox (fixable) or Open button (advisory) -->
+                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0"
+                              Content="{Binding FixLabel}" IsChecked="{Binding Selected, Mode=TwoWay}"
+                              Visibility="{Binding CheckVis}" Foreground="#CDD6F4" FontSize="11"/>
+                    <Button DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0"
+                            Content="Open →" Tag="{Binding NavTag}" Click="Open_Click"
+                            Visibility="{Binding NavVis}" Style="{StaticResource ActionButton}"
+                            Padding="12,4" FontSize="11"/>
+
+                    <!-- Severity dot -->
+                    <Ellipse DockPanel.Dock="Left" Width="10" Height="10" VerticalAlignment="Top"
+                             Margin="0,4,12,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#A6E3A1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Severity}" Value="Warn">
+                                        <Setter Property="Fill" Value="#F9E2AF"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Severity}" Value="Bad">
+                                        <Setter Property="Fill" Value="#F38BA8"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <StackPanel>
+                        <TextBlock Text="{Binding Title}" Foreground="#CDD6F4" FontWeight="SemiBold" FontSize="12"/>
+                        <TextBlock Text="{Binding Detail}" Foreground="#9399B2" FontSize="11"
+                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- A category group: header + its findings. The per-row Category prefix is gone —
+             the group header carries it now. -->
+        <DataTemplate x:Key="GroupTemplate">
+            <StackPanel Margin="0,0,0,10">
+                <DockPanel Margin="2,0,2,6">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Summary}" Foreground="#6C7086"
+                               FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Name}" Foreground="#B4BEFE" FontSize="11"
+                               FontWeight="Bold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource FindingTemplate}"/>
+            </StackPanel>
+        </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#1E1E2E">
@@ -61,52 +115,17 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
                     <TextBlock x:Name="TxtNoFindings" Text="Run a scan to see results."
                                Foreground="#6C7086" FontSize="12" Margin="0,6,0,0"/>
 
-                    <ItemsControl x:Name="IcFindings" Margin="0,6,0,0">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#242536" CornerRadius="8" Padding="12,10" Margin="0,0,0,8">
-                                    <DockPanel>
-                                        <!-- Right: fix checkbox (fixable) or Open button (advisory) -->
-                                        <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0"
-                                                  Content="{Binding FixLabel}" IsChecked="{Binding Selected, Mode=TwoWay}"
-                                                  Visibility="{Binding CheckVis}" Foreground="#CDD6F4" FontSize="11"/>
-                                        <Button DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0"
-                                                Content="Open →" Tag="{Binding NavTag}" Click="Open_Click"
-                                                Visibility="{Binding NavVis}" Style="{StaticResource ActionButton}"
-                                                Padding="12,4" FontSize="11"/>
-
-                                        <!-- Severity dot -->
-                                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" VerticalAlignment="Top"
-                                                 Margin="0,4,12,0">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="#A6E3A1"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Severity}" Value="Warn">
-                                                            <Setter Property="Fill" Value="#F9E2AF"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Severity}" Value="Bad">
-                                                            <Setter Property="Fill" Value="#F38BA8"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-
-                                        <StackPanel>
-                                            <TextBlock FontSize="12">
-                                                <Run Text="{Binding Category, Mode=OneWay}" Foreground="#6C7086"/>
-                                                <Run Text="  ·  " Foreground="#45475A"/>
-                                                <Run Text="{Binding Title, Mode=OneWay}" Foreground="#CDD6F4" FontWeight="SemiBold"/>
-                                            </TextBlock>
-                                            <TextBlock Text="{Binding Detail}" Foreground="#9399B2" FontSize="11"
-                                                       TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <!-- Findings, grouped by category, balanced across two columns -->
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ItemsControl x:Name="IcGroupsL" Grid.Column="0" Margin="0,0,6,0"
+                                      ItemTemplate="{StaticResource GroupTemplate}"/>
+                        <ItemsControl x:Name="IcGroupsR" Grid.Column="1" Margin="6,0,0,0"
+                                      ItemTemplate="{StaticResource GroupTemplate}"/>
+                    </Grid>
 
                     <!-- Fix log — shown while/after Fix Selected runs -->
                     <Border x:Name="FixLogPanel" Background="#11111B" CornerRadius="6" Padding="10,8"

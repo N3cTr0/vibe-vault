@@ -22,6 +22,46 @@ public partial class HealthCheckPage : UserControl
 
     public HealthCheckPage() => InitializeComponent();
 
+    /// <summary>One category block in the two-column findings layout.</summary>
+    public sealed class FindingGroup
+    {
+        public required string Name { get; init; }
+        public required List<HealthFinding> Items { get; init; }
+        public string Summary => Items.Count(f => f.Severity != HealthSeverity.Good) is var n && n > 0
+            ? $"{n} issue(s)" : "all clear";
+    }
+
+    // Fixed display order — problem areas a tech acts on first, OEM-specific last. Categories
+    // not listed (future additions) fall to the end alphabetically.
+    private static readonly string[] GroupOrder =
+        ["Security", "Stability", "Disk", "Updates", "Junk", "Startup", "Shortcuts", "Maintenance", "Dell"];
+
+    /// <summary>
+    /// Group findings by category and split the groups across the two columns, keeping the
+    /// display order and balancing by row count so the columns end up roughly equal height.
+    /// </summary>
+    private void ShowFindings()
+    {
+        var groups = _findings
+            .GroupBy(f => f.Category)
+            .Select(g => new FindingGroup { Name = g.Key.ToUpperInvariant(), Items = g.ToList() })
+            .OrderBy(g => { int i = Array.IndexOf(GroupOrder, g.Items[0].Category); return i < 0 ? int.MaxValue : i; })
+            .ThenBy(g => g.Name)
+            .ToList();
+
+        var left  = new List<FindingGroup>();
+        var right = new List<FindingGroup>();
+        int lRows = 0, rRows = 0;
+        foreach (var g in groups)
+        {
+            // +1 counts the group header itself so many small groups don't all pile up one side.
+            if (lRows <= rRows) { left.Add(g);  lRows += g.Items.Count + 1; }
+            else                { right.Add(g); rRows += g.Items.Count + 1; }
+        }
+        IcGroupsL.ItemsSource = left;
+        IcGroupsR.ItemsSource = right;
+    }
+
     // ── Scan (the ring is the button) ─────────────────────────────────────
     private async void Ring_Click(object sender, System.Windows.Input.MouseButtonEventArgs? e)
     {
@@ -30,7 +70,8 @@ public partial class HealthCheckPage : UserControl
 
         // Clear the previous scan so old findings don't linger while the new scan runs.
         _findings = new();
-        IcFindings.ItemsSource = null;
+        IcGroupsL.ItemsSource = null;
+        IcGroupsR.ItemsSource = null;
         TxtNoFindings.Visibility = Visibility.Collapsed;
         BtnFixSelected.IsEnabled = false;
         BtnFixSelected.Content = "Fix Selected";   // reset from a previous "Nothing to Fix"
@@ -57,7 +98,7 @@ public partial class HealthCheckPage : UserControl
             });
 
             _findings = report.Findings;
-            IcFindings.ItemsSource = _findings;
+            ShowFindings();
             TxtNoFindings.Visibility = _findings.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
             var color = report.Score >= 85 ? StatusColors.Green

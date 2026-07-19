@@ -180,8 +180,10 @@ public class HardwareInfo
             foreach (ManagementObject o in q.Get())
             {
                 hw.SlotsTotal  = Convert.ToInt32(o["MemoryDevices"] ?? 0);
+                // MaxCapacityEx is in KILOBYTES (unlike most WMI byte fields) — KB → GB is /2^20.
+                // The old /2^30 made every machine read ~0, so "max" never showed (or showed "0 GB").
                 if (o["MaxCapacityEx"] != null)
-                    hw.MaxMemoryGb = Convert.ToDouble(o["MaxCapacityEx"]) / 1073741824.0;
+                    hw.MaxMemoryGb = Convert.ToDouble(o["MaxCapacityEx"]) / 1048576.0;
                 break;
             }
         }

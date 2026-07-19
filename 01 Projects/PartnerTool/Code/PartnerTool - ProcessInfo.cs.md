@@ -76,8 +76,9 @@ public static class ProcessInfo
     }
 
     /// <summary>
-    /// Processes that must never be killed — ending any of these triggers a Windows
-    /// bugcheck (CRITICAL_PROCESS_DIED / 0xEF) and an instant BSOD. We block them outright.
+    /// Processes that must never be killed. The OS ones trigger a Windows bugcheck
+    /// (CRITICAL_PROCESS_DIED / 0xEF) and an instant BSOD; the AV/EDR ones would drop the
+    /// machine's protection (or at best throw access-denied via tamper protection). Blocked outright.
     /// </summary>
     private static readonly HashSet<string> Critical = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -86,6 +87,12 @@ public static class ProcessInfo
         // Killing the wrong svchost (e.g. the RPC/DcomLaunch host) also bugchecks — and the tool
         // can't tell which services an instance hosts, so block them all. Use services.msc instead.
         "svchost",
+        // Security / endpoint protection engines — never kill AV/EDR from a support tool. Mirrors
+        // the guards that already block stopping their services (ServicesInfo.Critical) and
+        // disabling their startup entries (StartupInfo.IsSecurityCritical).
+        "MsMpEng", "NisSrv", "MpDefenderCoreService", "SecurityHealthService", "MsSense",
+        "SentinelAgent", "SentinelHelperService", "SentinelServiceHost", "SentinelStaticEngine",
+        "HuntressAgent", "HuntressRio", "CSFalconService", "CSFalconContainer", "CylanceSvc",
     };
 
     public static bool IsCritical(string name) => Critical.Contains(name);

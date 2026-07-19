@@ -891,7 +891,7 @@ Write-Output 'Windows Update components reset.'
             await RunUtil("winmgmt.exe", "/verifyrepository", null,
                 "WMI verifyrepository", TxtCleanupStatus); Bail();
             await RunUtil("winmgmt.exe", "/salvagerepository", null,
-                "WMI salvagerepository", TxtCleanupStatus);
+                "WMI salvagerepository", TxtCleanupStatus); Bail();   // don't show "Done" if the last step was killed
             Set(TxtCleanupStatus, "● Done", StatusColors.Green);
         }
         catch (OperationCanceledException)
