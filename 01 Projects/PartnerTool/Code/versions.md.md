@@ -25,6 +25,24 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.19.18 — 2026-07-19
+Follow-up to the 0.19.17 cancel work: a code audit for other long operations that couldn't be stopped in-app. Extends cancel to the remaining big ones.
+### Added
+- **Cancel on the CHKDSK scan** (Repair). It already routed through the `_servicingCts` infra added
+  in 0.19.17, so this just surfaces the button and shows "● Cancelled" instead of a false "problems found".
+- **Cancel on Install Selected** (Software). A new `_installCts` is passed into the per-app
+  `ProcessRunner.RunAsync`; clicking Cancel kills the current winget install and the loop stops before
+  the next app.
+- **Soft-cancel on Update All** (Updates). A flag checked between the six sources — the current source
+  finishes, then the run stops and the remaining sources are marked "Skipped — cancelled". Deliberately
+  *soft* (doesn't yank a running WUApi/winget download mid-flight, which risks a half-applied update).
+### Notes (audited, deferred)
+- **WU Reset cancel** was left out on purpose: its script stops WU services and renames
+  SoftwareDistribution/catroot2, so killing it mid-run could leave services stopped — it needs a
+  resilient/resumable script first.
+- Vendor update scans (Dell/HP/winget via `RunCaptureAsync`) still don't log an exit code; low priority
+  since they derive their result from parsed output.
+
 ## 0.19.17 — 2026-07-19
 From a supervised run of every Repair function (all clean; one SFC ran >1 h on this VM and had to be killed externally — nothing in-app could stop it).
 ### Added

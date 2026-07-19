@@ -166,6 +166,9 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top">
                             <Button x:Name="BtnChkdsk" Content="Scan"
                                     Style="{StaticResource ActionButton}" Click="Chkdsk_Click"/>
+                            <Button x:Name="BtnChkdskCancel" Content="Cancel"
+                                    Style="{StaticResource ActionButton}" Margin="0,8,0,0"
+                                    Visibility="Collapsed" Click="CancelServicing_Click"/>
                             <Button x:Name="BtnSchedChkdsk" Content="Schedule /f /r"
                                     Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="SchedChkdsk_Click"/>
                         </StackPanel>

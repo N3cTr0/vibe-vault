@@ -142,6 +142,9 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                         <Button x:Name="BtnUpdateAll" DockPanel.Dock="Right" Content="Start All Updates"
                                 Style="{StaticResource ActionButton}" VerticalAlignment="Top"
                                 Click="UpdateAll_Click"/>
+                        <Button x:Name="BtnUpdateCancel" DockPanel.Dock="Right" Content="Cancel"
+                                Style="{StaticResource ActionButton}" VerticalAlignment="Top" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="CancelUpdate_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="UPDATE ALL" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Sequentially runs: Windows Defender signatures, Windows Update, manufacturer drivers (Dell/Lenovo/HP), all apps via winget, Microsoft Store apps, then launches the Microsoft Office updater (which opens its own progress window)."

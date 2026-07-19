@@ -556,15 +556,19 @@ public partial class RepairPage : UserControl
         // Read-only scan is free — no tech code (matches the temp/installer/feature scans). `chkdsk
         // C: /scan` is an online, non-destructive check; scheduling the /f /r repair is gated below.
         if (!BeginServicing("Check Disk (CHKDSK scan)")) return;
+        ShowCancel(BtnChkdskCancel, true);
         UseLog(ChkdskLogScroll, ChkdskLog);
         Set(TxtChkdskStatus, "Running…", StatusColors.Yellow);
         try
         {
             var code = await RunUtil("chkdsk.exe", "C: /scan", null, "CHKDSK C: /scan (online)", TxtChkdskStatus);
-            Set(TxtChkdskStatus, code == 0 ? "● No problems found" : "● Problems found — run chkdsk /f /r",
-                code == 0 ? StatusColors.Green : StatusColors.Yellow);
+            if (_servicingCts?.IsCancellationRequested == true)
+                Set(TxtChkdskStatus, "● Cancelled", StatusColors.Yellow);
+            else
+                Set(TxtChkdskStatus, code == 0 ? "● No problems found" : "● Problems found — run chkdsk /f /r",
+                    code == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
-        finally { EndServicing(); SaveLog("Chkdsk"); }
+        finally { ShowCancel(BtnChkdskCancel, false); EndServicing(); SaveLog("Chkdsk"); }
     }
 
     // ── WINDOWS INSTALLER CLEANUP (Adobe bloat) ───────────────────────────

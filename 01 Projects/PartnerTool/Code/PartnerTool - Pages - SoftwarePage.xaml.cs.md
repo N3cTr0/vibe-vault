@@ -9,6 +9,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml.cs
 ```csharp
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -20,6 +21,7 @@ public partial class SoftwarePage : UserControl
     private bool _busy;
     private bool _checking;
     private bool _detectedOnce;
+    private CancellationTokenSource? _installCts;   // cancels an in-flight Install Selected batch
 
     public SoftwarePage()
     {
@@ -320,12 +322,18 @@ public partial class SoftwarePage : UserControl
         _busy = true;
         BtnInstall.IsEnabled = false;
         BtnInstall.Content   = "Installing…";
+        _installCts = new CancellationTokenSource();
+        BtnInstallCancel.Content = "Cancel";
+        BtnInstallCancel.IsEnabled = true;
+        BtnInstallCancel.Visibility = Visibility.Visible;
         TxtLog.Text          = "";
 
         var winget = WingetLocator.Path();
         if (winget.Length == 0)
         {
             Log("✗ " + WingetLocator.Unavailable);
+            _installCts.Dispose(); _installCts = null;
+            BtnInstallCancel.Visibility = Visibility.Collapsed;
             _busy = false;
             BtnInstall.IsEnabled = true;
             BtnInstall.Content   = "Install Selected";
@@ -336,18 +344,21 @@ public partial class SoftwarePage : UserControl
         {
             foreach (var (name, id) in apps)
             {
+                if (_installCts.IsCancellationRequested) { Log("━━━ Cancelled — remaining installs skipped ━━━"); break; }
                 Log($"▶ Installing {name}");
                 ActivityLog.Action("Software", $"Install {name} ({id})");
                 var code = await ProcessRunner.RunAsync(winget,
                     $"install --id {id} -e --silent --accept-source-agreements --accept-package-agreements --disable-interactivity",
-                    System.Text.Encoding.UTF8, l => Log($"  {l}"));
+                    System.Text.Encoding.UTF8, l => Log($"  {l}"), null, _installCts.Token);
                 Log(code == 0 ? "  ✓ done" : $"  finished (exit {code})");
             }
-            Log("━━━ Install complete ━━━");
+            if (!_installCts.IsCancellationRequested) Log("━━━ Install complete ━━━");
         }
         catch (Exception ex) { Log($"  Error: {ex.Message}"); }
         finally
         {
+            BtnInstallCancel.Visibility = Visibility.Collapsed;
+            _installCts?.Dispose(); _installCts = null;
             _busy = false;
             BtnInstall.IsEnabled = true;
             BtnInstall.Content   = "Install Selected";
@@ -356,6 +367,14 @@ public partial class SoftwarePage : UserControl
         // Re-scan registry + winget so anything we just installed flips to ticked & locked.
         await LoadAsync();
         await RefreshInstalledStateAsync();
+    }
+
+    private void CancelInstall_Click(object sender, RoutedEventArgs e)
+    {
+        // Kills the current winget install; the loop then stops before the next app.
+        _installCts?.Cancel();
+        BtnInstallCancel.IsEnabled = false;
+        BtnInstallCancel.Content   = "Cancelling…";
     }
 
     private static IEnumerable<CheckBox> AllCheckBoxes(DependencyObject root)

@@ -212,6 +212,7 @@ public partial class UpdatesPage : UserControl
     // ── UPDATE ALL ────────────────────────────────────────────────────────
 
     private UpdateTask? _tDefender, _tWinUpdate, _tManufacturer, _tWinget, _tStore, _tOffice;
+    private bool _updateCancel;   // soft-cancel: stop Update All between sources (doesn't kill a running source)
 
     private async void UpdateAll_Click(object sender, RoutedEventArgs e)
     {
@@ -240,6 +241,10 @@ public partial class UpdatesPage : UserControl
         ActivityLog.Action("Updates", "Update all (Defender signatures + Windows Update + manufacturer tool + winget upgrade)");
         BtnUpdateAll.IsEnabled = false;
         BtnUpdateAll.Content   = "Running…";
+        _updateCancel = false;
+        BtnUpdateCancel.Content = "Cancel";
+        BtnUpdateCancel.IsEnabled = true;
+        BtnUpdateCancel.Visibility = Visibility.Visible;
         TxtLog.Text            = "";
 
         _tDefender    = new UpdateTask { Name = "Windows Defender Signatures" };
@@ -254,13 +259,23 @@ public partial class UpdatesPage : UserControl
 
         try
         {
-            await RunDefenderUpdate(_tDefender);
-            await RunWindowsUpdate(_tWinUpdate);
-            await RunManufacturerUpdate(_tManufacturer);
-            await RunWinget(_tWinget);
-            await RunStoreUpdate(_tStore);
+            // Soft-cancel: finish the current source, then stop before the next (doesn't kill a
+            // running download — safer than yanking a WUApi/winget operation mid-flight).
+            void Stop() { if (_updateCancel) throw new OperationCanceledException(); }
+            await RunDefenderUpdate(_tDefender);          Stop();
+            await RunWindowsUpdate(_tWinUpdate);          Stop();
+            await RunManufacturerUpdate(_tManufacturer);  Stop();
+            await RunWinget(_tWinget);                    Stop();
+            await RunStoreUpdate(_tStore);                Stop();
             await RunOfficeUpdate(_tOffice);
             Log("━━━ All tasks complete ━━━");
+        }
+        catch (OperationCanceledException)
+        {
+            Log("━━━ Cancelled — remaining updates skipped ━━━");
+            foreach (var t in new[] { _tDefender, _tWinUpdate, _tManufacturer, _tWinget, _tStore, _tOffice })
+                if (t is { } tt && (string.IsNullOrEmpty(tt.StatusText) || tt.StatusText == "Pending"))
+                    Set(tt, "Skipped — cancelled", StatusColors.Muted);
         }
         catch (Exception ex)
         {
@@ -268,11 +283,20 @@ public partial class UpdatesPage : UserControl
         }
         finally
         {
+            BtnUpdateCancel.Visibility = Visibility.Collapsed;
             BtnUpdateAll.Content   = "Run Again";
             BtnUpdateAll.IsEnabled = true;
             SaveLog();
             ServicingLock.Release();
         }
+    }
+
+    private void CancelUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        // Soft-cancel: the current source finishes, then Update All stops before the next one.
+        _updateCancel = true;
+        BtnUpdateCancel.IsEnabled = false;
+        BtnUpdateCancel.Content   = "Cancelling…";
     }
 
     // ── helpers ───────────────────────────────────────────────────────────

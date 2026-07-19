@@ -36,6 +36,9 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
                         <Button x:Name="BtnInstall" DockPanel.Dock="Right" Content="Install Selected"
                                 Style="{StaticResource ActionButton}" VerticalAlignment="Top"
                                 Click="InstallSelected_Click"/>
+                        <Button x:Name="BtnInstallCancel" DockPanel.Dock="Right" Content="Cancel"
+                                Style="{StaticResource ActionButton}" VerticalAlignment="Top" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="CancelInstall_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="INSTALL SOFTWARE" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Tick the apps to install, then click Install Selected. Everything installs silently via winget. Apps already on this PC are ticked and locked."
