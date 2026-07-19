@@ -25,6 +25,24 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.19.19 — 2026-07-19
+Found while live-testing the in-app uninstall (removed PuTTY via the Software page). The removal worked, but the installed-software list never refreshed to reflect it.
+### Fixed
+- **Installed-software list now has a working Refresh.** `EnsureLoadedAsync` builds the list once per
+  app run (guarded by `_detectedOnce`) and the search box only *filters* the cached list, so after an
+  uninstall the removed app lingered until the app was restarted. Added a **Refresh** button above the
+  list (`SoftwareRefresh_Click`) that re-reads the registry (`LoadAsync`) **and** re-runs the winget
+  "already installed" detection (`RefreshInstalledStateAsync`) — so a removed app both drops off the
+  list and unlocks in the install catalog.
+- **Corrected the uninstall confirm text.** It told the tech to "hit Refresh (clear the search box)"
+  to update the list — but clearing the search only re-filters the stale cache. Now points at the new
+  Refresh button.
+- **Refresh clears an install checkbox's stale auto-tick.** `ApplyInstalled` ticks + locks a catalog
+  app that's detected installed, but never un-ticked it when it later reads as *not* installed — so
+  after uninstalling (e.g. PuTTY, which is also in the install catalog) + Refresh, the box unlocked but
+  stayed ticked, looking pre-selected for install. It now clears a tick that was auto-set by detection
+  (ticked **and** locked) while preserving a tech's own manual tick (ticked + already enabled).
+
 ## 0.19.18 — 2026-07-19
 Follow-up to the 0.19.17 cancel work: a code audit for other long operations that couldn't be stopped in-app. Extends cancel to the remaining big ones.
 ### Added

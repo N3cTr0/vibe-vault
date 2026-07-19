@@ -151,6 +151,12 @@ public partial class SoftwarePage : UserControl
             }
             else
             {
+                // Clear a *stale auto-tick*: a box that's currently ticked AND locked was ticked by a
+                // previous detection pass, not the tech (manual ticks are always enabled). On a refresh
+                // after an uninstall this drops the leftover "selected" look. A tech's own tick
+                // (ticked + already enabled) is preserved.
+                if (cb.IsChecked == true && !cb.IsEnabled)
+                    cb.IsChecked = false;
                 cb.IsEnabled = true;
                 cb.ToolTip   = null;
             }
@@ -212,6 +218,27 @@ public partial class SoftwarePage : UserControl
     private void Search_Changed(object sender, TextChangedEventArgs e)
         => ApplyFilter(SearchBox.Text);
 
+    // Re-read the installed-software list AND re-run the winget "already installed" detection.
+    // The list is otherwise built once per app run (EnsureLoadedAsync is guarded), so after an
+    // uninstall the removed app would linger in the list — and stay ticked/locked in the install
+    // catalog — until restart without this. Keeps the current search filter.
+    private async void SoftwareRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy || _checking) return;
+        BtnSoftwareRefresh.IsEnabled = false;
+        InstallLoadingOverlay.Visibility = Visibility.Visible;
+        try
+        {
+            await LoadAsync();                  // rebuild the installed-software list (registry)
+            await RefreshInstalledStateAsync(); // re-detect + re-lock install checkboxes (winget)
+        }
+        finally
+        {
+            InstallLoadingOverlay.Visibility = Visibility.Collapsed;
+            BtnSoftwareRefresh.IsEnabled = true;
+        }
+    }
+
     private void ApplyFilter(string query)
     {
         var filtered = string.IsNullOrWhiteSpace(query)
@@ -245,7 +272,7 @@ public partial class SoftwarePage : UserControl
 
         if (!MessageWindow.Confirm("Uninstall", $"Uninstall {app.Name}?",
                 "This launches the program's own uninstaller. Follow its prompts to finish, then hit " +
-                "Refresh (clear the search box) to update the list.", MessageKind.Warning, Window.GetWindow(this)))
+                "the Refresh button above the list to update it.", MessageKind.Warning, Window.GetWindow(this)))
             return;
         ActivityLog.Action("Software", $"Uninstall {app.Name} — {app.Uninstall}");
         try
