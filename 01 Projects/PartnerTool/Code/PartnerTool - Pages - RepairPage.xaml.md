@@ -141,6 +141,9 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         <Button x:Name="BtnCleanup" DockPanel.Dock="Right" Content="Run"
                                 Style="{StaticResource ActionButton}" VerticalAlignment="Top"
                                 Click="Cleanup_Click"/>
+                        <Button x:Name="BtnCleanupCancel" DockPanel.Dock="Right" Content="Cancel"
+                                Style="{StaticResource ActionButton}" VerticalAlignment="Top" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="CancelServicing_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="ADVANCED CLEANUP (WinSxS + WMI)" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Analyzes and shrinks the component store (DISM StartComponentCleanup) and verifies / salvages the WMI repository. Frees disk space and repairs the WMI store that powers system queries. No reboot required."
@@ -293,6 +296,9 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         <Button x:Name="BtnFullRepair" DockPanel.Dock="Right" Content="Run Full Repair"
                                 Style="{StaticResource ActionButton}" VerticalAlignment="Top"
                                 Click="FullRepair_Click"/>
+                        <Button x:Name="BtnFullRepairCancel" DockPanel.Dock="Right" Content="Cancel"
+                                Style="{StaticResource ActionButton}" VerticalAlignment="Top" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="CancelServicing_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="SYSTEM FILE &amp; IMAGE REPAIR" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Runs the standard no-reboot repair sequence: DISM CheckHealth → ScanHealth → RestoreHealth, then SFC /scannow. DISM runs first on purpose — SFC repairs system files from the component store that DISM restores. This can take 15–40 minutes; each step shows live progress and elapsed time."

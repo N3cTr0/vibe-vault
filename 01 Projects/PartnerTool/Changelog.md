@@ -25,6 +25,25 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.19.17 — 2026-07-19
+From a supervised run of every Repair function (all clean; one SFC ran >1 h on this VM and had to be killed externally — nothing in-app could stop it).
+### Added
+- **Cancel button on the long servicing operations** (Full Repair and Advanced Cleanup). A shared
+  `_servicingCts` is created in `BeginServicing`, threaded through `RunWithProgress` into
+  `ProcessRunner.RunAsync` (which kills the process tree and still logs the exit), and disposed in
+  `EndServicing`. The sequence bails between steps on cancel, so a stuck/slow DISM or SFC can now be
+  stopped from inside the app instead of killing the process from Task Manager.
+### Changed
+- **WinHTTP proxy reset now logs its exit code.** It used `RunCaptureAsync`, which records the command
+  but not the result; switched to `RunAsync` so the activity log gets `-> exit N` like every other
+  command (the status color now reflects the exit too).
+### Verified (not a bug)
+- SFC /scannow taking >1 hour on this VM was **slow, not hung** — CBS was continuously verifying the
+  18 GB component store in 100-component batches (~1.7 min each) with TiWorker doing the work, right up
+  to the manual kill; zero corruption found. Root cause: virtualized I/O verifying a large store right
+  after a 27-min DISM RestoreHealth. The app recorded the killed SFC as exit 1 and released the
+  servicing lock cleanly.
+
 ## 0.19.16 — 2026-07-19
 Network reset wording + behavior, from supervised testing of the reboot-causing actions.
 ### Changed

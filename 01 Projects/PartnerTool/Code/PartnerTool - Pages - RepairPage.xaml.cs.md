@@ -152,11 +152,13 @@ public partial class RepairPage : UserControl
         TxtProxyStatus.Foreground = StatusColors.Yellow;
         try
         {
-            ActivityLog.Command("Proxy", "netsh.exe", "winhttp reset proxy");
-            var outp = await ProcessRunner.RunCaptureAsync("netsh.exe", "winhttp reset proxy", 15000);
-            var line = outp.Replace("\r", " ").Replace("\n", " ").Trim();
+            // RunAsync (not RunCaptureAsync) so the command AND its exit code are audit-logged.
+            var sb = new StringBuilder();
+            var code = await ProcessRunner.RunAsync("netsh.exe", "winhttp reset proxy", null,
+                                                    l => { lock (sb) sb.AppendLine(l); });
+            var line = sb.ToString().Replace("\r", " ").Replace("\n", " ").Trim();
             TxtProxyStatus.Text = $"WinHTTP proxy reset to direct.  {line}   ·   {ProxyRepair.CurrentState()}";
-            TxtProxyStatus.Foreground = StatusColors.Green;
+            TxtProxyStatus.Foreground = code == 0 ? StatusColors.Green : StatusColors.Yellow;
         }
         catch (Exception ex) { TxtProxyStatus.Text = ex.Message; TxtProxyStatus.Foreground = StatusColors.Red; }
         finally { BtnResetWinhttp.IsEnabled = true; }
@@ -229,6 +231,10 @@ public partial class RepairPage : UserControl
     /// (DISM, SFC, CHKDSK, Windows Update work) — so they can't overlap Update All (or each
     /// other across pages). Pair with <see cref="EndServicing"/> in the handler's finally.
     /// </summary>
+    // Cancels the process of the currently-running servicing op (DISM/SFC/etc). Created when a
+    // servicing op starts, so its Cancel button — and RunWithProgress — can kill a stuck/slow run.
+    private CancellationTokenSource? _servicingCts;
+
     private bool BeginServicing(string operation)
     {
         if (!ServicingLock.TryAcquire(operation))
@@ -240,13 +246,29 @@ public partial class RepairPage : UserControl
             return false;
         }
         if (!BeginBusy()) { ServicingLock.Release(); return false; }
+        _servicingCts = new CancellationTokenSource();
         return true;
     }
 
     private void EndServicing()
     {
         EndBusy();
+        _servicingCts?.Dispose();
+        _servicingCts = null;
         ServicingLock.Release();
+    }
+
+    /// <summary>Show/reset or hide a per-card Cancel button around a servicing op.</summary>
+    private static void ShowCancel(Button btn, bool show)
+    {
+        btn.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show) { btn.IsEnabled = true; btn.Content = "Cancel"; }
+    }
+
+    private void CancelServicing_Click(object sender, RoutedEventArgs e)
+    {
+        _servicingCts?.Cancel();
+        if (sender is Button b) { b.IsEnabled = false; b.Content = "Cancelling…"; }
     }
 
     private bool BeginBusy()
@@ -385,7 +407,8 @@ public partial class RepairPage : UserControl
         {
             code = await ProcessRunner.RunAsync(exe, args, enc,
                 line => { lock (sb) { sb.AppendLine(line); } Log($"  {line}"); },
-                pct  => lastPct = pct);
+                pct  => lastPct = pct,
+                cancel: _servicingCts?.Token ?? default);   // Cancel button kills the running process
         }
         finally
         {
@@ -438,6 +461,7 @@ public partial class RepairPage : UserControl
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (!BeginServicing("System File & Image Repair")) return;
         BtnFullRepair.Content = "Running…";
+        ShowCancel(BtnFullRepairCancel, true);
         UseLog(FullRepairLogScroll, FullRepairLog);
 
         var tCheck   = new UpdateTask { Name = "DISM — CheckHealth" };
@@ -451,12 +475,18 @@ public partial class RepairPage : UserControl
         try
         {
             // DISM first, then SFC — SFC repairs system files from the component store
-            // that DISM restores, so the store must be healthy before SFC runs.
-            await RunDismScan(tCheck, "/CheckHealth", "DISM CheckHealth (quick)");
-            await RunDismScan(tScan,  "/ScanHealth",  "DISM ScanHealth (full scan)");
-            await RunDismRestore(tRestore);
-            await RunSfc(tSfc);
+            // that DISM restores, so the store must be healthy before SFC runs. Bail between
+            // steps if the tech hit Cancel (the running process is killed inside RunWithProgress).
+            void Bail() { if (_servicingCts?.IsCancellationRequested == true) throw new OperationCanceledException(); }
+            await RunDismScan(tCheck, "/CheckHealth", "DISM CheckHealth (quick)");   Bail();
+            await RunDismScan(tScan,  "/ScanHealth",  "DISM ScanHealth (full scan)"); Bail();
+            await RunDismRestore(tRestore);                                          Bail();
+            await RunSfc(tSfc);                                                       Bail();
             Log("━━━ Full repair complete ━━━");
+        }
+        catch (OperationCanceledException)
+        {
+            Log("━━━ Cancelled — stopped at the tech's request ━━━");
         }
         catch (Exception ex)
         {
@@ -464,6 +494,7 @@ public partial class RepairPage : UserControl
         }
         finally
         {
+            ShowCancel(BtnFullRepairCancel, false);
             BtnFullRepair.Content = "Run Again";
             EndServicing();
             SaveLog("Repair");
@@ -843,25 +874,31 @@ Write-Output 'Windows Update components reset.'
     {
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (!BeginServicing("Advanced Cleanup (WinSxS + WMI)")) return;
+        ShowCancel(BtnCleanupCancel, true);
         UseLog(CleanupLogScroll, CleanupLog);
         Set(TxtCleanupStatus, "Running…", StatusColors.Yellow);
         try
         {
+            void Bail() { if (_servicingCts?.IsCancellationRequested == true) throw new OperationCanceledException(); }
             await RunUtil("dism.exe", "/Online /Cleanup-Image /AnalyzeComponentStore", null,
-                "DISM AnalyzeComponentStore", TxtCleanupStatus);
+                "DISM AnalyzeComponentStore", TxtCleanupStatus); Bail();
             await RunUtil("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup", null,
-                "DISM StartComponentCleanup", TxtCleanupStatus);
+                "DISM StartComponentCleanup", TxtCleanupStatus); Bail();
             await RunUtil("winmgmt.exe", "/verifyrepository", null,
-                "WMI verifyrepository", TxtCleanupStatus);
+                "WMI verifyrepository", TxtCleanupStatus); Bail();
             await RunUtil("winmgmt.exe", "/salvagerepository", null,
                 "WMI salvagerepository", TxtCleanupStatus);
             Set(TxtCleanupStatus, "● Done", StatusColors.Green);
+        }
+        catch (OperationCanceledException)
+        {
+            Set(TxtCleanupStatus, "● Cancelled", StatusColors.Yellow);
         }
         catch (Exception ex)
         {
             Set(TxtCleanupStatus, $"● Error: {ex.Message}", StatusColors.Red);
         }
-        finally { EndServicing(); SaveLog("Cleanup"); }
+        finally { ShowCancel(BtnCleanupCancel, false); EndServicing(); SaveLog("Cleanup"); }
     }
 
     // ── MAINTENANCE (moved from the old Actions tab) ──────────────────────
