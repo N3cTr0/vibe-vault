@@ -25,6 +25,25 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.0 — 2026-07-19
+New Processes page (MINOR bump — new page/feature).
+### Added
+- **Processes page — a Task Manager clone**, in the sidebar right under System Info. Live view of
+  every process, auto-refreshing every 2 s, with the columns real Task Manager shows where readable
+  without ETW: Name (tooltip = exe path), PID, Status (Running / Not responding), User, CPU %
+  (delta-sampled across all cores), Memory (private bytes), Disk (per-process read+write rate from
+  IO counters), Threads, Handles, Architecture, and Description. Search box (name/PID/user/desc),
+  click-to-sort headers (numeric columns start descending), Pause/Resume, selection preserved across
+  refreshes, and a guarded End Task (same protected-process list as Diagnostics; confirm + activity
+  log). Per-process Network isn't shown — it needs an ETW trace session, noted on the card.
+- **Search bars for Drivers and Scheduled Tasks** (Manage) — same placeholder style and
+  "N of M" counts as the Services search. Drivers matches device/provider/version; Tasks matches name.
+### Changed
+- **Device Manager shortcut relabelled "Device Manager (admin)"** with a tooltip spelling out that
+  it inherits the tool's elevation — devices (e.g. network adapters) can be uninstalled from it,
+  which a standard user's read-only Device Manager can't do. (No code change needed: the tool always
+  launched it elevated; now the button says so.)
+
 ## 0.19.20 — 2026-07-19
 From a full screenshot review of every page plus a code re-read of the day's diff.
 ### Fixed

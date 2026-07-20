@@ -134,6 +134,32 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <!-- SCHEDULED TASKS -->
             <Border x:Name="SecTasks" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="#45475A" CornerRadius="6" Padding="10,0" Margin="0,0,0,8">
+                        <TextBox x:Name="TxtTaskSearch" Foreground="#CDD6F4" FontSize="12"
+                                 BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="TaskSearch_TextChanged">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Style.Resources>
+                                        <VisualBrush x:Key="ph" Stretch="None" AlignmentX="Left">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="Search scheduled tasks by name…" Foreground="#6C7086" FontSize="12"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Style.Resources>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Text" Value=""/>
+                                                <Condition Property="IsKeyboardFocused" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="{StaticResource ph}"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
                     <TextBlock DockPanel.Dock="Top" x:Name="TxtTasksStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
                     <ListBox x:Name="LstTasks" Style="{StaticResource PlainList}">
                         <ListBox.ItemTemplate>
@@ -159,6 +185,32 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <!-- DRIVERS -->
             <Border x:Name="SecDrivers" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="#45475A" CornerRadius="6" Padding="10,0" Margin="0,0,0,8">
+                        <TextBox x:Name="TxtDriverSearch" Foreground="#CDD6F4" FontSize="12"
+                                 BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="DriverSearch_TextChanged">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Style.Resources>
+                                        <VisualBrush x:Key="ph" Stretch="None" AlignmentX="Left">
+                                            <VisualBrush.Visual>
+                                                <TextBlock Text="Search drivers by device, provider, or version…" Foreground="#6C7086" FontSize="12"/>
+                                            </VisualBrush.Visual>
+                                        </VisualBrush>
+                                    </Style.Resources>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="Text" Value=""/>
+                                                <Condition Property="IsKeyboardFocused" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="{StaticResource ph}"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Border>
                     <TextBlock DockPanel.Dock="Top" x:Name="TxtDriversStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
                     <ListBox x:Name="LstDrivers" Style="{StaticResource PlainList}">
                         <ListBox.ItemTemplate>

@@ -69,7 +69,8 @@ source-path: PartnerTool\Pages\ShortcutsPage.xaml
                     <TextBlock Text="SYSTEM" Style="{StaticResource CardTitle}"/>
                     <UniformGrid Columns="3">
                         <Button Content="Computer Management" Style="{StaticResource ToolButton}" Tag="compmgmt.msc" Click="Tool_Click" Margin="0,0,8,8"/>
-                        <Button Content="Device Manager"      Style="{StaticResource ToolButton}" Tag="devmgmt.msc"  Click="Tool_Click" Margin="0,0,8,8"/>
+                        <Button Content="Device Manager (admin)" Style="{StaticResource ToolButton}" Tag="devmgmt.msc" Click="Tool_Click" Margin="0,0,8,8"
+                                ToolTip="Opens elevated (inherits this tool's admin rights), so devices can be uninstalled — e.g. removing network adapters for a reinstall. A plain Device Manager opened by a standard user is read-only."/>
                         <Button Content="DirectX Diagnostic"  Style="{StaticResource ToolButton}" Tag="dxdiag.exe"   Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Disk Management"     Style="{StaticResource ToolButton}" Tag="diskmgmt.msc" Click="Tool_Click" Margin="0,0,8,8"/>
                         <Button Content="Event Viewer"        Style="{StaticResource ToolButton}" Tag="eventvwr.msc" Click="Tool_Click" Margin="0,0,8,8"/>

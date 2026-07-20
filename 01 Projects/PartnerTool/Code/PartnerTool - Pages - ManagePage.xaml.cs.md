@@ -175,24 +175,57 @@ public partial class ManagePage : UserControl
     }
 
     // ── Tasks ────────────────────────────────────────────────
+    private List<ScheduledTaskItem> _allTasks = new();
+
     private async Task LoadTasks()
     {
         TxtTasksStatus.Text = "Loading…";
-        var tasks = await ScheduledTasksInfo.CollectAsync();
-        LstTasks.ItemsSource = tasks;
-        TxtTasksStatus.Text = tasks.Count > 0
-            ? $"{tasks.Count} scheduled tasks"
-            : "No scheduled tasks found (or they couldn't be read)";
+        _allTasks = await ScheduledTasksInfo.CollectAsync();
+        FilterTasks();
+    }
+
+    private void TaskSearch_TextChanged(object sender, TextChangedEventArgs e) => FilterTasks();
+
+    private void FilterTasks()
+    {
+        var q = TxtTaskSearch.Text?.Trim() ?? "";
+        var shown = string.IsNullOrEmpty(q)
+            ? _allTasks
+            : _allTasks.Where(t => t.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        LstTasks.ItemsSource = shown;
+        TxtTasksStatus.Text = _allTasks.Count == 0
+            ? "No scheduled tasks found (or they couldn't be read)"
+            : string.IsNullOrEmpty(q)
+                ? $"{_allTasks.Count} scheduled tasks"
+                : $"{shown.Count} of {_allTasks.Count} scheduled tasks";
     }
 
     // ── Drivers ──────────────────────────────────────────────
+    private List<DriverItem> _allDrivers = new();
+
     private async Task LoadDrivers()
     {
         TxtDriversStatus.Text = "Loading…";
-        var drivers = await Task.Run(DriversInfo.Collect);
-        LstDrivers.ItemsSource = drivers;
-        int unsigned = drivers.Count(d => d.Signed == false);
-        TxtDriversStatus.Text = $"{drivers.Count} drivers" + (unsigned > 0 ? $"  ·  {unsigned} unsigned" : "");
+        _allDrivers = await Task.Run(DriversInfo.Collect);
+        FilterDrivers();
+    }
+
+    private void DriverSearch_TextChanged(object sender, TextChangedEventArgs e) => FilterDrivers();
+
+    private void FilterDrivers()
+    {
+        var q = TxtDriverSearch.Text?.Trim() ?? "";
+        var shown = string.IsNullOrEmpty(q)
+            ? _allDrivers
+            : _allDrivers.Where(d => d.Device.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                     d.Provider.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                     d.Version.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        LstDrivers.ItemsSource = shown;
+        int unsigned = _allDrivers.Count(d => d.Signed == false);
+        var suffix = unsigned > 0 ? $"  ·  {unsigned} unsigned" : "";
+        TxtDriversStatus.Text = string.IsNullOrEmpty(q)
+            ? $"{_allDrivers.Count} drivers{suffix}"
+            : $"{shown.Count} of {_allDrivers.Count} drivers{suffix}";
     }
 
     // ── Hosts ────────────────────────────────────────────────
