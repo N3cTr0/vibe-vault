@@ -25,6 +25,12 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.1 — 2026-07-20
+### Changed
+- **Health Check: Junk moved up one slot in the group order** (now Security, Stability, Disk, Junk,
+  Updates, …). With the column balancing this puts Junk directly under Stability in the right column
+  and keeps the two columns even.
+
 ## 0.20.0 — 2026-07-19
 New Processes page (MINOR bump — new page/feature).
 ### Added

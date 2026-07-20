@@ -34,7 +34,7 @@ public partial class HealthCheckPage : UserControl
     // Fixed display order — problem areas a tech acts on first, OEM-specific last. Categories
     // not listed (future additions) fall to the end alphabetically.
     private static readonly string[] GroupOrder =
-        ["Security", "Stability", "Disk", "Updates", "Junk", "Startup", "Shortcuts", "Maintenance", "Dell"];
+        ["Security", "Stability", "Disk", "Junk", "Updates", "Startup", "Shortcuts", "Maintenance", "Dell"];
 
     /// <summary>
     /// Group findings by category and split the groups across the two columns, keeping the
