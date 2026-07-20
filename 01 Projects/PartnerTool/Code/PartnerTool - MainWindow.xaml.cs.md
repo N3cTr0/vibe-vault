@@ -20,7 +20,6 @@ public partial class MainWindow : Window
     private Button? _activeNav;
 
     private readonly SystemInfoPage _sysInfoPage  = new();
-    private readonly ProcessesPage  _processesPage = new();
     private readonly NetworkPage    _networkPage  = new();
     private readonly SecurityPage   _securityPage = new();
     private readonly DiagnosticsPage _diagPage    = new();
@@ -192,7 +191,6 @@ public partial class MainWindow : Window
             "Repair"    => BtnNavRepair,
             "DiskUsage" => BtnNavDiskUsage,
             "Health"    => BtnNavHealth,
-            "Processes" => BtnNavProcesses,
             _           => BtnNavSysInfo,
         };
         UserControl page = tag switch
@@ -207,7 +205,6 @@ public partial class MainWindow : Window
             "Repair"    => _repairPage,
             "DiskUsage" => _diskUsagePage,
             "Health"    => _healthPage,
-            "Processes" => _processesPage,
             _           => _sysInfoPage,
         };
         Activate(btn, page);

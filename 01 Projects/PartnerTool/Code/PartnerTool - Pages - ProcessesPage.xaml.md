@@ -41,8 +41,9 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
         </Style>
     </UserControl.Resources>
 
+    <!-- Hosted inside the Performance window's right pane (no page-level margins needed). -->
     <Grid Background="#1E1E2E">
-        <Border Style="{StaticResource Card}" Margin="20,16,20,16">
+        <Border Style="{StaticResource Card}" Margin="0">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top">
                     <Button x:Name="BtnPause" DockPanel.Dock="Right" Content="Pause"
@@ -83,6 +84,14 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
                     </TextBox>
                 </Border>
 
+                <!-- Header + rows share one horizontal scroll surface: below ~860px the fixed
+                     columns would otherwise crush the star-sized Name/Description to nothing.
+                     Width is pinned to the viewport (not left to content) because a horizontal
+                     ScrollViewer measures children with infinite width — star columns would size
+                     per-row to their content and every row would misalign. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <DockPanel MinWidth="860"
+                           Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                 <!-- Column headers (click to sort, click again to flip) -->
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
@@ -162,6 +171,8 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+                </DockPanel>
+                </ScrollViewer>
             </DockPanel>
         </Border>
     </Grid>

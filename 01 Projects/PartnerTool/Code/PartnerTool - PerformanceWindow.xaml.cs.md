@@ -67,13 +67,14 @@ public partial class PerformanceWindow : Window
 
     private static string Normalize(string r) => r.ToLowerInvariant() switch
     {
-        "mem" or "memory"  => "mem",
-        "disk"             => "disk",
-        "net" or "network" => "net",
-        _                  => "cpu",
+        "mem" or "memory"       => "mem",
+        "disk"                  => "disk",
+        "net" or "network"      => "net",
+        "proc" or "processes"   => "proc",
+        _                       => "cpu",
     };
 
-    private void Tile_Click(object sender, MouseButtonEventArgs e)
+    private void Tile_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string tag }) Select(Normalize(tag));
     }
@@ -81,15 +82,30 @@ public partial class PerformanceWindow : Window
     private void Select(string res)
     {
         _sel = res;
+        Mark(TileProc, res == "proc");
         Mark(TileCpu,  res == "cpu");
         Mark(TileMem,  res == "mem");
         Mark(TileDisk, res == "disk");
         Mark(TileNet,  res == "net");
 
-        static void Mark(System.Windows.Controls.Border tile, bool on)
+        static void Mark(System.Windows.Controls.Button tile, bool on)
         {
-            tile.BorderBrush     = on ? SelBorder : OffBorder;
+            tile.BorderBrush     = on ? SelBorder : OffBorder;   // template-bound into the tile border
             tile.BorderThickness = new Thickness(on ? 1.8 : 1);
+        }
+
+        // Processes swaps the whole right side for the live process list (its own 2 s sampler
+        // starts/stops with visibility). Created on first use so the window opens fast.
+        bool proc = res == "proc";
+        if (proc && ProcHost.Content == null) ProcHost.Content = new Pages.ProcessesPage();
+        ProcHost.Visibility  = proc ? Visibility.Visible   : Visibility.Collapsed;
+        GraphCard.Visibility = proc ? Visibility.Collapsed : Visibility.Visible;
+        IcStats.Visibility   = proc ? Visibility.Collapsed : Visibility.Visible;
+        if (proc)
+        {
+            TxtResTitle.Text = "Processes";
+            TxtResSub.Text   = "";
+            return;
         }
 
         // CPU shows the per-logical-processor grid; everything else shows one overall graph.
@@ -150,8 +166,9 @@ public partial class PerformanceWindow : Window
             if (_tick % 5 == 0)
                 try { _counts = await System.Threading.Tasks.Task.Run(PerfDetails.ProcessCounts); } catch { }
             _tick++;
+            TxtProcRail.Text = _counts.procs > 0 ? $"{_counts.procs} running" : "—";
 
-            RenderStats();
+            if (_sel != "proc") RenderStats();   // the Processes view has no stats panel
         }
         catch { }
         finally { _ticking = false; }

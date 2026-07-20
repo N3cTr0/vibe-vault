@@ -141,9 +141,9 @@ source-path: PartnerTool\MainWindow.xaml
                     <!-- Nav buttons -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="8,14,8,0">
-                        <!-- System Info first (Processes rides with it); everything below alphabetical -->
+                        <!-- System Info first; everything below it alphabetical.
+                             (Processes lives inside the Performance window, not the sidebar.) -->
                         <Button x:Name="BtnNavSysInfo"  Content="System Info"  Style="{StaticResource NavBtnActive}" Click="NavBtn_Click" Tag="SysInfo"/>
-                        <Button x:Name="BtnNavProcesses" Content="Processes"   Style="{StaticResource NavBtn}"       Click="NavBtn_Click" Tag="Processes"/>
                         <Button x:Name="BtnNavDiag"     Content="Diagnostics"  Style="{StaticResource NavBtn}"       Click="NavBtn_Click" Tag="Diag"/>
                         <Button x:Name="BtnNavDiskUsage" Content="Disk Usage"  Style="{StaticResource NavBtn}"       Click="NavBtn_Click" Tag="DiskUsage"/>
                         <Button x:Name="BtnNavManage"   Content="Manage"       Style="{StaticResource NavBtn}"       Click="NavBtn_Click" Tag="Manage"/>

@@ -25,6 +25,20 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.2 — 2026-07-20
+### Changed
+- **Processes moved into the Performance window** (was a sidebar tab in 0.20.0). The window's left
+  rail is now Processes / CPU / Memory / Disk / Network — like real Task Manager — with a live
+  "N running" count on the tile. Selecting Processes swaps the right pane for the process list
+  (created on first click; its 2 s sampler starts/stops with visibility). The sidebar tab is gone.
+- **Rail tiles are now real Buttons** (styled identically) instead of Borders with mouse handlers —
+  keyboard- and UI-Automation-accessible. Performance window default size 900×600 → 1280×680 so the
+  process columns fit without scrolling.
+### Fixed
+- Process rows misaligned inside the horizontal scroll surface: a ScrollViewer measures children
+  with infinite width, so the row Grids' star columns sized per-row to content. Row width is now
+  pinned to the viewport (min 860 px).
+
 ## 0.20.1 — 2026-07-20
 ### Changed
 - **Health Check: Junk moved up one slot in the group order** (now Security, Stability, Disk, Junk,
