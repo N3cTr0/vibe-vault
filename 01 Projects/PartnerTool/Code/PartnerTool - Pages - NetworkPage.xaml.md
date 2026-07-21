@@ -162,21 +162,23 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                     <ProgressBar x:Name="ScanBusy" Height="3" Minimum="0" Maximum="100" Margin="0,4,0,0"
                                  Visibility="Collapsed" Background="#313244" Foreground="#89B4FA" BorderThickness="0"/>
 
-                    <!-- Results -->
-                    <StackPanel x:Name="PnlScanResults" Visibility="Collapsed" Margin="0,8,0,0">
+                    <!-- Results. Grid.IsSharedSizeScope + the "Ports" SharedSizeGroup keeps the header
+                         and every row's last column the same width; it collapses to nothing on a
+                         non-deep scan (header hidden in code + empty cells), so it's not wasted space. -->
+                    <StackPanel x:Name="PnlScanResults" Visibility="Collapsed" Margin="0,8,0,0" Grid.IsSharedSizeScope="True">
                         <Grid Margin="0,0,0,2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="120"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="140"/>
                                 <ColumnDefinition Width="86"/>
-                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Ports"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="IP Address" Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
                             <TextBlock Grid.Column="1" Text="Name"       Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
                             <TextBlock Grid.Column="2" Text="MAC"        Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
                             <TextBlock Grid.Column="3" Text="Found by"   Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
-                            <TextBlock Grid.Column="4" Text="Open ports" Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="4" x:Name="TxtPortsHeader" Text="Open ports" Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
                         </Grid>
                         <ItemsControl x:Name="IcScanHosts">
                             <ItemsControl.ItemTemplate>
@@ -187,7 +189,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="140"/>
                                             <ColumnDefinition Width="86"/>
-                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="Ports"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Foreground="#CDD6F4" FontSize="11" FontFamily="Consolas">
                                             <Run Text="{Binding Ip, Mode=OneWay}"/>
@@ -198,7 +200,8 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                                         </TextBlock>
                                         <TextBlock Grid.Column="2" Text="{Binding MacText}" Foreground="#9399B2" FontSize="11" FontFamily="Consolas"/>
                                         <TextBlock Grid.Column="3" Text="{Binding How}"     Foreground="#6C7086" FontSize="11"/>
-                                        <TextBlock Grid.Column="4" Text="{Binding PortsText}" Foreground="#A6E3A1" FontSize="11" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding PortsText}" Foreground="#A6E3A1" FontSize="11" FontFamily="Consolas" TextTrimming="CharacterEllipsis"
+                                                   Visibility="{Binding Deep, Converter={StaticResource BoolToVis}}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

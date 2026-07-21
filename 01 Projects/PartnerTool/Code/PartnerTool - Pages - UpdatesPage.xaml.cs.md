@@ -79,7 +79,7 @@ public partial class UpdatesPage : UserControl
 
         if (tool == null)
         {
-            TxtMfrName.Text         = "Manufacturer Update Tool";
+            TxtMfrName.Text         = "MANUFACTURER UPDATE TOOL";
             TxtMfrDesc.Text         = ManufacturerTools.IsVirtualMachine(manufacturer, model)
                 ? "This is a virtual machine — no manufacturer firmware/driver updates (use Windows Update)."
                 : string.IsNullOrWhiteSpace(manufacturer)
@@ -95,7 +95,7 @@ public partial class UpdatesPage : UserControl
 
         _mfrTool        = tool;
         BtnMfr.Visibility = Visibility.Visible;   // in case a prior pass collapsed it
-        TxtMfrName.Text = tool.DisplayName;
+        TxtMfrName.Text = tool.DisplayName.ToUpperInvariant();
         TxtMfrDesc.Text = tool.Description;
 
         var exe = await System.Threading.Tasks.Task.Run(tool.ResolveExe);

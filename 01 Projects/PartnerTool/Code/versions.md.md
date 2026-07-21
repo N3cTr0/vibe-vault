@@ -25,6 +25,18 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.5 — 2026-07-21
+### Changed
+- **Ping now streams the full realtime reply** (Network ▸ Ping & Diagnostic Tools) instead of a
+  one-line summary — the familiar per-packet "Reply from …" lines appear as they arrive, paced ~1 s
+  apart, with a Stop button. Shares one streaming runner with Traceroute now (`RunLiveTool`).
+- **IP Scanner hides the "Open ports" column unless Deep scan is selected.** It only ever had data
+  on a deep scan; a shared-size column + hidden header collapse it to zero width otherwise, giving
+  the Name column that space back.
+- **Updates page source headers now use the standard card-title style** (uppercase purple, like every
+  other card in the app) instead of the one-off white 14 px headings — Windows Update, App Updates
+  (winget), Manufacturer Update Tool, and Microsoft Store.
+
 ## 0.20.4 — 2026-07-20
 ### Changed
 - **Performance window: the Processes tile moved to the bottom of the rail**, below the four

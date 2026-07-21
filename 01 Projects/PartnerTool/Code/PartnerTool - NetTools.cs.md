@@ -34,6 +34,11 @@ public static class NetTools
     public static Task<int> TracerouteLiveAsync(string host, Action<string> onLine, CancellationToken cancel = default)
         => ProcessRunner.RunAsync("tracert.exe", $"-d -h 20 -w 1000 {Sanitize(host)}", null, onLine, cancel: cancel);
 
+    /// <summary>Ping with live output — the familiar per-reply lines stream in as each packet
+    /// answers (paced ~1 s apart by ping.exe), rather than one summary at the end.</summary>
+    public static Task<int> PingLiveAsync(string host, Action<string> onLine, CancellationToken cancel = default)
+        => ProcessRunner.RunAsync("ping.exe", $"-n 4 {Sanitize(host)}", null, onLine, cancel: cancel);
+
     /// <summary>This machine's public IP, as seen from the internet.</summary>
     public static async Task<string> PublicIpAsync()
     {

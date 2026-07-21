@@ -25,6 +25,7 @@ public class IpHost
     public string How    { get; set; } = "";     // "ping 2 ms" / "ARP" / "TCP 445"
     public string Note   { get; set; } = "";     // "this PC" / "gateway"
     public string Ports  { get; set; } = "";     // deep scan only: open TCP ports, e.g. "445, 3389"
+    public bool   Deep   { get; set; }            // true = deep scan → show the Open-ports column
 
     public string NameText  => Name.Length  > 0 ? Name  : "—";
     public string MacText   => Mac.Length   > 0 ? Mac   : "—";
@@ -240,6 +241,7 @@ public static class IpScanner
         {
             Ip = ip, Sort = addr, Mac = mac, How = how,
             Ports = string.Join(", ", openPorts),
+            Deep = deep,   // drives the Open-ports column visibility in the UI
         };
         host.Name = await ReverseDnsAsync(ip).ConfigureAwait(false);
         return host;

@@ -114,39 +114,57 @@ public partial class NetworkPage : UserControl
 
     // ── DIAGNOSTIC TOOLS ──────────────────────────────────────────────────
 
-    // Traceroute streams hop-by-hop. It can take a minute or two on a path with dead hops, and the
-    // old wait-for-everything version looked frozen the whole time — techs assumed it was stuck.
-    private CancellationTokenSource? _traceCts;
+    // Ping and Traceroute both stream their output line-by-line as it arrives (a wrong host or a
+    // path with dead hops shouldn't leave the panel looking frozen). One cts drives the shared Stop
+    // button — only one live tool runs at a time (guarded by _netBusy).
+    private CancellationTokenSource? _liveToolCts;
 
     private async void Traceroute_Click(object sender, RoutedEventArgs e)
     {
+        var host = TxtNetHost.Text.Trim();
+        await RunLiveTool($"Traceroute to {host} — hops appear as they answer…\n",
+            (onLine, ct) => NetTools.TracerouteLiveAsync(host, onLine, ct),
+            // tracert prints its own "Trace complete." on success — only add ours when it didn't
+            // (unresolvable host), so the tech still sees the run is over.
+            completeNote: "Trace complete.");
+    }
+
+    private async void Ping_Click(object sender, RoutedEventArgs e)
+    {
+        var host = TxtNetHost.Text.Trim();
+        await RunLiveTool($"Pinging {host} — replies appear as they arrive…\n",
+            (onLine, ct) => NetTools.PingLiveAsync(host, onLine, ct));
+    }
+
+    /// <summary>Shared runner for the streaming diagnostic tools (Ping, Traceroute): shows the output
+    /// panel + Stop button, appends each line live, and restores state when done/stopped.</summary>
+    private async Task RunLiveTool(string header, Func<Action<string>, CancellationToken, Task> run,
+                                   string? completeNote = null)
+    {
         if (_netBusy) return;
-        string host = TxtNetHost.Text.Trim();
         _netBusy = true;
         PnlNetDiag.IsEnabled = false;
         ToolOutPanel.Visibility = Visibility.Visible;
-        BtnToolStop.Visibility = Visibility.Visible;   // a wrong host shouldn't cost a 2-minute wait
-        TxtToolOut.Text = $"Traceroute to {host} — hops appear as they answer…\n";
+        BtnToolStop.Visibility = Visibility.Visible;
+        TxtToolOut.Text = header;
         using var cts = new CancellationTokenSource();
-        _traceCts = cts;
+        _liveToolCts = cts;
         try
         {
-            await NetTools.TracerouteLiveAsync(host, line => Dispatcher.Invoke(() =>
+            await run(line => Dispatcher.Invoke(() =>
             {
                 TxtToolOut.Text += line + "\n";
                 ToolOutScroll.ScrollToEnd();
             }), cts.Token);
             if (cts.IsCancellationRequested)
                 TxtToolOut.Text += "\nStopped.";
-            // tracert prints its own "Trace complete." on success — only add ours when it didn't
-            // (unresolvable host), so the tech still sees the run is over.
-            else if (!TxtToolOut.Text.Contains("Trace complete."))
-                TxtToolOut.Text += "\nTrace complete.";
+            else if (completeNote != null && !TxtToolOut.Text.Contains(completeNote))
+                TxtToolOut.Text += "\n" + completeNote;
         }
         catch (Exception ex) { TxtToolOut.Text += $"\nError: {ex.Message}"; }
         finally
         {
-            _traceCts = null;
+            _liveToolCts = null;
             _netBusy = false;
             PnlNetDiag.IsEnabled = true;
             BtnToolStop.Visibility = Visibility.Collapsed;
@@ -154,7 +172,7 @@ public partial class NetworkPage : UserControl
         }
     }
 
-    private void ToolStop_Click(object sender, RoutedEventArgs e) => _traceCts?.Cancel();
+    private void ToolStop_Click(object sender, RoutedEventArgs e) => _liveToolCts?.Cancel();
 
     private async void ToolCopy_Click(object sender, RoutedEventArgs e)
     {
@@ -232,6 +250,9 @@ public partial class NetworkPage : UserControl
         }
 
         bool deep = ChkScanDeep.IsChecked == true;
+        // Only a deep scan produces open-port data — hide that column entirely otherwise so it's
+        // not dead space. (Empty row cells + hidden header collapse the shared-size column to 0.)
+        TxtPortsHeader.Visibility = deep ? Visibility.Visible : Visibility.Collapsed;
         ActivityLog.Action("Network", $"IP scan {TxtScanRange.Text.Trim()} ({addresses.Count} addresses{(deep ? ", deep" : "")})");
 
         // The results collection is owned by the UI thread; the scanner marshals onto it.
@@ -522,23 +543,6 @@ public partial class NetworkPage : UserControl
             : new List<AdapterVm> { new() { Header = "NO ACTIVE ADAPTERS", IpAddress = "—", SubnetMask = "—", Gateway = "—", Dns = "—", Mac = "—" } };
     }
 
-    private async void Ping_Click(object sender, RoutedEventArgs e)
-        => await RunTool(() => PingAsync(TxtNetHost.Text.Trim()), $"Pinging {TxtNetHost.Text.Trim()}…");
-
-    private static async Task<string> PingAsync(string target)
-    {
-        if (string.IsNullOrEmpty(target)) return "Enter a host or IP.";
-        using var ping = new Ping();
-        var times = new List<long>();
-        for (int i = 0; i < 4; i++)
-        {
-            var reply = await Task.Run(() => ping.Send(target, 2000));
-            if (reply.Status == IPStatus.Success) times.Add(reply.RoundtripTime);
-        }
-        return times.Count > 0
-            ? $"● Reachable — avg {times.Average():F0} ms  |  min {times.Min()} ms  |  max {times.Max()} ms  ({times.Count}/4 replies)"
-            : "● Unreachable — all 4 packets lost";
-    }
 }
 
 public class AdapterVm

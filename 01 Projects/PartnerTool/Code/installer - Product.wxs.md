@@ -10,7 +10,7 @@ source-path: installer\Product.wxs
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Partner Tool"
            Manufacturer="Progressive Computing"
-           Version="0.20.4.0"
+           Version="0.20.5.0"
            UpgradeCode="7C9E6A2B-4F1D-4E8A-9B3C-2A1D5E6F7B80"
            Scope="perMachine"
            Compressed="yes">

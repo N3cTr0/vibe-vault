@@ -32,9 +32,9 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                         <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource ActionButton}"
                                 VerticalAlignment="Top" Click="OpenWindowsUpdate_Click"/>
                         <StackPanel Margin="0,0,12,0">
-                            <TextBlock Text="Windows Update" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                            <TextBlock Text="WINDOWS UPDATE" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Latest Windows updates and security patches."
-                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
                         </StackPanel>
                     </DockPanel>
                     <Rectangle Style="{StaticResource RowDivider}" Margin="0,10"/>
@@ -59,9 +59,9 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
             <!-- APP UPDATES (winget scan, merged) -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="App Updates (winget)" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="APP UPDATES (WINGET)" Style="{StaticResource CardTitle}"/>
                     <TextBlock Text="Outdated apps detected by winget — upgraded by Update All below."
-                               FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,3,0,8"/>
+                               FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <ItemsControl x:Name="IcOutdated">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -87,9 +87,8 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                         <Button x:Name="BtnMfr" DockPanel.Dock="Right" Content="Open" Style="{StaticResource ActionButton}"
                                 VerticalAlignment="Top" IsEnabled="False" Click="OpenMfr_Click"/>
                         <StackPanel Margin="0,0,12,0">
-                            <TextBlock x:Name="TxtMfrName" Text="Detecting manufacturer..."
-                                       FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                            <TextBlock x:Name="TxtMfrDesc" Text="" FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,3,0,0"/>
+                            <TextBlock x:Name="TxtMfrName" Text="DETECTING MANUFACTURER…" Style="{StaticResource CardTitle}"/>
+                            <TextBlock x:Name="TxtMfrDesc" Text="" FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
                             <TextBlock x:Name="TxtMfrStatus" Text="" FontSize="11" Margin="0,3,0,0"/>
                         </StackPanel>
                     </DockPanel>
@@ -117,9 +116,9 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                         <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource ActionButton}"
                                 VerticalAlignment="Top" Click="OpenStore_Click"/>
                         <StackPanel Margin="0,0,12,0">
-                            <TextBlock Text="Microsoft Store" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                            <TextBlock Text="MICROSOFT STORE" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Store (UWP/MSIX) app updates — installed by Update All below."
-                                       FontSize="11" Foreground="#6C7086" Margin="0,3,0,0"/>
+                                       FontSize="11" Foreground="#6C7086"/>
                         </StackPanel>
                     </DockPanel>
                     <Rectangle Style="{StaticResource RowDivider}" Margin="0,10"/>
