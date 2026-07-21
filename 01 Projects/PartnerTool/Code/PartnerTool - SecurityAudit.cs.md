@@ -44,8 +44,12 @@ public static class SecurityAudit
         // RDP
         int? denyRdp = RegInt(Registry.LocalMachine, @"SYSTEM\CurrentControlSet\Control\Terminal Server", "fDenyTSConnections");
         bool rdpOn = denyRdp == 0;
+        // RDP-on is INFO (advisory), not a scored issue: the machines this tool manages are remotely
+        // supported, so RDP is usually intentionally enabled — flagging it as a Warn made the Health
+        // Check dock points on essentially every box. Still shown (blue) for the tech to review, and
+        // if it's on we still check NLA below — NLA-not-required is a genuine Bad.
         items.Add(new("Remote Desktop (RDP)",
-            rdpOn ? AuditLevel.Warn : AuditLevel.Good,
+            rdpOn ? AuditLevel.Info : AuditLevel.Good,
             rdpOn ? "Enabled — ensure it's intended and restricted" : "Disabled",
             new AuditFix("Open Remote Desktop settings", "ms-settings:remotedesktop", ShellExecute: true)));
         if (rdpOn)

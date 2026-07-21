@@ -25,6 +25,15 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.7 — 2026-07-21
+### Changed
+- **RDP-enabled is now advisory (Info), not a scored hardening issue.** The machines this tool
+  manages are remotely supported, so Remote Desktop is usually intentionally on — flagging it as a
+  Warn made the Health Check deduct points and list a "minor hardening item" on essentially every box.
+  It still shows on the Security scorecard (blue/advisory) with the same "ensure it's intended and
+  restricted" note and the link to Remote Desktop settings, and if RDP is on we still flag
+  NLA-not-required as a genuine issue — but RDP being enabled no longer counts against the score.
+
 ## 0.20.6 — 2026-07-21
 ### Fixed
 - **Health Check false "Restart required".** The Health Check had its own copy of the pending-reboot
