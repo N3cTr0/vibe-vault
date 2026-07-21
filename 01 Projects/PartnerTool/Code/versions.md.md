@@ -25,6 +25,14 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.22.1 — 2026-07-21
+### Changed
+- **Security tab is now a 2×2 layout:** Hardening Scorecard (left) + Microsoft Defender (right) on
+  the top row; ProSentry (left) + BitLocker Recovery Key (right) below.
+- **The BitLocker Recovery Key card only shows when a recovery key actually exists on the PC**
+  (`BitLockerInfo.GetRecoveryKeys()` non-empty) — on machines with no BitLocker key it's hidden, so
+  ProSentry gets the row to itself.
+
 ## 0.22.0 — 2026-07-21
 ### Changed
 - **Security tab layout:** Microsoft Defender now sits below the hardening scorecard on the **left**

@@ -90,7 +90,9 @@ public partial class SecurityPage : UserControl
         var auditTask = Task.Run(SecurityAudit.Collect);
         var defTask   = Task.Run(DefenderInfo.Collect);
         var proTask   = Task.Run(ProsentryInfo.Collect);
-        await Task.WhenAll(auditTask, defTask, proTask);
+        // The BitLocker recovery-key card only makes sense when a key actually exists on this PC.
+        var blTask    = Task.Run(() => BitLockerInfo.GetRecoveryKeys().Count > 0);
+        await Task.WhenAll(auditTask, defTask, proTask, blTask);
 
         IcAudit.ItemsSource = await auditTask;
         PaintDefender(await defTask);
@@ -98,6 +100,8 @@ public partial class SecurityPage : UserControl
         var pro = await proTask;
         IcProsentry.ItemsSource  = pro.Tools;
         IcManagement.ItemsSource = new[] { pro.Intune };
+
+        BitLockerCard.Visibility = await blTask ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void PaintDefender(DefenderInfo d)
