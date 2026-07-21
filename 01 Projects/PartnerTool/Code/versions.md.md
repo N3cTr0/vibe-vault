@@ -25,6 +25,17 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.6 — 2026-07-21
+### Fixed
+- **Health Check false "Restart required".** The Health Check had its own copy of the pending-reboot
+  detector that also checked `PendingFileRenameOperations` — a registry value routinely populated by
+  everyday apps queuing a temp-file delete/rename on next boot (observed here: a leftover `.node` temp
+  file). It's re-populated every session, so it never clears and the finding stuck around after a
+  reboot even with no real update pending. Now calls the single, correct `SystemHealth.IsRebootPending`
+  (Component-Based Servicing + Windows Update keys only — the authoritative "servicing needs a reboot"
+  signals), which was already written to deliberately ignore `PendingFileRenameOperations`. Removed the
+  duplicate detector so the two can't drift again.
+
 ## 0.20.5 — 2026-07-21
 ### Changed
 - **Ping now streams the full realtime reply** (Network ▸ Ping & Diagnostic Tools) instead of a

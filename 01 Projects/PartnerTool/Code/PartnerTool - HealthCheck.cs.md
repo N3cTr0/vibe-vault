@@ -8,7 +8,6 @@ source-path: PartnerTool\HealthCheck.cs
 
 ```csharp
 using System.Windows;
-using Microsoft.Win32;
 
 namespace PartnerTool;
 
@@ -96,7 +95,7 @@ public static class HealthCheck
         P(94, "Checking uptime & startup programs…");
         var perf       = await Task.Run(PerfSnapshot.Collect);
         var startupAll = await Task.Run(StartupInfo.Collect);
-        bool rebootPending = await Task.Run(RebootPending);
+        bool rebootPending = await Task.Run(SystemHealth.IsRebootPending);
 
         P(99, "Scoring…");
 
@@ -291,21 +290,5 @@ public static class HealthCheck
         h.Contains("healthy", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Standard Windows "reboot pending" registry markers (CBS, Windows Update, pending renames).</summary>
-    private static bool RebootPending()
-    {
-        try
-        {
-            using (var cbs = Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending"))
-                if (cbs != null) return true;
-            using (var wu = Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired"))
-                if (wu != null) return true;
-            using (var sm = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Session Manager"))
-                if (sm?.GetValue("PendingFileRenameOperations") != null) return true;
-        }
-        catch { }
-        return false;
-    }
 }
 ```
