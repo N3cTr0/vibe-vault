@@ -13,12 +13,12 @@ tags: [claude-dev-vm, moc]
 
 ## Host hardware
 
-| Component | Spec |
-|---|---|
-| CPU | AMD Ryzen 7 3700X — 8 cores / 16 threads, 3.6 GHz base |
-| RAM | 32 GB |
-| Storage | C: NVMe SSD (OS) · second NVMe SSD · E: SATA SSD · D: SATA HDD |
-| Virtualization | Enabled in BIOS (confirmed via Task Manager) |
+| Component      | Spec                                                           |
+| -------------- | -------------------------------------------------------------- |
+| CPU            | AMD Ryzen 7 3700X — 8 cores / 16 threads, 3.6 GHz base         |
+| RAM            | 32 GB                                                          |
+| Storage        | C: NVMe SSD (OS) · second NVMe SSD · E: SATA SSD · D: SATA HDD |
+| Virtualization | Enabled in BIOS (confirmed via Task Manager)                   |
 
 VM takes half the host: 8 of 16 logical CPUs, 16 of 32 GB RAM (~8–9 GB host headroom observed during install — drop the VM to 12 GB if the host ever feels memory-starved).
 

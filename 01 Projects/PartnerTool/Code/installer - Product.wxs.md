@@ -34,21 +34,23 @@ source-path: installer\Product.wxs
     </StandardDirectory>
 
     <!-- C:\PCI\PartnerTool  (PCIDIR is implicitly rooted at TARGETDIR = C:\).
-         This MSI installs the folder publish (exe + dependency DLLs + native sensor
-         bits) — the optional folder-install path. The single-file exe
-         (publish-singlefile.bat) is the primary hand-out to techs. -->
+         This MSI installs the ONE self-contained single-file exe (from
+         publish-singlefile.bat) — no loose dependency DLLs — so C:\PCI\PartnerTool
+         holds just PartnerTool.exe. -->
     <Directory Id="PCIDIR" Name="PCI">
       <Directory Id="INSTALLFOLDER" Name="PartnerTool" />
     </Directory>
 
     <Feature Id="Main" Title="Partner Tool" Level="1">
-      <!-- Harvest every file produced by the FolderInstall publish profile.
-           Paths are relative to this .wxs (sys.SOURCEFILEDIR = installer\), so the
-           MSI builds regardless of where the repo is cloned. -->
-      <Files Directory="INSTALLFOLDER"
-             Include="$(sys.SOURCEFILEDIR)..\release\**" />
+      <ComponentRef Id="AppExe" />
       <ComponentRef Id="AppShortcut" />
     </Feature>
+
+    <!-- The single self-contained exe. Source is the single-file publish output
+         (dist\PartnerTool.exe); path is relative to this .wxs so it builds anywhere. -->
+    <Component Id="AppExe" Directory="INSTALLFOLDER" Guid="*">
+      <File Id="PartnerToolExe" Source="$(sys.SOURCEFILEDIR)..\dist\PartnerTool.exe" KeyPath="yes" />
+    </Component>
 
     <!-- Start Menu shortcut to the installed exe + uninstall cleanup -->
     <Component Id="AppShortcut" Directory="ShortcutDir" Guid="*">
