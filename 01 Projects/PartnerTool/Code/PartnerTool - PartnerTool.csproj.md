@@ -17,7 +17,7 @@ source-path: PartnerTool\PartnerTool.csproj
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.21.0</Version>
+    <Version>0.22.0</Version>
     <!-- Default build/publish is a folder (exe + dependency DLLs), which the MSI
          installs to C:\PCI\PartnerTool. The single-file exe handed to techs is a
          separate publish (publish-singlefile.bat: PublishSingleFile +

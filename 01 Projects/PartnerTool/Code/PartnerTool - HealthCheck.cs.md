@@ -242,7 +242,10 @@ public static class HealthCheck
             r.Findings.Add(Advisory("Stability", "Blue screens recently", HealthSeverity.Bad, 15,
                 $"{bsods} blue-screen crash(es) in the last 14 days.", "Diag"));
         else if (appErrs >= 3)
-            r.Findings.Add(Advisory("Stability", "Frequent app crashes", HealthSeverity.Warn, 5,
+            // Shown so the tech can investigate (Open → Diagnostics), but it doesn't dock the score:
+            // app crashes are usually app-specific and not something the tech can fix from here.
+            // (Blue screens above still count — those are serious.)
+            r.Findings.Add(Advisory("Stability", "Frequent app crashes", HealthSeverity.Warn, 0,
                 $"{appErrs} application crash(es) in the last 14 days.", "Diag"));
         else
             r.Findings.Add(Good("Stability", "Crash history", "No blue screens in the last 14 days."));

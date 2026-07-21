@@ -34,10 +34,28 @@ public partial class SecurityPage : UserControl
         new BitLockerWindow { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
-    // Jump to the Windows setting/applet that changes this audit item.
-    private void Fix_Click(object sender, RoutedEventArgs e)
+    // Jump to the Windows setting/applet that changes this audit item — or, for the special
+    // reset-execution-policy target, do the reset in-app after confirming.
+    private async void Fix_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Hyperlink { DataContext: AuditItem { Fix: { } fix } }) return;
+
+        if (fix.Target == SecurityAudit.ResetExecPolicyTarget)
+        {
+            if (!TechGate.Verify(Window.GetWindow(this))) return;
+            if (!MessageWindow.Confirm("PowerShell execution policy",
+                    "Reset to the Windows default?",
+                    "This clears the machine PowerShell execution policy (currently loosened) so it " +
+                    "reverts to Windows' default. Scripts that relied on Bypass/Unrestricted may stop " +
+                    "running until re-signed or re-allowed. Continue?",
+                    MessageKind.Warning, Window.GetWindow(this)))
+                return;
+            ActivityLog.Action("Security", "Reset PowerShell execution policy to Windows default");
+            await Task.Run(SecurityAudit.ResetExecutionPolicy);
+            IcAudit.ItemsSource = await Task.Run(SecurityAudit.Collect);   // reflect the change
+            return;
+        }
+
         ActivityLog.Action("Security", $"Open Windows setting: {fix.Tooltip}");
         try
         {

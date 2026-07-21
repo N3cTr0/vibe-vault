@@ -107,6 +107,25 @@ public static class ReportBuilder
             foreach (var it in d.Hardening) sb.AppendLine($"  [{it.Level,-4}] {it.Name} — {it.Detail}");
         }
 
+        if (d.Prosentry is { } pro)
+        {
+            H("PROSENTRY / MANAGED TOOLS");
+            foreach (var t in pro.Tools) sb.AppendLine($"  [{(t.Active ? "ON " : "off")}] {t.Name} — {t.Detail}");
+            sb.AppendLine($"  [{(pro.Intune.Active ? "ON " : "off")}] {pro.Intune.Name} — {pro.Intune.Detail}");
+        }
+
+        if (d.Defender is { Available: true } def)
+        {
+            H("MICROSOFT DEFENDER");
+            sb.AppendLine($"  Real-time protection : {(def.RealTimeProtection ? "On" : "Off")}");
+            sb.AppendLine($"  Tamper protection    : {(def.TamperProtection ? "On" : "Off")}");
+            sb.AppendLine($"  Signature version    : {def.SignatureVersion}");
+            sb.AppendLine($"  Signatures updated   : {(def.SignatureUpdated is { } su ? su.ToString(Dates.DateTime) : "—")}");
+            sb.AppendLine($"  Last quick scan      : {(def.QuickScanAgeDays is { } q ? $"{q} day(s) ago" : "—")}");
+            sb.AppendLine($"  Last full scan       : {(def.FullScanAgeDays is { } f ? $"{f} day(s) ago" : "Never / unknown")}");
+            sb.AppendLine($"  Threats in history   : {def.ThreatCount}");
+        }
+
         H("NETWORK — PRIMARY ADAPTER");
         if (s.PrimaryAdapter is { } a)
         {
@@ -181,6 +200,36 @@ public static class ReportBuilder
         sb.AppendLine($"  Page file  : {s.Extras.PageFile}");
         sb.AppendLine($"  Proxy      : {s.Extras.Proxy}");
 
+        if (d.Services.Count > 0)
+        {
+            H($"SERVICES ({d.Services.Count})");
+            foreach (var sv in d.Services.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
+                sb.AppendLine($"  [{sv.State,-8}] {sv.DisplayName} ({sv.Name}) — start: {sv.StartMode}");
+        }
+        if (d.Drivers.Count > 0)
+        {
+            H($"DRIVERS ({d.Drivers.Count})");
+            foreach (var dr in d.Drivers)
+                sb.AppendLine($"  {dr.Device} — {dr.Provider} {dr.Version} ({dr.Date}) [{dr.SignedText}]");
+        }
+        if (d.Tasks.Count > 0)
+        {
+            H($"SCHEDULED TASKS ({d.Tasks.Count})");
+            foreach (var tk in d.Tasks)
+                sb.AppendLine($"  [{tk.Status}] {tk.Name} — next {tk.NextRun}, last {tk.LastRun} ({tk.LastResult})");
+        }
+        if (d.EnvVars.Count > 0)
+        {
+            H($"ENVIRONMENT VARIABLES ({d.EnvVars.Count})");
+            foreach (var ev in d.EnvVars) sb.AppendLine($"  [{ev.Scope}] {ev.Name} = {ev.Value}");
+        }
+        if (!string.IsNullOrWhiteSpace(d.HostsFile))
+        {
+            H("HOSTS FILE");
+            foreach (var line in d.HostsFile.Replace("\r", "").Split('\n'))
+                sb.AppendLine($"  {line}");
+        }
+
         return sb.ToString();
     }
 
@@ -221,10 +270,12 @@ public static class ReportBuilder
         sb.Append(@"<div class=""toc"">
 <a href=""#identity"">Identity</a><a href=""#hardware"">Hardware</a><a href=""#os"">Operating system</a>
 <a href=""#perf"">Performance</a><a href=""#power"">Power</a><a href=""#security"">Security</a>
-<a href=""#hardening"">Hardening</a><a href=""#network"">Network</a><a href=""#monitors"">Monitors</a>
+<a href=""#hardening"">Hardening</a><a href=""#prosentry"">ProSentry</a><a href=""#defender"">Defender</a>
+<a href=""#network"">Network</a><a href=""#monitors"">Monitors</a>
 <a href=""#printers"">Printers</a><a href=""#accounts"">Accounts</a><a href=""#software"">Software</a>
 <a href=""#startup"">Startup</a><a href=""#updates"">Updates</a><a href=""#devices"">Device problems</a>
-<a href=""#extras"">Extras</a></div>");
+<a href=""#extras"">Extras</a><a href=""#services"">Services</a><a href=""#drivers"">Drivers</a>
+<a href=""#tasks"">Tasks</a><a href=""#envvars"">Env vars</a><a href=""#hosts"">Hosts</a></div>");
 
         // ── Local helpers ──
         void Card(string id, string title, params (string k, string v)[] rows)
@@ -336,6 +387,24 @@ public static class ReportBuilder
         }
         sb.Append("</div>");
 
+        // ProSentry / managed tools
+        if (d.Prosentry is { } pro)
+        {
+            var proRows = pro.Tools.Concat(new[] { pro.Intune })
+                .Select(t => new[] { t.Name, t.Active ? "Active" : "Inactive", t.Detail }).ToList();
+            TableCard("prosentry", "ProSentry / managed tools", new[] { "Tool", "Status", "Detail" }, proRows);
+        }
+
+        if (d.Defender is { Available: true } def2)
+            Card("defender", "Microsoft Defender",
+                ("Real-time protection", def2.RealTimeProtection ? "On" : "Off"),
+                ("Tamper protection", def2.TamperProtection ? "On" : "Off"),
+                ("Signature version", def2.SignatureVersion),
+                ("Signatures updated", def2.SignatureUpdated is { } su2 ? su2.ToString(Dates.DateTime) : "—"),
+                ("Last quick scan", def2.QuickScanAgeDays is { } q2 ? $"{q2} day(s) ago" : "—"),
+                ("Last full scan", def2.FullScanAgeDays is { } f2 ? $"{f2} day(s) ago" : "Never / unknown"),
+                ("Threats in history", def2.ThreatCount.ToString()));
+
         // ── Network ──
         if (s.PrimaryAdapter is { } a)
             Card("network", "Network — primary adapter",
@@ -380,6 +449,23 @@ public static class ReportBuilder
             ("Crash dumps", $"{s.Diagnostics.MinidumpCount} minidump(s)" +
                 (s.Diagnostics.LatestDump is { } ld ? $", latest {ld:MM/dd/yyyy}" : "") +
                 $"; full memory dump {(s.Diagnostics.MemoryDump ? "present" : "none")}"));
+
+        // ── Manage-tab inventories ──
+        TableCard("services", "Services", new[] { "Service", "Name", "State", "Startup", "Log on as" },
+            d.Services.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Select(sv => new[] { sv.DisplayName, sv.Name, sv.State, sv.StartMode, sv.LogOn }).ToList());
+
+        TableCard("drivers", "Drivers", new[] { "Device", "Provider", "Version", "Date", "Signed" },
+            d.Drivers.Select(dr => new[] { dr.Device, dr.Provider, dr.Version, dr.Date, dr.SignedText }).ToList());
+
+        TableCard("tasks", "Scheduled tasks", new[] { "Task", "Status", "Next run", "Last run", "Last result" },
+            d.Tasks.Select(tk => new[] { tk.Name, tk.Status, tk.NextRun, tk.LastRun, tk.LastResult }).ToList());
+
+        TableCard("envvars", "Environment variables", new[] { "Scope", "Name", "Value" },
+            d.EnvVars.Select(ev => new[] { ev.Scope, ev.Name, ev.Value }).ToList());
+
+        if (!string.IsNullOrWhiteSpace(d.HostsFile))
+            sb.Append($"<div class=\"card\" id=\"hosts\"><h2>Hosts file</h2><pre style=\"white-space:pre-wrap;font-size:12px;color:#CDD6F4;margin:0;\">{E(d.HostsFile)}</pre></div>");
 
         sb.Append("</body></html>");
         return sb.ToString();

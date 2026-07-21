@@ -25,6 +25,29 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.22.0 — 2026-07-21
+### Changed
+- **Security tab layout:** Microsoft Defender now sits below the hardening scorecard on the **left**
+  (single column again — no more split), with the **ProSentry** card to its **right**. BitLocker
+  recovery key moved to the bottom.
+- **Frequent app crashes no longer dock the Health Check score.** It's still shown (with Open →
+  Diagnostics to investigate) but deducts 0 — app crashes are usually app-specific and not something
+  the tech can fix from the tool. Blue screens still count (those are serious).
+### Added
+- **Reset PowerShell execution policy to the Windows default** — when the hardening scorecard shows
+  the machine policy as Bypass/Unrestricted, the value is now a link that (tech-gated + confirmed)
+  clears the policy back to Windows' default, in-app. There's no Windows settings page for this, so
+  it's handled directly (deletes the ExecutionPolicy registry value in both views).
+- **Diagnostics bundle is now comprehensive** — the Collect Diagnostics report (HTML + text) now also
+  includes: ProSentry / managed-tool status (Atakama, Huntress, Duo, AutoElevate, Intune), full
+  Microsoft Defender detail, all Services, Drivers, Scheduled Tasks, Environment variables, and the
+  Hosts file — on top of the existing hardware/OS/network/software/hardening sections.
+### Notes
+- Broken-shortcuts cleanup is OneDrive-safe: it only scans Desktop + Start Menu for `.lnk` files,
+  only flags ones whose target genuinely doesn't exist on a fixed drive (cloud-only OneDrive
+  placeholders still report as existing), and only sends the broken **shortcut** to the Recycle Bin
+  (reversible) — never the target file, never anything in OneDrive/Documents.
+
 ## 0.21.0 — 2026-07-21
 ### Added
 - **ProSentry status on the Security tab.** A new card shows PCI's managed security stack at a glance,

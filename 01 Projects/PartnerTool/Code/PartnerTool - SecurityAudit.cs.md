@@ -30,6 +30,31 @@ public record AuditItem(string Name, AuditLevel Level, string Detail, AuditFix? 
 /// </summary>
 public static class SecurityAudit
 {
+    /// <summary>Sentinel <see cref="AuditFix.Target"/> for "reset the PowerShell execution policy" —
+    /// not a launchable path; <c>SecurityPage.Fix_Click</c> special-cases it and calls
+    /// <see cref="ResetExecutionPolicy"/>.</summary>
+    public const string ResetExecPolicyTarget = "pt:reset-execution-policy";
+
+    /// <summary>
+    /// Reset the machine PowerShell execution policy to the Windows default by deleting the
+    /// ExecutionPolicy value (both registry views) — Set-ExecutionPolicy Undefined without a shell.
+    /// </summary>
+    public static void ResetExecutionPolicy()
+    {
+        foreach (var view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                using var k = baseKey.OpenSubKey(
+                    @"SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell", writable: true);
+                if (k?.GetValue("ExecutionPolicy") != null)
+                    k.DeleteValue("ExecutionPolicy", throwOnMissingValue: false);
+            }
+            catch { }
+        }
+    }
+
     public static List<AuditItem> Collect()
     {
         var items = new List<AuditItem>();
@@ -75,12 +100,16 @@ public static class SecurityAudit
             smb1On ? "Enabled — disable SMBv1 (legacy, insecure)" : "Not installed / disabled (good)",
             new AuditFix("Open Windows Features to turn SMB 1.0 off", "OptionalFeatures.exe")));
 
-        // PowerShell execution policy (machine)
+        // PowerShell execution policy (machine). When it's been loosened, offer a one-click reset to
+        // the Windows default (a special Fix target handled in SecurityPage.Fix_Click, since there's
+        // no Windows settings page for it).
         var ps = RegStr(Registry.LocalMachine,
             @"SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell", "ExecutionPolicy");
+        bool psLoose = ps is "Bypass" or "Unrestricted";
         items.Add(new("PowerShell execution policy",
-            ps is "Bypass" or "Unrestricted" ? AuditLevel.Warn : AuditLevel.Info,
-            string.IsNullOrEmpty(ps) ? "Not set (Windows default)" : ps));
+            psLoose ? AuditLevel.Warn : AuditLevel.Info,
+            string.IsNullOrEmpty(ps) ? "Not set (Windows default)" : ps,
+            psLoose ? new AuditFix("Reset PowerShell execution policy to the Windows default", ResetExecPolicyTarget) : null));
 
         // Autologon with stored password
         var auto = RegStr(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "AutoAdminLogon");
