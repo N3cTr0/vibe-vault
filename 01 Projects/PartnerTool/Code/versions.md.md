@@ -25,6 +25,14 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.22.2 — 2026-07-21
+### Changed
+- **Security tab now uses two independent column stacks** so each card sits directly under the one
+  above it. BitLocker Recovery Key now appears **directly under Microsoft Defender** (right column)
+  instead of being pushed to the bottom by the taller Hardening Scorecard. Left column is Hardening
+  Scorecard then ProSentry; right column is Defender then BitLocker. (BitLocker still only shows when
+  a recovery key exists on the PC.)
+
 ## 0.22.1 — 2026-07-21
 ### Changed
 - **Security tab is now a 2×2 layout:** Hardening Scorecard (left) + Microsoft Defender (right) on

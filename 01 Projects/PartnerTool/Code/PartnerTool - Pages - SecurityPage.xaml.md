@@ -51,142 +51,139 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
         </DockPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="20,4,20,16">
-
-                <!-- ROW 1: HARDENING SCORECARD (left) + MICROSOFT DEFENDER (right) -->
-              <Grid>
+            <!-- Two independent columns so each card sits directly under the one above it:
+                 LEFT = Hardening Scorecard + ProSentry;  RIGHT = Microsoft Defender + BitLocker. -->
+            <Grid Margin="20,4,20,16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- HARDENING SCORECARD -->
-                <Border Grid.Column="0" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="HARDENING SCORECARD" Style="{StaticResource CardTitle}"/>
-                        <ItemsControl x:Name="IcAudit">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <DockPanel Margin="0,5">
-                                        <Ellipse DockPanel.Dock="Left" Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,10,0">
-                                            <Ellipse.Style>
-                                                <Style TargetType="Ellipse">
-                                                    <Setter Property="Fill" Value="#6C7086"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Level}" Value="Good"><Setter Property="Fill" Value="#A6E3A1"/></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="Warn"><Setter Property="Fill" Value="#F9E2AF"/></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="Bad"><Setter Property="Fill" Value="#F38BA8"/></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Level}" Value="Info"><Setter Property="Fill" Value="#89B4FA"/></DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Ellipse.Style>
-                                        </Ellipse>
-                                        <!-- Plain value (no Windows setting to jump to) -->
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Foreground="#9399B2"
-                                                   FontSize="12" Margin="12,0,0,0" TextAlignment="Right">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Fix}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <!-- Clickable value → opens the Windows setting to change it -->
-                                        <TextBlock DockPanel.Dock="Right" FontSize="12" Margin="12,0,0,0" TextAlignment="Right">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Fix}" Value="{x:Null}">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                            <Hyperlink Click="Fix_Click" Foreground="#89B4FA"
-                                                       ToolTip="{Binding Fix.Tooltip}"><Run Text="{Binding Detail}"/></Hyperlink>
-                                        </TextBlock>
-                                        <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12"/>
-                                    </DockPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+                <!-- ══ LEFT COLUMN ══ -->
+                <StackPanel Grid.Column="0">
 
-                <!-- MICROSOFT DEFENDER — right side of row 1 -->
-                <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="MICROSOFT DEFENDER" Style="{StaticResource CardTitle}"/>
-                        <TextBlock x:Name="TxtNoDefender" Foreground="#6C7086" FontSize="12"
-                                   Text="Defender is not the active antivirus (third-party AV installed)." Visibility="Collapsed"/>
-                        <Grid x:Name="DefenderGrid">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
-                                <RowDefinition/><RowDefinition/><RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Real-time protection" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtRtp" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Tamper protection" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtTamper" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Signature version" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtSig" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Signatures updated" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtSigDate" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Last quick scan" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtQuick" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Last full scan" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="5" Grid.Column="1" x:Name="TxtFull" Style="{StaticResource RowValue}"/>
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Threats" Style="{StaticResource RowLabel}"/>
-                            <TextBlock Grid.Row="6" Grid.Column="1" x:Name="TxtThreats" Style="{StaticResource RowValue}"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-              </Grid>
-
-                <!-- ROW 2: PROSENTRY (left) + BITLOCKER (right; hidden when no recovery key on the PC) -->
-              <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="12"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- PROSENTRY -->
-                <Border Grid.Column="0" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock Text="PROSENTRY" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="PCI's managed security stack — a green dot means the agent is active on this PC."
-                                   FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                        <ItemsControl x:Name="IcProsentry" ItemTemplate="{StaticResource ToolRow}"/>
-                        <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>
-                        <TextBlock Text="DEVICE MANAGEMENT" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,2"/>
-                        <ItemsControl x:Name="IcManagement" ItemTemplate="{StaticResource ToolRow}"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- BITLOCKER RECOVERY KEY — only shown when a recovery key exists on this PC -->
-                <Border x:Name="BitLockerCard" Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <DockPanel>
-                        <Button x:Name="BtnBitLocker" DockPanel.Dock="Right" Content="Show recovery key"
-                                Style="{StaticResource ActionButton}" VerticalAlignment="Center"
-                                Click="BitLocker_Click"/>
+                    <!-- HARDENING SCORECARD -->
+                    <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="BITLOCKER RECOVERY KEY" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Reveal the 48-digit BitLocker recovery key(s) for this machine's drives — for unlocking a drive after a TPM/hardware change. Keys are read on demand and only shown when you click."
-                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                            <TextBlock Text="HARDENING SCORECARD" Style="{StaticResource CardTitle}"/>
+                            <ItemsControl x:Name="IcAudit">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,5">
+                                            <Ellipse DockPanel.Dock="Left" Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="#6C7086"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Level}" Value="Good"><Setter Property="Fill" Value="#A6E3A1"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="Warn"><Setter Property="Fill" Value="#F9E2AF"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="Bad"><Setter Property="Fill" Value="#F38BA8"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Level}" Value="Info"><Setter Property="Fill" Value="#89B4FA"/></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <!-- Plain value (no Windows setting to jump to) -->
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Foreground="#9399B2"
+                                                       FontSize="12" Margin="12,0,0,0" TextAlignment="Right">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Fix}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <!-- Clickable value → opens the Windows setting to change it -->
+                                            <TextBlock DockPanel.Dock="Right" FontSize="12" Margin="12,0,0,0" TextAlignment="Right">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Fix}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Hyperlink Click="Fix_Click" Foreground="#89B4FA"
+                                                           ToolTip="{Binding Fix.Tooltip}"><Run Text="{Binding Detail}"/></Hyperlink>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12"/>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
-                    </DockPanel>
-                </Border>
-              </Grid>
+                    </Border>
 
-            </StackPanel>
+                    <!-- PROSENTRY -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="PROSENTRY" Style="{StaticResource CardTitle}"/>
+                            <TextBlock Text="PCI's managed security stack — a green dot means the agent is active on this PC."
+                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <ItemsControl x:Name="IcProsentry" ItemTemplate="{StaticResource ToolRow}"/>
+                            <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>
+                            <TextBlock Text="DEVICE MANAGEMENT" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,2"/>
+                            <ItemsControl x:Name="IcManagement" ItemTemplate="{StaticResource ToolRow}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ══ RIGHT COLUMN ══ -->
+                <StackPanel Grid.Column="2">
+
+                    <!-- MICROSOFT DEFENDER -->
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="MICROSOFT DEFENDER" Style="{StaticResource CardTitle}"/>
+                            <TextBlock x:Name="TxtNoDefender" Foreground="#6C7086" FontSize="12"
+                                       Text="Defender is not the active antivirus (third-party AV installed)." Visibility="Collapsed"/>
+                            <Grid x:Name="DefenderGrid">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                                    <RowDefinition/><RowDefinition/><RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Real-time protection" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtRtp" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Tamper protection" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtTamper" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Signature version" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtSig" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Signatures updated" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtSigDate" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Last quick scan" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtQuick" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Last full scan" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="TxtFull" Style="{StaticResource RowValue}"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Threats" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="TxtThreats" Style="{StaticResource RowValue}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- BITLOCKER RECOVERY KEY — directly under Defender; only shown when a recovery key exists on this PC -->
+                    <Border x:Name="BitLockerCard" Style="{StaticResource Card}">
+                        <DockPanel>
+                            <Button x:Name="BtnBitLocker" DockPanel.Dock="Right" Content="Show recovery key"
+                                    Style="{StaticResource ActionButton}" VerticalAlignment="Center"
+                                    Click="BitLocker_Click"/>
+                            <StackPanel>
+                                <TextBlock Text="BITLOCKER RECOVERY KEY" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Reveal the 48-digit BitLocker recovery key(s) for this machine's drives — for unlocking a drive after a TPM/hardware change. Keys are read on demand and only shown when you click."
+                                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+
+            </Grid>
         </ScrollViewer>
     </Grid>
 </UserControl>
