@@ -53,17 +53,6 @@ source-path: PartnerTool\PerformanceWindow.xaml
         <!-- ── LEFT RAIL ── -->
         <ScrollViewer Grid.Column="0" Background="#181825" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="10,12">
-                <Button x:Name="TileProc" Tag="proc" Style="{StaticResource RailTile}" Click="Tile_Click">
-                    <DockPanel>
-                        <Border DockPanel.Dock="Left" Width="58" Height="36" Background="#11111B" CornerRadius="4" Margin="0,0,10,0">
-                            <TextBlock Text="▤" Foreground="#89B4FA" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Processes" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtProcRail" Foreground="#9399B2" FontSize="11" Text="—"/>
-                        </StackPanel>
-                    </DockPanel>
-                </Button>
                 <Button x:Name="TileCpu" Tag="cpu" Style="{StaticResource RailTile}" Click="Tile_Click">
                     <DockPanel>
                         <Border DockPanel.Dock="Left" Width="58" Height="36" Background="#11111B" CornerRadius="4" ClipToBounds="True" Margin="0,0,10,0">
@@ -105,6 +94,20 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Network" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
                             <TextBlock x:Name="TxtNetRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Button>
+
+                <!-- Processes lives at the bottom, under the four live-graph resources -->
+                <Border Height="1" Background="#313244" Margin="2,6,2,10"/>
+                <Button x:Name="TileProc" Tag="proc" Style="{StaticResource RailTile}" Click="Tile_Click">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left" Width="58" Height="36" Background="#11111B" CornerRadius="4" Margin="0,0,10,0">
+                            <TextBlock Text="▤" Foreground="#89B4FA" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Processes" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBlock x:Name="TxtProcRail" Foreground="#9399B2" FontSize="11" Text="—"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>

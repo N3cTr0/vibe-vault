@@ -25,6 +25,12 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.4 — 2026-07-20
+### Changed
+- **Performance window: the Processes tile moved to the bottom of the rail**, below the four
+  live-graph resources (CPU, Memory, Disk, Network), with a thin separator above it — so the
+  graph resources read as a group and Processes sits apart as the "list" view.
+
 ## 0.20.3 — 2026-07-20
 Security review pass: audited every text input's path to a command/query/registry sink, and hardened
 the "can't kill/stop/uninstall protection software or critical processes" guarantees.
