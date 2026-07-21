@@ -71,10 +71,15 @@ public partial class SecurityPage : UserControl
     {
         var auditTask = Task.Run(SecurityAudit.Collect);
         var defTask   = Task.Run(DefenderInfo.Collect);
-        await Task.WhenAll(auditTask, defTask);
+        var proTask   = Task.Run(ProsentryInfo.Collect);
+        await Task.WhenAll(auditTask, defTask, proTask);
 
         IcAudit.ItemsSource = await auditTask;
         PaintDefender(await defTask);
+
+        var pro = await proTask;
+        IcProsentry.ItemsSource  = pro.Tools;
+        IcManagement.ItemsSource = new[] { pro.Intune };
     }
 
     private void PaintDefender(DefenderInfo d)

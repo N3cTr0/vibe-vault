@@ -11,6 +11,35 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <UserControl.Resources>
+        <!-- A managed-tool row: green dot = active, gray = inactive; status on the right. -->
+        <DataTemplate x:Key="ToolRow">
+            <DockPanel Margin="0,5">
+                <Ellipse DockPanel.Dock="Left" Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Fill" Value="#6C7086"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Active}" Value="True"><Setter Property="Fill" Value="#A6E3A1"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontSize="12" Margin="12,0,0,0" TextAlignment="Right">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#6C7086"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Active}" Value="True"><Setter Property="Foreground" Value="#9399B2"/></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12"/>
+            </DockPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid Background="#1E1E2E">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -82,6 +111,21 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                     </StackPanel>
                 </Border>
 
+                <!-- PROSENTRY MANAGED TOOLS + DEVICE MANAGEMENT -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="PROSENTRY" Style="{StaticResource CardTitle}"/>
+                        <TextBlock Text="PCI's managed security stack — a green dot means the agent is active on this PC."
+                                   FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                        <ItemsControl x:Name="IcProsentry" ItemTemplate="{StaticResource ToolRow}"/>
+
+                        <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>
+
+                        <TextBlock Text="DEVICE MANAGEMENT" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,2"/>
+                        <ItemsControl x:Name="IcManagement" ItemTemplate="{StaticResource ToolRow}"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- BITLOCKER RECOVERY KEY -->
                 <Border Style="{StaticResource Card}">
                     <DockPanel>
@@ -110,25 +154,37 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                             <TextBlock x:Name="TxtNoDefender" Foreground="#6C7086" FontSize="12"
                                        Text="Defender is not the active antivirus (third-party AV installed)." Visibility="Collapsed"/>
                             <Grid x:Name="DefenderGrid">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
-                                    <RowDefinition/><RowDefinition/><RowDefinition/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Real-time protection" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtRtp" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Tamper protection" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtTamper" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Signature version" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtSig" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Signatures updated" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtSigDate" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Last quick scan" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtQuick" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Last full scan" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="TxtFull" Style="{StaticResource RowValue}"/>
-                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Threats" Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="TxtThreats" Style="{StaticResource RowValue}"/>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left column -->
+                                <Grid Grid.Column="0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Real-time protection" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtRtp" Style="{StaticResource RowValue}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tamper protection" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtTamper" Style="{StaticResource RowValue}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Signature version" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtSig" Style="{StaticResource RowValue}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Signatures updated" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtSigDate" Style="{StaticResource RowValue}"/>
+                                </Grid>
+
+                                <!-- Right column -->
+                                <Grid Grid.Column="2">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Last quick scan" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="TxtQuick" Style="{StaticResource RowValue}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Last full scan" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="TxtFull" Style="{StaticResource RowValue}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Threats" Style="{StaticResource RowLabel}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TxtThreats" Style="{StaticResource RowValue}"/>
+                                </Grid>
                             </Grid>
                         </StackPanel>
                     </Border>

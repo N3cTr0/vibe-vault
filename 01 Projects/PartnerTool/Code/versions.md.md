@@ -25,6 +25,21 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.21.0 — 2026-07-21
+### Added
+- **ProSentry status on the Security tab.** A new card shows PCI's managed security stack at a glance,
+  green when active on the PC:
+  - **Atakama** — active when an adapter's DNS is routed via Atakama's local resolver (127.97.116.97 / .98).
+  - **Huntress EDR** — active when the HuntressAgent (or HuntressRio) service is running.
+  - **Duo** — active when installed (`HKLM\SOFTWARE\Duo Security` or a "Duo Authentication" uninstall entry).
+  - **AutoElevate** — active when the AutoElevateAgent service is running (or it's installed).
+  - Under a **Device Management** sub-heading: **Intune (MDM)** — enrolled when an MDM enrollment with
+    ProviderID "MS DM Server" exists (or the Intune Management Extension service is present).
+  All checks are read-only (registry / WMI / adapter DNS); new `ProsentryInfo` collector.
+### Changed
+- **Microsoft Defender card is now two columns** (real-time/tamper/signatures on the left; scan
+  history + threats on the right) instead of one tall list.
+
 ## 0.20.8 — 2026-07-21
 ### Changed
 - **Removed the Settings toggle for hiding the Health Check tab.** Health Check has been through
