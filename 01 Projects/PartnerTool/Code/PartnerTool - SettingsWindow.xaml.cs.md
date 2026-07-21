@@ -25,7 +25,6 @@ public partial class SettingsWindow : Window
         var s = SettingsStore.Current;
         TxtRetentionDays.Text = s.LogRetentionDays.ToString();
         ChkSensors.IsChecked  = s.EnableSensors;
-        ChkPreview.IsChecked  = s.ShowPreviewFeatures;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -40,12 +39,10 @@ public partial class SettingsWindow : Window
         var s = SettingsStore.Current;
         s.LogRetentionDays     = days;
         s.EnableSensors        = ChkSensors.IsChecked == true;
-        s.ShowPreviewFeatures  = ChkPreview.IsChecked == true;
-        SettingsStore.Save();   // fires SettingsStore.Changed → MainWindow re-applies the preview tab
+        SettingsStore.Save();
 
         ActivityLog.Action("Settings",
-            $"Updated settings — log retention {days} day(s), sensors {(s.EnableSensors ? "on" : "off")}, " +
-            $"preview features {(s.ShowPreviewFeatures ? "on" : "off")}");
+            $"Updated settings — log retention {days} day(s), sensors {(s.EnableSensors ? "on" : "off")}");
         DialogResult = true;
     }
 

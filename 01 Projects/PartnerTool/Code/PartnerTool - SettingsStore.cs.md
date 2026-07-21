@@ -28,10 +28,6 @@ public class AppSettings
     /// ACL-hardened, so only the elevated app can tidy it). Clamped to 1–365; default 30.
     /// </summary>
     public int LogRetentionDays { get; set; } = 30;
-
-    /// <summary>Show the Health Check tab in the sidebar. On by default now that Health Check has
-    /// matured; a tech can still hide it from Settings. (Also gates any future work-in-progress tabs.)</summary>
-    public bool ShowPreviewFeatures { get; set; } = true;
 }
 
 /// <summary>

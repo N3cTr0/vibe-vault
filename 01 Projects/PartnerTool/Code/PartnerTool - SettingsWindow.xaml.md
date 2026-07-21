@@ -60,15 +60,6 @@ source-path: PartnerTool\SettingsWindow.xaml
             <TextBlock Text="Loads a kernel sensor driver. Turn off if a specific machine misbehaves with it — takes effect next launch."
                        Foreground="#6C7086" FontSize="10" TextWrapping="Wrap"/>
 
-            <Rectangle Height="1" Fill="#313244" Margin="0,14"/>
-
-            <!-- In-progress features -->
-            <TextBlock Text="HEALTH CHECK" Foreground="#CBA6F7" FontSize="11" FontWeight="SemiBold"/>
-            <CheckBox x:Name="ChkPreview" Content="Show the Health Check tab in the sidebar"
-                      Foreground="#CDD6F4" FontSize="12" Margin="0,8,0,4"/>
-            <TextBlock Text="On by default. Turn off to hide the Health Check tab (and any other in-progress tabs)."
-                       Foreground="#6C7086" FontSize="10" TextWrapping="Wrap"/>
-
         </StackPanel>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">

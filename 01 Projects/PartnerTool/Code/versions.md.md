@@ -25,6 +25,14 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.8 — 2026-07-21
+### Changed
+- **Removed the Settings toggle for hiding the Health Check tab.** Health Check has been through
+  testing, so it's now a permanent tab — no longer gated behind the "in-progress features" checkbox.
+  Dropped the `ShowPreviewFeatures` setting and the live show/hide plumbing; old settings.json files
+  with the key still load fine (it's just ignored). Settings now shows only Log Retention and the
+  hardware-sensor toggle.
+
 ## 0.20.7 — 2026-07-21
 ### Changed
 - **RDP-enabled is now advisory (Info), not a scored hardening issue.** The machines this tool

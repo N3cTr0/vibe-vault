@@ -34,8 +34,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        ApplyPreviewVisibility();                       // hide in-progress tabs unless opted in
-        SettingsStore.Changed += ApplyPreviewVisibility; // react live when the Settings toggle flips
         InitGateIndicator();
         Loaded += async (_, _) => await StartupAsync();
     }
@@ -110,16 +108,6 @@ public partial class MainWindow : Window
         if (TechGate.IsUnlocked) TechGate.Lock();
         else TechGate.Verify(this);
         PaintGate();
-    }
-
-    /// <summary>Show/hide work-in-progress tabs (Health Check) per the Settings toggle. If a hidden
-    /// tab is currently open, fall back to System Info.</summary>
-    private void ApplyPreviewVisibility()
-    {
-        bool show = SettingsStore.Current.ShowPreviewFeatures;
-        BtnNavHealth.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        if (!show && ReferenceEquals(PageHost.Content, _healthPage))
-            NavigateTo("SysInfo");
     }
 
     /// <summary>
