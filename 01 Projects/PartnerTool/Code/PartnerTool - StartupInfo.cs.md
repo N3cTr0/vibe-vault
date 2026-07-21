@@ -100,23 +100,11 @@ public static class StartupInfo
     // an odd/0x03 first byte = disabled. A missing value means enabled.
     private static bool IsApproved(byte[]? blob) => blob is not { Length: > 0 } || (blob[0] & 1) == 0;
 
-    // Security / endpoint-protection products a support tool must never disable at startup.
-    // Matched against both the entry name and its command line (case-insensitive substring).
-    private static readonly string[] SecurityKeywords =
-    {
-        "defender", "securityhealth", "sentinelone", "sentinel one", "sentinelagent",
-        "huntress", "crowdstrike", "falcon", "cylance", "carbon black", "carbonblack",
-        "sophos", "bitdefender", "webroot", "malwarebytes", "eset", "kaspersky",
-        "mcafee", "trellix", "cortex xdr",
-    };
-
     /// <summary>True for startup entries belonging to AV/EDR/security software — disabling those
-    /// would weaken the machine's protection, so the UI refuses.</summary>
+    /// would weaken the machine's protection, so the UI refuses. Uses the shared
+    /// <see cref="SecuritySoftware"/> matcher against the entry name + command line.</summary>
     public static bool IsSecurityCritical(StartupEntry entry)
-    {
-        var hay = (entry.Name + " " + entry.Command).ToLowerInvariant();
-        return SecurityKeywords.Any(hay.Contains);
-    }
+        => SecuritySoftware.Matches(entry.Name + " " + entry.Command);
 
     /// <summary>Enable or disable an entry by writing its StartupApproved value.</summary>
     public static void SetEnabled(StartupEntry entry, bool enable)

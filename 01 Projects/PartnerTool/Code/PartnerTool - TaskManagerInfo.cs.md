@@ -28,13 +28,14 @@ public class ProcRow
     public string Arch    { get; init; } = "";
     public string Desc    { get; init; } = "";
     public string Path    { get; init; } = "";
+    public bool   Critical { get; init; }            // OS marks it critical — killing bugchecks Windows
 
     public string CpuText  => Cpu  >= 0.05 ? $"{Cpu:F1}%" : "0%";
     public string MemText  => MemMb >= 1024 ? $"{MemMb / 1024:F1} GB" : $"{MemMb:F0} MB";
     public string DiskText => DiskMbs >= 0.05 ? $"{DiskMbs:F1} MB/s" : "0 MB/s";
     public string PathTip  => Path.Length > 0 ? Path : Name;
 
-    public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name);
+    public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name) && !Critical;
 }
 
 /// <summary>
@@ -45,7 +46,7 @@ public class ProcRow
 public class ProcessSampler
 {
     private record Prev(TimeSpan Cpu, ulong IoBytes, DateTime At);
-    private record Static(string User, string Desc, string Arch, string Path, long StartTicks);
+    private record Static(string User, string Desc, string Arch, string Path, bool Critical, long StartTicks);
 
     private readonly Dictionary<int, Prev>   _prev   = new();
     private readonly Dictionary<int, Static> _static = new();
@@ -103,7 +104,7 @@ public class ProcessSampler
                     Name = p.ProcessName, Pid = p.Id, Status = status, User = st.User,
                     Cpu = cpuPct, MemMb = memMb, DiskMbs = diskMbs,
                     Threads = threads, Handles = handles,
-                    Arch = st.Arch, Desc = st.Desc, Path = st.Path,
+                    Arch = st.Arch, Desc = st.Desc, Path = st.Path, Critical = st.Critical,
                 });
             }
             catch { /* exited mid-walk — skip */ }
@@ -133,7 +134,7 @@ public class ProcessSampler
                 desc = FileVersionInfo.GetVersionInfo(path).FileDescription ?? "";
         }
         catch { /* protected/system process */ }
-        var made = new Static(user, desc, LookupArch(p.Id), path, startTicks);
+        var made = new Static(user, desc, LookupArch(p.Id), path, ProcessInfo.IsOsCritical(p.Id), startTicks);
         _static[p.Id] = made;
         return made;
     }

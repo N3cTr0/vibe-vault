@@ -16,8 +16,9 @@ public record ProcInfo(int Pid, string Name, double CpuPct, double MemMb)
     /// <summary>
     /// False for rows the tool refuses to end — critical Windows processes (which would BSOD) plus
     /// the tool's own process — so the End button can disable itself instead of failing on click.
+    /// Checks both our name list and the OS's own critical flag.
     /// </summary>
-    public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name);
+    public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name) && !ProcessInfo.IsOsCritical(Pid);
 }
 
 /// <summary>
@@ -100,16 +101,41 @@ public static class ProcessInfo
     /// <summary>True for processes the tool must not end: critical Windows procs, or the tool itself.</summary>
     public static bool IsProtected(int pid, string name) => pid == Environment.ProcessId || IsCritical(name);
 
+    /// <summary>
+    /// Ask Windows whether killing this process would bugcheck the machine (CRITICAL_PROCESS_DIED).
+    /// This is the authoritative check — it catches critical processes that aren't in our name list,
+    /// including third-party ones the OS marks critical. Returns false if it can't be determined
+    /// (access denied / already exited) — the name list remains the backstop.
+    /// </summary>
+    public static bool IsOsCritical(int pid)
+    {
+        if (pid <= 4) return true;   // System / Idle — never openable, always fatal
+        IntPtr h = OpenProcess(0x1000 /*QUERY_LIMITED_INFORMATION*/, false, pid);
+        if (h == IntPtr.Zero) return false;
+        try { return IsProcessCritical(h, out bool critical) && critical; }
+        finally { CloseHandle(h); }
+    }
+
     public static bool TryKill(int pid)
     {
         try
         {
             using var p = Process.GetProcessById(pid);
-            if (IsProtected(pid, p.ProcessName)) return false;   // critical proc BSODs Windows; self would close the tool
+            // Three gates, any of which blocks the kill: our name list (AV/EDR + known-fatal),
+            // the tool's own PID, and the OS's authoritative "killing this bugchecks Windows" flag.
+            if (IsProtected(pid, p.ProcessName)) return false;
+            if (IsOsCritical(pid)) return false;
             p.Kill();
             return true;
         }
         catch { return false; }
     }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern IntPtr OpenProcess(int access, bool inheritHandle, int pid);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool CloseHandle(IntPtr h);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool IsProcessCritical(IntPtr hProcess, out bool critical);
 }
 ```

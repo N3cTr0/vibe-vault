@@ -25,6 +25,32 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.20.3 — 2026-07-20
+Security review pass: audited every text input's path to a command/query/registry sink, and hardened
+the "can't kill/stop/uninstall protection software or critical processes" guarantees.
+### Security
+- **Authoritative OS critical-process gate.** `ProcessInfo.TryKill` (the single kill path both the
+  Processes view and Diagnostics call) now also asks Windows `IsProcessCritical` — so ending a process
+  that would bugcheck the box (CRITICAL_PROCESS_DIED) is blocked even if it isn't in our name list, and
+  the End button disables itself for those rows. Kept the name list too: it catches cases the OS flag
+  misses (verified live — `lsass` reports "not critical" via the flag yet killing it is still fatal)
+  and covers AV/EDR engines that aren't OS-critical but must not be killed.
+- **Block uninstalling AV/EDR/security software.** The Software page now refuses to run the uninstaller
+  for antivirus / endpoint-protection products (matched by display name/publisher), mirroring the
+  existing guards on ending their processes, stopping their services, and disabling their startup
+  entries. Centralised all of these on one `SecuritySoftware.Matches` list (StartupInfo now uses it too).
+### Notes (audit findings — no change needed)
+- Every text box was traced to its sink. The six search/filter boxes (Services, Tasks, Drivers,
+  Connections, Processes, Software) are pure in-memory LINQ filters. The Network host/DNS-type fields
+  are stripped to an allowlist (`NetTools.Sanitize`) before `tracert`/`nslookup`, and Ping uses the
+  managed `System.Net.NetworkInformation.Ping` API; the port field is int-validated (1–65535, capped).
+  Env-var name/value goes through the managed `Environment.SetEnvironmentVariable` (name validated),
+  not a shell. Retention-days is `int.TryParse` bounded 1–365. `ProcessRunner` runs everything with
+  `UseShellExecute=false` and args as a single non-shell argument string (no `cmd`/`&|;` interpretation),
+  and pins system tools to System32 to prevent CWD hijack. WMI service paths are validated
+  (`ValidServiceName`) before interpolation. No unsanitised user input reaches a shell, WMI path, or
+  registry write.
+
 ## 0.20.2 — 2026-07-20
 ### Changed
 - **Processes moved into the Performance window** (was a sidebar tab in 0.20.0). The window's left

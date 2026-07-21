@@ -258,6 +258,21 @@ public partial class SoftwarePage : UserControl
     private async void UninstallApp_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: AppEntry app } || string.IsNullOrWhiteSpace(app.Uninstall)) return;
+
+        // Never uninstall AV/EDR/security software from a support tool — it would drop the machine's
+        // protection. (Most such products also enforce tamper protection, but block it here first so
+        // it's a clear refusal, not a confusing half-run.) Mirrors the guards on ending their
+        // processes, stopping their services, and disabling their startup entries.
+        if (SecuritySoftware.Matches(app.Name) || SecuritySoftware.Matches(app.Publisher))
+        {
+            MessageWindow.Show("Uninstall", $"“{app.Name}” is security software",
+                "Uninstalling antivirus / endpoint-protection software from this tool would weaken the " +
+                "machine's protection, so it's blocked. If it genuinely needs to be removed, use the " +
+                "vendor's own removal tool (most require a tamper-protection password anyway).",
+                MessageKind.Warning, Window.GetWindow(this));
+            return;
+        }
+
         if (!TechGate.Verify(Window.GetWindow(this))) return;
 
         // Security: this tool runs elevated. A per-user (HKCU) uninstall string is writable by a
