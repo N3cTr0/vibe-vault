@@ -16,14 +16,6 @@ namespace PartnerTool;
 public class AppSettings
 {
     /// <summary>
-    /// Whether to read hardware temperature/fan sensors (LibreHardwareMonitor). On by
-    /// default, but it loads a kernel sensor driver — if a specific machine misbehaves
-    /// with it, a tech can set this to false in settings.json (there's no UI for it) and
-    /// the rest of the app is unaffected.
-    /// </summary>
-    public bool EnableSensors { get; set; } = true;
-
-    /// <summary>
     /// Logs in C:\PCI\Logs older than this many days are deleted at startup (the folder is
     /// ACL-hardened, so only the elevated app can tidy it). Clamped to 1–365; default 30.
     /// </summary>

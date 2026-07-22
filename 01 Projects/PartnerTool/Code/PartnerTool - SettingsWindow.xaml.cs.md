@@ -13,9 +13,8 @@ using System.Windows;
 namespace PartnerTool;
 
 /// <summary>
-/// Small settings dialog (opened from the sidebar). Edits the persisted options in settings.json:
-/// log retention days (used by <see cref="LogRetention"/> at startup) and the hardware-sensor
-/// kill-switch.
+/// Small settings dialog (opened from the sidebar). Edits the log-retention days in settings.json
+/// (used by <see cref="LogRetention"/> at startup) and offers a one-off "purge all logs now".
 /// </summary>
 public partial class SettingsWindow : Window
 {
@@ -24,7 +23,6 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         var s = SettingsStore.Current;
         TxtRetentionDays.Text = s.LogRetentionDays.ToString();
-        ChkSensors.IsChecked  = s.EnableSensors;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -38,11 +36,9 @@ public partial class SettingsWindow : Window
 
         var s = SettingsStore.Current;
         s.LogRetentionDays     = days;
-        s.EnableSensors        = ChkSensors.IsChecked == true;
         SettingsStore.Save();
 
-        ActivityLog.Action("Settings",
-            $"Updated settings — log retention {days} day(s), sensors {(s.EnableSensors ? "on" : "off")}");
+        ActivityLog.Action("Settings", $"Updated settings — log retention {days} day(s)");
         DialogResult = true;
     }
 

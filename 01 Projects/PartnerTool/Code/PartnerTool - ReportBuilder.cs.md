@@ -66,8 +66,6 @@ public static class ReportBuilder
         sb.AppendLine($"  BIOS               : {hw.BiosVersion} ({hw.BiosDate})  ·  {hw.BootMode}  ·  TPM {hw.Tpm}");
         if (hw.BatteryWearPct is { } bw)
             sb.AppendLine($"  Battery            : {bw}% wear (design {hw.BatteryDesignMwh} mWh, full {hw.BatteryFullMwh} mWh)");
-        if (s.Temps.CpuTemp is { } ct) sb.AppendLine($"  CPU temperature    : {ct:F0} °C");
-        if (s.Temps.GpuTemp is { } gt) sb.AppendLine($"  GPU temperature    : {gt:F0} °C");
 
         H("OPERATING SYSTEM");
         sb.AppendLine($"  OS version   : {info.OsVersion}");
@@ -323,8 +321,6 @@ public static class ReportBuilder
             ("BIOS", $"{hw.BiosVersion} ({hw.BiosDate}) · {hw.BootMode} · TPM {hw.Tpm}"),
         };
         if (hw.BatteryWearPct is { } bw) hwRows.Add(("Battery wear", $"{bw}% (design {hw.BatteryDesignMwh} mWh, full {hw.BatteryFullMwh} mWh)"));
-        if (s.Temps.CpuTemp is { } ct) hwRows.Add(("CPU temperature", $"{ct:F0} °C"));
-        if (s.Temps.GpuTemp is { } gt) hwRows.Add(("GPU temperature", $"{gt:F0} °C"));
         Card("hardware", "Hardware", hwRows.ToArray());
 
         TableCard("memory", "Memory modules", new[] { "Slot", "Size", "Speed", "Manufacturer" },

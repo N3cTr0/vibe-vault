@@ -571,9 +571,6 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock x:Name="TxtVram" Foreground="#9399B2" FontSize="11" Margin="0,4,0,0"
-                                       Visibility="Collapsed"/>
-
                             <!-- Connected monitors (EDID) — Make / Model / Size / Year / Serial columns -->
                             <StackPanel x:Name="MonitorsSection" Visibility="Collapsed" Grid.IsSharedSizeScope="True">
                                 <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>

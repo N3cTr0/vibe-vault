@@ -17,27 +17,19 @@ source-path: PartnerTool\PartnerTool.csproj
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.22.2</Version>
-    <!-- Default build/publish is a folder (exe + dependency DLLs), which the MSI
-         installs to C:\PCI\PartnerTool. The single-file exe handed to techs is a
-         separate publish (publish-singlefile.bat: PublishSingleFile +
-         IncludeNativeLibrariesForSelfExtract) that self-extracts the native
-         LibreHardwareMonitorLib bits at runtime. -->
+    <Version>0.23.0</Version>
+    <!-- The exe techs get is the single-file publish (publish-singlefile.bat /
+         build-installer.bat: PublishSingleFile + IncludeNativeLibrariesForSelfExtract),
+         which the MSI installs to C:\PCI\PartnerTool as one file. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- LibreHardwareMonitorLib ships its implementation assembly as a RID-specific
-         asset (runtimes\win-x64\...). A build with no RID compiles against the ref
-         assembly but never copies the real DLL, so default every build to win-x64.
-         The publish profile sets its own RID + SelfContained, so these conditional
-         defaults don't fight it. -->
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
-    <SelfContained Condition="'$(SelfContained)' == ''">false</SelfContained>
-    <!-- Keep the dev build at bin\Release\<tfm>\ instead of a win-x64 subfolder, even
-         though we now set a RID. (Publish has its own PublishDir, so this doesn't affect it.) -->
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <!-- No RID-specific / native packages: everything left is managed, so plain
+         `dotnet build` works with no RuntimeIdentifier and the single-file publish
+         sets -r win-x64 itself. (LibreHardwareMonitorLib was removed in 0.23.0 —
+         its ring-0 sensor driver never returned values on our fleet and tripped
+         memory-integrity/ASR on locked-down machines.) -->
     <PackageReference Include="System.Management" Version="10.0.2" />
   </ItemGroup>
 

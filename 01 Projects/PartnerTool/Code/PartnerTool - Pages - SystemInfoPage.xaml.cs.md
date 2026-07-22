@@ -147,7 +147,7 @@ public partial class SystemInfoPage : UserControl
     /// <summary>Paint immediately from the startup snapshot (no collection).</summary>
     public void Render(SystemSnapshot snap)
         => Paint(snap.Info, snap.Perf, snap.Security, snap.PrimaryAdapter, snap.Hardware,
-                 snap.Temps, snap.Displays, snap.Printers, snap.Accounts, snap.Extras, snap.Aad, snap.Power, snap.CapturedAt);
+                 snap.Displays, snap.Printers, snap.Accounts, snap.Extras, snap.Aad, snap.Power, snap.CapturedAt);
 
     /// <summary>Collapse the device-join state into a single Domain value: Azure AD joined /
     /// the domain (hybrid if also Azure AD) / else the workgroup name.</summary>
@@ -329,7 +329,6 @@ public partial class SystemInfoPage : UserControl
             var secTask   = Task.Run(SecuritySnapshot.Collect);
             var netTask   = Task.Run(NetworkInfo.GetPrimaryAdapter);
             var hwTask    = Task.Run(HardwareInfo.Collect);
-            var tempTask  = Task.Run(TemperatureInfo.Collect);
             var dispTask  = Task.Run(DisplaysInfo.Collect);
             var printTask = Task.Run(PrintersInfo.Collect);
             var acctTask  = Task.Run(AccountsInfo.Collect);
@@ -337,10 +336,10 @@ public partial class SystemInfoPage : UserControl
             var aadTask   = AzureAdInfo.CollectAsync();
             var pwrTask   = PowerStatusInfo.CollectAsync();
             await Task.WhenAll(infoTask, perfTask, secTask, netTask, hwTask,
-                               tempTask, dispTask, printTask, acctTask, extraTask, aadTask, pwrTask);
+                               dispTask, printTask, acctTask, extraTask, aadTask, pwrTask);
 
             Paint(await infoTask, await perfTask, await secTask, await netTask, await hwTask,
-                  await tempTask, await dispTask, await printTask, await acctTask, await extraTask, await aadTask, await pwrTask, DateTime.Now);
+                  await dispTask, await printTask, await acctTask, await extraTask, await aadTask, await pwrTask, DateTime.Now);
         }
         catch (Exception ex)
         {
@@ -352,7 +351,7 @@ public partial class SystemInfoPage : UserControl
 
     private void Paint(SystemInfo info, PerfSnapshot perf, SecuritySnapshot sec,
                        AdapterSummary? adapter, HardwareInfo hw,
-                       TemperatureInfo temps, List<DisplayInfo> displays, List<PrinterInfo> printers,
+                       List<DisplayInfo> displays, List<PrinterInfo> printers,
                        List<LocalAccount> accounts, SystemExtras extras, AzureAdInfo aad,
                        PowerStatusInfo power, DateTime asOf)
     {
@@ -385,12 +384,8 @@ public partial class SystemInfoPage : UserControl
         // ── Performance ───────────────────────────────────────
         TxtCpu.Text = $"{perf.CpuName}  ({perf.Cores} cores / {perf.Threads} threads)";
 
-        // Clock / throttle hint + package power. Only show package power when the sensor actually
-        // reports a real value — on machines where LibreHardwareMonitor's driver is blocked (HVCI)
-        // it reads 0 W, which is meaningless noise, so hide it rather than show "0 W package".
-        var clockBits = new List<string> { perf.ClockText };
-        if (temps.CpuPackagePowerW is { } pw && pw >= 1) clockBits.Add($"{pw:F0} W package");
-        TxtCpuClock.Text       = string.Join("  ·  ", clockBits);
+        // Clock / throttle hint.
+        TxtCpuClock.Text       = perf.ClockText;
         TxtCpuClock.Foreground = perf.LikelyThrottled ? StatusColors.Yellow : StatusColors.Muted;
 
         TxtRam.Text       = $"{perf.RamUsedGb:F1} GB used of {perf.RamTotalGb:F1} GB  ({perf.RamPct:F0}%)";
@@ -413,14 +408,6 @@ public partial class SystemInfoPage : UserControl
 
         // ── Graphics ──────────────────────────────────────────
         IcGpus.ItemsSource = hw.Gpus;
-        if (temps.GpuVramUsedGb is { } vu)
-        {
-            TxtVram.Text = temps.GpuVramTotalGb is { } vt && vt > 0
-                ? $"VRAM in use: {vu:F1} / {vt:F1} GB"
-                : $"VRAM in use: {vu:F1} GB";
-            TxtVram.Visibility = Visibility.Visible;
-        }
-        else TxtVram.Visibility = Visibility.Collapsed;
 
         // ── Monitors ──────────────────────────────────────────
         IcMonitors.ItemsSource  = displays;

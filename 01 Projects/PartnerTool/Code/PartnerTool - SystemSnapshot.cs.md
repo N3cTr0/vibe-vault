@@ -30,7 +30,6 @@ public class SystemSnapshot
     public          List<string>      RebootReasons  { get; init; } = new();
     public required DiagnosticsInfo   Diagnostics    { get; init; }
     public required ReliabilityInfo   Reliability    { get; init; }
-    public required TemperatureInfo   Temps          { get; init; }
     public          List<DisplayInfo> Displays       { get; init; } = new();
     public          List<PrinterInfo> Printers       { get; init; } = new();
     public          List<LocalAccount> Accounts      { get; init; } = new();
@@ -52,7 +51,6 @@ public class SystemSnapshot
         var reasons  = Task.Run(SystemHealth.PendingReasons);
         var diag     = Task.Run(DiagnosticsInfo.Collect);
         var rel      = Task.Run(ReliabilityInfo.CollectIndex);   // index only — records are slow, loaded on demand
-        var temps    = Task.Run(TemperatureInfo.Collect);
         var displays = Task.Run(DisplaysInfo.Collect);
         var printers = Task.Run(PrintersInfo.Collect);
         var accounts = Task.Run(AccountsInfo.Collect);
@@ -63,7 +61,7 @@ public class SystemSnapshot
         var pwr      = PowerStatusInfo.CollectAsync();   // already async (powercfg)
 
         await Task.WhenAll(info, perf, sec, net, hw, reasons, diag, rel,
-                           temps, displays, printers, accounts, updates, power, extras, aad, pwr);
+                           displays, printers, accounts, updates, power, extras, aad, pwr);
 
         var pendingReasons = await reasons;
         return new SystemSnapshot
@@ -77,7 +75,6 @@ public class SystemSnapshot
             RebootReasons  = pendingReasons,
             Diagnostics    = await diag,
             Reliability    = await rel,
-            Temps          = await temps,
             Displays       = await displays,
             Printers       = await printers,
             Accounts       = await accounts,

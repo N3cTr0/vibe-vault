@@ -25,6 +25,25 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.23.0 — 2026-07-21
+### Removed
+- **Dropped LibreHardwareMonitorLib entirely.** Its ring-0 kernel sensor driver never returned values
+  on our fleet (mostly VMs) and tripped memory-integrity / Defender ASR on locked-down machines, all
+  to power a tiny bit of surfaced data. Removed the package and the `TemperatureInfo` collector —
+  including the dead NVMe drive-health (`Drives`) code that was collected but never shown.
+  - System Info no longer shows GPU "VRAM in use" or the CPU "N W package" power hint.
+  - The Collect-Diagnostics report no longer includes CPU/GPU temperature rows.
+  - Removed the now-pointless Settings ▸ "Read temperature/fan sensors" toggle and the
+    `EnableSensors` setting (old settings.json with the key still loads — it's ignored).
+  - The single-file exe no longer drops a kernel driver at runtime; it still self-extracts the normal
+    .NET/WPF native runtime bits (as every single-file .NET app does).
+- Removed the obsolete folder-publish path (`publish.bat`, `FolderInstall.pubxml`) — it only existed
+  so LHM's native driver could sit beside the exe. The single-file publish is now the only build
+  path, and the MSI installs that one exe to C:\PCI\PartnerTool.
+### Notes
+- No remaining native/RID-specific NuGet packages, so `dotnet build` needs no RuntimeIdentifier; the
+  single-file publish sets `-r win-x64` itself.
+
 ## 0.22.2 — 2026-07-21
 ### Changed
 - **Security tab now uses two independent column stacks** so each card sits directly under the one
