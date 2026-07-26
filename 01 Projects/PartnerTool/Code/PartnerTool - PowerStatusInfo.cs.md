@@ -114,7 +114,9 @@ public class PowerStatusInfo
     private static async Task<string> ReadLastWakeAsync()
     {
         var outp = await ProcessRunner.RunCaptureAsync("powercfg", "/lastwake", 8000);
-        if (Regex.IsMatch(outp, @"Wake Source Count\s*-\s*0")) return "Clean boot (no wake from sleep)";
+        // Windows prints "Wake History Count - 0" here; older/other builds say "Wake Source Count".
+        // Matching only the latter left this field stuck on "—" on every machine we tested.
+        if (Regex.IsMatch(outp, @"Wake (?:History|Source) Count\s*-\s*0")) return "Clean boot (no wake from sleep)";
 
         var type = Regex.Match(outp, @"Type:\s*(.+)").Groups[1].Value.Trim();
         if (type.Length == 0) return "—";

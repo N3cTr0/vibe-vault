@@ -48,10 +48,14 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <DockPanel>
                             <Button x:Name="BtnLoadReliability" DockPanel.Dock="Right" Content="Load detailed history"
                                     Style="{StaticResource ActionButton}" Click="LoadReliability_Click"/>
-                            <TextBlock Text="RELIABILITY (SYSTEM STABILITY)" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                            <!-- Margin cleared: the button makes this row ~30px tall, so CardTitle's
+                                 usual 8px bottom margin left the score sitting far lower under its
+                                 heading than every other card's content does. -->
+                            <TextBlock Text="RELIABILITY (SYSTEM STABILITY)" Style="{StaticResource CardTitle}"
+                                       VerticalAlignment="Center" Margin="0"/>
                         </DockPanel>
                         <TextBlock x:Name="TxtStability" FontSize="26" FontWeight="Bold"
-                                   Foreground="#A6E3A1" Margin="0,6,0,2"/>
+                                   Foreground="#A6E3A1" Margin="0,0,0,2"/>
                         <TextBlock x:Name="TxtStabilityNote" Foreground="#6C7086" FontSize="11"
                                    TextWrapping="Wrap" Margin="0,0,0,2"/>
                     </StackPanel>
@@ -64,8 +68,10 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
 
                         <!-- Recent crash dump = a .dmp file currently on disk (history below is the event log) -->
                         <DockPanel Margin="0,0,0,8">
-                            <TextBlock DockPanel.Dock="Left" Text="Recent crash dump:" Foreground="#6C7086" FontSize="11"
-                                       VerticalAlignment="Top" Margin="0,0,8,0"/>
+                            <!-- Width 120 puts the value in the same column as the bugcheck / app-crash
+                                 timestamps below, so it no longer hangs left of everything else. -->
+                            <TextBlock DockPanel.Dock="Left" Width="120" Text="Recent crash dump:" Foreground="#6C7086" FontSize="11"
+                                       VerticalAlignment="Top"/>
                             <TextBlock x:Name="TxtDumps" FontSize="11" Foreground="#CDD6F4" TextWrapping="Wrap"/>
                         </DockPanel>
                         <Rectangle Style="{StaticResource RowDivider}" Margin="0,0,0,8"/>
@@ -190,6 +196,12 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <DockPanel>
                             <Button x:Name="BtnProcRefresh" DockPanel.Dock="Right" Content="Refresh"
                                     Style="{StaticResource ActionButton}" Click="ProcRefresh_Click"/>
+                            <!-- Docked after Refresh, so it sits to its left. Opens the full
+                                 Task-Manager-style process list in the Performance window. -->
+                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11">
+                                <Hyperlink Click="OpenProcesses_Click" Foreground="#89B4FA"
+                                           ToolTip="Open the full process list (Performance ▸ Processes)">All processes</Hyperlink>
+                            </TextBlock>
                             <TextBlock Text="TOP PROCESSES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                         </DockPanel>
                         <Grid Margin="0,4,0,2">
@@ -209,7 +221,9 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <ItemsControl x:Name="IcProcesses">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Margin="0,3">
+                                    <!-- Tight rows: the End button's padding already sets the row
+                                         height, so extra row margin just spread the list out. -->
+                                    <Grid Margin="0,1">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="70"/>
@@ -227,7 +241,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                                    FontSize="12" TextAlignment="Right" VerticalAlignment="Center"/>
                                         <Button Grid.Column="4" Content="End" Tag="{Binding Pid}" Click="KillProc_Click"
                                                 IsEnabled="{Binding CanEnd}"
-                                                Style="{StaticResource ActionButton}" Padding="0,4" Margin="8,0,0,0" FontSize="11"/>
+                                                Style="{StaticResource ActionButton}" Padding="0,2" Margin="8,0,0,0" FontSize="11"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

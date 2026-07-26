@@ -93,6 +93,18 @@ source-path: PartnerTool\App.xaml
             <Setter Property="Fill" Value="#45475A"/>
         </Style>
 
+        <!-- Divider for ItemsControl rows. Sits at the TOP of every row and collapses on the
+             first one (PreviousData is null only for item 0), so a list gets lines *between*
+             its rows and none trailing off the end. Set Margin at the use site to match the
+             row's own spacing. -->
+        <Style x:Key="ItemDivider" TargetType="Rectangle" BasedOn="{StaticResource RowDivider}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- ── Shared button template ── -->
         <ControlTemplate x:Key="FlatBtnTpl" TargetType="Button">
             <Border x:Name="bg" Background="{TemplateBinding Background}"

@@ -209,6 +209,17 @@ public partial class DiagnosticsPage : UserControl
     // ── Live processes ───────────────────────────────────────
     private async void ProcRefresh_Click(object sender, RoutedEventArgs e) => await LoadProcessesAsync();
 
+    // This card only shows the top 10. "All processes" opens the full Task-Manager-style list.
+    // Single-instance like the System Info tiles: reuse the window if it is already up.
+    private PerformanceWindow? _perfWin;
+    private void OpenProcesses_Click(object sender, RoutedEventArgs e)
+    {
+        if (_perfWin != null) { _perfWin.SelectResource("proc"); _perfWin.Activate(); return; }
+        _perfWin = new PerformanceWindow("proc") { Owner = Window.GetWindow(this) };
+        _perfWin.Closed += (_, _) => _perfWin = null;
+        _perfWin.Show();
+    }
+
     private async Task LoadProcessesAsync()
     {
         if (_procsLoading) return;

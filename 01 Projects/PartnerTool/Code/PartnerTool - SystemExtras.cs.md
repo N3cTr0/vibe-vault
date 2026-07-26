@@ -18,7 +18,14 @@ namespace PartnerTool;
 /// </summary>
 public class SystemExtras
 {
+    /// <summary>Flat one-line form — what the text/HTML reports print.</summary>
     public string PageFile  { get; set; } = "Unknown";
+    /// <summary>"System managed" / "Manually configured" / "No page file" — line 1 of the UI form.</summary>
+    public string PageFileMode  { get; set; } = "";
+    /// <summary>Page-file path, e.g. C:\pagefile.sys — line 2 of the UI form.</summary>
+    public string PageFilePath  { get; set; } = "";
+    /// <summary>Sizes, e.g. "4864 MB allocated, 30 MB in use (peak 38 MB)" — line 3 of the UI form.</summary>
+    public string PageFileUsage { get; set; } = "";
     public string Proxy     { get; set; } = "Not configured";
     public string PowerPlan { get; set; } = "Unknown";
 
@@ -36,17 +43,28 @@ public class SystemExtras
             using (var cs = new ManagementObjectSearcher("SELECT AutomaticManagedPagefile FROM Win32_ComputerSystem"))
                 foreach (ManagementObject o in cs.Get()) { managed = o["AutomaticManagedPagefile"] is bool b && b; break; }
 
-            string detail = "";
+            // Kept as three parts so the UI can stack them on separate lines (the single
+            // concatenated string overflowed the Performance card), while the reports below
+            // still get the flat one-liner they have always printed.
+            string path = "", usage = "";
             using (var pf = new ManagementObjectSearcher(
                 "SELECT Name, AllocatedBaseSize, CurrentUsage, PeakUsage FROM Win32_PageFileUsage"))
                 foreach (ManagementObject o in pf.Get())
                 {
-                    detail = $"{o["Name"]} — {o["AllocatedBaseSize"]} MB allocated, " +
-                             $"{o["CurrentUsage"]} MB in use (peak {o["PeakUsage"]} MB)";
+                    path  = $"{o["Name"]}";
+                    usage = $"{o["AllocatedBaseSize"]} MB allocated, " +
+                            $"{o["CurrentUsage"]} MB in use (peak {o["PeakUsage"]} MB)";
                     break;
                 }
 
-            x.PageFile = (managed ? "System managed. " : "") + (detail.Length > 0 ? detail : "No page file");
+            x.PageFileMode  = path.Length == 0 ? "No page file"
+                            : managed          ? "System managed"
+                                               : "Manually configured";
+            x.PageFilePath  = path;
+            x.PageFileUsage = usage;
+
+            string detail = path.Length > 0 ? $"{path} — {usage}" : "No page file";
+            x.PageFile = (managed ? "System managed. " : "") + detail;
         }
         catch { }
 

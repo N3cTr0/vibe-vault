@@ -382,7 +382,8 @@ public partial class SystemInfoPage : UserControl
         TxtArch.Text   = info.KernelArchitecture;
 
         // ── Performance ───────────────────────────────────────
-        TxtCpu.Text = $"{perf.CpuName}  ({perf.Cores} cores / {perf.Threads} threads)";
+        TxtCpu.Text      = perf.CpuName;
+        TxtCpuCores.Text = $"{perf.Cores} cores / {perf.Threads} threads";
 
         // Clock / throttle hint.
         TxtCpuClock.Text       = perf.ClockText;
@@ -521,7 +522,9 @@ public partial class SystemInfoPage : UserControl
         IcAccounts.ItemsSource = accounts;
 
         // ── Page file / proxy (now under Performance) ─────────
-        TxtPageFile.Text  = extras.PageFile;
+        TxtPageFile.Text       = extras.PageFileMode;
+        TxtPageFilePath.Text   = extras.PageFilePath;
+        TxtPageFileUsage.Text  = extras.PageFileUsage;
         TxtProxy.Text     = extras.Proxy;
 
         // ── Power status (under the Power buttons) ────────────

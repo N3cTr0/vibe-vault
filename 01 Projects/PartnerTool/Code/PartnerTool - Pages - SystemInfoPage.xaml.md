@@ -42,16 +42,27 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- Live-tile header: name on the left, current value right-aligned on the same line.
+             Fixed height so every tile's graph starts at exactly the same y — NETWORK's value
+             uses a smaller font than the other three, which knocked its plot out of line when
+             the value sat on its own row. -->
+        <Style x:Key="LiveHeader" TargetType="DockPanel">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="LastChildFill" Value="True"/>
+        </Style>
         <Style x:Key="LiveLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#9399B2"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
         </Style>
         <Style x:Key="LiveValue" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
         </Style>
         <!-- Disk health dot, coloured by the Health string -->
         <Style x:Key="HealthDot" TargetType="Ellipse">
@@ -106,8 +117,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             <Button Style="{StaticResource LiveTileButton}" Tag="cpu" Click="LiveTile_Click"
                                     AutomationProperties.AutomationId="LiveTileCpu" AutomationProperties.Name="CPU — open Performance monitor">
                                 <StackPanel>
-                                    <TextBlock Text="CPU" Style="{StaticResource LiveLabel}"/>
-                                    <TextBlock x:Name="TxtLiveCpu" Text="—" Style="{StaticResource LiveValue}" Foreground="#89B4FA"/>
+                                    <DockPanel Style="{StaticResource LiveHeader}">
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveCpu" Text="—" Style="{StaticResource LiveValue}" Foreground="#89B4FA"/>
+                                        <TextBlock Text="CPU" Style="{StaticResource LiveLabel}"/>
+                                    </DockPanel>
                                     <Border x:Name="LiveCpuPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
                                         <Grid>
                                             <Control Template="{StaticResource GraphGrid}"/>
@@ -119,8 +132,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             <Button Style="{StaticResource LiveTileButton}" Tag="mem" Click="LiveTile_Click"
                                     AutomationProperties.AutomationId="LiveTileMem" AutomationProperties.Name="Memory — open Performance monitor">
                                 <StackPanel>
-                                    <TextBlock Text="MEMORY" Style="{StaticResource LiveLabel}"/>
-                                    <TextBlock x:Name="TxtLiveRam" Text="—" Style="{StaticResource LiveValue}" Foreground="#A6E3A1"/>
+                                    <DockPanel Style="{StaticResource LiveHeader}">
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveRam" Text="—" Style="{StaticResource LiveValue}" Foreground="#A6E3A1"/>
+                                        <TextBlock Text="MEMORY" Style="{StaticResource LiveLabel}"/>
+                                    </DockPanel>
                                     <Border x:Name="LiveRamPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
                                         <Grid>
                                             <Control Template="{StaticResource GraphGrid}"/>
@@ -132,8 +147,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             <Button Style="{StaticResource LiveTileButton}" Tag="disk" Click="LiveTile_Click"
                                     AutomationProperties.AutomationId="LiveTileDisk" AutomationProperties.Name="Disk — open Performance monitor">
                                 <StackPanel>
-                                    <TextBlock Text="DISK" Style="{StaticResource LiveLabel}"/>
-                                    <TextBlock x:Name="TxtLiveDisk" Text="—" Style="{StaticResource LiveValue}" Foreground="#F9E2AF"/>
+                                    <DockPanel Style="{StaticResource LiveHeader}">
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveDisk" Text="—" Style="{StaticResource LiveValue}" Foreground="#F9E2AF"/>
+                                        <TextBlock Text="DISK" Style="{StaticResource LiveLabel}"/>
+                                    </DockPanel>
                                     <Border x:Name="LiveDiskPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
                                         <Grid>
                                             <Control Template="{StaticResource GraphGrid}"/>
@@ -145,8 +162,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             <Button Style="{StaticResource LiveTileButton}" Tag="net" Click="LiveTile_Click"
                                     AutomationProperties.AutomationId="LiveTileNet" AutomationProperties.Name="Network — open Performance monitor">
                                 <StackPanel>
-                                    <TextBlock Text="NETWORK (Mbps)" Style="{StaticResource LiveLabel}"/>
-                                    <TextBlock x:Name="TxtLiveNet" Text="—" Style="{StaticResource LiveValue}" FontSize="15" Foreground="#CBA6F7"/>
+                                    <DockPanel Style="{StaticResource LiveHeader}">
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveNet" Text="—" Style="{StaticResource LiveValue}" FontSize="15" Foreground="#CBA6F7"/>
+                                        <TextBlock Text="NETWORK (Mbps)" Style="{StaticResource LiveLabel}"/>
+                                    </DockPanel>
                                     <Border x:Name="LiveNetPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
                                         <Grid>
                                             <Control Template="{StaticResource GraphGrid}"/>
@@ -399,6 +418,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <ItemsControl x:Name="IcMemory">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
+                                          <StackPanel>
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,6"/>
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition SharedSizeGroup="MemSlot"/>
@@ -411,6 +432,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                                 <TextBlock Grid.Column="2" Text="{Binding SpeedText}" Foreground="#9399B2" FontSize="12" Margin="0,0,12,0"/>
                                                 <TextBlock Grid.Column="3" Text="{Binding MakerText}" Foreground="#6C7086" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
+                                          </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -476,6 +498,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             <ItemsControl x:Name="IcAccounts">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
+                                      <StackPanel>
+                                        <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,8"/>
                                         <DockPanel Margin="0,4">
                                             <Ellipse DockPanel.Dock="Left" Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,10,0">
                                                 <Ellipse.Style>
@@ -497,6 +521,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                                 <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11" Margin="0,1,0,0"/>
                                             </StackPanel>
                                         </DockPanel>
+                                      </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -527,7 +552,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Processor"  Style="{StaticResource RowLabel}"/>
                                 <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,5,0,5">
                                     <TextBlock x:Name="TxtCpu" Foreground="#CDD6F4" FontSize="12" TextWrapping="Wrap"/>
-                                    <TextBlock x:Name="TxtCpuClock" Foreground="#9399B2" FontSize="11" Margin="0,2,0,0"/>
+                                    <!-- Core/thread count on its own line: appended to the name it overflowed
+                                         the column whenever the window wasn't maximised. -->
+                                    <TextBlock x:Name="TxtCpuCores" Foreground="#9399B2" FontSize="11" Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="TxtCpuClock" Foreground="#9399B2" FontSize="11" Margin="0,1,0,0"/>
                                 </StackPanel>
                                 <Rectangle Grid.Row="1" Grid.ColumnSpan="2"               Style="{StaticResource RowDivider}"/>
 
@@ -551,7 +579,14 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
 
                                 <!-- Page file -->
                                 <TextBlock Grid.Row="8" Grid.Column="0" Text="Page file"   Style="{StaticResource RowLabel}"/>
-                                <TextBlock Grid.Row="8" Grid.Column="1" x:Name="TxtPageFile" Style="{StaticResource RowValue}"/>
+                                <!-- Three lines (mode / path / sizes): as one string it ran off the card. -->
+                                <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,5,0,5">
+                                    <TextBlock x:Name="TxtPageFile" Foreground="#CDD6F4" FontSize="12"/>
+                                    <TextBlock x:Name="TxtPageFilePath"  Foreground="#9399B2" FontSize="11" Margin="0,2,0,0"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="TxtPageFileUsage" Foreground="#9399B2" FontSize="11" Margin="0,1,0,0"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
                                 <Rectangle Grid.Row="9" Grid.ColumnSpan="2"               Style="{StaticResource RowDivider}"/>
 
                                 <!-- Proxy -->
@@ -569,6 +604,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,5">
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,10"/>
                                             <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12" FontWeight="SemiBold"/>
                                             <TextBlock Foreground="#6C7086" FontSize="11" Margin="0,2,0,0">
                                                 <Run Text="{Binding Resolution, Mode=OneWay}"/>
@@ -605,6 +641,8 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <ItemsControl x:Name="IcMonitors">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
+                                          <StackPanel>
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,6"/>
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition SharedSizeGroup="MonMake"/>
@@ -619,6 +657,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                                 <TextBlock Grid.Column="3" Text="{Binding YearText}"   Foreground="#9399B2" FontSize="12" Margin="0,0,10,0"/>
                                                 <TextBlock Grid.Column="4" Text="{Binding SerialText}" Foreground="#9399B2" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             </Grid>
+                                          </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -679,7 +718,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <Grid.RowDefinitions>
                                     <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Charge"     Style="{StaticResource RowLabel}"/>
+                                <!-- Charge is the only double-height row (value + bar), so its label is
+                                     centred against the pair; top-aligned it read as off-centre next to
+                                     the single-line rows below. -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Charge"     Style="{StaticResource RowLabel}"
+                                           VerticalAlignment="Center" Padding="0"/>
                                 <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,5,0,5">
                                     <TextBlock x:Name="TxtBattery" Foreground="#CDD6F4" FontSize="12"/>
                                     <ProgressBar x:Name="BarBattery" Style="{StaticResource UsageBar}" Margin="0,4,0,0"/>
@@ -724,6 +767,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,4">
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,8"/>
                                             <TextBlock Text="{Binding Display}" Foreground="#CDD6F4" FontSize="12"/>
                                             <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11"
                                                        Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>

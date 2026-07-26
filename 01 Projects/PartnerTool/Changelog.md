@@ -25,6 +25,39 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.2 — 2026-07-27
+### Fixed
+- **"Last wake" always showed "—".** `powercfg /lastwake` prints `Wake History Count - 0`, but
+  `PowerStatusInfo.ReadLastWakeAsync` only matched `Wake Source Count`, so the clean-boot branch never
+  fired and the `Type:` parse found nothing. Now matches both spellings and correctly reports
+  "Clean boot (no wake from sleep)". Nothing to do with the removed sensor integration — it had been
+  wrong the whole time.
+
+### Changed
+- **System Info ▸ Performance:** the CPU core/thread count moved onto its own line under the processor
+  name (appended to the name it overflowed the column whenever the window wasn't maximised), and the
+  page file is now three lines — mode / path / sizes — instead of one long overflowing string.
+  `SystemExtras` keeps the flat one-line `PageFile` for the reports and adds `PageFileMode`,
+  `PageFilePath`, `PageFileUsage` for the UI.
+- **Row dividers between list items.** New shared `ItemDivider` style in `App.xaml`: a divider drawn at
+  the top of every `ItemsControl` row that collapses on the first one (`PreviousData` is null only for
+  item 0), so lists get lines *between* rows and none trailing off the end. Applied to Monitors, memory
+  DIMMs, Printers, Local Accounts and the GPU list.
+- **System Info ▸ Battery:** "Charge" is the only double-height row (value + bar); its label is now
+  centred against the pair instead of top-aligned, which read as off-centre next to the single-line
+  rows below.
+- **Diagnostics ▸ Crash history:** "Recent crash dump" value moved into the same 120px value column as
+  the bugcheck and app-crash timestamps below it — it used to hang left of everything else on the page.
+- **Diagnostics ▸ Reliability:** cleared `CardTitle`'s bottom margin inside the header DockPanel. The
+  "Load detailed history" button makes that row ~30px tall, which left the score sitting far lower
+  under its heading than any other card's content.
+- **Diagnostics ▸ Top processes:** tighter rows (row margin 3→1, End button padding 4→2 — the button
+  already sets the row height), plus an **All processes** link beside Refresh that opens the full
+  Task-Manager-style list in the Performance window (single-instance, like the LIVE STATS tiles).
+- **System Info ▸ LIVE STATS:** the current value moved to the top-right of each tile, on the same line
+  as the label, in a fixed-height header row. The four tiles previously didn't line up because
+  NETWORK's value uses a smaller font than the other three, so its plot started at a different y.
+
 ## 0.24.1 — 2026-07-26
 ### Changed
 - **Decile gridlines behind the live graphs**, so a tech can read the level off a trace instead of
