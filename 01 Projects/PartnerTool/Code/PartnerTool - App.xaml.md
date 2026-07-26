@@ -16,6 +16,26 @@ source-path: PartnerTool\App.xaml
         <!-- Show/hide helper used across pages -->
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
+        <!-- Decile gridlines for the live graphs: 10 equal bands, so each band is 10% of that
+             graph's scale (100% for CPU/Memory/Disk; 10% of the auto-scaled max for Network).
+             Drop `<Control Template="{StaticResource GraphGrid}"/>` behind the Polyline — it's
+             hit-test-transparent so it can sit inside clickable tiles. -->
+        <ControlTemplate x:Key="GraphGrid" TargetType="Control">
+            <UniformGrid Rows="10" Columns="1" IsHitTestVisible="False">
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <!-- 50% line slightly brighter as a reference midpoint -->
+                <Border BorderBrush="#303348" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+                <Border BorderBrush="#252739" BorderThickness="0,1,0,0"/>
+            </UniformGrid>
+        </ControlTemplate>
+
         <!-- Virtualized, selection-free list for large tables (services, drivers, tasks…) -->
         <Style x:Key="PlainList" TargetType="ListBox">
             <Setter Property="Background" Value="Transparent"/>

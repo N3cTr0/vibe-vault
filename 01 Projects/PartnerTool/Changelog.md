@@ -25,6 +25,18 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.1 — 2026-07-26
+### Changed
+- **Decile gridlines behind the live graphs**, so a tech can read the level off a trace instead of
+  guessing. 10 equal bands = 10% each, with the 50% line very slightly brighter as a midpoint
+  reference. Applied to the Performance window's CPU (per logical processor), Memory, Disk and
+  Network graphs, and to the four System Info LIVE STATS tiles. Shared `GraphGrid` template in
+  `App.xaml`; it's hit-test-transparent so the clickable live tiles still work.
+  - Note: for Network the bands are 10% of the graph's auto-scaled max (shown top-right), not 10% of
+    a fixed 100 — the other three are true percentages.
+  - LIVE STATS plots grew 40px → 56px: at 40px ten bands compressed into near-hatching.
+  - The tiny rail sparklines in the Performance window are left plain (too small for 10 bands).
+
 ## 0.24.0 — 2026-07-26
 ### Added
 - **UPDATE SOURCE card on the Updates tab** — shows where this PC actually gets Windows Updates and

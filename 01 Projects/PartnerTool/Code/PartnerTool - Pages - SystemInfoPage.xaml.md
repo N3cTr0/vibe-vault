@@ -108,8 +108,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <StackPanel>
                                     <TextBlock Text="CPU" Style="{StaticResource LiveLabel}"/>
                                     <TextBlock x:Name="TxtLiveCpu" Text="—" Style="{StaticResource LiveValue}" Foreground="#89B4FA"/>
-                                    <Border x:Name="LiveCpuPlot" Height="40" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
-                                        <Polyline x:Name="LiveCpuLine" Stroke="#89B4FA" StrokeThickness="1.5"/>
+                                    <Border x:Name="LiveCpuPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
+                                        <Grid>
+                                            <Control Template="{StaticResource GraphGrid}"/>
+                                            <Polyline x:Name="LiveCpuLine" Stroke="#89B4FA" StrokeThickness="1.5"/>
+                                        </Grid>
                                     </Border>
                                 </StackPanel>
                             </Button>
@@ -118,8 +121,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <StackPanel>
                                     <TextBlock Text="MEMORY" Style="{StaticResource LiveLabel}"/>
                                     <TextBlock x:Name="TxtLiveRam" Text="—" Style="{StaticResource LiveValue}" Foreground="#A6E3A1"/>
-                                    <Border x:Name="LiveRamPlot" Height="40" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
-                                        <Polyline x:Name="LiveRamLine" Stroke="#A6E3A1" StrokeThickness="1.5"/>
+                                    <Border x:Name="LiveRamPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
+                                        <Grid>
+                                            <Control Template="{StaticResource GraphGrid}"/>
+                                            <Polyline x:Name="LiveRamLine" Stroke="#A6E3A1" StrokeThickness="1.5"/>
+                                        </Grid>
                                     </Border>
                                 </StackPanel>
                             </Button>
@@ -128,8 +134,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <StackPanel>
                                     <TextBlock Text="DISK" Style="{StaticResource LiveLabel}"/>
                                     <TextBlock x:Name="TxtLiveDisk" Text="—" Style="{StaticResource LiveValue}" Foreground="#F9E2AF"/>
-                                    <Border x:Name="LiveDiskPlot" Height="40" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
-                                        <Polyline x:Name="LiveDiskLine" Stroke="#F9E2AF" StrokeThickness="1.5"/>
+                                    <Border x:Name="LiveDiskPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
+                                        <Grid>
+                                            <Control Template="{StaticResource GraphGrid}"/>
+                                            <Polyline x:Name="LiveDiskLine" Stroke="#F9E2AF" StrokeThickness="1.5"/>
+                                        </Grid>
                                     </Border>
                                 </StackPanel>
                             </Button>
@@ -138,8 +147,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <StackPanel>
                                     <TextBlock Text="NETWORK (Mbps)" Style="{StaticResource LiveLabel}"/>
                                     <TextBlock x:Name="TxtLiveNet" Text="—" Style="{StaticResource LiveValue}" FontSize="15" Foreground="#CBA6F7"/>
-                                    <Border x:Name="LiveNetPlot" Height="40" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
-                                        <Polyline x:Name="LiveNetLine" Stroke="#CBA6F7" StrokeThickness="1.5"/>
+                                    <Border x:Name="LiveNetPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
+                                        <Grid>
+                                            <Control Template="{StaticResource GraphGrid}"/>
+                                            <Polyline x:Name="LiveNetLine" Stroke="#CBA6F7" StrokeThickness="1.5"/>
+                                        </Grid>
                                     </Border>
                                 </StackPanel>
                             </Button>

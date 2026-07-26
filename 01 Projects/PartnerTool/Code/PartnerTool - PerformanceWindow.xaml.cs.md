@@ -184,9 +184,15 @@ public partial class PerformanceWindow : Window
         CoreGrid.Columns = (int)Math.Ceiling(Math.Sqrt(count));
         var stroke = Frozen("#89B4FA");
         var border = Frozen("#313244");
+        var gridTpl = (ControlTemplate)FindResource("GraphGrid");
         for (int i = 0; i < count; i++)
         {
             var line = new Polyline { Stroke = stroke, StrokeThickness = 1.0 };
+            // Decile gridlines behind each core's trace (Plot() reads line.Parent's size, and this
+            // Grid fills the Border exactly, so the plotted geometry is unchanged).
+            var cell = new Grid();
+            cell.Children.Add(new Control { Template = gridTpl });
+            cell.Children.Add(line);
             CoreGrid.Children.Add(new Border
             {
                 BorderBrush     = border,
@@ -194,7 +200,7 @@ public partial class PerformanceWindow : Window
                 CornerRadius    = new CornerRadius(3),
                 Margin          = new Thickness(2),
                 ClipToBounds    = true,
-                Child           = line,
+                Child           = cell,
             });
             _coreLines.Add(line);
             _coreHist.Add(new List<double>());

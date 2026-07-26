@@ -134,7 +134,10 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         <TextBlock x:Name="TxtGraphMax" Text="100%" Foreground="#6C7086" FontSize="10"
                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0"/>
                         <Border x:Name="BigPlot" ClipToBounds="True">
-                            <Polyline x:Name="BigLine" Stroke="#89B4FA" StrokeThickness="1.6"/>
+                            <Grid>
+                                <Control Template="{StaticResource GraphGrid}"/>
+                                <Polyline x:Name="BigLine" Stroke="#89B4FA" StrokeThickness="1.6"/>
+                            </Grid>
                         </Border>
                     </Grid>
                     <!-- per-logical-processor grid (CPU) — built in code -->
