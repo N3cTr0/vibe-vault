@@ -25,6 +25,39 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
             <TextBlock Text="Each source below is scanned automatically when this tab opens (can take a minute). Its status and its “Open” button live together — use Update All to run everything at once."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="2,0,2,12"/>
 
+            <!-- UPDATE SOURCE / POLICY — where this PC gets updates + the policies steering it.
+                 On a managed device this is usually why WU can't connect. -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="UPDATE SOURCE" Style="{StaticResource CardTitle}"/>
+                    <TextBlock x:Name="TxtWuSource" FontSize="12" TextWrapping="Wrap"/>
+                    <ItemsControl x:Name="IcWuPolicy" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="#6C7086" FontSize="11" VerticalAlignment="Top"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Top">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#CDD6F4"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Level}" Value="Warn"><Setter Property="Foreground" Value="#F9E2AF"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Level}" Value="Bad"><Setter Property="Foreground" Value="#F38BA8"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <!-- WINDOWS UPDATE (launcher + pending scan, merged) -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>

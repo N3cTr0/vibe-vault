@@ -34,6 +34,7 @@ public class FullReportData
     public List<ScheduledTaskItem>      Tasks      { get; init; } = new();
     public List<EnvVar>                 EnvVars    { get; init; } = new();
     public string                       HostsFile  { get; init; } = "";
+    public WuPolicyInfo?                WuPolicy   { get; init; }
 }
 
 public static class FullReport
@@ -53,9 +54,10 @@ public static class FullReport
         var tasks     = ScheduledTasksInfo.CollectAsync();
         var envVars   = Task.Run(SystemManagement.EnvVars);
         var hosts     = Task.Run(SystemManagement.ReadHosts);
+        var wuPolicy  = Task.Run(WuPolicyInfo.Collect);
 
         await Task.WhenAll(software, startup, adapters, harden, wifi,
-                           prosentry, defender, services, drivers, tasks, envVars, hosts);
+                           prosentry, defender, services, drivers, tasks, envVars, hosts, wuPolicy);
 
         return new FullReportData
         {
@@ -72,6 +74,7 @@ public static class FullReport
             Tasks     = await tasks,
             EnvVars   = await envVars,
             HostsFile = await hosts,
+            WuPolicy  = await wuPolicy,
         };
     }
 }

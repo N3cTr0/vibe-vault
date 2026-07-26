@@ -176,6 +176,13 @@ public static class ReportBuilder
                 sb.AppendLine($"  [{su.StateText,-8}] {su.Name} — {su.LocationText}");
         }
 
+        if (d.WuPolicy is { } wup)
+        {
+            H("UPDATE SOURCE / POLICY");
+            sb.AppendLine($"  Source: {wup.Source}");
+            foreach (var r in wup.Rows) sb.AppendLine($"  {r.Name,-24}: {r.Value}");
+        }
+
         if (s.Updates.Recent.Count > 0)
         {
             H("WINDOWS UPDATE HISTORY (recent)");
@@ -271,7 +278,7 @@ public static class ReportBuilder
 <a href=""#hardening"">Hardening</a><a href=""#prosentry"">ProSentry</a><a href=""#defender"">Defender</a>
 <a href=""#network"">Network</a><a href=""#monitors"">Monitors</a>
 <a href=""#printers"">Printers</a><a href=""#accounts"">Accounts</a><a href=""#software"">Software</a>
-<a href=""#startup"">Startup</a><a href=""#updates"">Updates</a><a href=""#devices"">Device problems</a>
+<a href=""#startup"">Startup</a><a href=""#wupolicy"">Update source</a><a href=""#updates"">Updates</a><a href=""#devices"">Device problems</a>
 <a href=""#extras"">Extras</a><a href=""#services"">Services</a><a href=""#drivers"">Drivers</a>
 <a href=""#tasks"">Tasks</a><a href=""#envvars"">Env vars</a><a href=""#hosts"">Hosts</a></div>");
 
@@ -433,6 +440,13 @@ public static class ReportBuilder
             d.Startup.Select(su => new[] { su.Name, su.StateText, su.LocationText, su.Command }).ToList());
 
         // ── Updates / devices / extras ──
+        if (d.WuPolicy is { } wup2)
+        {
+            var wuRows = new List<(string, string)> { ("Source", wup2.Source) };
+            wuRows.AddRange(wup2.Rows.Select(r => (r.Name, r.Value)));
+            Card("wupolicy", "Update source / policy", wuRows.ToArray());
+        }
+
         TableCard("updates", "Windows Update history", new[] { "Date", "Result", "Title" },
             s.Updates.Recent.Select(u => new[] { u.Date.ToString(Dates.Date), u.Result, u.Title }).ToList());
 

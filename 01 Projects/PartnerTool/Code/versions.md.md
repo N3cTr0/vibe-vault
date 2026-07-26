@@ -25,6 +25,22 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.0 — 2026-07-26
+### Added
+- **UPDATE SOURCE card on the Updates tab** — shows where this PC actually gets Windows Updates and
+  the policies steering it, so a tech can immediately see *why* a managed device reports "we couldn't
+  connect to the update service" (rather than resetting WU components that were never the problem).
+  New read-only `WuPolicyInfo` collector (WindowsUpdate/AU policy keys + the MDM PolicyManager key):
+  - **Source line**: "Windows Update (Microsoft) — not policy-managed" (green), or the WSUS server
+    URL / "Managed by MDM / Intune" / "Managed by Group Policy" (blue).
+  - **WSUS server** + status server when `UseWUServer` is set.
+  - **"Reach Microsoft's servers — Blocked by policy"** (amber) when
+    `DoNotConnectToWindowsUpdateInternetLocations` is on — the classic cause of a connect failure when
+    the WSUS/Intune source is unreachable.
+  - Automatic updates disabled, update behaviour (AUOptions), WU UI access disabled, pinned feature
+    version (TargetReleaseVersionInfo), and feature/quality update deferrals.
+- The same detail is now in the **Collect Diagnostics** report (HTML + text) as "Update source / policy".
+
 ## 0.23.0 — 2026-07-21
 ### Removed
 - **Dropped LibreHardwareMonitorLib entirely.** Its ring-0 kernel sensor driver never returned values

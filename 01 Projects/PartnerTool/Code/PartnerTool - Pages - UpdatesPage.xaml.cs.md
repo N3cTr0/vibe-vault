@@ -41,10 +41,21 @@ public partial class UpdatesPage : UserControl
     {
         if (_loadStarted) return;
         _loadStarted = true;
+        LoadWuPolicy();                    // fast registry read — show the update source up front
         await LoadMfrToolAsync();
         var history = LoadHistoryAsync();   // own guard — runs alongside the scans
         await ScanAllAsync();
         await history;
+    }
+
+    /// <summary>Show where this PC gets updates + the policies steering it (the usual reason a
+    /// managed device shows "couldn't connect to the update service").</summary>
+    private void LoadWuPolicy()
+    {
+        var p = WuPolicyInfo.Collect();
+        TxtWuSource.Text       = p.Source;
+        TxtWuSource.Foreground = p.Managed ? StatusColors.Blue : StatusColors.Green;
+        IcWuPolicy.ItemsSource = p.Rows;
     }
 
     private async System.Threading.Tasks.Task LoadHistoryAsync()
