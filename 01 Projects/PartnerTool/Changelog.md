@@ -25,6 +25,20 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.4 — 2026-07-28
+### Fixed
+- **Row text was not centred between its dividers** (regression from 0.24.2). The `ItemDivider` sits at
+  the TOP of each row, so the row's own top margin lands *above* the line — a bottom-only margin on the
+  divider therefore put far more space below the line than above it, and every row hugged the line above
+  it. Monitors and memory DIMMs were 3px above / 9px below; Local Accounts 4px / 12px. Split the margins
+  (`Margin="0,3"` and `Margin="0,4"`) so each row sits centred in its band. Printers (8/8) and the GPU
+  list (10/10) were already balanced — their dividers live inside the margined panel — and are unchanged.
+  The `ItemDivider` doc comment in `App.xaml` now spells the rule out.
+- **Battery: the Voltage/Wear band was taller than every other row.** The health-section divider carried
+  `Margin="0,6"`, which padded the band on *both* sides of it — those two rows measured 33px against 27px
+  everywhere else. The rows either side already carry RowLabel/RowValue's 5px padding, so the margin is
+  now `0` and all six battery rows measure a uniform 27px.
+
 ## 0.24.3 — 2026-07-28
 ### Added
 - **Repair ▸ Windows Update Reset: "Also reset the update source back to Windows Update (online)".**

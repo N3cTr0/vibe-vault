@@ -95,8 +95,10 @@ source-path: PartnerTool\App.xaml
 
         <!-- Divider for ItemsControl rows. Sits at the TOP of every row and collapses on the
              first one (PreviousData is null only for item 0), so a list gets lines *between*
-             its rows and none trailing off the end. Set Margin at the use site to match the
-             row's own spacing. -->
+             its rows and none trailing off the end.
+             Set Margin at the use site, and SPLIT IT top/bottom — the row's own top margin lands
+             ABOVE this line, so a bottom-only margin leaves the text hugging the line above it.
+             For a row with Margin="0,N", use Margin="0,N" here too: N+N above, N+N below. -->
         <Style x:Key="ItemDivider" TargetType="Rectangle" BasedOn="{StaticResource RowDivider}">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">

@@ -419,7 +419,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                           <StackPanel>
-                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,6"/>
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,3"/>
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition SharedSizeGroup="MemSlot"/>
@@ -499,7 +499,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                       <StackPanel>
-                                        <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,8"/>
+                                        <Rectangle Style="{StaticResource ItemDivider}" Margin="0,4"/>
                                         <DockPanel Margin="0,4">
                                             <Ellipse DockPanel.Dock="Left" Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,10,0">
                                                 <Ellipse.Style>
@@ -642,7 +642,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                           <StackPanel>
-                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,0,0,6"/>
+                                            <!-- 3 top + the previous row's 3 bottom = 6 above the line,
+                                                 3 bottom + this row's 3 top = 6 below. Even margins here
+                                                 would put the line 3px above the text and 9px below it. -->
+                                            <Rectangle Style="{StaticResource ItemDivider}" Margin="0,3"/>
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition SharedSizeGroup="MonMake"/>
@@ -737,7 +740,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
 
                             <!-- Battery health (wear) — shown only when capacity is readable -->
                             <StackPanel x:Name="BattHealthSection" Visibility="Collapsed">
-                                <Rectangle Style="{StaticResource RowDivider}" Margin="0,6"/>
+                                <!-- No margin: the rows either side already carry RowLabel/RowValue's
+                                     5px padding, so this lines up with the card's other dividers. A
+                                     margin here made the Voltage/Wear band 12px taller than the rest. -->
+                                <Rectangle Style="{StaticResource RowDivider}" Margin="0"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="110"/>
