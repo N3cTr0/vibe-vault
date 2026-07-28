@@ -859,14 +859,42 @@ Write-Output 'Windows Update components reset.'
     private async void WuReset_Click(object sender, RoutedEventArgs e)
     {
         if (!TechGate.Verify(Window.GetWindow(this))) return;
+
+        // Clearing the source policies changes where this PC gets updates, so confirm it separately
+        // and spell out exactly which values go — a tech may be looking at a deliberately managed PC.
+        bool resetSource = ChkWuSource.IsChecked == true;
+        if (resetSource && MessageBox.Show(Window.GetWindow(this),
+                "Reset the update source so this PC looks for updates at Microsoft directly?\n\n" +
+                "These policy values will be removed:\n" +
+                "    WUServer, WUStatusServer, UseWUServer  (the WSUS redirect)\n" +
+                "    DoNotConnectToWindowsUpdateInternetLocations\n" +
+                "    NoAutoUpdate, AUOptions\n\n" +
+                "Deferrals, the pinned feature version and Intune/MDM update policies are left alone.\n\n" +
+                "If a live domain GPO sets these, the next policy refresh will put them back.",
+                "Reset Windows Update source", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+            != MessageBoxResult.Yes) return;
+
         if (!BeginServicing("Windows Update Reset")) return;   // stops/clears WU services — must not overlap Update All
         UseLog(WuLogScroll, WuLog);
         Set(TxtWuStatus, "Running…", StatusColors.Yellow);
         try
         {
+            // Registry first, so the service restart at the end of the script picks up the change.
+            if (resetSource)
+            {
+                Log("Resetting the update source back to Windows Update (online)...");
+                var removed = await Task.Run(WuPolicyInfo.ResetToOnline);
+                if (removed.Count == 0) Log("  no source policies were set — nothing to reset");
+                else foreach (var line in removed) Log(line);
+                Log("");
+            }
+
             var code = await RunPowerShell("pci_wu_reset.ps1", WuResetScript,
                 "Windows Update reset", TxtWuStatus);
-            Set(TxtWuStatus, code == 0 ? "● Done — caches cleared" : "● Done (check log)",
+            Set(TxtWuStatus,
+                code != 0        ? "● Done (check log)"
+                : resetSource    ? "● Done — caches cleared, source reset to online"
+                                 : "● Done — caches cleared",
                 code == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
         finally { EndServicing(); SaveLog("WUReset"); }

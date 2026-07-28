@@ -363,6 +363,13 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                             <TextBlock Text="WINDOWS UPDATE RESET" Style="{StaticResource CardTitle}"/>
                             <TextBlock Text="Stops the update services and clears the SoftwareDistribution and catroot2 caches, then restarts them. Fixes stuck Windows Update / Microsoft Store downloads. No reboot required."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                            <!-- Opt-in: clears the WSUS redirect / update-blocking policies. See the
+                                 Updates tab's UPDATE SOURCE card for what is currently set. -->
+                            <CheckBox x:Name="ChkWuSource" Margin="0,8,0,0" Foreground="#CDD6F4" FontSize="11"
+                                      Content="Also reset the update source back to Windows Update (online)"
+                                      ToolTip="Clears WUServer / UseWUServer, DoNotConnectToWindowsUpdateInternetLocations and NoAutoUpdate / AUOptions"/>
+                            <TextBlock Text="Use when UPDATE SOURCE on the Updates tab points at a WSUS server that is dead or no longer used — the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM policies are not touched, and if a live domain GPO sets these, the next policy refresh will put them back."
+                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="24,3,0,0"/>
                             <TextBlock x:Name="TxtWuStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
                     </DockPanel>

@@ -95,11 +95,76 @@ public class WuPolicyInfo
         return new WuPolicyInfo { Source = source, Managed = managed, Rows = rows };
     }
 
+    /// <summary>
+    /// Point Windows Update back at Microsoft by deleting the policy values that redirect or block
+    /// it — the registry equivalent of setting those GPO settings back to "Not configured". Only the
+    /// source/access values are touched: deferrals, the pinned release version and anything under the
+    /// MDM PolicyManager key are left alone (Intune re-applies its own, and fighting the enrollment
+    /// would only break it). Returns one log line per value removed.
+    /// </summary>
+    /// <remarks>
+    /// On a domain-joined PC whose settings come from a live GPO, the next policy refresh puts them
+    /// straight back. This is the fix for a leftover or dead WSUS entry — usually an old server that
+    /// no longer exists, which is what produces "we couldn't connect to the update service".
+    /// </remarks>
+    public static List<string> ResetToOnline()
+    {
+        var log = new List<string>();
+
+        // Where updates come from, and whether Microsoft is reachable at all.
+        Strip(WuKey, log, "WUServer", "WUStatusServer", "UpdateServiceUrlAlternate",
+                          "DoNotConnectToWindowsUpdateInternetLocations");
+        // ...and the AU values that switch automatic updates off outright.
+        Strip(AuKey, log, "UseWUServer", "NoAutoUpdate", "AUOptions");
+
+        // Collect() calls a machine policy-managed when these keys merely EXIST, so drop them once
+        // they are empty — otherwise the Updates tab still reports Group Policy steering updates.
+        // AU is a subkey of WindowsUpdate, so it has to go first.
+        PruneIfEmpty(AuKey, log);
+        PruneIfEmpty(WuKey, log);
+
+        return log;
+    }
+
+    private static void Strip(string path, List<string> log, params string[] names)
+    {
+        try
+        {
+            using var k = Registry.LocalMachine.OpenSubKey(path, writable: true);
+            if (k == null) return;
+            foreach (var n in names)
+            {
+                if (k.GetValue(n) is not { } v) continue;
+                k.DeleteValue(n, throwOnMissingValue: false);
+                log.Add($"  removed {n} (was {v})");
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Add($"  could not clear values under HKLM\\{path}: {ex.Message}");
+        }
+    }
+
+    private static void PruneIfEmpty(string path, List<string> log)
+    {
+        try
+        {
+            using (var k = Registry.LocalMachine.OpenSubKey(path))
+            {
+                if (k == null || k.ValueCount > 0 || k.SubKeyCount > 0) return;
+            }
+            Registry.LocalMachine.DeleteSubKey(path, throwOnMissingSubKey: false);
+            log.Add($"  removed the now-empty key HKLM\\{path}");
+        }
+        catch { }
+    }
+
     private static int? Dword(RegistryKey? key, string name)
         => key?.GetValue(name) is int i ? i : null;
 
     private static string AuOptionsText(int o) => o switch
     {
+        1 => "Never check for updates (disabled by policy)",
         2 => "Notify before download",
         3 => "Auto-download, notify to install",
         4 => "Auto-download and schedule install",

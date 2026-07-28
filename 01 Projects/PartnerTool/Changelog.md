@@ -25,6 +25,28 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.3 — 2026-07-28
+### Added
+- **Repair ▸ Windows Update Reset: "Also reset the update source back to Windows Update (online)".**
+  Opt-in checkbox (off by default) for the case where UPDATE SOURCE points at a WSUS server that is
+  dead or no longer used — the usual cause of "we couldn't connect to the update service".
+  `WuPolicyInfo.ResetToOnline()` deletes the policy values that redirect or block Windows Update:
+  `WUServer`, `WUStatusServer`, `UpdateServiceUrlAlternate`,
+  `DoNotConnectToWindowsUpdateInternetLocations`, `UseWUServer`, `NoAutoUpdate`, `AUOptions`.
+  It runs before the cache clear so the script's service restart picks the change up, and every
+  removed value is logged with what it was.
+  - Deferrals, the pinned feature version and the MDM/Intune `PolicyManager` key are deliberately
+    **not** touched — Intune re-applies its own, and fighting the enrollment would only break it.
+  - The now-empty `WindowsUpdate` and `AU` keys are pruned, because `Collect()` treats a machine as
+    policy-managed when those keys merely exist — without this the Updates tab would still claim
+    Group Policy was steering updates.
+  - Tech-gated (as the whole card already was) plus its own confirmation listing exactly which values
+    go, and a warning that a live domain GPO will re-apply them at the next policy refresh.
+
+### Fixed
+- `AUOptions = 1` displayed as a bare "1" in the UPDATE SOURCE card — it now reads
+  "Never check for updates (disabled by policy)". 1 was missing from the lookup, which only covered 2–7.
+
 ## 0.24.2 — 2026-07-27
 ### Fixed
 - **"Last wake" always showed "—".** `powercfg /lastwake` prints `Wake History Count - 0`, but
