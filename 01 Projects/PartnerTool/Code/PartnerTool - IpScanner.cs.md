@@ -27,24 +27,24 @@ public class IpHost
     public string Ports  { get; set; } = "";     // deep scan only: open TCP ports, e.g. "445, 3389"
     public bool   Deep   { get; set; }            // true = deep scan → show the Open-ports column
 
-    public string NameText  => Name.Length  > 0 ? Name  : "—";
-    public string MacText   => Mac.Length   > 0 ? Mac   : "—";
+    public string NameText  => Name.Length  > 0 ? Name  : "-";
+    public string MacText   => Mac.Length   > 0 ? Mac   : "-";
     public string NoteText  => Note.Length  > 0 ? $"  ({Note})" : "";
-    public string PortsText => Ports.Length > 0 ? Ports : "—";
+    public string PortsText => Ports.Length > 0 ? Ports : "-";
 }
 
 /// <summary>
 /// Advanced IP Scanner-style sweep of an IPv4 range: ICMP ping, then an ARP probe (which finds
-/// hosts that block ping — the firewall default on Windows clients), then reverse DNS on whatever
+/// hosts that block ping - the firewall default on Windows clients), then reverse DNS on whatever
 /// answered. Optionally a TCP knock on common ports, which is the only thing that finds a
 /// ping-blocking host on a DIFFERENT subnet (ARP is link-local, so it can't cross a router).
 ///
-/// Read-only: it sends ICMP echo, ARP requests and — only in deep mode — TCP SYNs to ports we
+/// Read-only: it sends ICMP echo, ARP requests and - only in deep mode - TCP SYNs to ports we
 /// immediately close. Nothing is written to any remote host.
 /// </summary>
 public static class IpScanner
 {
-    /// <summary>Refuse absurd ranges — a /16 sweep would take hours and look like an attack.</summary>
+    /// <summary>Refuse absurd ranges - a /16 sweep would take hours and look like an attack.</summary>
     public const int MaxHosts = 8192;
 
     private static readonly int[] DeepPorts = { 445, 3389, 139, 80, 443, 22 };
@@ -102,11 +102,11 @@ public static class IpScanner
         catch { error = "Not a valid IP address or range."; return new List<uint>(); }
 
         if (list.Count == 0) error = "That range contains no usable addresses.";
-        else if (list.Count > MaxHosts) { error = $"That range is too large — {MaxHosts:N0} addresses max."; list.Clear(); }
+        else if (list.Count > MaxHosts) { error = $"That range is too large - {MaxHosts:N0} addresses max."; list.Clear(); }
         return list;
     }
 
-    /// <summary>The local /24 to prefill the box with — e.g. "192.168.1.0/24".</summary>
+    /// <summary>The local /24 to prefill the box with - e.g. "192.168.1.0/24".</summary>
     public static string DefaultRange()
     {
         var (ip, prefix) = LocalIPv4();
@@ -219,7 +219,7 @@ public static class IpScanner
         // 1 + 2. ICMP echo and the ARP probe run CONCURRENTLY. A dead on-link host would otherwise
         // cost the ping timeout PLUS the ARP timeout back-to-back; in parallel we pay only the slower
         // of the two. ARP proves a host exists on our own segment even when it ignores ping (the
-        // Windows-client default) and hands us the MAC for free. Neither task throws — both swallow.
+        // Windows-client default) and hands us the MAC for free. Neither task throws - both swallow.
         var pingTask = PingAsync(ip);
         var arpTask  = onLink ? Task.Run(() => ArpLookup(addr), ct) : Task.FromResult("");
         await Task.WhenAll(pingTask, arpTask).ConfigureAwait(false);
@@ -288,7 +288,7 @@ public static class IpScanner
         try
         {
             // Same rule as the port probe: cancel, don't abandon. An orphaned reverse lookup faults
-            // with "No such host is known" for every IP with no PTR record — which is most of them.
+            // with "No such host is known" for every IP with no PTR record - which is most of them.
             using var cts = new CancellationTokenSource(900);
             var entry = await Dns.GetHostEntryAsync(ip, cts.Token).ConfigureAwait(false);
             return entry.HostName;

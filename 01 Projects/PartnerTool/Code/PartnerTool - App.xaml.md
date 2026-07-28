@@ -18,7 +18,7 @@ source-path: PartnerTool\App.xaml
 
         <!-- Decile gridlines for the live graphs: 10 equal bands, so each band is 10% of that
              graph's scale (100% for CPU/Memory/Disk; 10% of the auto-scaled max for Network).
-             Drop `<Control Template="{StaticResource GraphGrid}"/>` behind the Polyline — it's
+             Drop `<Control Template="{StaticResource GraphGrid}"/>` behind the Polyline - it's
              hit-test-transparent so it can sit inside clickable tiles. -->
         <ControlTemplate x:Key="GraphGrid" TargetType="Control">
             <UniformGrid Rows="10" Columns="1" IsHitTestVisible="False">
@@ -96,7 +96,7 @@ source-path: PartnerTool\App.xaml
         <!-- Divider for ItemsControl rows. Sits at the TOP of every row and collapses on the
              first one (PreviousData is null only for item 0), so a list gets lines *between*
              its rows and none trailing off the end.
-             Set Margin at the use site, and SPLIT IT top/bottom — the row's own top margin lands
+             Set Margin at the use site, and SPLIT IT top/bottom - the row's own top margin lands
              ABOVE this line, so a bottom-only margin leaves the text hugging the line above it.
              For a row with Margin="0,N", use Margin="0,N" here too: N+N above, N+N below. -->
         <Style x:Key="ItemDivider" TargetType="Rectangle" BasedOn="{StaticResource RowDivider}">

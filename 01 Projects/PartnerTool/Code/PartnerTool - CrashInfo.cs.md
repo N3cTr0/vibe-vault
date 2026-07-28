@@ -19,7 +19,7 @@ public record AppFaultGroup(DateTime Time, string App, string Module, string Not
 /// <summary>
 /// Crash history: blue-screen bugchecks (System log event 1001), application crashes
 /// (Application log 1000) and application hangs (1002). Turns "3 minidumps present" into
-/// "IRQL_NOT_LESS_OR_EQUAL — nvlddmkm.sys" by reading the actual stop code.
+/// "IRQL_NOT_LESS_OR_EQUAL - nvlddmkm.sys" by reading the actual stop code.
 /// </summary>
 public class CrashInfo
 {
@@ -33,7 +33,7 @@ public class CrashInfo
     {
         var c = new CrashInfo();
 
-        // ── Bugchecks (BSOD) — System log, event 1001 from the WER bugcheck provider ──
+        // ── Bugchecks (BSOD) - System log, event 1001 from the WER bugcheck provider ──
         foreach (var (time, msg) in ReadLog("System", "*[System[(EventID=1001)]]", 40))
         {
             if (msg.IndexOf("bugcheck", StringComparison.OrdinalIgnoreCase) < 0) continue;
@@ -44,9 +44,9 @@ public class CrashInfo
 
         // ── Application crashes (1000) and hangs (1002) ──
         // Event IDs alone aren't unique: other providers reuse 1000 for info messages (VMware NAT
-        // Service logs its startup as 1000), which rendered as blank "— · —" crash rows. Pin the
+        // Service logs its startup as 1000), which rendered as blank "- · -" crash rows. Pin the
         // provider so only real WER crash/hang events get in.
-        // Read deeper than the UI shows — repeats collapse into one grouped row (see Group), so a
+        // Read deeper than the UI shows - repeats collapse into one grouped row (see Group), so a
         // shallow read would undercount "N×" for the frequent offenders.
         foreach (var (time, msg) in ReadLog("Application", "*[System[Provider[@Name='Application Error'] and (EventID=1000)]]", 60))
         {
@@ -63,8 +63,8 @@ public class CrashInfo
     }
 
     /// <summary>
-    /// Collapse identical app+module faults into one row: latest time, a count, and — when the
-    /// repeats cluster at the same time of day across 3+ days — a "daily ~HH:mm" tag, because a
+    /// Collapse identical app+module faults into one row: latest time, a count, and - when the
+    /// repeats cluster at the same time of day across 3+ days - a "daily ~HH:mm" tag, because a
     /// crash that fires on a schedule usually IS a schedule (task/scan) and that's the diagnosis.
     /// Without this the list was a wall of "wmiprvse.exe · ntdll.dll" rows drowning the one-offs.
     /// </summary>
@@ -76,7 +76,7 @@ public class CrashInfo
                 string note = "";
                 if (times.Count > 1)
                 {
-                    note = $"  —  {times.Count}× since {times[0]:MM/dd/yyyy}";
+                    note = $"  -  {times.Count}× since {times[0]:MM/dd/yyyy}";
                     var mins = times.Select(t => t.TimeOfDay.TotalMinutes).ToList();
                     if (times.Select(t => t.Date).Distinct().Count() >= 3 && mins.Max() - mins.Min() <= 45)
                         note += $", daily ~{TimeSpan.FromMinutes(mins.Average()):hh\\:mm}";
@@ -115,7 +115,7 @@ public class CrashInfo
     private static string Field(string msg, string label)
     {
         var m = Regex.Match(msg, Regex.Escape(label) + @"\s*[:]?\s*([^\r\n,]+)", RegexOptions.IgnoreCase);
-        return m.Success ? m.Groups[1].Value.Trim() : "—";
+        return m.Success ? m.Groups[1].Value.Trim() : "-";
     }
 }
 ```

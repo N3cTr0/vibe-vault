@@ -21,7 +21,7 @@ namespace PartnerTool;
 /// binary under `C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_…` only grants **execute**
 /// to accounts the package is REGISTERED for. PartnerTool runs elevated, very often as a throwaway
 /// admin (LAPS/RMM accounts like `~0000AEAdmin`) that has never had Store apps provisioned. For that
-/// account there is no alias, winget isn't on PATH, and the package path — which very much exists —
+/// account there is no alias, winget isn't on PATH, and the package path - which very much exists -
 /// fails to launch with **"Access is denied."** (Field log, 0.19.6, COMMAI-PC-001.)
 ///
 /// So: existence is not executability. Every candidate is probed by actually running `--version`, and
@@ -56,12 +56,12 @@ public static class WingetLocator
     /// <summary>Why winget can't be used, for the UI to show instead of a raw "Access is denied".</summary>
     public const string Unavailable =
         "winget (App Installer) isn't available to this account. It's an MSIX app, and the elevated " +
-        "account you're signed in as has never had it registered — so Windows refuses to launch it. " +
+        "account you're signed in as has never had it registered - so Windows refuses to launch it. " +
         "Sign in as the regular user, or install App Installer from the Microsoft Store.";
 
     private static string Resolve()
     {
-        // 1. Per-user execution alias — the happy path when we're elevated AS a user who has winget.
+        // 1. Per-user execution alias - the happy path when we're elevated AS a user who has winget.
         var alias = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             @"Microsoft\WindowsApps\winget.exe");
@@ -73,7 +73,7 @@ public static class WingetLocator
         if (pkg != null && Probe(pkg)) return pkg;
 
         // 3. Nothing runs. Almost always because the package isn't registered for this elevated
-        // account — register it, which creates the alias and grants execute, then retry.
+        // account - register it, which creates the alias and grants execute, then retry.
         if (RegisterForCurrentUser())
         {
             if (Probe(alias)) return alias;
@@ -84,7 +84,7 @@ public static class WingetLocator
         // 4. Let the OS try PATH, in case a portable winget is installed somewhere we don't know.
         if (Probe("winget.exe")) return "winget.exe";
 
-        ActivityLog.Result("winget", "not usable by this account — see Unavailable message");
+        ActivityLog.Result("winget", "not usable by this account - see Unavailable message");
         return "";
     }
 
@@ -131,7 +131,7 @@ public static class WingetLocator
                     .FirstOrDefault(File.Exists);
                 if (match != null) return match;
             }
-            catch { /* listing denied — fall through to the appx query */ }
+            catch { /* listing denied - fall through to the appx query */ }
         }
 
         // No listing needed: ask Windows for the package path directly. -AllUsers finds it even when

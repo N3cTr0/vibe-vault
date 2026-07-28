@@ -7,25 +7,49 @@ source-path: versions.md
 # versions.md
 
 ```markdown
-# Partner Tool — Version History
+# Partner Tool - Version History
 
 Partner Tool is **pre-release** software. Until the first production-ready build we
 use a `0.x` scheme:
 
 - **0.MINOR.PATCH** during development
-  - **PATCH** (`0.6.x`) — bug fixes, small tweaks, copy/UI nudges.
-  - **MINOR** (`0.x.0`) — new features, pages, or notable behaviour changes; resets PATCH to 0.
-- **1.0.0** — first production release: feature-complete and ready for general
+  - **PATCH** (`0.6.x`) - bug fixes, small tweaks, copy/UI nudges.
+  - **MINOR** (`0.x.0`) - new features, pages, or notable behaviour changes; resets PATCH to 0.
+- **1.0.0** - first production release: feature-complete and ready for general
   partner deployment. We are **not there yet**.
 
 **Process:** every change set bumps at least the PATCH number here, the `<Version>`
 in `PartnerTool/PartnerTool.csproj` (which drives the About dialog), **and** the
-`Version` in `installer/Product.wxs` (a separate hardcoded value — bump all three
+`Version` in `installer/Product.wxs` (a separate hardcoded value - bump all three
 together). Keep this file newest-first.
 
 ---
 
-## 0.24.5 — 2026-07-28
+## 0.24.6 - 2026-07-28
+### Fixed
+- **Two Performance windows could be open at once.** System Info and Diagnostics each kept their own
+  `_perfWin` field, so opening the window from a LIVE STATS tile and then from Diagnostics' "All
+  processes" produced a second window - each with its own 1s sampler, and on the Processes tab its own
+  2s all-process walk. Replaced with a single `PerformanceWindow.Open(owner, resource)` holding one
+  static instance; both call sites go through it, and it now also restores the window if minimised.
+  (Regression introduced in 0.24.2 when the Diagnostics link was added.)
+- **`LoadProcessesAsync` had no catch**, so a failure mid process-walk would escape an `async void`
+  handler and take the app down. It now leaves the previous list up.
+
+### Changed
+- **No em or en dashes anywhere in the repo.** 1145 em dashes and 22 en dashes replaced with ASCII
+  hyphens across 108 files (code, XAML, changelog). Done as a byte-level substitution so encoding, BOMs
+  and line endings are untouched - and because this repo has twice been corrupted by PowerShell 5.1
+  rewriting these characters, there is now nothing left for it to corrupt.
+  - `LogText.Glyphs` is the exception that matters: its em/en dash entries are now `\u2013` / `\u2014`
+    escapes. That table folds fancy punctuation out of text arriving from *outside* the app (command
+    stdout, event-log messages), so it still has to match the real characters - the blind sweep had
+    turned its em-dash entry into a no-op `("-", "-")`.
+  - `reference/HUS_MultiVendorUpdate_v1.14.1.ps1` is left alone - third-party vendor script.
+  - Other non-ASCII glyphs are untouched: the box-drawing comment banners, arrows, the ⚡ fast-scan
+    marker, middle dots and ellipses.
+
+## 0.24.5 - 2026-07-28
 ### Changed
 - **Diagnostics ▸ Top processes** now shows User, Disk, Threads, Handles and Description alongside
   Process/PID/CPU/Memory. It reads from `ProcessSampler` (the Processes page's sampler) instead of
@@ -39,54 +63,54 @@ together). Keep this file newest-first.
   and that sizes are size-on-disk so cloud-only OneDrive files count as ~0. The double-click and
   column-sort hints were dropped as self-evident.
 
-## 0.24.4 — 2026-07-28
+## 0.24.4 - 2026-07-28
 ### Fixed
 - **Row text was not centred between its dividers** (regression from 0.24.2). The `ItemDivider` sits at
-  the TOP of each row, so the row's own top margin lands *above* the line — a bottom-only margin on the
+  the TOP of each row, so the row's own top margin lands *above* the line - a bottom-only margin on the
   divider therefore put far more space below the line than above it, and every row hugged the line above
   it. Monitors and memory DIMMs were 3px above / 9px below; Local Accounts 4px / 12px. Split the margins
   (`Margin="0,3"` and `Margin="0,4"`) so each row sits centred in its band. Printers (8/8) and the GPU
-  list (10/10) were already balanced — their dividers live inside the margined panel — and are unchanged.
+  list (10/10) were already balanced - their dividers live inside the margined panel - and are unchanged.
   The `ItemDivider` doc comment in `App.xaml` now spells the rule out.
 - **Battery: the Voltage/Wear band was taller than every other row.** The health-section divider carried
-  `Margin="0,6"`, which padded the band on *both* sides of it — those two rows measured 33px against 27px
+  `Margin="0,6"`, which padded the band on *both* sides of it - those two rows measured 33px against 27px
   everywhere else. The rows either side already carry RowLabel/RowValue's 5px padding, so the margin is
   now `0` and all six battery rows measure a uniform 27px.
 
-## 0.24.3 — 2026-07-28
+## 0.24.3 - 2026-07-28
 ### Added
 - **Repair ▸ Windows Update Reset: "Also reset the update source back to Windows Update (online)".**
   Opt-in checkbox (off by default) for the case where UPDATE SOURCE points at a WSUS server that is
-  dead or no longer used — the usual cause of "we couldn't connect to the update service".
+  dead or no longer used - the usual cause of "we couldn't connect to the update service".
   `WuPolicyInfo.ResetToOnline()` deletes the policy values that redirect or block Windows Update:
   `WUServer`, `WUStatusServer`, `UpdateServiceUrlAlternate`,
   `DoNotConnectToWindowsUpdateInternetLocations`, `UseWUServer`, `NoAutoUpdate`, `AUOptions`.
   It runs before the cache clear so the script's service restart picks the change up, and every
   removed value is logged with what it was.
   - Deferrals, the pinned feature version and the MDM/Intune `PolicyManager` key are deliberately
-    **not** touched — Intune re-applies its own, and fighting the enrollment would only break it.
+    **not** touched - Intune re-applies its own, and fighting the enrollment would only break it.
   - The now-empty `WindowsUpdate` and `AU` keys are pruned, because `Collect()` treats a machine as
-    policy-managed when those keys merely exist — without this the Updates tab would still claim
+    policy-managed when those keys merely exist - without this the Updates tab would still claim
     Group Policy was steering updates.
   - Tech-gated (as the whole card already was) plus its own confirmation listing exactly which values
     go, and a warning that a live domain GPO will re-apply them at the next policy refresh.
 
 ### Fixed
-- `AUOptions = 1` displayed as a bare "1" in the UPDATE SOURCE card — it now reads
-  "Never check for updates (disabled by policy)". 1 was missing from the lookup, which only covered 2–7.
+- `AUOptions = 1` displayed as a bare "1" in the UPDATE SOURCE card - it now reads
+  "Never check for updates (disabled by policy)". 1 was missing from the lookup, which only covered 2-7.
 
-## 0.24.2 — 2026-07-27
+## 0.24.2 - 2026-07-27
 ### Fixed
-- **"Last wake" always showed "—".** `powercfg /lastwake` prints `Wake History Count - 0`, but
+- **"Last wake" always showed "-".** `powercfg /lastwake` prints `Wake History Count - 0`, but
   `PowerStatusInfo.ReadLastWakeAsync` only matched `Wake Source Count`, so the clean-boot branch never
   fired and the `Type:` parse found nothing. Now matches both spellings and correctly reports
-  "Clean boot (no wake from sleep)". Nothing to do with the removed sensor integration — it had been
+  "Clean boot (no wake from sleep)". Nothing to do with the removed sensor integration - it had been
   wrong the whole time.
 
 ### Changed
 - **System Info ▸ Performance:** the CPU core/thread count moved onto its own line under the processor
   name (appended to the name it overflowed the column whenever the window wasn't maximised), and the
-  page file is now three lines — mode / path / sizes — instead of one long overflowing string.
+  page file is now three lines - mode / path / sizes - instead of one long overflowing string.
   `SystemExtras` keeps the flat one-line `PageFile` for the reports and adds `PageFileMode`,
   `PageFilePath`, `PageFileUsage` for the UI.
 - **Row dividers between list items.** New shared `ItemDivider` style in `App.xaml`: a divider drawn at
@@ -97,18 +121,18 @@ together). Keep this file newest-first.
   centred against the pair instead of top-aligned, which read as off-centre next to the single-line
   rows below.
 - **Diagnostics ▸ Crash history:** "Recent crash dump" value moved into the same 120px value column as
-  the bugcheck and app-crash timestamps below it — it used to hang left of everything else on the page.
+  the bugcheck and app-crash timestamps below it - it used to hang left of everything else on the page.
 - **Diagnostics ▸ Reliability:** cleared `CardTitle`'s bottom margin inside the header DockPanel. The
   "Load detailed history" button makes that row ~30px tall, which left the score sitting far lower
   under its heading than any other card's content.
-- **Diagnostics ▸ Top processes:** tighter rows (row margin 3→1, End button padding 4→2 — the button
+- **Diagnostics ▸ Top processes:** tighter rows (row margin 3→1, End button padding 4→2 - the button
   already sets the row height), plus an **All processes** link beside Refresh that opens the full
   Task-Manager-style list in the Performance window (single-instance, like the LIVE STATS tiles).
 - **System Info ▸ LIVE STATS:** the current value moved to the top-right of each tile, on the same line
   as the label, in a fixed-height header row. The four tiles previously didn't line up because
   NETWORK's value uses a smaller font than the other three, so its plot started at a different y.
 
-## 0.24.1 — 2026-07-26
+## 0.24.1 - 2026-07-26
 ### Changed
 - **Decile gridlines behind the live graphs**, so a tech can read the level off a trace instead of
   guessing. 10 equal bands = 10% each, with the 50% line very slightly brighter as a midpoint
@@ -116,46 +140,46 @@ together). Keep this file newest-first.
   Network graphs, and to the four System Info LIVE STATS tiles. Shared `GraphGrid` template in
   `App.xaml`; it's hit-test-transparent so the clickable live tiles still work.
   - Note: for Network the bands are 10% of the graph's auto-scaled max (shown top-right), not 10% of
-    a fixed 100 — the other three are true percentages.
+    a fixed 100 - the other three are true percentages.
   - LIVE STATS plots grew 40px → 56px: at 40px ten bands compressed into near-hatching.
   - The tiny rail sparklines in the Performance window are left plain (too small for 10 bands).
 
-## 0.24.0 — 2026-07-26
+## 0.24.0 - 2026-07-26
 ### Added
-- **UPDATE SOURCE card on the Updates tab** — shows where this PC actually gets Windows Updates and
+- **UPDATE SOURCE card on the Updates tab** - shows where this PC actually gets Windows Updates and
   the policies steering it, so a tech can immediately see *why* a managed device reports "we couldn't
   connect to the update service" (rather than resetting WU components that were never the problem).
   New read-only `WuPolicyInfo` collector (WindowsUpdate/AU policy keys + the MDM PolicyManager key):
-  - **Source line**: "Windows Update (Microsoft) — not policy-managed" (green), or the WSUS server
+  - **Source line**: "Windows Update (Microsoft) - not policy-managed" (green), or the WSUS server
     URL / "Managed by MDM / Intune" / "Managed by Group Policy" (blue).
   - **WSUS server** + status server when `UseWUServer` is set.
-  - **"Reach Microsoft's servers — Blocked by policy"** (amber) when
-    `DoNotConnectToWindowsUpdateInternetLocations` is on — the classic cause of a connect failure when
+  - **"Reach Microsoft's servers - Blocked by policy"** (amber) when
+    `DoNotConnectToWindowsUpdateInternetLocations` is on - the classic cause of a connect failure when
     the WSUS/Intune source is unreachable.
   - Automatic updates disabled, update behaviour (AUOptions), WU UI access disabled, pinned feature
     version (TargetReleaseVersionInfo), and feature/quality update deferrals.
 - The same detail is now in the **Collect Diagnostics** report (HTML + text) as "Update source / policy".
 
-## 0.23.0 — 2026-07-21
+## 0.23.0 - 2026-07-21
 ### Removed
 - **Dropped LibreHardwareMonitorLib entirely.** Its ring-0 kernel sensor driver never returned values
   on our fleet (mostly VMs) and tripped memory-integrity / Defender ASR on locked-down machines, all
-  to power a tiny bit of surfaced data. Removed the package and the `TemperatureInfo` collector —
+  to power a tiny bit of surfaced data. Removed the package and the `TemperatureInfo` collector -
   including the dead NVMe drive-health (`Drives`) code that was collected but never shown.
   - System Info no longer shows GPU "VRAM in use" or the CPU "N W package" power hint.
   - The Collect-Diagnostics report no longer includes CPU/GPU temperature rows.
   - Removed the now-pointless Settings ▸ "Read temperature/fan sensors" toggle and the
-    `EnableSensors` setting (old settings.json with the key still loads — it's ignored).
+    `EnableSensors` setting (old settings.json with the key still loads - it's ignored).
   - The single-file exe no longer drops a kernel driver at runtime; it still self-extracts the normal
     .NET/WPF native runtime bits (as every single-file .NET app does).
-- Removed the obsolete folder-publish path (`publish.bat`, `FolderInstall.pubxml`) — it only existed
+- Removed the obsolete folder-publish path (`publish.bat`, `FolderInstall.pubxml`) - it only existed
   so LHM's native driver could sit beside the exe. The single-file publish is now the only build
   path, and the MSI installs that one exe to C:\PCI\PartnerTool.
 ### Notes
 - No remaining native/RID-specific NuGet packages, so `dotnet build` needs no RuntimeIdentifier; the
   single-file publish sets `-r win-x64` itself.
 
-## 0.22.2 — 2026-07-21
+## 0.22.2 - 2026-07-21
 ### Changed
 - **Security tab now uses two independent column stacks** so each card sits directly under the one
   above it. BitLocker Recovery Key now appears **directly under Microsoft Defender** (right column)
@@ -163,131 +187,131 @@ together). Keep this file newest-first.
   Scorecard then ProSentry; right column is Defender then BitLocker. (BitLocker still only shows when
   a recovery key exists on the PC.)
 
-## 0.22.1 — 2026-07-21
+## 0.22.1 - 2026-07-21
 ### Changed
 - **Security tab is now a 2×2 layout:** Hardening Scorecard (left) + Microsoft Defender (right) on
   the top row; ProSentry (left) + BitLocker Recovery Key (right) below.
 - **The BitLocker Recovery Key card only shows when a recovery key actually exists on the PC**
-  (`BitLockerInfo.GetRecoveryKeys()` non-empty) — on machines with no BitLocker key it's hidden, so
+  (`BitLockerInfo.GetRecoveryKeys()` non-empty) - on machines with no BitLocker key it's hidden, so
   ProSentry gets the row to itself.
 
-## 0.22.0 — 2026-07-21
+## 0.22.0 - 2026-07-21
 ### Changed
 - **Security tab layout:** Microsoft Defender now sits below the hardening scorecard on the **left**
-  (single column again — no more split), with the **ProSentry** card to its **right**. BitLocker
+  (single column again - no more split), with the **ProSentry** card to its **right**. BitLocker
   recovery key moved to the bottom.
 - **Frequent app crashes no longer dock the Health Check score.** It's still shown (with Open →
-  Diagnostics to investigate) but deducts 0 — app crashes are usually app-specific and not something
+  Diagnostics to investigate) but deducts 0 - app crashes are usually app-specific and not something
   the tech can fix from the tool. Blue screens still count (those are serious).
 ### Added
-- **Reset PowerShell execution policy to the Windows default** — when the hardening scorecard shows
+- **Reset PowerShell execution policy to the Windows default** - when the hardening scorecard shows
   the machine policy as Bypass/Unrestricted, the value is now a link that (tech-gated + confirmed)
   clears the policy back to Windows' default, in-app. There's no Windows settings page for this, so
   it's handled directly (deletes the ExecutionPolicy registry value in both views).
-- **Diagnostics bundle is now comprehensive** — the Collect Diagnostics report (HTML + text) now also
+- **Diagnostics bundle is now comprehensive** - the Collect Diagnostics report (HTML + text) now also
   includes: ProSentry / managed-tool status (Atakama, Huntress, Duo, AutoElevate, Intune), full
   Microsoft Defender detail, all Services, Drivers, Scheduled Tasks, Environment variables, and the
-  Hosts file — on top of the existing hardware/OS/network/software/hardening sections.
+  Hosts file - on top of the existing hardware/OS/network/software/hardening sections.
 ### Notes
 - Broken-shortcuts cleanup is OneDrive-safe: it only scans Desktop + Start Menu for `.lnk` files,
   only flags ones whose target genuinely doesn't exist on a fixed drive (cloud-only OneDrive
   placeholders still report as existing), and only sends the broken **shortcut** to the Recycle Bin
-  (reversible) — never the target file, never anything in OneDrive/Documents.
+  (reversible) - never the target file, never anything in OneDrive/Documents.
 
-## 0.21.0 — 2026-07-21
+## 0.21.0 - 2026-07-21
 ### Added
 - **ProSentry status on the Security tab.** A new card shows PCI's managed security stack at a glance,
   green when active on the PC:
-  - **Atakama** — active when an adapter's DNS is routed via Atakama's local resolver (127.97.116.97 / .98).
-  - **Huntress EDR** — active when the HuntressAgent (or HuntressRio) service is running.
-  - **Duo** — active when installed (`HKLM\SOFTWARE\Duo Security` or a "Duo Authentication" uninstall entry).
-  - **AutoElevate** — active when the AutoElevateAgent service is running (or it's installed).
-  - Under a **Device Management** sub-heading: **Intune (MDM)** — enrolled when an MDM enrollment with
+  - **Atakama** - active when an adapter's DNS is routed via Atakama's local resolver (127.97.116.97 / .98).
+  - **Huntress EDR** - active when the HuntressAgent (or HuntressRio) service is running.
+  - **Duo** - active when installed (`HKLM\SOFTWARE\Duo Security` or a "Duo Authentication" uninstall entry).
+  - **AutoElevate** - active when the AutoElevateAgent service is running (or it's installed).
+  - Under a **Device Management** sub-heading: **Intune (MDM)** - enrolled when an MDM enrollment with
     ProviderID "MS DM Server" exists (or the Intune Management Extension service is present).
   All checks are read-only (registry / WMI / adapter DNS); new `ProsentryInfo` collector.
 ### Changed
 - **Microsoft Defender card is now two columns** (real-time/tamper/signatures on the left; scan
   history + threats on the right) instead of one tall list.
 
-## 0.20.8 — 2026-07-21
+## 0.20.8 - 2026-07-21
 ### Changed
 - **Removed the Settings toggle for hiding the Health Check tab.** Health Check has been through
-  testing, so it's now a permanent tab — no longer gated behind the "in-progress features" checkbox.
+  testing, so it's now a permanent tab - no longer gated behind the "in-progress features" checkbox.
   Dropped the `ShowPreviewFeatures` setting and the live show/hide plumbing; old settings.json files
   with the key still load fine (it's just ignored). Settings now shows only Log Retention and the
   hardware-sensor toggle.
 
-## 0.20.7 — 2026-07-21
+## 0.20.7 - 2026-07-21
 ### Changed
 - **RDP-enabled is now advisory (Info), not a scored hardening issue.** The machines this tool
-  manages are remotely supported, so Remote Desktop is usually intentionally on — flagging it as a
+  manages are remotely supported, so Remote Desktop is usually intentionally on - flagging it as a
   Warn made the Health Check deduct points and list a "minor hardening item" on essentially every box.
   It still shows on the Security scorecard (blue/advisory) with the same "ensure it's intended and
   restricted" note and the link to Remote Desktop settings, and if RDP is on we still flag
-  NLA-not-required as a genuine issue — but RDP being enabled no longer counts against the score.
+  NLA-not-required as a genuine issue - but RDP being enabled no longer counts against the score.
 
-## 0.20.6 — 2026-07-21
+## 0.20.6 - 2026-07-21
 ### Fixed
 - **Health Check false "Restart required".** The Health Check had its own copy of the pending-reboot
-  detector that also checked `PendingFileRenameOperations` — a registry value routinely populated by
+  detector that also checked `PendingFileRenameOperations` - a registry value routinely populated by
   everyday apps queuing a temp-file delete/rename on next boot (observed here: a leftover `.node` temp
   file). It's re-populated every session, so it never clears and the finding stuck around after a
   reboot even with no real update pending. Now calls the single, correct `SystemHealth.IsRebootPending`
-  (Component-Based Servicing + Windows Update keys only — the authoritative "servicing needs a reboot"
+  (Component-Based Servicing + Windows Update keys only - the authoritative "servicing needs a reboot"
   signals), which was already written to deliberately ignore `PendingFileRenameOperations`. Removed the
   duplicate detector so the two can't drift again.
 
-## 0.20.5 — 2026-07-21
+## 0.20.5 - 2026-07-21
 ### Changed
 - **Ping now streams the full realtime reply** (Network ▸ Ping & Diagnostic Tools) instead of a
-  one-line summary — the familiar per-packet "Reply from …" lines appear as they arrive, paced ~1 s
+  one-line summary - the familiar per-packet "Reply from …" lines appear as they arrive, paced ~1 s
   apart, with a Stop button. Shares one streaming runner with Traceroute now (`RunLiveTool`).
 - **IP Scanner hides the "Open ports" column unless Deep scan is selected.** It only ever had data
   on a deep scan; a shared-size column + hidden header collapse it to zero width otherwise, giving
   the Name column that space back.
 - **Updates page source headers now use the standard card-title style** (uppercase purple, like every
-  other card in the app) instead of the one-off white 14 px headings — Windows Update, App Updates
+  other card in the app) instead of the one-off white 14 px headings - Windows Update, App Updates
   (winget), Manufacturer Update Tool, and Microsoft Store.
 
-## 0.20.4 — 2026-07-20
+## 0.20.4 - 2026-07-20
 ### Changed
 - **Performance window: the Processes tile moved to the bottom of the rail**, below the four
-  live-graph resources (CPU, Memory, Disk, Network), with a thin separator above it — so the
+  live-graph resources (CPU, Memory, Disk, Network), with a thin separator above it - so the
   graph resources read as a group and Processes sits apart as the "list" view.
 
-## 0.20.3 — 2026-07-20
+## 0.20.3 - 2026-07-20
 Security review pass: audited every text input's path to a command/query/registry sink, and hardened
 the "can't kill/stop/uninstall protection software or critical processes" guarantees.
 ### Security
 - **Authoritative OS critical-process gate.** `ProcessInfo.TryKill` (the single kill path both the
-  Processes view and Diagnostics call) now also asks Windows `IsProcessCritical` — so ending a process
+  Processes view and Diagnostics call) now also asks Windows `IsProcessCritical` - so ending a process
   that would bugcheck the box (CRITICAL_PROCESS_DIED) is blocked even if it isn't in our name list, and
   the End button disables itself for those rows. Kept the name list too: it catches cases the OS flag
-  misses (verified live — `lsass` reports "not critical" via the flag yet killing it is still fatal)
+  misses (verified live - `lsass` reports "not critical" via the flag yet killing it is still fatal)
   and covers AV/EDR engines that aren't OS-critical but must not be killed.
 - **Block uninstalling AV/EDR/security software.** The Software page now refuses to run the uninstaller
   for antivirus / endpoint-protection products (matched by display name/publisher), mirroring the
   existing guards on ending their processes, stopping their services, and disabling their startup
   entries. Centralised all of these on one `SecuritySoftware.Matches` list (StartupInfo now uses it too).
-### Notes (audit findings — no change needed)
+### Notes (audit findings - no change needed)
 - Every text box was traced to its sink. The six search/filter boxes (Services, Tasks, Drivers,
   Connections, Processes, Software) are pure in-memory LINQ filters. The Network host/DNS-type fields
   are stripped to an allowlist (`NetTools.Sanitize`) before `tracert`/`nslookup`, and Ping uses the
-  managed `System.Net.NetworkInformation.Ping` API; the port field is int-validated (1–65535, capped).
+  managed `System.Net.NetworkInformation.Ping` API; the port field is int-validated (1-65535, capped).
   Env-var name/value goes through the managed `Environment.SetEnvironmentVariable` (name validated),
-  not a shell. Retention-days is `int.TryParse` bounded 1–365. `ProcessRunner` runs everything with
+  not a shell. Retention-days is `int.TryParse` bounded 1-365. `ProcessRunner` runs everything with
   `UseShellExecute=false` and args as a single non-shell argument string (no `cmd`/`&|;` interpretation),
   and pins system tools to System32 to prevent CWD hijack. WMI service paths are validated
   (`ValidServiceName`) before interpolation. No unsanitised user input reaches a shell, WMI path, or
   registry write.
 
-## 0.20.2 — 2026-07-20
+## 0.20.2 - 2026-07-20
 ### Changed
 - **Processes moved into the Performance window** (was a sidebar tab in 0.20.0). The window's left
-  rail is now Processes / CPU / Memory / Disk / Network — like real Task Manager — with a live
+  rail is now Processes / CPU / Memory / Disk / Network - like real Task Manager - with a live
   "N running" count on the tile. Selecting Processes swaps the right pane for the process list
   (created on first click; its 2 s sampler starts/stops with visibility). The sidebar tab is gone.
-- **Rail tiles are now real Buttons** (styled identically) instead of Borders with mouse handlers —
+- **Rail tiles are now real Buttons** (styled identically) instead of Borders with mouse handlers -
   keyboard- and UI-Automation-accessible. Performance window default size 900×600 → 1280×680 so the
   process columns fit without scrolling.
 ### Fixed
@@ -295,43 +319,43 @@ the "can't kill/stop/uninstall protection software or critical processes" guaran
   with infinite width, so the row Grids' star columns sized per-row to content. Row width is now
   pinned to the viewport (min 860 px).
 
-## 0.20.1 — 2026-07-20
+## 0.20.1 - 2026-07-20
 ### Changed
 - **Health Check: Junk moved up one slot in the group order** (now Security, Stability, Disk, Junk,
   Updates, …). With the column balancing this puts Junk directly under Stability in the right column
   and keeps the two columns even.
 
-## 0.20.0 — 2026-07-19
-New Processes page (MINOR bump — new page/feature).
+## 0.20.0 - 2026-07-19
+New Processes page (MINOR bump - new page/feature).
 ### Added
-- **Processes page — a Task Manager clone**, in the sidebar right under System Info. Live view of
+- **Processes page - a Task Manager clone**, in the sidebar right under System Info. Live view of
   every process, auto-refreshing every 2 s, with the columns real Task Manager shows where readable
   without ETW: Name (tooltip = exe path), PID, Status (Running / Not responding), User, CPU %
   (delta-sampled across all cores), Memory (private bytes), Disk (per-process read+write rate from
   IO counters), Threads, Handles, Architecture, and Description. Search box (name/PID/user/desc),
   click-to-sort headers (numeric columns start descending), Pause/Resume, selection preserved across
   refreshes, and a guarded End Task (same protected-process list as Diagnostics; confirm + activity
-  log). Per-process Network isn't shown — it needs an ETW trace session, noted on the card.
-- **Search bars for Drivers and Scheduled Tasks** (Manage) — same placeholder style and
+  log). Per-process Network isn't shown - it needs an ETW trace session, noted on the card.
+- **Search bars for Drivers and Scheduled Tasks** (Manage) - same placeholder style and
   "N of M" counts as the Services search. Drivers matches device/provider/version; Tasks matches name.
 ### Changed
 - **Device Manager shortcut relabelled "Device Manager (admin)"** with a tooltip spelling out that
-  it inherits the tool's elevation — devices (e.g. network adapters) can be uninstalled from it,
+  it inherits the tool's elevation - devices (e.g. network adapters) can be uninstalled from it,
   which a standard user's read-only Device Manager can't do. (No code change needed: the tool always
   launched it elevated; now the button says so.)
 
-## 0.19.20 — 2026-07-19
+## 0.19.20 - 2026-07-19
 From a full screenshot review of every page plus a code re-read of the day's diff.
 ### Fixed
 - **Advanced Cleanup no longer shows "● Done" when cancelled during its final step.** The `Bail()`
   chain stopped before `winmgmt /salvagerepository`, so a cancel that killed that step still painted
   a green Done. Now bails after it like Full Repair does.
 - **System Info memory line read "max 0 GB".** `Win32_PhysicalMemoryArray.MaxCapacityEx` is in
-  KILOBYTES, not bytes — the /2^30 conversion made every machine ~0. Fixed to /2^20, and the display
+  KILOBYTES, not bytes - the /2^30 conversion made every machine ~0. Fixed to /2^20, and the display
   hides "max" when firmware reports less than what's installed (bogus, common on VMs).
 - **AV/EDR engine processes can no longer be ended from Diagnostics.** `MsMpEng` (Defender engine)
   had a live End button. The protected list now includes Defender/Sentinel/Huntress/Falcon/Cylance
-  engines — mirroring the existing guards on their services and startup entries.
+  engines - mirroring the existing guards on their services and startup entries.
 ### Added
 - **Health Check findings are now grouped by category in two columns.** Each category (Security,
   Stability, Disk, Updates, Junk, …) gets a header with an "n issue(s) / all clear" summary; groups
@@ -340,34 +364,34 @@ From a full screenshot review of every page plus a code re-read of the day's dif
   refreshes the installed-software list + install-catalog locks itself. Manual Refresh stays as
   fallback for uninstallers that hand off to a child process.
 - **Active Connections filter (Network).** One box filters by process, address, port, or state, with
-  a "N of M" count in the card header — answering "what's talking to the internet?" without scrolling.
+  a "N of M" count in the card header - answering "what's talking to the internet?" without scrolling.
 - **Update All "last run" summary.** After a run, a persistent line under the description reads e.g.
-  "Last run: 07/19/2026 21:40 — cancelled after 2 of 6 sources."
+  "Last run: 07/19/2026 21:40 - cancelled after 2 of 6 sources."
 ### Changed
 - Services search box (Manage) now has placeholder text like the Software page's.
-- A cancelled install now logs "✗ killed — cancelled" instead of "finished (exit -1)".
+- A cancelled install now logs "✗ killed - cancelled" instead of "finished (exit -1)".
 - The Manufacturer Update card hides its Open button entirely when not applicable (VMs) instead of
   showing it permanently grayed.
 
-## 0.19.19 — 2026-07-19
+## 0.19.19 - 2026-07-19
 Found while live-testing the in-app uninstall (removed PuTTY via the Software page). The removal worked, but the installed-software list never refreshed to reflect it.
 ### Fixed
 - **Installed-software list now has a working Refresh.** `EnsureLoadedAsync` builds the list once per
   app run (guarded by `_detectedOnce`) and the search box only *filters* the cached list, so after an
   uninstall the removed app lingered until the app was restarted. Added a **Refresh** button above the
   list (`SoftwareRefresh_Click`) that re-reads the registry (`LoadAsync`) **and** re-runs the winget
-  "already installed" detection (`RefreshInstalledStateAsync`) — so a removed app both drops off the
+  "already installed" detection (`RefreshInstalledStateAsync`) - so a removed app both drops off the
   list and unlocks in the install catalog.
 - **Corrected the uninstall confirm text.** It told the tech to "hit Refresh (clear the search box)"
-  to update the list — but clearing the search only re-filters the stale cache. Now points at the new
+  to update the list - but clearing the search only re-filters the stale cache. Now points at the new
   Refresh button.
 - **Refresh clears an install checkbox's stale auto-tick.** `ApplyInstalled` ticks + locks a catalog
-  app that's detected installed, but never un-ticked it when it later reads as *not* installed — so
+  app that's detected installed, but never un-ticked it when it later reads as *not* installed - so
   after uninstalling (e.g. PuTTY, which is also in the install catalog) + Refresh, the box unlocked but
   stayed ticked, looking pre-selected for install. It now clears a tick that was auto-set by detection
   (ticked **and** locked) while preserving a tech's own manual tick (ticked + already enabled).
 
-## 0.19.18 — 2026-07-19
+## 0.19.18 - 2026-07-19
 Follow-up to the 0.19.17 cancel work: a code audit for other long operations that couldn't be stopped in-app. Extends cancel to the remaining big ones.
 ### Added
 - **Cancel on the CHKDSK scan** (Repair). It already routed through the `_servicingCts` infra added
@@ -375,18 +399,18 @@ Follow-up to the 0.19.17 cancel work: a code audit for other long operations tha
 - **Cancel on Install Selected** (Software). A new `_installCts` is passed into the per-app
   `ProcessRunner.RunAsync`; clicking Cancel kills the current winget install and the loop stops before
   the next app.
-- **Soft-cancel on Update All** (Updates). A flag checked between the six sources — the current source
-  finishes, then the run stops and the remaining sources are marked "Skipped — cancelled". Deliberately
+- **Soft-cancel on Update All** (Updates). A flag checked between the six sources - the current source
+  finishes, then the run stops and the remaining sources are marked "Skipped - cancelled". Deliberately
   *soft* (doesn't yank a running WUApi/winget download mid-flight, which risks a half-applied update).
 ### Notes (audited, deferred)
 - **WU Reset cancel** was left out on purpose: its script stops WU services and renames
-  SoftwareDistribution/catroot2, so killing it mid-run could leave services stopped — it needs a
+  SoftwareDistribution/catroot2, so killing it mid-run could leave services stopped - it needs a
   resilient/resumable script first.
 - Vendor update scans (Dell/HP/winget via `RunCaptureAsync`) still don't log an exit code; low priority
   since they derive their result from parsed output.
 
-## 0.19.17 — 2026-07-19
-From a supervised run of every Repair function (all clean; one SFC ran >1 h on this VM and had to be killed externally — nothing in-app could stop it).
+## 0.19.17 - 2026-07-19
+From a supervised run of every Repair function (all clean; one SFC ran >1 h on this VM and had to be killed externally - nothing in-app could stop it).
 ### Added
 - **Cancel button on the long servicing operations** (Full Repair and Advanced Cleanup). A shared
   `_servicingCts` is created in `BeginServicing`, threaded through `RunWithProgress` into
@@ -398,34 +422,34 @@ From a supervised run of every Repair function (all clean; one SFC ran >1 h on t
   but not the result; switched to `RunAsync` so the activity log gets `-> exit N` like every other
   command (the status color now reflects the exit too).
 ### Verified (not a bug)
-- SFC /scannow taking >1 hour on this VM was **slow, not hung** — CBS was continuously verifying the
+- SFC /scannow taking >1 hour on this VM was **slow, not hung** - CBS was continuously verifying the
   18 GB component store in 100-component batches (~1.7 min each) with TiWorker doing the work, right up
   to the manual kill; zero corruption found. Root cause: virtualized I/O verifying a large store right
   after a 27-min DISM RestoreHealth. The app recorded the killed SFC as exit 1 and released the
   servicing lock cleanly.
 
-## 0.19.16 — 2026-07-19
+## 0.19.16 - 2026-07-19
 Network reset wording + behavior, from supervised testing of the reboot-causing actions.
 ### Changed
-- **Network Stack Reset** now states plainly that connectivity is **kept** — adapters, internet, and the
+- **Network Stack Reset** now states plainly that connectivity is **kept** - adapters, internet, and the
   remote (Ninja) session stay active; the restart only finalizes the reset and can be done later. (Card text,
   confirm dialog, and done-status all updated.)
 - **Network Reset (reinstall adapters)** now says it will drop the remote session and **restarts the PC
   automatically** to finish, and actually does it: on a successful `netcfg -d` it schedules `shutdown /r /t 20`
   (skipped if the reset returns non-zero, so a failed reset doesn't trigger a pointless reboot).
 
-## 0.19.15 — 2026-07-19
+## 0.19.15 - 2026-07-19
 Follow-ups from a full page-by-page test pass (all 12 pages, zero runtime errors). Fixes one real bug and lands consistency/UX polish.
 ### Fixed
 - **Scheduled Tasks always showed "0 scheduled tasks."** `ScheduledTasksInfo` parses `schtasks /query /fo CSV /v`,
-  whose first column is `HostName` and second is `TaskName` — but the header detection assumed `TaskName` was
+  whose first column is `HostName` and second is `TaskName` - but the header detection assumed `TaskName` was
   column 0, so the header was never matched, the column indices stayed `-1`, every data row was skipped, and the
   list came back empty on every machine. Now the header is detected by the presence of a `TaskName` column anywhere.
 ### Changed
 - **All formatting pinned to en-US, dates standardized to MM/DD/YYYY.** Numbers and dates followed the machine's
   locale (e.g. `10,0 / 10`, `5,5 GB`, `18/07/26`), which is inconsistent on a US-English tool. `App` now forces en-US
   (with a `MM/dd/yyyy` short-date pattern) on the UI thread, new threads/Tasks, and WPF binding `StringFormat`. **House
-  rule: displayed dates are always MM/DD/YYYY** — a new `Dates` helper holds the canonical format strings, every
+  rule: displayed dates are always MM/DD/YYYY** - a new `Dates` helper holds the canonical format strings, every
   `ToString`/XAML `StringFormat` was moved onto it, external date strings (e.g. `schtasks`) are normalized, and a
   stray `dd/MM/yy` in the installed-software list was fixed.
 - **Check Disk read-only scan is no longer tech-gated.** `chkdsk C: /scan` is non-destructive and every other scan
@@ -440,23 +464,23 @@ Follow-ups from a full page-by-page test pass (all 12 pages, zero runtime errors
 - **Disk Usage: double-click to browse into a folder** (was single-click, which fought the habitual double-click and
   net-cancelled by landing on the `..` row), and rows now expose a real UI-Automation name instead of the class name.
 - **Confirmations added** before Update All (long-running, may restart) and Install Selected (lists the apps).
-- **System Info: click-to-copy** on Hostname, Serial, IP, and MAC — the identifiers techs paste into tickets.
+- **System Info: click-to-copy** on Hostname, Serial, IP, and MAC - the identifiers techs paste into tickets.
 - **System Shortcuts:** added System Configuration, Credential Manager, DirectX Diagnostic, Performance Monitor, and
   Resource Monitor.
 - `MessageWindow` defaults to `CenterOwner`.
 
-## 0.19.14 — 2026-07-18
-Follow-ups from the full supervised test run (tech gate + monitor + tools, all clean — zero errors).
+## 0.19.14 - 2026-07-18
+Follow-ups from the full supervised test run (tech gate + monitor + tools, all clean - zero errors).
 ### Changed
 - **Sensor collection no longer probes the motherboard / IPMI.** `TemperatureInfo` enabled
   `IsMotherboardEnabled` + `IsControllerEnabled` in LibreHardwareMonitor, but `Walk()` only ever reads
-  CPU, GPU and Storage nodes — the motherboard/controller data was collected and thrown away. Worse,
+  CPU, GPU and Storage nodes - the motherboard/controller data was collected and thrown away. Worse,
   that probing makes the library query `Microsoft_IPMI` (a server/BMC-only WMI class) on every collect,
   which fails with "invalid class" on client laptops and floods `Microsoft-Windows-WMI-Activity/Operational`
-  with error events (traced to our own PID via that log). Now only CPU/GPU/Storage are enabled — same
+  with error events (traced to our own PID via that log). Now only CPU/GPU/Storage are enabled - same
   data, no IPMI noise, faster init, smaller native-driver surface.
 - **AutomationIds on the System Info live-stat tiles** (`LiveTileCpu/Mem/Disk/Net`, each with an
-  accessible Name). They were the only interactive controls with no stable identifier — a scripted test
+  accessible Name). They were the only interactive controls with no stable identifier - a scripted test
   or screen reader had to rely on the inner label text. (The Performance-window rail tiles already carry
   usable IDs via their `x:Name`.)
 
@@ -467,71 +491,71 @@ Follow-ups from the full supervised test run (tech gate + monitor + tools, all c
   inventory (NinjaRMM-managed box) loading a buggy in-proc provider. Surfaced by 0.19.13's grouped crash
   view. Remediation is host-side: identify/update the faulting provider or the agent's inventory query.
 
-## 0.19.13 — 2026-07-18
+## 0.19.13 - 2026-07-18
 Improvements suggested by the same scripted UI walk-through that found the 0.19.12 bugs.
 ### Changed
 - **Diagnostics › Crash History groups repeats.** Identical app+module faults collapse into one row
-  with a count ("wmiprvse.exe · ntdll.dll — 9× since 8 Jul"), and when the repeats cluster at the same
-  time of day across 3+ days the row adds "daily ~17:00" — a crash on a schedule usually IS a schedule,
+  with a count ("wmiprvse.exe · ntdll.dll - 9× since 8 Jul"), and when the repeats cluster at the same
+  time of day across 3+ days the row adds "daily ~17:00" - a crash on a schedule usually IS a schedule,
   and that pattern is the diagnosis. The collector reads deeper (60 events) so counts are honest; this
   also makes Health Check's recent-crash count more accurate.
 - **Traceroute got a Stop button.** `ProcessRunner.RunAsync` accepts a CancellationToken (cancel = kill
   the process tree; the run still drains, audit-logs, and returns an exit code). A wrong host no longer
   costs a two-minute lockout; a stopped run prints "Stopped."
-- **Ping & Diagnostic output got a Copy button** (matches the IP scanner's) — traceroutes get pasted
+- **Ping & Diagnostic output got a Copy button** (matches the IP scanner's) - traceroutes get pasted
   into tickets constantly. Button flashes "Copied" for feedback.
 - **Disk Usage auto-scans single-drive machines.** With exactly one fixed drive (the common client
   case) the page selects it and starts the fast MFT scan instead of showing one chip and "Select a
   drive above to begin."
 - **Update All sets expectations for the Office step.** Status/log now say the C2R updater's window
-  "may appear a few minutes later" — it checks/downloads silently first, and the delayed popup was
+  "may appear a few minutes later" - it checks/downloads silently first, and the delayed popup was
   field-reported as a mystery leak (0.19.10).
 - **AutomationIds on key controls** (network tool buttons, Stop/Copy, Settings/About nav, drive chips
   get `DriveC`-style IDs). Named elements already exposed their `x:Name`; this covers the unnamed
   high-traffic ones so scripted UI tests (tools\ui-drive.ps1) and screen readers don't depend on
   visible label text.
 
-## 0.19.12 — 2026-07-18
+## 0.19.12 - 2026-07-18
 Both found by driving the app end-to-end with UI Automation (first scripted UI test pass).
 ### Fixed
-- **Crash History listed non-crashes as blank "— · —" rows.** The Application-log query filtered on
-  event ID alone, but IDs aren't unique per provider — VMware NAT Service / vmauthd log their *service
+- **Crash History listed non-crashes as blank "- · -" rows.** The Application-log query filtered on
+  event ID alone, but IDs aren't unique per provider - VMware NAT Service / vmauthd log their *service
   startup* as event 1000, so every VMware-equipped machine grew phantom crash rows with no app/module
   name. The crash (1000) and hang (1002) queries now pin the provider (`Application Error` /
   `Application Hang`); verified against this machine's log that only real "Faulting application" events
   come back.
-- **Traceroute printed "Trace complete." twice** — tracert.exe emits that line itself on success and the
+- **Traceroute printed "Trace complete." twice** - tracert.exe emits that line itself on success and the
   handler appended its own on top. Ours is now only added when tracert didn't say it (unresolvable
   host), so the tech still sees the run ended.
 
-## 0.19.11 — 2026-07-14
+## 0.19.11 - 2026-07-14
 ### Fixed
 - **Store scan missed updates the Store had already queued itself.** Field case (this dev machine):
   the Store showed 3 pending updates (Windows Web Experience Pack and Cross Device Experience Host
   blocked with "App was in use", HEVC Video Extensions waiting to download) while the Updates tab said
   "No pending Store updates." Root cause, proven with a WinRT probe: `SearchForAllUpdatesAsync` only
-  returns *newly found* updates — anything already sitting in the Store's own install queue (stuck at
+  returns *newly found* updates - anything already sitting in the Store's own install queue (stuck at
   `ReadyToDownload`, or errored with `0x80073D02` ERROR_PACKAGES_IN_USE = "app was in use") comes back
   from `AppInstallItems`, which we never read. The scan now merges both sources and shows each queued
-  item's state ("waiting — app was in use, retries when it closes", "downloading 40%", …).
+  item's state ("waiting - app was in use, retries when it closes", "downloading 40%", …).
 - **Update All › Microsoft Store Apps now restarts stuck queued updates.** Same root cause: it searched,
   found 0, and reported "Up to date" while three updates sat wedged in the queue. It now picks up queued
   items, calls `AppInstallItem.Restart()` on any in an Error/Paused/ReadyToDownload state, counts them in
-  the total, and — when an item fails again because the app is still in use — logs the plain-English
-  reason ("app was in use — the Store retries once it closes (or after a reboot)") instead of a bare
+  the total, and - when an item fails again because the app is still in use - logs the plain-English
+  reason ("app was in use - the Store retries once it closes (or after a reboot)") instead of a bare
   HRESULT.
 
-## 0.19.10 — 2026-07-14
+## 0.19.10 - 2026-07-14
 ### Changed
 - **System Info › Power: hibernation is now a direct toggle.** The "(change)" link that opened the
   Power Options control panel left techs hunting for a switch that isn't obviously there. The
   hibernation row now shows **(enable)** / **(disable)** and runs `powercfg /hibernate on|off` directly,
-  then re-reads the power status — including **fast startup**, which Windows silently disables when
+  then re-reads the power status - including **fast startup**, which Windows silently disables when
   hibernation goes off (hiberboot needs the hibernation file). The fast-startup row keeps its control
   panel link.
 - **Tech gate idle timeout reduced from 20 to 15 minutes.** The unlock window, header countdown and
   expiry message all follow automatically.
-- **Traceroute streams hop-by-hop.** It used to collect the entire output before showing anything —
+- **Traceroute streams hop-by-hop.** It used to collect the entire output before showing anything -
   on a path with dead hops that's a minute-plus of apparent freeze, and techs assumed it was stuck.
   Hops now appear live as they answer, with a "Trace complete." line at the end. (Traceroute runs also
   land in the activity log now, as a side effect of the streaming runner.)
@@ -539,70 +563,70 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   regardless of age. Tech-gated (it erases the audit trail), and the purge itself is written as the
   first entry of the fresh activity log with the count and size removed. Useful because the
   always-appended activity/errors logs never age out of retention (each write refreshes their
-  timestamp) — the errors log had accumulated 5.1 MB from the pre-0.19.7 scanner flood.
+  timestamp) - the errors log had accumulated 5.1 MB from the pre-0.19.7 scanner flood.
 ### Verified from the field (no code change)
 - **The "random" Office updater popup is not a leak.** Activity log: `04:37:41 Update all` →
-  `04:42:07 run: OfficeC2RClient.exe /update` — the Office task is the last step of Update All and
+  `04:42:07 run: OfficeC2RClient.exe /update` - the Office task is the last step of Update All and
   fires minutes after the click, and the C2R updater then shows its window on its own schedule. One
   call site in the codebase, only reachable from Update All.
 - **The 0.19.7 socket fixes hold in production:** 4,203 unobserved-exception log entries on 07-13
-  (pre-fix builds), **3** on 07-14 — all intentional startup breadcrumbs — despite a deep IP scan.
+  (pre-fix builds), **3** on 07-14 - all intentional startup breadcrumbs - despite a deep IP scan.
 - **The 0.19.9 Backstage notice works:** breadcrumb at 04:30:26 shows the session-0 notice fired and
   the app exited cleanly in a real NinjaOne Background Mode session.
 
-## 0.19.9 — 2026-07-14
+## 0.19.9 - 2026-07-14
 ### Changed
 - **Hidden service sessions now get a clear notice instead of a black window.** Following the 0.19.8
   finding that WPF cannot rasterize in NinjaOne Background Mode, launching PartnerTool in **session 0**
-  (where hidden service sessions live — an interactive login is never session 0, so desktops and RDP are
-  unaffected) shows a native GDI message box — the one dialog type that does render there — explaining
+  (where hidden service sessions live - an interactive login is never session 0, so desktops and RDP are
+  unaffected) shows a native GDI message box - the one dialog type that does render there - explaining
   that the interface can't display in this session and to connect with full remote control, then exits.
   The event is breadcrumbed to `PartnerTool_errors.log`. `-softwarerender` skips the block as an escape
   hatch. Decision: Backstage is documented as unsupported rather than building a separate GDI/console
   companion UI.
 
-## 0.19.8 — 2026-07-14
+## 0.19.8 - 2026-07-14
 ### Changed
-- **Hidden-session rendering fallback + startup breadcrumbs** (attempted NinjaOne Backstage fix — see
+- **Hidden-session rendering fallback + startup breadcrumbs** (attempted NinjaOne Backstage fix - see
   outcome below). At startup the app compares its session to the active console session
   (`WTSGetActiveConsoleSessionId`); when they differ it switches WPF to software rendering
   (`RenderOptions.ProcessRenderMode = SoftwareOnly`) and writes breadcrumb lines to
   `PartnerTool_errors.log` showing how far startup got. A `-softwarerender` switch forces the fallback
   anywhere (useful for broken GPU drivers on normal desktops). Normal sessions are unaffected.
-- **Outcome — Backstage is NOT fixable from our side.** Verified empirically on a live Backstage session
+- **Outcome - Backstage is NOT fixable from our side.** Verified empirically on a live Backstage session
   with a five-mode probe app: normal WPF (hardware), per-window software, process-wide software, layered
   (`AllowsTransparency`) windows, and even WPF rendering to an **offscreen** `RenderTargetBitmap` blitted
-  via the same GDI path regedit uses — every WPF mode produces **zero pixels** (`px=0%`; the render
+  via the same GDI path regedit uses - every WPF mode produces **zero pixels** (`px=0%`; the render
   thread never comes up on that hidden desktop), while a pure-GDI control window (FillRect + DrawText)
   displays perfectly. Conclusion: WPF cannot rasterize in NinjaOne Background Mode at all; only GDI-drawn
   UIs (Win32/WinForms/console) can display there. The fallback stays (it's correct for RDP/odd-GPU
   cases and costs nothing), but PartnerTool's WPF UI cannot be made visible in Backstage.
 
-## 0.19.7 — 2026-07-13
+## 0.19.7 - 2026-07-13
 ### Fixed
 - **The bogus "91GB" is finally gone from the Update All log.** 0.17.62 fixed the implausible sizes in our
-  *pending updates* list but explicitly left the Update All log alone as "third-party output" — wrong call:
+  *pending updates* list but explicitly left the Update All log alone as "third-party output" - wrong call:
   we pipe those objects, so the rendering is ours to choose, and the tech is the one who has to explain
-  "91GB" to a client. The number is WUA's `MaxDownloadSize` — the maximum *possible* payload, which for a
+  "91GB" to a client. The number is WUA's `MaxDownloadSize` - the maximum *possible* payload, which for a
   UUP cumulative update is the entire range (~91 GB) rather than the real ~400 MB delta. There's no
   trustworthy real size to substitute, so we now format the rows ourselves and print **none**:
   `Installed   [KB5094126] 2026-06 Security Update …`. Warnings ("Reboot is required…") still pass
   through, and rows still stream live as each update is Accepted → Downloaded → Installed.
 - **winget failed with "Access is denied" on RMM/LAPS admin accounts.** Field log (COMMAI-PC-001, running
   as `~0000AEAdmin`): PartnerTool found `C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_…\winget.exe`
-  and launching it was refused, so Update All reported *"App Updates (winget) — Done (some errors)"* and
+  and launching it was refused, so Update All reported *"App Updates (winget) - Done (some errors)"* and
   installed nothing. Cause: winget is an **MSIX** app, and the package binary only grants **execute** to
   accounts the package is **registered** for. A throwaway elevated admin has never had Store apps
-  provisioned — so it has no per-user alias, winget isn't on its PATH, and the package path *exists but
+  provisioned - so it has no per-user alias, winget isn't on its PATH, and the package path *exists but
   won't run*. The 0.19.5 locator checked `File.Exists`, which proves nothing here.
   `WingetLocator` now **probes each candidate by actually running `winget --version`**, and when none
   work it registers the already-installed package for the current account
-  (`Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe` —
+  (`Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe` -
   installs nothing, just makes the existing machine-wide package usable) and retries. If winget still
   can't run, callers now **say so plainly** ("winget isn't available to this account…") instead of
   surfacing a raw "Access is denied" or silently doing nothing.
 - **Advanced Cleanup (and any DISM step) could hang at "Running… 100%" with the work visibly finished.**
-  `Process.WaitForExitAsync()` doesn't only wait for the process — it also waits for the redirected
+  `Process.WaitForExitAsync()` doesn't only wait for the process - it also waits for the redirected
   stdout/stderr pipes to reach EOF. `dism.exe` spawns **`DismHost.exe`**, which inherits those pipe
   handles and lingers *after* DISM exits, so the pipe never closed: the card sat at "Running…", the
   buttons stayed disabled and the servicing lock stayed held, even though the log already read
@@ -613,13 +637,13 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   12 s; the new path returns immediately). `RunCaptureAsync`'s final `await stdout` had the same
   unbounded wait and is now bounded too.
 - **`winmgmt.exe` was launched by bare name.** It lives in `System32\wbem`, not `System32`, so
-  `ResolveSystemExe` didn't find it and fell through to the unqualified name — and an elevated
+  `ResolveSystemExe` didn't find it and fell through to the unqualified name - and an elevated
   `CreateProcess` searches the app folder and current directory *before* `PATH`. That's precisely the
   hijack the resolver exists to prevent. It now also looks in `System32\wbem`.
 - **The IP scanner and port check flooded `PartnerTool_errors.log` (5.1 MB on the dev box).** Both timed
   out by racing the TCP connect (and the reverse-DNS lookup) against `Task.Delay` and walking away. The
-  abandoned task still faults afterwards — `SocketException 995` once the `TcpClient` is disposed, or
-  *"No such host is known"* for every IP with no PTR record — and with nobody awaiting it, .NET's
+  abandoned task still faults afterwards - `SocketException 995` once the `TcpClient` is disposed, or
+  *"No such host is known"* for every IP with no PTR record - and with nobody awaiting it, .NET's
   unobserved-exception handler logged it. A single subnet sweep is 254 hosts × 6 ports of that. Both now
   **cancel** the operation on timeout instead of abandoning it, so nothing faults unobserved.
 - **DISM's early progress frames leaked into the log** (e.g. `[===    5.8%    ]`). The progress-bar
@@ -628,7 +652,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 
 ### Changed
 - **Tech gate now times out after 20 minutes idle.** Techs routinely leave the app (often the Update All
-  window) open and unattended on a client's desk, and the unlock used to last for the life of the process —
+  window) open and unattended on a client's desk, and the unlock used to last for the life of the process -
   so whoever sat down next inherited a verified session. Every gated action slides the 20-minute window
   forward, so an actively-working tech is never re-prompted mid-job; only an idle session re-locks. The
   prompt says *"Tech verification expired after 20 minutes idle"* on a re-ask so it doesn't look broken.
@@ -641,17 +665,17 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   pick System/User first, matching how you actually think about it), and the two text boxes now carry
   **Scope / Name / Value** column labels instead of relying on tooltips to tell them apart.
 
-## 0.19.6 — 2026-07-13
+## 0.19.6 - 2026-07-13
 ### Changed
 - **Saved logs are now plain ASCII** so they never "mojibake" when a tech pastes them into a ticket or
   RMM tool that misreads UTF-8 (the `Â·` / `â` / `âââ` / `ï»¿`-BOM soup). The **in-app** log and status
-  lines keep their nicer glyphs (▶ ● — · …); only the files written to `C:\PCI\Logs` are flattened —
+  lines keep their nicer glyphs (▶ ● - · …); only the files written to `C:\PCI\Logs` are flattened -
   decorative glyphs map to ASCII tokens (`▶`→`>`, `━━━`→`---`, `·`→`-`, `✓`→`[OK]`, `→`→`->`, `®`→`(R)`…),
   accented letters fold to their base letter (`é`→`e`), and the files are written **UTF-8 with no BOM**.
   New `LogText.ToAscii`, applied at the three file sinks (activity log, Repair section logs, Update All
   log). Verified pure-ASCII output against the real field-log samples.
 
-## 0.19.5 — 2026-07-13
+## 0.19.5 - 2026-07-13
 > Fixes from reviewing a real Win10 field run (activity + section logs).
 ### Fixed
 - **winget "cannot find the file specified".** On the field machine the tool ran elevated as an admin
@@ -659,7 +683,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   software-inventory export at startup *and* Update All's winget step both failed. Root cause: three
   different winget-path resolvers, and the two that failed only checked that per-user alias. Consolidated
   every winget call (Software install, Update All, outdated-apps scan, vendor-tool install) onto one
-  resolver — **`WingetLocator`** — that also finds the **machine-wide** DesktopAppInstaller package. Since
+  resolver - **`WingetLocator`** - that also finds the **machine-wide** DesktopAppInstaller package. Since
   `C:\Program Files\WindowsApps` denies directory *listing* even to admins (verified), it gets the exact
   path from `Get-AppxPackage -AllUsers … .InstallLocation` (a string, no listing) and runs the known exe
   (existence check = traverse, which IS allowed). Resolved off-thread at startup (`WingetLocator.Warm`) so
@@ -667,25 +691,25 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - **Temp cleaner no longer touches its own running DLLs.** The single-file exe self-extracts native DLLs
   to `%TEMP%\.net\PartnerTool-<ver>\…` and holds them open, so the cleaner only ever logged them as "in
   use/skipped" noise. It now skips its own extraction folder outright (`TempCleaner.IsSelfExtract`).
-- **Dell Command Update return code 5** is now understood — "Reboot required from a prior update — rerun
+- **Dell Command Update return code 5** is now understood - "Reboot required from a prior update - rerun
   after restart" (yellow) instead of a generic "Done (check log)". (Seen on the field machine, which had a
   reboot pending.)
 
-## 0.19.4 — 2026-07-09
-> A batch of feedback items — all additions/changes to existing pages (System Info, Network, Manage,
+## 0.19.4 - 2026-07-09
+> A batch of feedback items - all additions/changes to existing pages (System Info, Network, Manage,
 > Repair), so it stays a PATCH rather than a MINOR.
 ### Added
 - **Full SMART attribute table** (System Info ▸ Storage ▸ **SMART details** button). Opens a
-  CrystalDiskInfo-style per-drive table — ID, attribute, current/worst/threshold, raw — with failing
+  CrystalDiskInfo-style per-drive table - ID, attribute, current/worst/threshold, raw - with failing
   attributes and a predict-failure flag highlighted red. Reuses the existing `SmartAttributes`
   collector (was written but never surfaced). SATA/ATA only; NVMe drives don't expose the classic
   table, and the window says so (their temperature/wear/hours are already the inline Storage summary).
-- **Port Check now tests several ports at once** — enter `80,443,3389` or a range `1000-1010`. Each
+- **Port Check now tests several ports at once** - enter `80,443,3389` or a range `1000-1010`. Each
   port gets its own line and it distinguishes **OPEN** / **CLOSED (actively refused)** / **FILTERED
-  (firewall dropped it, no reply)** — the old single-port version couldn't tell a refusal from a
+  (firewall dropped it, no reply)** - the old single-port version couldn't tell a refusal from a
   timeout. (New `NetTools.ParsePorts` + `PortCheckManyAsync`.)
 - **IP Scanner deep scan lists each host's open ports.** A new **Open ports** column shows every open
-  port found (445/3389/139/80/443/22), not just the first — and it now knocks every live host, so you
+  port found (445/3389/139/80/443/22), not just the first - and it now knocks every live host, so you
   see open ports for hosts that answered ping too, not only ping-blockers. Copy includes the ports.
 - **Add / update environment variables** (Manage ▸ Environment Variables). A name/value row with a
   **System / User** scope picker; System scope is tech-gated + confirmed (it applies to all users).
@@ -696,61 +720,61 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   sleep).
 ### Changed
 - **Monitors and Memory are now proper tables.** Monitors show **Make / Model / Size / Year / Serial**
-  columns; Memory shows **Slot / Size / Speed / Maker** — aligned headers via shared-size columns,
+  columns; Memory shows **Slot / Size / Speed / Maker** - aligned headers via shared-size columns,
   instead of the old run-on single line.
 - **Health Check tab shows by default.** It has matured, so the sidebar tab is on out of the box; the
   Settings toggle (relabelled "Show the Health Check tab") can still hide it.
 - **Disk Usage defaults to showing hidden items.**
 - **Dell SupportAssist card scans on demand.** Opening the Repair page no longer kicks off a multi-GB
-  SARemediation folder walk on its own — the card appears (on Dell hardware) with a **Scan** button
+  SARemediation folder walk on its own - the card appears (on Dell hardware) with a **Scan** button
   that does the sizing when clicked, then becomes **Refresh**. A cheap `DellRemediation.IsApplicable`
   check decides visibility without the walk.
 ### Fixed
 - **Port Check** no longer reports an open port as closed in the refused-vs-timeout edge (it now
   awaits the connect and inspects the socket error instead of only checking `client.Connected`).
 
-## 0.19.3 — 2026-07-09
+## 0.19.3 - 2026-07-09
 > The two remaining items from the whole-codebase review. Hardening + hygiene, no behaviour change
 > for a well-formed input.
 ### Changed
 - **WMI inputs are now validated, not escaped.** `ServicesInfo` and `SystemManagement` interpolated a
-  service name / SID straight into a WMI object path or WQL query — and this app runs **elevated**. They
+  service name / SID straight into a WMI object path or WQL query - and this app runs **elevated**. They
   relied on quote-escaping, and used two *different* escaping styles (`\'` vs `''`). Escaping is the wrong
   defence here: both now **refuse** malformed input instead. A service name containing a quote, backslash,
   backtick or control character is rejected (`ValidServiceName`), the start mode is checked against its
   three legal values, and the SID must match `^S-1-\d+(-\d+)*$` before it can drive the irreversible
   profile delete. Verified against all real profile SIDs on a live box (accepted) and injection-shaped
   input (rejected).
-- **One shared `HttpClient`.** Speed Test and Show Public IP each built a new `HttpClient` per click — the
+- **One shared `HttpClient`.** Speed Test and Show Public IP each built a new `HttpClient` per click - the
   documented .NET anti-pattern (every disposed client leaves its socket in `TIME_WAIT`, so repeated use can
   exhaust ports). Both now use a single static client in `NetTools`, with per-request timeouts supplied by a
   `CancellationToken` (Timeout is a per-client property, so it can't vary per call). The public-IP fetch
   also moved out of the page and into `NetTools.PublicIpAsync`, next to the other network helpers.
 
-## 0.19.2 — 2026-07-09
+## 0.19.2 - 2026-07-09
 > Self-audit of the 0.19.0/0.19.1 additions + a whole-codebase review pass. Fixes only, no new features.
 ### Fixed
 - **Dell VSS check no longer cries wolf.** It was flagging shadow storage as "UNBOUNDED" on any machine
-  that simply has no shadow-storage association (System Protection off — a normal state), which added a
+  that simply has no shadow-storage association (System Protection off - a normal state), which added a
   false Health Check deduction and lit up the Repair "Cap Shadow Storage" button for nothing. Now it
   distinguishes *no association* (healthy, reported as "not configured") from a real *existing-and-uncapped*
   association (the actual Dell KB 000129138 condition); only the latter is flagged/fixable
   (`DellRemediation.VssHasAssociation`).
 - **Feature-Update Leftovers: Delivery Optimization fallback actually clears now.** The cmdlet-unavailable
-  fallback used `Remove-Item -LiteralPath '…\*'`, and `-LiteralPath` treats `*` literally — so it deleted
+  fallback used `Remove-Item -LiteralPath '…\*'`, and `-LiteralPath` treats `*` literally - so it deleted
   nothing while logging success. Switched to enumerate-then-delete (keeps the folder, empties its contents).
 - **IP Scanner is faster.** Ping and the ARP probe now run **concurrently** instead of back-to-back, so a
-  dead on-link host costs the slower of the two timeouts rather than their sum — meaningfully quicker on a
+  dead on-link host costs the slower of the two timeouts rather than their sum - meaningfully quicker on a
   sparse subnet, with the same results and MAC capture.
 - **IP Scanner range hardening.** The address enumerator uses a wide (long) counter so a range at the very
   top of the space (…/…255) can't wrap and misbehave; the default prefilled range now prefers a NIC that
   has a **default gateway**, so a VMware/Hyper-V host-only adapter no longer wins over the real network.
-- **Re-enable Auto-Detect (WPAD)** no longer briefly freezes the UI — its ~300 ms off/on toggle now runs
+- **Re-enable Auto-Detect (WPAD)** no longer briefly freezes the UI - its ~300 ms off/on toggle now runs
   off the UI thread like every other action, with the button disabled while it works.
 
-## 0.19.1 — 2026-07-09
+## 0.19.1 - 2026-07-09
 ### Added
-- **Feature-Update Leftovers cleanup** (Repair page) — reclaims the big space Windows Disk Cleanup
+- **Feature-Update Leftovers cleanup** (Repair page) - reclaims the big space Windows Disk Cleanup
   targets that our temp cleaner intentionally doesn't: the previous-Windows rollback image and
   upgrade staging (`Windows.old`, `$Windows.~BT`, `$Windows.~WS`, `$GetCurrent`) plus the Delivery
   Optimization peer cache. **Scan** sizes whatever's present (read-only, reparse-safe) and shows a
@@ -760,42 +784,42 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   so it's locale-independent) then a recursive delete; Delivery Optimization uses its own
   `Delete-DeliveryOptimizationCache` cmdlet with a folder fallback. Re-measures after cleaning so the
   log shows what actually freed vs. what needs a reboot to finish. New `FeatureUpdateCleanup`
-  collector. Closes the main gap vs. `cleanmgr` — everything else Disk Cleanup does (temp, INetCache,
+  collector. Closes the main gap vs. `cleanmgr` - everything else Disk Cleanup does (temp, INetCache,
   D3DSCache, crash dumps, WER, recycle bin, thumbnails, WinSxS/Windows Update cleanup) the tool
   already covered across Clean Temp Files, Empty Recycle Bin, Clear Icon Cache, Advanced Cleanup and
   Windows Update Reset.
 
-## 0.19.0 — 2026-07-09
+## 0.19.0 - 2026-07-09
 > **MINOR bump (0.18 → 0.19)** for a new headline feature: the network IP Scanner. Two other
 > improvements ride along in the same version.
 ### Added
-- **IP Scanner** (Network page) — an Advanced IP Scanner-style sweep of an IPv4 range. Enter a range
+- **IP Scanner** (Network page) - an Advanced IP Scanner-style sweep of an IPv4 range. Enter a range
   as **CIDR** (`192.168.1.0/24`), a **span** (`192.168.1.1-254` or a full `a-b`), or a **single
   address**; the box is prefilled with this machine's own /24. Each address is **pinged**, then
-  **ARP-probed** (finds hosts that ignore ping — the Windows-client default — and returns the MAC),
+  **ARP-probed** (finds hosts that ignore ping - the Windows-client default - and returns the MAC),
   then **reverse-DNS'd** for a name. Optional **Deep scan** also knocks on common TCP ports
   (445/3389/139/80/443/22), which is the only way to see a ping-blocking host on another subnet.
   Runs 64 hosts in parallel, streams rows in numeric order as they answer, shows live progress, and
   can be **stopped** mid-scan; **Copy** puts the results on the clipboard. Marks your own PC and the
   gateway. Read-only, capped at 8,192 addresses so it can't be pointed at an absurd range. New
   `IpScanner` engine; the scan itself is logged to the activity log.
-- **Dell SupportAssist / System Repair check** (Dell hardware only) — surfaces the two things that
+- **Dell SupportAssist / System Repair check** (Dell hardware only) - surfaces the two things that
   silently eat GBs on Dells: the **`C:\ProgramData\Dell\SARemediation` snapshot store** (15 GB
   reserved by default, but a known purge bug grows it past 100 GB) and **unbounded VSS shadow
   storage** (Dell KB 000129138). Appears both as a **Health Check** finding and as a **card on the
   Repair page** (hidden on non-Dell machines). The snapshot folder is **reported, never
-  hand-deleted** — Dell says deleting it breaks OS Recovery, so we point the tech at the
+  hand-deleted** - Dell says deleting it breaks OS Recovery, so we point the tech at the
   SupportAssist **System Repair** toggle instead. Unbounded shadow storage **is** fixable with
-  Dell's own remedy — `vssadmin resize shadowstorage /MaxSize=5%` (Dell's KB suggests 2%; we use 5%
-  as our house default for more restore-point headroom) — offered as a **tech-gated**, confirm-first
+  Dell's own remedy - `vssadmin resize shadowstorage /MaxSize=5%` (Dell's KB suggests 2%; we use 5%
+  as our house default for more restore-point headroom) - offered as a **tech-gated**, confirm-first
   action (it discards existing restore points). New `DellRemediation` collector.
 ### Changed
-- **Disk Usage columns are now sortable.** Click any header — **Name, % of Parent, Size, Files,
-  Modified, Attr** — to sort by it, click again to reverse; the active column shows a ▲/▼. Default
+- **Disk Usage columns are now sortable.** Click any header - **Name, % of Parent, Size, Files,
+  Modified, Attr** - to sort by it, click again to reverse; the active column shows a ▲/▼. Default
   sort is **% of Parent** (largest first), matching WizTree. The ".." row always stays pinned at the
   top, and every sort falls back to size so equal keys still read sensibly.
 
-## 0.18.2 — 2026-07-08
+## 0.18.2 - 2026-07-08
 ### Changed
 - **Health Check is hidden by default.** It's still being built out, so new **Settings ▸ In-progress
   features ▸ "Show features still being worked on"** toggle (off by default) controls whether the
@@ -803,9 +827,9 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   when it's turned off, the app falls back to System Info.
 ### Fixed
 - Health Check: the **Fix Selected** button no longer keeps a stale "Nothing to Fix" label on rescan
-  — it resets to "Fix Selected" when a new scan starts.
+  - it resets to "Fix Selected" when a new scan starts.
 
-## 0.18.1 — 2026-07-08
+## 0.18.1 - 2026-07-08
 ### Changed
 - **Health Check scan feedback.** Rescans now clear the previous findings first (they no longer
   linger while scanning). The scan reports live progress: a **spinning arc** around the ring, a
@@ -814,83 +838,83 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   (`HealthCheck.RunAsync`) now runs its checks as reported stages instead of one silent parallel
   batch, so the page never looks stuck.
 
-## 0.18.0 — 2026-07-08
+## 0.18.0 - 2026-07-08
 > **MINOR bump (0.17 → 0.18)** for a headline feature: the Health Check page. Still pre-release `0.x`.
 ### Added
-- **Health Check** — new page (sidebar, above Settings). A big score ring you click to scan; it runs
-  the tool's existing read-only collectors in parallel and produces a 0–100 score plus a findings
+- **Health Check** - new page (sidebar, above Settings). A big score ring you click to scan; it runs
+  the tool's existing read-only collectors in parallel and produces a 0-100 score plus a findings
   list: junk (temp + installer orphans), broken shortcuts, disk space + SMART, pending updates,
   security hardening + antivirus, crashes/BSODs + device problems, uptime/reboot-pending, startup
   load. **Fixable, safe items get a checkbox** (temp clean, installer orphans, broken shortcuts →
   Recycle Bin); one **Fix Selected** button runs the ticked ones (tech-gated once if any deletes
   files) and rescans. Advisory findings get an **Open →** button that jumps to the right tab.
-  Deliberately NO registry cleaning, privacy wiping or placebo "optimizations" — every check and fix
+  Deliberately NO registry cleaning, privacy wiping or placebo "optimizations" - every check and fix
   is something the tool already does and logs. New: `HealthCheck`, `ShortcutScan` (dead-.lnk finder,
   reversible recycle via SHFileOperation).
 ### Changed
 - **Performance window:** the CPU/Memory/Disk/Network rail tiles are now boxed cards with a hover
-  fill, and the selected one gets a bright accent border — previously the selection was a near-black
+  fill, and the selected one gets a bright accent border - previously the selection was a near-black
   fill that was hard to see.
 
-## 0.17.69 — 2026-07-08
+## 0.17.69 - 2026-07-08
 ### Removed
 - **Asset Tag / Notes** dropped entirely: the fields are gone from the Settings window and
   settings.json, and the Collect Diagnostics report (text + HTML header) no longer prints them.
   Settings now holds just log retention and the hardware-sensor switch. (Stale AssetTag/Notes
   values in an existing settings.json are ignored harmlessly.)
 
-## 0.17.68 — 2026-07-08
+## 0.17.68 - 2026-07-08
 ### Added
 - **App-wide servicing lock.** Full Repair, Advanced Cleanup, CHKDSK scan, Windows Update Reset and
-  Update All now share one gate — starting a second one shows "“X” is still running — wait for it
+  Update All now share one gate - starting a second one shows "“X” is still running - wait for it
   to finish." Fixes a real field failure: Full Repair's DISM RestoreHealth died with 0x800F0915
   because Update All was installing Windows updates at the same time (both drive CBS/TrustedInstaller).
 - **Automatic log retention.** At every startup the app prunes files in the hardened C:\PCI\Logs
-  older than the configured retention (default **30 days**, clamped 1–365). Only the elevated app
+  older than the configured retention (default **30 days**, clamped 1-365). Only the elevated app
   can tidy that folder, so this replaces manual clearing; pruning is itself activity-logged.
 - **Settings window is back** (sidebar, above About): log-retention days, the hardware-sensor
-  kill-switch, and the report Asset Tag / Notes — all previously hand-edit-only in settings.json.
+  kill-switch, and the report Asset Tag / Notes - all previously hand-edit-only in settings.json.
 
-## 0.17.67 — 2026-07-07
+## 0.17.67 - 2026-07-07
 ### Fixed
 - **App Updates (winget): a garbled row appeared** ("1 package(s) have version num … se --include-u
   → nknown to see a"). winget's footer line ("N package(s) have version numbers that cannot be
   determined. Use --include-unknown …") was being column-sliced into a fake app. Root cause: the
   `line.Length < cAvail` guard ran before the summary-line break, so the short "N upgrades
   available." line was skipped *past* the break while the long footer got parsed. Fixed the check
-  order (footer breaks first, on both "upgrades available" and "package(s)") and added an Id guard —
+  order (footer breaks first, on both "upgrades available" and "package(s)") and added an Id guard -
   a real winget row's package Id never contains a space. Verified against live winget output.
 
-## 0.17.66 — 2026-07-07
-### Changed (placement audit — 5 items)
+## 0.17.66 - 2026-07-07
+### Changed (placement audit - 5 items)
 - **Network:** the two destructive resets (Stack Reset, Network Reset/reinstall adapters) moved from
-  the middle of the page to the **bottom** — risk now increases as you scroll, like Repair. Ping &
+  the middle of the page to the **bottom** - risk now increases as you scroll, like Repair. Ping &
   Diagnostic Tools moved above Wi-Fi.
-- **Diagnostics:** Crash History moved to **directly under Reliability** — its caption ("see Crash
+- **Diagnostics:** Crash History moved to **directly under Reliability** - its caption ("see Crash
   History below for actual stability") now points one card down instead of six.
-- **Repair:** Collect Diagnostics is a report, not a repair — pinned **after the Reports card**, out
+- **Repair:** Collect Diagnostics is a report, not a repair - pinned **after the Reports card**, out
   of the alphabetical fixes block.
 - **Manage:** sub-nav now Services (pinned, most used) then alphabetical: Drivers, Environment
   Variables (full name, was "Environment"), Features, Hosts File, Scheduled Tasks, User Profiles.
-- **Repair › Quick Fixes:** removed the "Clear Temp Files" button — it duplicated Clean Temp Files
+- **Repair › Quick Fixes:** removed the "Clear Temp Files" button - it duplicated Clean Temp Files
   (All Users), which covers more locations and has a Scan preview. Card description points there.
 
-## 0.17.65 — 2026-07-07
+## 0.17.65 - 2026-07-07
 ### Changed
 - **Network › Ping & Diagnostic Tools redesigned.** The scattered three-row layout (lone host field,
   uneven buttons, a strip mixing labels/inputs/buttons) is now: one aligned input row (Host/IP
   stretches; compact centered DNS type + Port fields inline) above a single uniform row of four
   equal-width buttons (Ping, Traceroute, DNS Lookup, Port Check).
-- **Wi-Fi Scan moved to the Wi-Fi card** as "Scan Nearby" (it never needed a host) — results show in
+- **Wi-Fi Scan moved to the Wi-Fi card** as "Scan Nearby" (it never needed a host) - results show in
   a new "Nearby Networks" section under Saved Networks, hidden until a scan runs.
 
-## 0.17.64 — 2026-07-07
+## 0.17.64 - 2026-07-07
 ### Changed
-- **Update All is no longer tech-gated.** Installing updates isn't destructive — it's encouraged,
+- **Update All is no longer tech-gated.** Installing updates isn't destructive - it's encouraged,
   and users can run the same updates themselves through Windows. The run is still fully logged to
   the activity log.
 
-## 0.17.63 — 2026-07-07
+## 0.17.63 - 2026-07-07
 ### Changed
 - **Update All now auto-installs missing vendor tools, matching the HUS production script.**
   Previously the Dell branch just opened the DCU GUI when dcu-cli.exe wasn't installed ("Opened"),
@@ -900,26 +924,26 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   fallbacks remain only when the install/download itself fails. The passive scan-on-open still
   never installs anything; auto-installs are logged to the activity log.
 
-## 0.17.62 — 2026-07-04
+## 0.17.62 - 2026-07-04
 ### Changed
 - **Updates › App Updates (winget):** entries whose current version winget can't determine
-  ("Unknown → x.y") are no longer listed — dropped `--include-unknown` plus a defensive filter.
+  ("Unknown → x.y") are no longer listed - dropped `--include-unknown` plus a defensive filter.
 - **Repair:** "Create Restore Point" moved out of Quick Fixes into the **System Restore Points**
   card (next to Refresh / Open System Restore), with its own status + inline log; the restore-point
   list refreshes automatically after creating one.
 - **Updates › pending Windows updates sizes** are now adaptive (KB/MB/GB) and hide the bogus
   multi-GB numbers: WUA reports the *maximum possible* download, and for UUP cumulative updates
-  that's the entire payload range (~90 GB) while the real delta download is a small fraction —
-  implausible sizes now show "—" (Settings hides them too). Note: the "91GB" seen inside the Update
+  that's the entire payload range (~90 GB) while the real delta download is a small fraction -
+  implausible sizes now show "-" (Settings hides them too). Note: the "91GB" seen inside the Update
   All log is PSWindowsUpdate's own table printing the same raw WUA value; that text is third-party
   output.
 - **Mouse wheel over inline logs no longer blocks page scrolling.** New `ScrollChaining` behavior on
   Repair / Updates / Network: an inner log scroller consumes the wheel only while it can actually
   scroll; at its edge (or when empty) the wheel is forwarded to the page.
 
-## 0.17.61 — 2026-07-04
+## 0.17.61 - 2026-07-04
 ### Fixed (code + log review)
-- **Diagnostics:** the refresh-on-open reload now has a re-entrancy guard and its own error handling —
+- **Diagnostics:** the refresh-on-open reload now has a re-entrancy guard and its own error handling -
   rapid tab flipping could stack multiple concurrent full reloads (each includes the slow WUA COM
   history query), and a collector fault would have escalated to the global "Something went wrong"
   dialog. Now: one reload at a time; a failure shows "Last refresh failed at HH:mm:ss" instead.
@@ -927,49 +951,49 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   followed by **Clean** in the same minute overwrote the scan's log (evidence loss). Applies to the
   Repair per-fix logs and the Update All log.
 - **Updates › Store scan** now distinguishes "No pending Store updates" from **"Store scan
-  unavailable on this machine"** (LTSC/Server, Store service disabled) — previously a failed query
+  unavailable on this machine"** (LTSC/Server, Store service disabled) - previously a failed query
   looked identical to a clean result.
 - **versions.md: corrected 26 wrong entry dates.** Every entry from 0.17.35 up had a copy-pasted
   "2026-06-08" date; real dates (2026-06-30 → 2026-07-04) were reconstructed from the activity log
   and Event Viewer timestamps.
 
-## 0.17.60 — 2026-07-04
+## 0.17.60 - 2026-07-04
 ### Changed
 - **Update All › Microsoft Office** now hands off to Office's own Click-to-Run updater with its
   visible progress window (`OfficeC2RClient.exe /update user displaylevel=true forceappshutdown=false`)
   instead of silently launching it and polling the registry for 15 minutes (which reported wrong
-  "done"/timeout results). It pops up and does its thing; the task shows "Launched — see the Office
+  "done"/timeout results). It pops up and does its thing; the task shows "Launched - see the Office
   update window".
 
-## 0.17.59 — 2026-07-04
+## 0.17.59 - 2026-07-04
 ### Fixed
 - **Crash-on-close, for real this time** (found by reviewing WER events + PartnerTool_errors.log on
   a machine that had run every tool). The 0.17.52 `Environment.Exit(0)` fix stopped the WPF
   shutdown-telemetry `FileNotFoundException`, but v0.17.55 still faulted on exit with a *second*,
   intermittent crash: `DllNotFoundException` in the native C++ CRT module-unload path
-  (`_app_exit_callback` / `__scrt_uninitialize_type_info`) — a single-file-extracted native lib is
+  (`_app_exit_callback` / `__scrt_uninitialize_type_info`) - a single-file-extracted native lib is
   already gone when those teardown callbacks run. `MainWindow.OnClosed` now calls `TerminateProcess`
   instead, ending the process immediately and skipping ALL teardown (managed finalizers, native
   dtors, atexit), so no exit-time fault is possible. (All logs/settings are written synchronously,
   so nothing needs a graceful shutdown.)
 - Logs are now written as UTF-8 **with BOM** (activity log, Repair per-fix logs, Update All log) so
-  the ·/—/▶/● characters render correctly in any viewer instead of as mojibake in tools that fall
+  the ·/-/▶/● characters render correctly in any viewer instead of as mojibake in tools that fall
   back to the ANSI code page. Hosts file and JSON configs are deliberately left BOM-less.
 
-## 0.17.58 — 2026-07-03
+## 0.17.58 - 2026-07-03
 ### Fixed
 - Updates: a **virtual machine no longer mis-detects as a Surface device**. A Windows 365 Cloud PC
   (and Azure/Hyper-V/VMware/VirtualBox VMs) reports Manufacturer "Microsoft Corporation", which
   matched the Surface App firmware tool. `ManufacturerTools.Get` now takes the **model** too:
   it returns no tool for any virtual machine (model/maker VM signatures) and only offers the Surface
   tool when the model actually says "Surface". Both the manufacturer card and the driver/BIOS scan
-  now show a clear "virtual machine — no OEM firmware/driver updates (use Windows Update)" message.
+  now show a clear "virtual machine - no OEM firmware/driver updates (use Windows Update)" message.
 
-## 0.17.57 — 2026-07-03
+## 0.17.57 - 2026-07-03
 ### Added
 - **Updates › Microsoft Store** now lists **pending Store updates**, like the other sources. New
   `StoreUpdatesInfo` uses AppInstallManager with `AppUpdateOptions.AutomaticallyDownloadAndInstall­
-  UpdateIfFound = false` — a read-only search that lists UWP/MSIX updates without starting downloads
+  UpdateIfFound = false` - a read-only search that lists UWP/MSIX updates without starting downloads
   or disturbing updates Windows already had in progress.
 ### Changed
 - settings.json cleanup: removed the dead `ShowRefreshButton` setting (nothing read it after the
@@ -977,12 +1001,12 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   (a kill-switch for the LibreHardwareMonitor kernel driver) and `AssetTag` / `Notes` (shown on the
   Collect Diagnostics report). There is no longer a Settings UI, so those are hand-edited if needed.
 
-## 0.17.56 — 2026-07-03
+## 0.17.56 - 2026-07-03
 ### Changed (UI/UX batch)
 - **System Info:** the CPU "0 W package" reading is hidden when the sensor can't read real package
-  power (LibreHardwareMonitor's driver blocked by HVCI) — only shown when ≥ 1 W.
+  power (LibreHardwareMonitor's driver blocked by HVCI) - only shown when ≥ 1 W.
 - **Manage:** the startup preload now warms EVERY section (Services, Tasks, Drivers, Hosts, Env,
-  Features, Profiles), not just Services + Tasks — switching between them is instant.
+  Features, Profiles), not just Services + Tasks - switching between them is instant.
 - **Repair › Clean Temp Files:** added a **Scan** button (read-only dry-run) that reports how much
   each temp/cache folder holds and the total that could be freed, before the (gated) **Clean**.
 - **Startup precache:** while the tech reads System Info, the installed-software + winget-outdated
@@ -993,19 +1017,19 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   Repair, Windows Installer Cleanup, Windows Update Reset). Quick Fixes / Restore Points / Reports
   stay pinned at the top.
 - **Updates redesign:** each update source is now a single self-contained card that merges its scan
-  result with its launcher — Windows Update (+ pending list), App Updates (winget outdated list),
-  the manufacturer tool (Dell/Lenovo/HP + driver/BIOS scan), and Microsoft Store — instead of a
+  result with its launcher - Windows Update (+ pending list), App Updates (winget outdated list),
+  the manufacturer tool (Dell/Lenovo/HP + driver/BIOS scan), and Microsoft Store - instead of a
   separate summary block plus disconnected "Open" cards.
 - **Updates:** the always-visible bottom **LOG** block was removed; the live log now lives inside the
   Update All card and appears only when Update All is running.
 
-## 0.17.55 — 2026-07-03
+## 0.17.55 - 2026-07-03
 ### Changed (UI/UX batch)
 - Removed the top **Refresh** button from System Info, Diagnostics and Security (pages refresh
   themselves). Section-level refresh buttons (e.g. Top Processes) stay.
 - **Auto-refresh fixed + faster:** System Info's timer is now always-on at **Normal** priority and
   runs for the life of the page (work gated on visibility) so the "Refreshed at" stamp reliably
-  updates — the previous timer could be left un-started. Interval changed from 1 minute to **45
+  updates - the previous timer could be left un-started. Interval changed from 1 minute to **45
   seconds**; a collector fault now shows a "last refresh failed" note instead of silently freezing.
   Diagnostics now refreshes on every page open (its stamp updates too) rather than never.
 - **System Info › Network:** the detected adapter is now labelled "… (Default)" so it's clear why
@@ -1017,11 +1041,11 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - **Diagnostics reorg:** order is now Reliability → Health History → Device Problems → (rest).
   Health History shows the last **7 days** with a "More…" popup for the full trend. "Load detailed
   history" for reliability now opens a **popup** instead of an inline list.
-- **Diagnostics reliability:** the low index (e.g. 1.5/10) is genuine but misleading — Windows drops
+- **Diagnostics reliability:** the low index (e.g. 1.5/10) is genuine but misleading - Windows drops
   it for app installs, updates and driver changes, not just crashes. Added an explanatory caption
   plus the **7-day best** score so a stable machine isn't misread as unstable.
 - **Software › Installed:** the search box placeholder ("Type to search installed software…") now
-  actually shows — a local `Background="Transparent"` was overriding the trigger brush; it clears
+  actually shows - a local `Background="Transparent"` was overriding the trigger brush; it clears
   the moment the field is focused.
 - **System Shortcuts:** categories and their buttons are sorted alphabetically; renamed "Computer
   Mgmt" → "Computer Management" and "Env. Variables" → "Environment Variables"; added a **Remote
@@ -1032,12 +1056,12 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   instant threw a sharing violation that was swallowed. Now reads each log with `FileShare.ReadWrite`
   (and recurses subfolders), so every log is always captured.
 
-## 0.17.54 — 2026-07-03
+## 0.17.54 - 2026-07-03
 ### Security (full codebase review)
 - Fixed 4 elevated-launch planting risks: System Shortcuts tools (devmgmt.msc, taskmgr.exe, etc. +
   rundll32 and its .cpl argument), Memory Diagnostic (mdsched.exe), Optional Features
   (optionalfeatures.exe) and System Restore (rstrui.exe) were launched by bare name with
-  ShellExecute, whose search order includes the working directory — a standard user could plant a
+  ShellExecute, whose search order includes the working directory - a standard user could plant a
   matching exe next to wherever the elevated exe was started (e.g. Downloads) and have it run as
   admin. All now pinned via new `ProcessRunner.ResolveSystemTool` (System32, Windows-dir fallback
   for regedit.exe).
@@ -1047,62 +1071,62 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - Clean Temp Files now takes the Repair page's busy lock (BeginBusy) so another heavy fix can't run
   concurrently; Clean Temp / WPAD / WinHTTP buttons added to the page-wide disable list.
 
-## 0.17.53 — 2026-07-03
+## 0.17.53 - 2026-07-03
 ### Changed
 - Sidebar navigation reordered: System Info stays first, the rest is alphabetical (Diagnostics,
   Disk Usage, Manage, Network, Repair, Security, Software, System Shortcuts, Updates).
 
-## 0.17.52 — 2026-07-03
+## 0.17.52 - 2026-07-03
 ### Fixed
 - "Something went wrong" dialog on every app close. Event Viewer + PartnerTool_errors.log showed
   the single-file WPF shutdown-telemetry FileNotFoundException (System.Diagnostics.Tracing) has
-  been firing on exit in every build since 0.17.38 — the 0.17.30 AssemblyResolve hook never held.
+  been firing on exit in every build since 0.17.38 - the 0.17.30 AssemblyResolve hook never held.
   Definitive fix: MainWindow.OnClosed now exits the process directly (all logs/settings are written
   synchronously, so nothing needs graceful shutdown), before WPF's CriticalShutdown telemetry can
   run; and if that exception ever surfaces anyway, the crash handler suppresses the dialog for it.
 ### Security (audit)
 - Tech-gated the remaining destructive actions: Schedule CHKDSK /f /r, Clear Temp Files, Empty
   Recycle Bin, Clear Print Queue, Clear Icon Cache, Reset WinHTTP proxy, the Adobe PatchCleanFlag
-  policy write, and Release/Renew IP (drops connectivity — can cut a remote session).
+  policy write, and Release/Renew IP (drops connectivity - can cut a remote session).
 - Extended the critical-services blocklist (stop/restart refused at UI + engine): added SamSs,
   firewall (mpssvc, BFE), Defender (WinDefend, Sense, wscsvc, SecurityHealthService, WdNisSvc) and
   common EDR agents (SentinelOne, Huntress, CrowdStrike Falcon, Cylance).
 - End Process now also blocks svchost (killing the RPC/DcomLaunch host bugchecks Windows, and the
   tool can't tell which services an instance hosts).
 - Startup Programs: entries belonging to security software (Defender/SecurityHealth, SentinelOne,
-  Huntress, CrowdStrike, Sophos, Malwarebytes, ESET, etc.) can no longer be disabled — blocked in
+  Huntress, CrowdStrike, Sophos, Malwarebytes, ESET, etc.) can no longer be disabled - blocked in
   the UI and again in StartupInfo.SetEnabled as a backstop.
 
-## 0.17.51 — 2026-07-03
+## 0.17.51 - 2026-07-03
 ### Fixed
 - Disk Usage: $BadClus (NTFS bad-sector map) no longer shows as the whole drive size (~474 GB). Its
-  $Bad stream isn't flagged sparse like $UsnJrnl, so the previous sparse fix missed it — NTFS just
+  $Bad stream isn't flagged sparse like $UsnJrnl, so the previous sparse fix missed it - NTFS just
   declares its AllocatedSize as the entire volume while it occupies ~0 real bytes. Now zeroed by
   name (as WizTree hides it), so the drive total lines up with WizTree's Allocated (~386 GB) instead
   of being inflated to ~856 GB. Verified against the machine: confirmed $BadClus is the only phantom;
   the small Windows gap vs WizTree is hard-link dedup in WinSxS (we count shared clusters once).
 
-## 0.17.50 — 2026-07-03
+## 0.17.50 - 2026-07-03
 ### Fixed
 - Disk Usage: sparse NTFS system files were counted at their full reserved size after the
-  "sum all $DATA streams" change — $BadClus (a sparse placeholder spanning the whole volume) showed
+  "sum all $DATA streams" change - $BadClus (a sparse placeholder spanning the whole volume) showed
   as ~474 GB and $Extend/$UsnJrnl (the sparse change journal) as ~21 GB, inflating the total. For
   sparse $DATA streams the tool now totals only the real, non-sparse data runs (so $BadClus → ~0,
   $UsnJrnl → its small active size), while normal and WOF-compressed files are unchanged.
 
-## 0.17.49 — 2026-07-03
+## 0.17.49 - 2026-07-03
 ### Fixed
 - Disk Usage MFT scan accuracy, two fixes so top-level folders match WizTree's Allocated column:
   - The previous OneDrive fix over-zeroed: the $STANDARD_INFORMATION attribute field isn't a clean
     GetFileAttributes and falsely flagged normal Windows / Program Files files as "cloud" (Windows
     dropped to ~8 GB). Cloud placeholders are now zeroed ONLY by the precise IO_REPARSE_TAG_CLOUD
     reparse tag, which OneDrive files have and system files don't.
-  - Now sums ALL $DATA streams, not just the unnamed one — WOF/CompactOS-compressed Windows/Program
+  - Now sums ALL $DATA streams, not just the unnamed one - WOF/CompactOS-compressed Windows/Program
     Files binaries keep their real bytes in a "WofCompressedData" named stream (the unnamed stream
     reads ~0), and alternate data streams also take space. Counting them (like WizTree) restores
     the compressed system folders' true on-disk size.
 
-## 0.17.48 — 2026-07-02
+## 0.17.48 - 2026-07-02
 ### Fixed
 - Disk Usage counted OneDrive cloud-only files at their full logical size (a cloud placeholder's
   MFT AllocatedSize equals its logical size, so Users read ~154 GB instead of WizTree's ~41 GB
@@ -1112,72 +1136,72 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   content no longer counts toward local disk usage.
 - Updated the "double-click a folder to drill in" text to "click" (browsing is single-click now).
 
-## 0.17.47 — 2026-07-02
+## 0.17.47 - 2026-07-02
 ### Fixed
 - Disk Usage MFT fast scan under-counted folders full of large, heavily-fragmented files (VM disks,
-  big apps — e.g. VMs showed 18 GB instead of ~127 GB). Such files store their $DATA in
+  big apps - e.g. VMs showed 18 GB instead of ~127 GB). Such files store their $DATA in
   $ATTRIBUTE_LIST *extension* MFT records; the size is now attributed to the base file (via the
-  record's base reference at +0x20), and only the StartingVCN=0 $DATA header — which holds the real
-  allocated total — is used. Sizes should now line up with WizTree's "Allocated" column.
+  record's base reference at +0x20), and only the StartingVCN=0 $DATA header - which holds the real
+  allocated total - is used. Sizes should now line up with WizTree's "Allocated" column.
 ### Changed
 - Disk Usage: single-click a folder (or the ".." row) to browse into it; removed the Up button
   (the ".." row handles going up).
 
-## 0.17.46 — 2026-07-02
+## 0.17.46 - 2026-07-02
 ### Changed
-- Disk Usage now uses a WizTree-style columnar layout: a ListView/GridView with real headers —
-  Name · % of Parent (bar) · Size · Files · Modified · Attributes (R/H/S/C) — plus a summary bar
+- Disk Usage now uses a WizTree-style columnar layout: a ListView/GridView with real headers -
+  Name · % of Parent (bar) · Size · Files · Modified · Attributes (R/H/S/C) - plus a summary bar
   showing Total / Used (%) / Free (%) and the scan mode + time (e.g. "scanned in 1.9 s").
 - Hidden/system items are now shown dimmed instead of a "(hidden folder)" text tag; the attributes
   column carries the H/S flags (like WizTree). "Show hidden items" still filters them in/out.
   UsageEntry now carries raw attributes + last-modified (MFT reads them from
   $STANDARD_INFORMATION; the folder walk from the filesystem).
 
-## 0.17.45 — 2026-07-02
+## 0.17.45 - 2026-07-02
 ### Added
 - Disk Usage: "Show hidden items" checkbox (off by default). Hidden/System rows are filtered out of
   the view unless it's ticked; toggling is instant (re-filters the current folder, no re-scan). The
-  scan still enumerates everything, so folder sizes always include hidden content — only the rows
+  scan still enumerates everything, so folder sizes always include hidden content - only the rows
   are hidden. Status shows how many hidden items are being suppressed.
 ### Fixed
 - Disk Usage now sizes by space ON DISK (allocated) instead of logical size, so OneDrive
   "online-only" / sparse placeholder files (huge logical size but ~0 bytes on disk) no longer show
   as the biggest space users. Fast path reads the MFT AllocatedSize; the folder-walk fallback uses
-  GetCompressedFileSize (metadata-only — never triggers a cloud download).
+  GetCompressedFileSize (metadata-only - never triggers a cloud download).
 
-## 0.17.44 — 2026-07-02
+## 0.17.44 - 2026-07-02
 ### Added
 - Disk Usage: a ".. (up one level)" row now sits at the top of every folder (except a drive root),
-  so you can double-click it to go back up instead of reaching for the Up button — the usual
+  so you can double-click it to go back up instead of reaching for the Up button - the usual
   Explorer/TreeSize behavior. It shows an up-arrow icon and no size/percent.
 
-## 0.17.43 — 2026-07-02
+## 0.17.43 - 2026-07-02
 ### Added
 - Disk Usage ⚡ fast scan (WizTree-style): on NTFS fixed drives it now reads the raw Master File
-  Table ($MFT) directly — one sequential, read-only pass that enumerates every file/folder with its
-  size in seconds — and builds the whole-drive tree in memory, so every drill-down afterward is
+  Table ($MFT) directly - one sequential, read-only pass that enumerates every file/folder with its
+  size in seconds - and builds the whole-drive tree in memory, so every drill-down afterward is
   instant. New `MftVolume` (P/Invoke CreateFile on \\.\X: + FSCTL_GET_NTFS_VOLUME_DATA, parses MFT
   records: fixups, $FILE_NAME, $DATA sizes, $STANDARD_INFORMATION attributes for the hidden tag).
   Read-only, uses the admin rights the app already has. Automatically falls back to the recursive
   folder walk for non-NTFS drives or any failure. Rescan re-reads the MFT.
 
-## 0.17.42 — 2026-07-02
+## 0.17.42 - 2026-07-02
 ### Added
 - Disk Usage now tags hidden items: a folder/file with the Hidden or System attribute shows
   "(hidden folder)" / "(hidden)" after its name, so you can tell what Explorer normally hides
   (AppData, ProgramData, $Recycle.Bin, pagefile.sys, etc.).
 
-## 0.17.41 — 2026-07-02
+## 0.17.41 - 2026-07-02
 ### Fixed
 - Disk Usage showed blank folder/file names, generic icons and equal-width bars because UsageEntry
-  exposed its data as public fields — WPF data binding only sees properties. Converted them to
+  exposed its data as public fields - WPF data binding only sees properties. Converted them to
   properties, so names, folder/file icons and the proportional % bars now render.
 - Disk Usage no longer makes you wait a minute staring at a blank list: it now shows the folder
   names instantly (folders A→Z) plus the files, and computes the folder sizes in the background,
   then re-sorts largest-first. You can double-click a folder to drill in immediately, before sizing
   finishes (which cancels the background scan and scans the sub-folder instead).
 
-## 0.17.40 — 2026-07-02
+## 0.17.40 - 2026-07-02
 ### Changed
 - Disk Usage rebuilt as a TreeSize/WizTree-style drill-down explorer: pick a fixed drive (network
   drives excluded), see its folders AND files sorted largest-first with a % bar and file counts,
@@ -1185,7 +1209,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   Folder sizes are computed with parallel directory walking; navigating away cancels the in-flight
   scan; reparse points are skipped. Replaces the old static top-15 list.
 
-## 0.17.39 — 2026-07-02
+## 0.17.39 - 2026-07-02
 ### Changed
 - Repair: moved System Restore Points directly under Quick Fixes (above Reports).
 - System Info now auto-refreshes its snapshot data every minute while the tab is open (separate from
@@ -1196,7 +1220,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   (the toggle lived only in Settings); the Refresh button on System Info and Diagnostics is now
   always shown instead of being gated by a setting.
 
-## 0.17.38 — 2026-07-01
+## 0.17.38 - 2026-07-01
 ### Changed
 - Repair page reorganized: Quick Fixes moved to the top with the old Maintenance actions merged in
   (Maintenance section removed); Reports and System Restore Points follow; then the heavy fixes.
@@ -1207,36 +1231,36 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - Network page: the Network Tools and Ping & Diagnostic Tools output boxes are hidden until you run
   something, and each now has a short usage description under its header.
 
-## 0.17.37 — 2026-07-01
+## 0.17.37 - 2026-07-01
 ### Changed
 - Installer cleanup now reads each orphaned package's product metadata (ProductName/Manufacturer
-  from the MSI Property table; product Subject from a patch's SummaryInformation — read-only, no
+  from the MSI Property table; product Subject from a patch's SummaryInformation - read-only, no
   extraction) so the log shows what every file was for instead of just a hex name, e.g.
-  "deleted 1082f3.msp (507 MB) — Adobe Systems Adobe Acrobat (patch)". Added a by-product summary.
+  "deleted 1082f3.msp (507 MB) - Adobe Systems Adobe Acrobat (patch)". Added a by-product summary.
 - "Scan" is now a full dry-run preview: it lists every file that would be removed with its
   description + a by-product breakdown to the Repair log (nothing deleted), so a tech can review
   before cleaning. The Clean confirm dialog now shows the top products by size.
 - Reordered the buttons to the intended workflow: 1. Prevent Recurrence → 2. Scan (preview) →
   3. Clean Orphaned Files.
 
-## 0.17.36 — 2026-07-01
+## 0.17.36 - 2026-07-01
 ### Added
 - Repair → WINDOWS INSTALLER CLEANUP (ADOBE): reclaims C:\Windows\Installer space from the known
   Adobe Acrobat/Reader bloat (orphaned cached .msi/.msp patches growing the folder to tens/hundreds
   of GB). Uses the WindowsInstaller COM API to get the authoritative set of packages installed
-  products/patches still reference, and removes ONLY on-disk files not in that set — aborting if the
+  products/patches still reference, and removes ONLY on-disk files not in that set - aborting if the
   set can't be read or comes back empty (so a referenced file can never be deleted). Scan is
   read-only; Clean is tech-gated, confirmed with the count/size, and logs every deleted file to the
   Repair log + activity log. "Prevent Recurrence (Adobe fix)" sets PatchCleanFlag=1 in the Adobe
   FeatureLockdown policy keys so the updater purges old patches going forward (per Adobe guidance).
 
-## 0.17.35 — 2026-06-30
+## 0.17.35 - 2026-06-30
 ### Changed
 - Software page: the Startup Programs list now loads immediately instead of waiting for the slow
   winget "already installed" detection to finish (it's a quick registry read, so it was only being
   blocked by being awaited last). Also moved the Startup Programs section above Installed Software.
 
-## 0.17.34 — 2026-06-08
+## 0.17.34 - 2026-06-08
 ### Added
 - Central audit log (`ActivityLog` → `C:\PCI\Logs\PartnerTool_activity.log`, append-only, per-session
   header with machine/user/version) recording every action the tool takes. Every external command +
@@ -1250,10 +1274,10 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - Clean Temp Files now writes a full per-folder breakdown + the list of in-use/skipped files to the
   Repair log and `C:\PCI\Logs` (previously only the on-screen summary).
 
-## 0.17.33 — 2026-06-08
+## 0.17.33 - 2026-06-08
 ### Changed
 - Collect Diagnostics now produces a full, sectioned system report covering everything the tool
-  collects — built for capturing an old PC before a rebuild. Added to the HTML + text report:
+  collects - built for capturing an old PC before a rebuild. Added to the HTML + text report:
   device join (Azure AD / domain / tenant / device ID), memory modules, disks (with SMART),
   graphics, volumes, power & battery details, UAC, the full hardening scorecard, every network
   adapter (+ DHCP/assignment) and saved Wi-Fi networks, the complete installed-software list,
@@ -1262,10 +1286,10 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 ### Internal
 - Extracted the installed-software scan into a shared `SoftwareInventory` (used by both the
   Software page and the report). New `FullReport.GatherAsync` is the single place that pulls all
-  collectors for the report — add new collectors there + a section in `ReportBuilder` so future
+  collectors for the report - add new collectors there + a section in `ReportBuilder` so future
   data automatically lands in Collect Diagnostics. Added `NetworkInfo.AllAdapters`.
 
-## 0.17.32 — 2026-06-08
+## 0.17.32 - 2026-06-08
 ### Added
 - Repair → OFFICE LANGUAGE PACKS: removes every non-English Microsoft 365 / Office (Click-to-Run)
   language pack and keeps English (all en-* variants). Detects each installed language from its
@@ -1276,7 +1300,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   to run if no English pack is present (won't leave Office with no language). No ODT download, no
   reboot.
 
-## 0.17.31 — 2026-06-08
+## 0.17.31 - 2026-06-08
 ### Added
 - System Shortcuts → new PRINTERS card with two shortcuts: "Devices & Printers" (the classic
   Control Panel window via `shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`, not the Settings page)
@@ -1284,7 +1308,7 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   Windows capability (`Print.Management.Console~~~~0.0.1.0`) via DISM with a live progress bar, then
   opens it. Tool launcher gained an `explorer://` scheme for opening shell namespace folders.
 
-## 0.17.30 — 2026-06-08
+## 0.17.30 - 2026-06-08
 ### Fixed
 - Crash on exit in the single-file build. WPF's shutdown telemetry
   (ControlsTraceLogger.LogUsedControlsDetails) does an Assembly.Load("System.Diagnostics.Tracing")
@@ -1294,126 +1318,126 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   request to the assembly providing EventSource, so shutdown completes cleanly. Dev build was
   never affected (the DLL is present on disk).
 
-## 0.17.29 — 2026-06-08
+## 0.17.29 - 2026-06-08
 ### Fixed
 - SMBv1 scorecard false positive: the old check read only `LanmanServer\Parameters\SMB1`, which is
   absent by default on modern Windows (the SMB 1.0 feature auto-uninstalls), and mistook "absent"
   for "enabled". Now flags SMBv1 only when the server has it explicitly on, or the `mrxsmb10`
-  client driver is installed and not disabled — a missing value/key reads as "Not installed /
+  client driver is installed and not disabled - a missing value/key reads as "Not installed /
   disabled (good)", matching what Windows Features shows.
 
-## 0.17.28 — 2026-06-08
+## 0.17.28 - 2026-06-08
 ### Added
-- Hardening Scorecard values are now clickable for items you can change from Windows — each opens
+- Hardening Scorecard values are now clickable for items you can change from Windows - each opens
   the relevant applet: UAC → User Account Control settings, RDP → ms-settings:remotedesktop, RDP
   NLA → System Properties (Remote), SMBv1 → Windows Features, Automatic logon → netplwiz, Built-in
   Administrator / Guest → Local Users and Groups, BitLocker → BitLocker control panel, Firewall →
   Windows Firewall. Non-changeable items (PowerShell execution policy, Secure Boot) stay plain
   text. Tools launch by absolute System32 path (elevated-safe).
 
-## 0.17.27 — 2026-06-08
+## 0.17.27 - 2026-06-08
 ### Changed
 - Moved "Speed Test" out of PING & DIAGNOSTIC TOOLS up into the top NETWORK TOOLS section. It
-  doesn't use the Host/IP box, so sitting next to Ping/Traceroute was confusing — its result now
+  doesn't use the Host/IP box, so sitting next to Ping/Traceroute was confusing - its result now
   logs in the NETWORK TOOLS output alongside Connectivity Test / Public IP.
 
-## 0.17.26 — 2026-06-08
+## 0.17.26 - 2026-06-08
 ### Fixed
 - Corrected the startup splash spelling: "Analysing" → "Analyzing".
 - Standardized user-facing copy on American English: "Optimise" → "Optimize" (Power Mode),
   "initialise" → "initialize" (device error), "Cancelled" → "Canceled" (restore-point /
   update-history statuses).
 
-## 0.17.25 — 2026-06-08
+## 0.17.25 - 2026-06-08
 ### Changed
 - Tech Verification code field is now masked (PasswordBox) so the code isn't visible on screen
   during a remote session.
 
-## 0.17.24 — 2026-06-08
+## 0.17.24 - 2026-06-08
 ### Changed
-- Tightened the Tech Verification dialog — the two sentences are now on consecutive lines (no blank
+- Tightened the Tech Verification dialog - the two sentences are now on consecutive lines (no blank
   line between them).
 
-## 0.17.23 — 2026-06-08
+## 0.17.23 - 2026-06-08
 ### Changed
-- **Tech-verification prompt reworded** — no longer says "today's" (so it doesn't telegraph that the
+- **Tech-verification prompt reworded** - no longer says "today's" (so it doesn't telegraph that the
   code is the date), and "Enter tech code to continue." now sits on its own line under the warning.
 
-## 0.17.22 — 2026-06-08
+## 0.17.22 - 2026-06-08
 ### Added
 - **Tech-verification gate on destructive actions.** The first destructive action in a session pops a
-  "Tech Verification" dialog asking for **today's date code** — day-of-month + 4-digit year (e.g.
+  "Tech Verification" dialog asking for **today's date code** - day-of-month + 4-digit year (e.g.
   6/26/2026 → **262026**). Enter it once and the session is unlocked; the action then proceeds to its
   normal confirm. Gated actions: **power** (restart / shut down / sign out), service **stop/restart**,
   **kill process**, **delete profile**, **save hosts file**, **uninstall app**, **Update All**, and
   the Repair items (full repair, chkdsk, Windows Update reset, advanced cleanup, **clean temp**,
   memory diagnostic) plus the **network stack reset** and **full network reset**.
 
-## 0.17.21 — 2026-06-08
+## 0.17.21 - 2026-06-08
 ### Added
 - **Repair ▸ Clean Temp Files (All Users).** Iterates every user profile (and the system temp) and
-  deletes the contents of the approved temp/cache folders — `AppData\Local\Temp`, `CrashDumps`,
+  deletes the contents of the approved temp/cache folders - `AppData\Local\Temp`, `CrashDumps`,
   Windows Error Reporting, `INetCache`, `D3DSCache`, the RDP client cache, and `C:\Windows\Temp`.
   Keeps the folders, **skips files in use**, and **won't follow directory junctions/symlinks** (so a
   planted reparse point can't redirect the elevated delete elsewhere). Reports MB freed + file count.
   Deliberately excludes browser caches, the Office document cache, and documents.
 
-## 0.17.20 — 2026-06-08
+## 0.17.20 - 2026-06-08
 ### Added
 - **Repair ▸ Proxy / Auto-Detect (WPAD) card.** For the SonicWall-breaks-Outlook situation:
   - **"Re-enable Auto-Detect (WPAD)"** toggles Internet Options ▸ LAN ▸ "Automatically detect
     settings" **off→on** (it's bit 0x08 of the `DefaultConnectionSettings` WinINET blob) and pings
-    WinINET to reload — re-running WPAD auto-discovery that Office/Outlook rely on.
+    WinINET to reload - re-running WPAD auto-discovery that Office/Outlook rely on.
   - **"Reset WinHTTP proxy"** (`netsh winhttp reset proxy`) clears a stale system proxy that can also
     break Outlook/Teams.
   - Shows current auto-detect + manual-proxy state. Per-user (signed-in user).
 
-## 0.17.19 — 2026-06-08
+## 0.17.19 - 2026-06-08
 ### Changed
-- **Simplified the Wi-Fi card** — dropped the whole Location/SSID/signal path (the "Turn on Location"
+- **Simplified the Wi-Fi card** - dropped the whole Location/SSID/signal path (the "Turn on Location"
   button, the guidance pop-up, and the `netsh wlan show interfaces` read). It now just shows
   **"Connected to a wireless network"** / **"Not connected…"**, with state read from
   `NetworkInterface` (no Location permission needed, always reliable). Saved networks + password
   reveal are unchanged.
 
-## 0.17.18 — 2026-06-08
+## 0.17.18 - 2026-06-08
 ### Changed
 - **Clearer Wi-Fi Location guidance.** Verified the real gate is **"Let desktop apps access your
-  location"** (`ConsentStore\location\NonPackaged\Value` = Deny) — separate from the "Let apps access
+  location"** (`ConsentStore\location\NonPackaged\Value` = Deny) - separate from the "Let apps access
   your location" toggle, and only effective when flipped in the Settings UI (a raw registry write to
   it doesn't take, confirmed). The button's message now says to scroll **down** past the app list to
   that bottom toggle, and explains the tool won't appear in the per-app list because that list is
   Store apps only.
 
-## 0.17.17 — 2026-06-08
+## 0.17.17 - 2026-06-08
 ### Changed
 - **The Wi-Fi "Enable Location" button now opens Windows Location settings** instead of writing the
   registry. Verified the registry route is a dead end: the location consent can read **"Allow"**
   while `netsh`/`WlanQueryInterface` still returns *Access denied*, because the real gate is **"Let
-  desktop apps access your location"** — which Windows only lets you flip from the Settings UI (and
+  desktop apps access your location"** - which Windows only lets you flip from the Settings UI (and
   bouncing `lfsvc` doesn't help). The button (now "Turn on Location (open settings)") opens
   Settings ▸ Privacy ▸ Location and tells the tech to switch on **Location services** + **Let desktop
   apps access your location**, then Refresh.
 
-## 0.17.16 — 2026-06-08
+## 0.17.16 - 2026-06-08
 ### Added
 - **"Enable Location services" button on the Wi-Fi card.** Appears only when you're connected but the
   network name/signal are hidden because Location is off. One click (it's elevated) turns Location on
-  — sets the device toggle (`lfsvc`) and the system + per-user location consent to **Allow** — then
+  - sets the device toggle (`lfsvc`) and the system + per-user location consent to **Allow** - then
   re-reads Wi-Fi, so the SSID/signal appear without leaving the app. Behind a confirm, since it
   changes a system privacy setting.
 
-## 0.17.15 — 2026-06-08
+## 0.17.15 - 2026-06-08
 ### Fixed
-- **Wi-Fi still showed "Not connected" — real root cause found.** It isn't parsing or Ethernet: on
+- **Wi-Fi still showed "Not connected" - real root cause found.** It isn't parsing or Ethernet: on
   **Windows 11, `netsh` / `WlanQueryInterface` won't return the SSID or connection state unless
   Location services are on** (this machine has system Location set to *Deny*), so netsh returned a
   "needs location" error even when run elevated. The connection state is now read from
-  **`NetworkInterface`** (a `Wireless80211` adapter that's `Up`) — no Location permission needed — so
+  **`NetworkInterface`** (a `Wireless80211` adapter that's `Up`) - no Location permission needed - so
   the card correctly shows **Connected**. The SSID/signal still come from netsh, so when Location is
-  off the card now says *"Connected — turn on Location services to show the network name & signal."*
+  off the card now says *"Connected - turn on Location services to show the network name & signal."*
 
-## 0.17.14 — 2026-06-08
+## 0.17.14 - 2026-06-08
 ### Fixed
 - **Network ▸ Wi-Fi wrongly showed "Not connected"** when a disconnected Wi-Fi Direct *virtual*
   adapter was present (common with VMware/Hyper-V machines). `netsh wlan show interfaces` lists every
@@ -1421,16 +1445,16 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   `State :` line we hit.
 
 ### Changed
-- **Performance window ▸ CPU now shows per-logical-processor graphs** — a grid of one live graph per
+- **Performance window ▸ CPU now shows per-logical-processor graphs** - a grid of one live graph per
   core (like Task Manager's "Logical processors" view) instead of a single overall line. Per-core
   load comes from `Win32_PerfFormattedData_PerfOS_Processor` (polled only while CPU is selected).
   The overall utilization % is still in the stats panel and the left-rail sparkline.
 
-## 0.17.13 — 2026-06-08
+## 0.17.13 - 2026-06-08
 ### Added
 - **Performance window (Task-Manager-style).** Click any System Info ▸ **LIVE STATS** tile
   (CPU / Memory / Disk / Network) to open a live performance view: a left rail with sparklines, a
-  big live graph for the selected resource, and advanced stats —
+  big live graph for the selected resource, and advanced stats -
   - **CPU:** model, base speed, sockets, cores, logical processors, virtualization, L1/L2/L3 cache,
     utilization, and **processes / threads / handles / uptime**.
   - **Memory:** in use, available, total, type, speed, slots used.
@@ -1439,25 +1463,25 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   Live numbers sample off the UI thread; the static detail comes from a one-shot `PerfDetails`
   collect (`Win32_Processor`/`Win32_CacheMemory` + reused hardware/network collectors).
 
-## 0.17.12 — 2026-06-08
+## 0.17.12 - 2026-06-08
 ### Added
-- **Battery voltage** now shows in System Info ▸ Battery (read from `root\wmi BatteryStatus` — works
+- **Battery voltage** now shows in System Info ▸ Battery (read from `root\wmi BatteryStatus` - works
   even on memory-integrity machines, unlike the sensor-driver temps). Live, updates with the tile poll.
 
 ### Removed
 - **Removed the Monitor section entirely** (page + nav button) along with its `SensorMonitor`
-  live-sensor reader — the battery readings worth keeping moved to the Battery card above.
+  live-sensor reader - the battery readings worth keeping moved to the Battery card above.
 
-## 0.17.11 — 2026-06-08
+## 0.17.11 - 2026-06-08
 ### Added
 - **Manage ▸ Services is now sortable** (like services.msc): a "Sort by" row with **Name / Status /
-  Startup** headers — click to sort, click again to flip direction (▲/▼). Sorting works together
+  Startup** headers - click to sort, click again to flip direction (▲/▼). Sorting works together
   with the search box. Status groups Running first; Startup orders Auto → Manual → Disabled.
 
-## 0.17.10 — 2026-06-08
+## 0.17.10 - 2026-06-08
 ### Added
 - **Manage ▸ User Profiles: "Delete profile" button.** Removes a profile the proper way via the
-  `Win32_UserProfile` WMI delete — the profile folder, its `ProfileList\<SID>` **registry entry**
+  `Win32_UserProfile` WMI delete - the profile folder, its `ProfileList\<SID>` **registry entry**
   and the `NTUSER.DAT` hive all go together (what Advanced System Properties ▸ User Profiles ▸
   Delete does), so no orphaned/TEMP profile is left behind. The button is hidden for the account
   running the tool, system/special profiles, and any profile that's currently signed in; deletion
@@ -1465,33 +1489,33 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 
 ### Removed / Changed
 - **Removed the Temperatures & Fans card** from System Info (sensor data is unreliable on
-  HVCI/memory-integrity machines — to be revisited later). The collector still reports peak
+  HVCI/memory-integrity machines - to be revisited later). The collector still reports peak
   CPU/GPU temp for the exported report.
 - **Moved Local Accounts to the left column.**
 
-## 0.17.9 — 2026-06-08
+## 0.17.9 - 2026-06-08
 ### Changed (System Info layout)
-- **Removed the DRIVE HEALTH (SSD/NVMe) section** — on machines where the sensor driver is blocked
+- **Removed the DRIVE HEALTH (SSD/NVMe) section** - on machines where the sensor driver is blocked
   it reported nonsense (e.g. "Life -155%", "0 TB written", "0 °C"), so it's gone.
 - **Removed the SYSTEM DETAILS card.** Its **Power mode (change)** link moved into the **POWER STATUS**
   panel at the top, and **Page file** + **Proxy** moved under the **PERFORMANCE** card.
 - **Moved Printers, Temperatures & Fans, and Local Accounts up** into the right column so they fill the
   big empty gap instead of leaving a shelf of whitespace.
-- **Removed the DEVICE JOIN / IDENTITY card from the Security page** — it duplicated System Info ▸
+- **Removed the DEVICE JOIN / IDENTITY card from the Security page** - it duplicated System Info ▸
   Identity (the Defender card now spans the full width there).
 
 ### Changed (Updates)
-- **Updates now scan automatically when the tab opens** — removed the three "Scan…" buttons. Opening
+- **Updates now scan automatically when the tab opens** - removed the three "Scan…" buttons. Opening
   Updates kicks off the Windows Update, app (winget) and vendor driver/BIOS scans **in parallel**,
   with live status shown in each section instead of "Not scanned yet". The vendor scan **won't
-  install the OEM tool on open** (it just reports if it's absent) — auto-installs only happen on an
+  install the OEM tool on open** (it just reports if it's absent) - auto-installs only happen on an
   explicit manual scan, so opening the tab never silently downloads/installs software.
 
-## 0.17.8 — 2026-06-08
+## 0.17.8 - 2026-06-08
 ### Removed
-- **Dev/test build expiry is gone entirely** — no more self-expiry, the "development copy" startup
+- **Dev/test build expiry is gone entirely** - no more self-expiry, the "development copy" startup
   popup, the `DevBuild`/`DEV_BUILD` build flag, or the embedded build date. Builds are just builds now.
-- **The loading "Installing Malware… Just Joking…" splash gag** — the splash shows only
+- **The loading "Installing Malware… Just Joking…" splash gag** - the splash shows only
   "Analysing System, Please Wait…". Keeping it professional.
 - **System Info ▸ Power "Why won't it sleep?" button** and its `powercfg /requests` + `/waketimers`
   code (can revisit later).
@@ -1500,59 +1524,59 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - **Power buttons** (Restart/Shut Down/Lock/Sign Out) are smaller so the buttons + POWER STATUS fit
   the card neatly alongside Live Stats.
 - **Hibernation** now reads from `powercfg /a` (available sleep states) instead of a registry value
-  that wasn't always present — so it reports **Enabled/Disabled** instead of "—".
+  that wasn't always present - so it reports **Enabled/Disabled** instead of "-".
 
-## 0.17.7 — 2026-06-08
+## 0.17.7 - 2026-06-08
 ### Security (the app runs elevated, so these closed local privilege-escalation paths)
 - **Software ▸ Uninstall no longer runs per-user (HKCU) uninstall strings.** Those are writable by a
   standard user, so running one from the elevated tool could execute their command as admin. Only
   machine-wide (HKLM) uninstallers run now; per-user apps show a "do it from Windows Settings" notice.
 - **`C:\PCI` (and `\Logs`, `\Tools`) are locked to admin-write on startup** via a new hardened-ACL
-  helper. Default `C:\` permissions let standard users create files in new subfolders — which would
+  helper. Default `C:\` permissions let standard users create files in new subfolders - which would
   have let them plant a binary (or junction) the elevated app reads/executes (e.g. the downloaded
   `HPImageAssistant.exe`). Now only Administrators/SYSTEM can write there.
 - **System tools are invoked by absolute System32 path** (`powershell.exe`, `powercfg`, `shutdown.exe`,
   `rundll32.exe`, …) instead of bare names, so a binary planted in the app's folder or working
-  directory can't be run elevated in their place — important now we distribute a single exe that may
+  directory can't be run elevated in their place - important now we distribute a single exe that may
   be launched from a writable folder like Downloads.
 
 ### Changed
 - Removed dead code (`InstalledProgramsInfo`, an unused leftover of the old Inventory page that
   carried the same uninstall flaw).
 
-## 0.17.6 — 2026-06-08
+## 0.17.6 - 2026-06-08
 ### Added
-- **System Info ▸ Power:** a **POWER STATUS** panel now fills the space under the power buttons —
+- **System Info ▸ Power:** a **POWER STATUS** panel now fills the space under the power buttons -
   power source, active power mode, **Fast Startup** on/off, Hibernation, Sleep / Display-off
   timeouts, and what **last woke** the machine. All painted from the startup snapshot (no flicker).
 - **"Why won't it sleep?"** button runs `powercfg /requests` + `/waketimers` on demand and lists
-  what's blocking sleep or set to wake the PC — for "won't sleep / wakes itself" support calls.
+  what's blocking sleep or set to wake the PC - for "won't sleep / wakes itself" support calls.
 
 ### Changed
 - Renamed the **LIVE PERFORMANCE** card to **LIVE STATS**.
 
-## 0.17.5 — 2026-06-08
+## 0.17.5 - 2026-06-08
 ### Changed
-- **Manage ▸ Services:** the action buttons now follow the service's state — a **running** service
+- **Manage ▸ Services:** the action buttons now follow the service's state - a **running** service
   shows only **Stop** / **Restart**, a **stopped** service shows only **Start** (per tester
   feedback). No more clicking Start on something already running.
 
-## 0.17.4 — 2026-06-08
+## 0.17.4 - 2026-06-08
 ### Changed
-- **Dev/test build expiry extended from 7 to 14 days** — gives testers a two-week window before a
+- **Dev/test build expiry extended from 7 to 14 days** - gives testers a two-week window before a
   build self-expires.
 
-## 0.17.3 — 2026-06-08
+## 0.17.3 - 2026-06-08
 ### Changed
 - **Install location moved to `C:\PCI\PartnerTool`** (was `C:\PCI\Tools\PartnerTool`). The MSI is a
   major upgrade, so an existing install relocates cleanly. `C:\PCI\Tools` is still used for the
   HP Image Assistant download and is unaffected.
 
-## 0.17.2 — 2026-06-08
+## 0.17.2 - 2026-06-08
 ### Changed
 - **Vendor scan aligned with the production NinjaOne hardware-update script** (saved for reference
   at `reference/HUS_MultiVendorUpdate_v1.14.1.ps1`):
-  - **HP:** only scans **commercial models** (EliteBook/ProBook/ZBook, HP Pro/Elite desktops) —
+  - **HP:** only scans **commercial models** (EliteBook/ProBook/ZBook, HP Pro/Elite desktops) -
     consumer models (Pavilion/Envy/Spectre/OmniBook) aren't in HP's reference database (HPIA fails
     16386) and now report a clear "use Windows Update" message instead of a failed scan. HPIA is
     fetched by scraping HP's HPIA page for the `hp-hpia-*.exe` SoftPaq and extracted with the
@@ -1560,110 +1584,110 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   - **winget** is now resolved robustly (per-user WindowsApps alias → machine-wide
     DesktopAppInstaller package → PATH) so the Dell auto-install works in elevated contexts.
 
-## 0.17.1 — 2026-06-08
+## 0.17.1 - 2026-06-08
 ### Changed
 - **Vendor scan now installs the OEM tool when it's missing** instead of stopping with a "not
   installed" message: Dell Command Update is installed via winget, Lenovo's LSUClient module
-  self-installs, and HP Image Assistant is downloaded from HP — then the scan runs. The status line
+  self-installs, and HP Image Assistant is downloaded from HP - then the scan runs. The status line
   reports the one-time install/download while it happens. Falls back to a message only if the
   install itself can't be done (e.g. winget unavailable).
 
-## 0.17.0 — 2026-06-08
+## 0.17.0 - 2026-06-08
 ### Added
 - **Updates ▸ Available Updates now scans vendor (OEM) driver/BIOS updates**, alongside Windows
   Update and app updates. The new **Scan Vendor Updates** button runs the detected manufacturer's
-  command-line scanner in *scan-only* mode and lists what's available — Dell (`dcu-cli /scan`),
+  command-line scanner in *scan-only* mode and lists what's available - Dell (`dcu-cli /scan`),
   Lenovo (LSUClient), HP (HP Image Assistant analyze). If the OEM tool isn't installed it says so
   and points at the matching update source. Nothing is installed by the scan.
 
 ### Changed
 - **System Info ▸ Identity:** "Azure AD joined" is now "Azure AD **Joined**" (capital J).
-- **System Info ▸ Hardware:** the warranty lookup is now a proper row — **"Warranty"** label on the
-  left, **"Look up online"** link on the right — instead of a full-width line, and the row (with its
+- **System Info ▸ Hardware:** the warranty lookup is now a proper row - **"Warranty"** label on the
+  left, **"Look up online"** link on the right - instead of a full-width line, and the row (with its
   divider) hides entirely when there's no serial.
 - **Network ▸ Ping & Diagnostic Tools** relaid out: the **Host / IP** box gets its own full-width
   row, host-based actions (Ping/Traceroute/Wi-Fi Scan/Speed Test) sit together, and the
   parameterised tools (DNS type → DNS Lookup, Port → Port Check) are labelled and paired with their
   button so the inputs no longer read like stray buttons.
 
-## 0.16.2 — 2026-06-07
+## 0.16.2 - 2026-06-07
 ### Fixed
 - **Update download sizes were massively over-reported** (e.g. a Defender signature update showed
   1438 MB). The Windows Update Agent's parent `MaxDownloadSize` sums every bundled applicability
   variant of the same payload; we now use the largest single bundled package (~197 MB for that
   update), which is what actually downloads.
-- **Scrollbar crowding:** list rows/buttons no longer sit on top of the scrollbar — added a right
+- **Scrollbar crowding:** list rows/buttons no longer sit on top of the scrollbar - added a right
   inset to the shared list style and the Software list.
 
 ### Changed
 - **Diagnostics ▸ Top Processes** capped at the top 10.
 - **Crash dumps** renamed **"Recent crash dump"** and folded into the top of the Crash History
-  card (was its own section). Clarified that it reflects dump *files on disk now* — distinct from
+  card (was its own section). Clarified that it reflects dump *files on disk now* - distinct from
   the blue-screen history below, which is the event-log record (so a logged BSOD with no dump file
   just means the dump was cleaned up, not an error).
 
-## 0.16.1 — 2026-06-07
+## 0.16.1 - 2026-06-07
 ### Changed
 - **Device join is now collected in the startup snapshot** (no more "Checking…" flicker on
   System Info), and **folded into the Identity ▸ Domain / Join** field instead of separate rows:
   shows "Azure AD joined · <tenant>", the domain name (with "(hybrid Azure AD)" when applicable),
   or the workgroup name. Dropped the separate Azure AD/Domain/Hybrid rows and the Device ID.
 
-## 0.16.0 — 2026-06-07
+## 0.16.0 - 2026-06-07
 ### Changed
 - **Power plan → Windows 11 "Power Mode".** Modern machines only have one legacy scheme
   (Balanced); the real control is the Power Mode overlay. The (change) link now opens a switcher
   with **Best power efficiency / Balanced / Best performance**, set via the powrprof.dll overlay
   APIs the Settings slider uses. The System Info row now shows the active Power Mode.
 - **Software:** restored **Uninstall** on the installed-software list (reads the registry
-  (Quiet)UninstallString and launches the app's own uninstaller) — lost in the Inventory merge.
+  (Quiet)UninstallString and launches the app's own uninstaller) - lost in the Inventory merge.
 - **Diagnostics ▸ Top Processes:** now shows the **PID** column.
 - **System Info:** removed the **Top Processes** card (it duplicated the Diagnostics one) and the
   **USB Devices** list.
-- **System Info ▸ Identity:** added **device join** info — Azure AD joined / Domain joined /
+- **System Info ▸ Identity:** added **device join** info - Azure AD joined / Domain joined /
   Hybrid-enterprise / Tenant / Device ID (from dsregcmd, loaded on first view).
 
-## 0.15.0 — 2026-06-07
+## 0.15.0 - 2026-06-07
 ### Changed (review-round tweaks)
 - **System Info ▸ Hardware:** warranty is now a clickable "Look up warranty online" line under
   TPM (instead of a header button).
-- **System Info ▸ Battery:** dropped the duplicate status line — one "Status" line now shows
+- **System Info ▸ Battery:** dropped the duplicate status line - one "Status" line now shows
   plugged/charging/on-battery plus the live rate and time remaining.
 - **System Info:** removed the CPU Cores card (per-core sensor naming was unreliable).
 - **System Info ▸ System details:** power plan now has a **(change)** link opening a power-plan
-  switcher window — lists all plans, switches the active one, and can reveal the hidden **High
+  switcher window - lists all plans, switches the active one, and can reveal the hidden **High
   Performance** plan (powercfg -duplicatescheme).
 - **Nav:** "Shortcuts" renamed **System Shortcuts** and moved to the bottom of the tab list.
 - **Repair:** removed the PowerShell script runner.
 - **Updates:** Available Updates moved to the top; removed the redundant "Update All Apps"
   button (Start All Updates covers it); the update sources (Windows Update / manufacturer /
   Microsoft Store) are now laid out in two columns.
-- **Updates:** Windows Update history moved here from Diagnostics — shows the last 10 with a
+- **Updates:** Windows Update history moved here from Diagnostics - shows the last 10 with a
   **More…** window for the full list.
 - **Diagnostics ▸ Recent errors:** confirmed Critical+Error filtering, widened the window to
   **10 days**, shows the last 10 with a **More…** window for the rest.
-- **Software:** merged the old **Inventory** tab in — Startup Programs now live on the Software
+- **Software:** merged the old **Inventory** tab in - Startup Programs now live on the Software
   page (its installed-programs list duplicated Software's, so Inventory is gone).
 - **Network:** merged the Ping test into the **Ping & Diagnostic Tools** card (shared host box
   + output).
 
-## 0.14.1 — 2026-06-07
+## 0.14.1 - 2026-06-07
 ### Optimised / crash-safety review (of the 0.14.0 batch)
 - **Live timer is lighter.** The System Info perf + battery samples now run in a single
   thread-pool hop per tick (was two), and battery is polled every 3rd tick (~3s) instead of
-  every second — its rate doesn't need 1 Hz, and this cuts the per-tick WMI load on laptops.
+  every second - its rate doesn't need 1 Hz, and this cuts the per-tick WMI load on laptops.
 - Reviewed the new collectors (battery, NVMe/GPU/per-core sensor reads, top processes, DHCP,
   power plan, CPU clock): all are `try/catch` → empty and run off the UI thread; no new
-  sensor-driver opens (the BSOD-capable path is unchanged — still the single, opt-out-gated,
+  sensor-driver opens (the BSOD-capable path is unchanged - still the single, opt-out-gated,
   locked LHM open). No issues found.
 
-## 0.14.0 — 2026-06-07
-### Added — more metrics from the existing libraries (no new dependencies)
+## 0.14.0 - 2026-06-07
+### Added - more metrics from the existing libraries (no new dependencies)
 - **Battery health, live** (System Info ▸ Battery): charge/discharge rate and estimated time
   remaining, updated on the live timer (WMI `BatteryStatus` / `Win32_Battery`). Sits alongside
   the existing wear/capacity figures.
 - **SSD / NVMe drive health** (System Info ▸ Storage): per-drive remaining life %, total bytes
-  written, and temperature — read from LibreHardwareMonitor, so it **covers NVMe** (the Windows
+  written, and temperature - read from LibreHardwareMonitor, so it **covers NVMe** (the Windows
   MSStorageDriver SMART path doesn't).
 - **GPU VRAM in use** (System Info ▸ Graphics): used / total video memory from the sensor tree.
 - **CPU cores card** (System Info): per-core live clock and load.
@@ -1677,24 +1701,24 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - All new reads fail safe to empty/"unavailable" and the LHM extras come from the **single**
   sensor-driver open the snapshot already does (no extra startup cost).
 
-## 0.13.2 — 2026-06-07
+## 0.13.2 - 2026-06-07
 ### Removed
 - **Quick Assist** shortcut from Shortcuts ▸ Network & Remote (no longer needed). That row
   now just holds Network Connections, Remote Desktop and Windows Firewall.
 
-## 0.13.1 — 2026-06-07
+## 0.13.1 - 2026-06-07
 ### Changed
-- **Startup programs now sort enabled-first, disabled at the bottom** — and disabling one moves
+- **Startup programs now sort enabled-first, disabled at the bottom** - and disabling one moves
   it straight to the bottom immediately (the toggle re-reads and re-sorts in the same click, no
-  manual Refresh needed). Within each group they're A–Z.
+  manual Refresh needed). Within each group they're A-Z.
 - **Removed the Machine Notes (asset tag + notes) section from Settings.** (The underlying
   fields remain in settings.json for now, unused, since the kept-for-later report code reads them.)
 
-## 0.13.0 — 2026-06-07
+## 0.13.0 - 2026-06-07
 ### Removed
 - **Remote Support** shortcut (and its Settings card + the `RemoteSupportCommand` setting). Quick
   Assist remains under Shortcuts ▸ Network & Remote.
-- **Export Report** and **Copy Summary** buttons from the sidebar — to be refined/reinstated
+- **Export Report** and **Copy Summary** buttons from the sidebar - to be refined/reinstated
   later. (The `ReportBuilder` code is kept in the project for when we revisit it.)
 
 ### Changed
@@ -1705,70 +1729,70 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
   link (mailto, pre-fills the subject "Feedback on Partner Support Tool") in the About window,
   plus a line on the dev/test launch popup pointing testers to the same address.
 
-## 0.12.1 — 2026-06-07
+## 0.12.1 - 2026-06-07
 ### Fixed
 - **Live performance tiles no longer look stuck for the first second or two.** The sampler is
   now primed behind the startup splash (CPU% and network need a previous reading to diff
-  against), so the tiles show real numbers — and a little graph history — the instant System
+  against), so the tiles show real numbers - and a little graph history - the instant System
   Info opens. The warm-up runs concurrently with the startup capture, so it adds no real wait.
 
-## 0.12.0 — 2026-06-07
+## 0.12.0 - 2026-06-07
 ### Changed
-- **Live performance tiles now have realtime sparkline graphs** (System Info, top-left) — the
+- **Live performance tiles now have realtime sparkline graphs** (System Info, top-left) - the
   same CPU/Memory/Disk/Network graphs that were on the Monitor page, in the 2×2 tiles. Each
   tile colour-coded (CPU blue, Memory green, Disk yellow, Network mauve).
-- **Removed the live-performance section from the Monitor page** — those metrics now live on
+- **Removed the live-performance section from the Monitor page** - those metrics now live on
   System Info. The Monitor page keeps live sensors and the SMART table for now.
 - **FIRMWARE details merged into the HARDWARE card** (BIOS version/date, boot mode, TPM) rather
-  than a separate card — they sit right under Manufacturer/Model and Serial.
+  than a separate card - they sit right under Manufacturer/Model and Serial.
 - Splash gag tweak: the fake line now reads "Installing Malware… Please Wait…".
 
-## 0.11.1 — 2026-06-07
+## 0.11.1 - 2026-06-07
 ### Added
 - **Splash gag for the techs.** The loading screen briefly flashes "Installing Malware… Please
   Wait", then "Just Joking… :)", then settles on the real "Analysing System, Please Wait…".
   Runs concurrently with the startup capture so it adds no real wait.
 
-## 0.11.0 — 2026-06-06
+## 0.11.0 - 2026-06-06
 ### Added
 - **Live performance widget on System Info.** A 2×2 grid of live tiles (CPU, Memory, Disk,
   Network) sits top-left, sampled once a second off the UI thread and paused while the page
   is off-screen. Reuses the same lightweight sampler the Monitor page uses (kernel APIs +
-  WMI/NIC deltas — no perf-counter dependency).
+  WMI/NIC deltas - no perf-counter dependency).
 
 ### Changed
 - **System Info layout reworked.** The Power buttons are now a compact 2×2 block to the right
   of the live tiles (was a full-width row). **FIRMWARE** moved up under **HARDWARE** where it
   belongs. The OS feature-update version (e.g. 25H2) is now shown inline in brackets after the
-  edition — "Windows 11 Business (25H2)" — instead of a separate "Version" row.
+  edition - "Windows 11 Business (25H2)" - instead of a separate "Version" row.
 
-## 0.10.0 — 2026-06-06
+## 0.10.0 - 2026-06-06
 ### Changed
 - **Removed the Overview dashboard.** The tile grid duplicated information already covered
   by the dedicated pages, so it's gone and the app now opens on **System Info**. The
   Overview-only **auto-refresh** setting was removed with it (the manual Refresh button
-  setting stays — System Info / Security / Diagnostics still use it).
+  setting stays - System Info / Security / Diagnostics still use it).
 - **Relocated the two features that lived only on Overview tiles** so nothing is lost:
   - **BitLocker recovery key** viewer → now a "Show recovery key" button on the **Security** page.
   - **Warranty lookup** → now a "Look up warranty" button on the **System Info** page, next to
     the serial number (shown only when a real serial is present).
 
-## 0.9.2 — 2026-06-06
+## 0.9.2 - 2026-06-06
 ### Fixed
 - **Overview auto-refresh now gives immediate, visible feedback.** The interval timer was
   firing correctly, but it waited a full interval before the first tick and the only sign it
-  ran was a tiny muted timestamp — so it read as "not working." Now the dashboard refreshes
+  ran was a tiny muted timestamp - so it read as "not working." Now the dashboard refreshes
   the instant you land on Overview (or change the interval) instead of staring at stale tiles,
   and the status line reads "Auto-refreshing every Ns · updated HH:mm:ss" so it's obvious the
   feature is on and ticking. (Off-screen polling is still paused; no restart needed to apply.)
 
-## 0.9.1 — 2026-06-06
+## 0.9.1 - 2026-06-06
 ### Fixed (crash-safety review of the 0.9.0 batch)
 - **Live sensor monitor (Monitor tab) made thread-safe.** Reads run on a background thread
   while the page-hide disposes the sensor driver on the UI thread; a lock now stops them
   overlapping so the native driver can't be torn down mid-read.
 - **Stopping a critical system service is now blocked.** Stopping RpcSs / DcomLaunch / LSM /
-  Winmgmt / Power / gpsvc / EventLog (etc.) can leave Windows unusable — those are refused
+  Winmgmt / Power / gpsvc / EventLog (etc.) can leave Windows unusable - those are refused
   with a clear message (both in the UI and in `ServicesInfo` as defence in depth). Normal
   services still start/stop/restart with a confirmation.
 
@@ -1777,26 +1801,26 @@ Both found by driving the app end-to-end with UI Automation (first scripted UI t
 - The **installed-programs list is now virtualised** (bounded, recycling list) so machines
   with 300+ programs render instantly instead of building every row up front.
 
-## 0.9.0 — 2026-06-06
-Second major capability expansion ("go for max"). No new third-party dependencies — built
+## 0.9.0 - 2026-06-06
+Second major capability expansion ("go for max"). No new third-party dependencies - built
 on WMI / event logs / registry / the sensor library we already ship.
 
-### Added — new tabs
-- **Monitor** — live CPU/RAM/disk/network graphs, full live hardware sensors (voltages,
+### Added - new tabs
+- **Monitor** - live CPU/RAM/disk/network graphs, full live hardware sensors (voltages,
   clocks, load, power, fans, temps via LibreHardwareMonitor) updating ~1s, and an on-demand
   **SMART attribute table** (CrystalDiskInfo-style) for SATA/ATA drives.
-- **Security** — a hardening scorecard (UAC, RDP/NLA, SMBv1, PowerShell policy, autologon,
+- **Security** - a hardening scorecard (UAC, RDP/NLA, SMBv1, PowerShell policy, autologon,
   built-in admin/guest, Secure Boot, BitLocker, firewall), **Microsoft Defender** status
   (RTP, signature age, scans, threats), and **device join** (Azure AD / domain / tenant via
   dsregcmd).
-- **Manage** — Services (start/stop/restart), Scheduled Tasks, Drivers (with unsigned flag),
+- **Manage** - Services (start/stop/restart), Scheduled Tasks, Drivers (with unsigned flag),
   Hosts file editor, Environment variables, Optional features, User profiles.
 
-### Added — to existing tabs
+### Added - to existing tabs
 - **Diagnostics**: blue-screen bugchecks with stop codes (event 1001), application crashes
   (1000), and **boot-performance** with the apps/drivers/services that slow startup
   (Diagnostics-Performance event 100/101/102/103).
-- **Network**: diagnostic tools — traceroute, DNS lookup, TCP port check, nearby Wi-Fi scan,
+- **Network**: diagnostic tools - traceroute, DNS lookup, TCP port check, nearby Wi-Fi scan,
   and a download speed test.
 - **Updates**: scan **pending Windows updates** and **outdated apps** (winget), plus a
   one-click **Update All Apps**.
@@ -1809,14 +1833,14 @@ on WMI / event logs / registry / the sensor library we already ship.
 - The Monitor page samples off the UI thread; the sensor driver remains opt-out (Settings).
 - Service stop/restart, hosts-file save and the script runner are all confirmation-gated.
 
-## 0.8.2 — 2026-06-06
+## 0.8.2 - 2026-06-06
 ### Fixed (crash-safety review of the 0.8.0 feature batch)
 - **Ending a critical Windows process (csrss / lsass / wininit / services / winlogon /
   smss …) is now blocked.** Killing one forces a `CRITICAL_PROCESS_DIED` bugcheck (instant
   BSOD); the Diagnostics "End process" button refused them with a clear message, and
   `ProcessInfo.TryKill` guards against it as defence in depth.
 - **Hardware sensors can be turned off** (Settings ▸ Hardware Sensors). LibreHardwareMonitor
-  loads a kernel sensor driver — the one component that could fault at the native level
+  loads a kernel sensor driver - the one component that could fault at the native level
   (an AccessViolation managed code can't catch). If a machine misbehaves, sensors can be
   disabled and the rest of the app is unaffected.
 - **Disk-usage scan recursion is now depth-bounded** (40 levels) to rule out an
@@ -1827,9 +1851,9 @@ on WMI / event logs / registry / the sensor library we already ship.
   snapshot and the adapter list), so one misbehaving NIC can't blank the list or break the
   startup snapshot.
 
-## 0.8.1 — 2026-06-06
+## 0.8.1 - 2026-06-06
 ### Fixed
-- **Startup slowed to 30–60s after the 0.8.0 features.** Profiled each collector: the entire
+- **Startup slowed to 30-60s after the 0.8.0 features.** Profiled each collector: the entire
   delay was a single WMI class, `Win32_ReliabilityRecords`, taking ~56s on its own (the
   provider re-aggregates the whole reliability database). It was running in the blocking
   startup snapshot, so it gated the splash. Everything else was sub-3.5s.
@@ -1837,29 +1861,29 @@ on WMI / event logs / registry / the sensor library we already ship.
   snapshot (Overview tile + history); the slow **detailed records** moved to an on-demand
   "Load detailed history" button on Diagnostics, so they never block startup and never run
   unless asked. Open time is back to a few seconds.
-- (Not a library problem — this is Windows' own data source being slow; no third-party DLL
+- (Not a library problem - this is Windows' own data source being slow; no third-party DLL
   was involved in the delay.)
 
-## 0.8.0 — 2026-06-06
+## 0.8.0 - 2026-06-06
 Major capability expansion + packaging change. **Build/packaging now installs a full app
 folder, not a single exe.**
 
 ### Packaging
 - **Dropped single-file publish.** Production now publishes a **self-contained app folder**
-  (`FolderInstall` profile) — exe + dependency DLLs + native sensor bits — and the MSI
+  (`FolderInstall` profile) - exe + dependency DLLs + native sensor bits - and the MSI
   installs it to **`C:\PCI\Tools\PartnerTool`**. Partner machines need no .NET runtime.
 - `Product.wxs` harvests the whole publish folder (`<Files>`); shortcut targets the
   installed exe. `publish.bat` cleans `release\` then publishes the folder.
 - Added **LibreHardwareMonitorLib** dependency (bumped System.Management to 10.0.2).
 
-### Added — system information
-- **Drive SMART data** — temperature, life-used %, power-on hours and uncorrected errors
+### Added - system information
+- **Drive SMART data** - temperature, life-used %, power-on hours and uncorrected errors
   per disk (Storage reliability counters; no third-party driver).
 - **CPU / GPU / drive temperatures + fan speeds** via LibreHardwareMonitor (new
   Temperatures card + Overview tiles; degrades gracefully if the sensor driver can't load).
-- **Reliability / System Stability Index** (1–10) with the recent reliability records.
+- **Reliability / System Stability Index** (1-10) with the recent reliability records.
 - **Installed programs inventory** with search + one-click uninstall, and a **Startup
-  manager** (enable/disable) — both on a new **Inventory** tab.
+  manager** (enable/disable) - both on a new **Inventory** tab.
 - **Top processes** (live CPU/RAM, with End-process) on Diagnostics.
 - **Windows Update history** ("last patched" + recent updates) and **power/restart
   history** (clean vs unexpected shutdowns) on Diagnostics.
@@ -1867,95 +1891,95 @@ folder, not a single exe.**
   **printers**, **page file**, **proxy** and **USB devices** on System Info.
 - **Wi-Fi** status + saved networks with click-to-reveal passwords, and **active
   connections / listening ports**, on Network.
-- **Health history** — per-day trend of disk/RAM/battery-wear/stability, persisted to
+- **Health history** - per-day trend of disk/RAM/battery-wear/stability, persisted to
   `history.json`.
 - Reboot-pending now shows **why** (CBS vs Windows Update).
 
-### Added — tools
+### Added - tools
 - **Warranty lookup** tile (Dell/Lenovo deep-link by serial; others open the vendor page
   and copy the serial).
 - **Quick Fixes** (restart Explorer/Audio, re-register Store, clear icon cache, Memory
   Diagnostic, schedule CHKDSK), **Battery & Group-Policy HTML reports**, **System Restore
-  points** list + wizard, and a **disk-usage scan** — all on Repair.
+  points** list + wizard, and a **disk-usage scan** - all on Repair.
 - **Remote Support** launcher (configurable in Settings; falls back to Quick Assist).
 - **Branded HTML report** export + **Copy Summary** to clipboard for tickets.
 
-## 0.7.8 — 2026-06-05
+## 0.7.8 - 2026-06-05
 ### Fixed
 - End-of-day review: the Network reset buttons could pop their confirmation dialog while
   another network action was running and then do nothing. They now no-op up front while
   busy. Full code review otherwise clean.
 
-## 0.7.7 — 2026-06-05
+## 0.7.7 - 2026-06-05
 ### Fixed
 - **App failed to launch after the dev-copy notice.** The themed notice is a WPF window
   shown before the main window exists, so closing it tripped `OnLastWindowClose` and shut
   the app down. Now holds `OnExplicitShutdown` across the dev check, then restores normal
   shutdown behaviour.
 
-## 0.7.6 — 2026-06-05
+## 0.7.6 - 2026-06-05
 ### Changed
 - **Converted every remaining native Windows MessageBox to the themed `MessageWindow`** so
   all dialogs match the app: Export result, the global error handler, the Power
   confirmations (Restart / Shut Down / Sign Out), both Network reset confirmations, and the
   Shortcuts / Updates "couldn't open" errors.
 
-## 0.7.5 — 2026-06-05
+## 0.7.5 - 2026-06-05
 ### Changed
 - The **development-copy / expiry popups now use a dark-themed dialog** matching the rest
   of the app (e.g. the BitLocker dialog) instead of the native Windows MessageBox. Added a
   reusable `MessageWindow` (Show / Confirm) so other dialogs can adopt the same look.
 
-## 0.7.4 — 2026-06-05
+## 0.7.4 - 2026-06-05
 ### Changed
 - **Split CHKDSK out of Full Repair** into its own "Check Disk (CHKDSK)" action on the
   Repair tab. Full Repair is now DISM (CheckHealth → ScanHealth → RestoreHealth) → SFC.
 - Noted on the Full Repair card *why* DISM runs before SFC (SFC repairs from the
-  component store DISM restores) — confirmed this is the recommended order.
+  component store DISM restores) - confirmed this is the recommended order.
 
-## 0.7.3 — 2026-06-05
+## 0.7.3 - 2026-06-05
 ### Changed
 - **BitLocker tile on Overview now reveals the recovery key.** Clicking it opens a dialog
   with the 48-digit recovery password(s) for the encrypted volume(s), read from the OS
   BitLocker API (admin-only, which the app already is), with copy buttons and a
   sensitivity warning. Shows a clear message when no recovery-password protector exists.
 
-## 0.7.2 — 2026-06-05
+## 0.7.2 - 2026-06-05
 ### Changed
 - The Software tab now shows a **"Checking for installed software…"** loading overlay over
   the install list while detection runs (it can take ~30s), instead of leaving the list
-  active with stale ticks. The check runs **once per session** — tabbing away and back no
+  active with stale ticks. The check runs **once per session** - tabbing away and back no
   longer re-scans.
 
-## 0.7.1 — 2026-06-05
+## 0.7.1 - 2026-06-05
 ### Fixed
 - Installed-app detection missed apps installed **outside winget** (e.g. Zoom from a web
   installer). Added a registry-name fallback so the Software tab now also matches against
   the installed-programs list, catching those too.
 
-## 0.7.0 — 2026-06-05
+## 0.7.0 - 2026-06-05
 ### Added
 - **Software tab detects already-installed apps.** On open it runs `winget export`,
   matches installed package IDs against the list, and shows those apps **ticked and
   greyed-out** so they can't be reinstalled. Install Selected skips them, and the list
   re-scans after each install. Falls back to all-enabled if winget isn't available.
 
-## 0.6.1 — 2026-06-05
+## 0.6.1 - 2026-06-05
 ### Changed
 - Reordered the **Network** tab: Network Tools → Network Stack Reset → Network Reset →
   Ping Test → adapters (now at the bottom).
 
-## 0.6.0 — 2026-06-05
+## 0.6.0 - 2026-06-05
 Settings, Actions teardown, dev-build expiry.
 
 ### Added
 - **Settings page** (sidebar, above About), backed by `settings.json` created next to
   the exe on first run. Holds the auto-refresh interval (Off / 10s / 30s / 1m) and a
-  **Show Refresh button** toggle — both **Off by default**, since everything is captured
+  **Show Refresh button** toggle - both **Off by default**, since everything is captured
   once at launch.
-- **Network Reset** on the Network tab — the full Windows-style reset (`netcfg -d`) that
+- **Network Reset** on the Network tab - the full Windows-style reset (`netcfg -d`) that
   removes and reinstalls every network adapter on the next reboot.
-- **Dev/test build expiry** — dev builds show a "development copy" notice on launch and
+- **Dev/test build expiry** - dev builds show a "development copy" notice on launch and
   refuse to open more than 3 days after the build date. Production builds
   (`-p:DevBuild=false`) compile this out.
 
@@ -1970,13 +1994,13 @@ Settings, Actions teardown, dev-build expiry.
 - Network **adapters now display in 2 columns** instead of one long scroll.
 - Auto-refresh controls moved off Overview into Settings.
 
-## 0.5.0 — 2026-06-05
+## 0.5.0 - 2026-06-05
 Stability pass and consolidation.
 
 ### Fixed
 - Window could open with its **title bar / close button off-screen** on lower
   resolutions or display scaling. It's now resizable and clamped to the work area.
-- **"Reboot pending" false positive** — stopped treating `PendingFileRenameOperations`
+- **"Reboot pending" false positive** - stopped treating `PendingFileRenameOperations`
   (set by routine OneDrive/AV cleanups) as a real pending reboot.
 - Uptime/last-boot now read "Unknown" instead of a bogus value when WMI can't supply it.
 
@@ -1984,19 +2008,19 @@ Stability pass and consolidation.
 - **Merged the Hardware tab into System Info** (Storage, Memory, Graphics, Firmware,
   Battery) and removed the duplicate Hardware page.
 - **Quick Tools renamed to Shortcuts** (page, class, and all references).
-- **Startup "Analysing System" splash** with a one-shot system snapshot — tab switching
+- **Startup "Analysing System" splash** with a one-shot system snapshot - tab switching
   between Overview / System Info / Diagnostics is now instant.
 
 ### Added
 - Global unhandled-exception handler so a stray WMI/registry hiccup can't crash the app.
 - Removed the redundant `System.Diagnostics.EventLog` package.
 
-## 0.4.0 — Software installer
+## 0.4.0 - Software installer
 - Software page gained a **categorized one-click installer** (44 verified winget apps
   across Browsers, Communications, VPN, Security, Microsoft Tools, Multimedia, Pro
   Tools, Utilities).
 
-## 0.3.0 — Dashboard, hardware & diagnostics
+## 0.3.0 - Dashboard, hardware & diagnostics
 - **Overview** health dashboard (default landing page, clickable tiles).
 - **Hardware** page (storage health, memory modules, GPU, BIOS, boot mode, TPM, battery wear).
 - **Actions** page (power / network / maintenance).
@@ -2004,12 +2028,12 @@ Stability pass and consolidation.
 - **About** dialog with company info and click-to-copy phone numbers; Overview auto-refresh.
 - **MSI installer** (installs to `C:\PCI\Tools`, self-contained, no prerequisites).
 
-## 0.2.0 — Repair
+## 0.2.0 - Repair
 - **Repair** page: DISM CheckHealth/ScanHealth/RestoreHealth + SFC + CHKDSK, Windows
-  Update reset, network stack reset, advanced WinSxS/WMI cleanup — with a persistent log.
+  Update reset, network stack reset, advanced WinSxS/WMI cleanup - with a persistent log.
 - **Update All** hardened: fixed the Microsoft Store step freeze; cleaned up winget output.
 
-## 0.1.0 — Initial build
+## 0.1.0 - Initial build
 - **System Info** (identity, hardware, OS + feature version, performance, security,
   network, battery), **Network**, **Quick Tools**, **Updates**
   (Defender / Windows Update / manufacturer / winget / Store / Office), and **Export Report**.

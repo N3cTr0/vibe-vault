@@ -12,19 +12,19 @@ using Microsoft.Win32;
 namespace PartnerTool;
 
 /// <summary>One Windows Update policy setting, for the Updates-tab source card.
-/// <paramref name="Level"/> tints the row: Info (neutral), Warn (worth a look — a policy that can
+/// <paramref name="Level"/> tints the row: Info (neutral), Warn (worth a look - a policy that can
 /// cause "couldn't connect to the update service").</summary>
 public record WuPolicyRow(string Name, string Value, AuditLevel Level = AuditLevel.Info);
 
 /// <summary>
-/// Where this PC gets Windows Updates, and the policies steering it — so a tech can see at a glance
+/// Where this PC gets Windows Updates, and the policies steering it - so a tech can see at a glance
 /// whether a managed device is pointed at a (possibly dead) WSUS server or blocked from Microsoft's
 /// servers, which is the usual reason for "we couldn't connect to the update service". All read-only
 /// registry reads of the WindowsUpdate policy keys + the MDM PolicyManager key.
 /// </summary>
 public class WuPolicyInfo
 {
-    public string Source { get; init; } = "Windows Update (Microsoft) — not policy-managed";
+    public string Source { get; init; } = "Windows Update (Microsoft) - not policy-managed";
     public bool   Managed { get; init; }
     public List<WuPolicyRow> Rows { get; init; } = new();
 
@@ -35,7 +35,7 @@ public class WuPolicyInfo
     public static WuPolicyInfo Collect()
     {
         var rows = new List<WuPolicyRow>();
-        string source = "Windows Update (Microsoft) — not policy-managed";
+        string source = "Windows Update (Microsoft) - not policy-managed";
         bool managed = false;
 
         try
@@ -51,7 +51,7 @@ public class WuPolicyInfo
             // ── Where updates come from ──
             if (!string.IsNullOrWhiteSpace(wuServer) && useWuServer)
             {
-                source  = $"WSUS server — {wuServer}";
+                source  = $"WSUS server - {wuServer}";
                 managed = true;
                 rows.Add(new("WSUS server", wuServer!, AuditLevel.Warn));
                 if (!string.IsNullOrWhiteSpace(statusServer) &&
@@ -72,7 +72,7 @@ public class WuPolicyInfo
             // ── The policy most likely to cause "couldn't connect to the update service" ──
             if (Dword(wu, "DoNotConnectToWindowsUpdateInternetLocations") == 1)
                 rows.Add(new("Reach Microsoft's servers",
-                    "Blocked by policy — WSUS/Intune only. If that source is down, WU can't connect.",
+                    "Blocked by policy - WSUS/Intune only. If that source is down, WU can't connect.",
                     AuditLevel.Warn));
 
             // ── Behaviour / access policies worth showing ──
@@ -97,14 +97,14 @@ public class WuPolicyInfo
 
     /// <summary>
     /// Point Windows Update back at Microsoft by deleting the policy values that redirect or block
-    /// it — the registry equivalent of setting those GPO settings back to "Not configured". Only the
+    /// it - the registry equivalent of setting those GPO settings back to "Not configured". Only the
     /// source/access values are touched: deferrals, the pinned release version and anything under the
     /// MDM PolicyManager key are left alone (Intune re-applies its own, and fighting the enrollment
     /// would only break it). Returns one log line per value removed.
     /// </summary>
     /// <remarks>
     /// On a domain-joined PC whose settings come from a live GPO, the next policy refresh puts them
-    /// straight back. This is the fix for a leftover or dead WSUS entry — usually an old server that
+    /// straight back. This is the fix for a leftover or dead WSUS entry - usually an old server that
     /// no longer exists, which is what produces "we couldn't connect to the update service".
     /// </remarks>
     public static List<string> ResetToOnline()
@@ -118,7 +118,7 @@ public class WuPolicyInfo
         Strip(AuKey, log, "UseWUServer", "NoAutoUpdate", "AUOptions");
 
         // Collect() calls a machine policy-managed when these keys merely EXIST, so drop them once
-        // they are empty — otherwise the Updates tab still reports Group Policy steering updates.
+        // they are empty - otherwise the Updates tab still reports Group Policy steering updates.
         // AU is a subkey of WindowsUpdate, so it has to go first.
         PruneIfEmpty(AuKey, log);
         PruneIfEmpty(WuKey, log);

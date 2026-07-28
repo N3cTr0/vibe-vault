@@ -72,10 +72,10 @@ public partial class DiagnosticsPage : UserControl
             ev.Message,
             $"{ev.Time:MM/dd/yyyy HH:mm}  ·  {ev.Source}  (ID {ev.Id})",
             ev.Level));
-        new ListWindow("Recent Errors — last 10 days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+        new ListWindow("Recent Errors - last 10 days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
-    private bool _loading;   // page re-opens trigger a refresh — don't stack them
+    private bool _loading;   // page re-opens trigger a refresh - don't stack them
 
     private async Task LoadAsync()
     {
@@ -95,7 +95,7 @@ public partial class DiagnosticsPage : UserControl
         catch (Exception ex)
         {
             // A collector fault must not escalate to the global "Something went wrong" dialog.
-            TxtRefreshed.Text = $"Last refresh failed at {DateTime.Now:HH:mm:ss} — {ex.Message}";
+            TxtRefreshed.Text = $"Last refresh failed at {DateTime.Now:HH:mm:ss} - {ex.Message}";
         }
         finally { _loading = false; }
     }
@@ -111,13 +111,13 @@ public partial class DiagnosticsPage : UserControl
         }
         else
         {
-            TxtStability.Text       = "—";
+            TxtStability.Text       = "-";
             TxtStability.Foreground = StatusColors.Muted;
         }
         // The index looks alarmingly low on machines that just install/update a lot even when they
-        // never crash — Windows counts every install, update and driver change against it. Say so,
+        // never crash - Windows counts every install, update and driver change against it. Say so,
         // and show the recent peak as reassurance that the machine can and does score well.
-        var note = "Windows lowers this for app installs, updates and driver changes — not only crashes. " +
+        var note = "Windows lowers this for app installs, updates and driver changes - not only crashes. " +
                    "See Crash History below for actual stability.";
         if (rel.RecentPeak is { } pk && (rel.StabilityIndex is not { } cur || pk > cur + 0.05))
             note = $"7-day best: {pk:F1}/10.   " + note;
@@ -165,7 +165,7 @@ public partial class DiagnosticsPage : UserControl
         TxtRefreshed.Text = $"Refreshed at {asOf:HH:mm:ss}";
     }
 
-    // ── Reliability records (on demand — the WMI class can take ~a minute) → shown in a popup ──
+    // ── Reliability records (on demand - the WMI class can take ~a minute) → shown in a popup ──
     private bool _relRecordsLoading;
 
     private async void LoadReliability_Click(object sender, RoutedEventArgs e)
@@ -203,21 +203,14 @@ public partial class DiagnosticsPage : UserControl
               + (h.BatteryWearPct is { } w ? $"   ·   Batt wear {w}%" : "")
               + (h.StabilityIndex is { } s ? $"   ·   Stability {s:F1}/10" : ""),
             "")).ToList();
-        new ListWindow("Health History — all recorded days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+        new ListWindow("Health History - all recorded days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
     // ── Live processes ───────────────────────────────────────
     private async void ProcRefresh_Click(object sender, RoutedEventArgs e) => await LoadProcessesAsync();
 
-    // Single-instance, like the System Info tiles: reuse the window if it is already up.
-    private PerformanceWindow? _perfWin;
     private void OpenProcesses_Click(object sender, RoutedEventArgs e)
-    {
-        if (_perfWin != null) { _perfWin.SelectResource("proc"); _perfWin.Activate(); return; }
-        _perfWin = new PerformanceWindow("proc") { Owner = Window.GetWindow(this) };
-        _perfWin.Closed += (_, _) => _perfWin = null;
-        _perfWin.Show();
-    }
+        => PerformanceWindow.Open(Window.GetWindow(this), "proc");
 
     // CPU and disk are deltas between samples, so keep the instance alive and prime it before reading.
     private readonly ProcessSampler _procSampler = new();
@@ -240,6 +233,7 @@ public partial class DiagnosticsPage : UserControl
                                    .ToList();
             });
         }
+        catch { /* transient process-walk failure - leave the previous list up */ }
         finally { _procsLoading = false; BtnProcRefresh.IsEnabled = true; }
     }
 
@@ -250,7 +244,7 @@ public partial class DiagnosticsPage : UserControl
         var row = (sender as Button)?.DataContext as ProcInfo;
         var name = row?.Name ?? pid.ToString();
 
-        // Ending a critical Windows process forces a BSOD — block it outright.
+        // Ending a critical Windows process forces a BSOD - block it outright.
         if (ProcessInfo.IsCritical(name))
         {
             MessageWindow.Show("End Process", $"“{name}” is a critical Windows process",
@@ -272,7 +266,7 @@ public partial class DiagnosticsPage : UserControl
         }
         else
         {
-            ActivityLog.Result("Process", "failed — access denied or already exited");
+            ActivityLog.Result("Process", "failed - access denied or already exited");
             MessageWindow.Show("End Process", "Couldn't end the process",
                 "Access was denied or it has already exited.", MessageKind.Error, Window.GetWindow(this));
         }

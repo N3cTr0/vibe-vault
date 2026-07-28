@@ -13,12 +13,12 @@ namespace PartnerTool;
 
 public record DriverItem(string Device, string Provider, string Version, string Date, bool? Signed)
 {
-    public string SignedText => Signed == true ? "Signed" : Signed == false ? "UNSIGNED" : "—";
+    public string SignedText => Signed == true ? "Signed" : Signed == false ? "UNSIGNED" : "-";
 }
 
 /// <summary>
 /// Installed device drivers (Win32_PnPSignedDriver): provider, version, date and signing
-/// status — unsigned drivers float to the top as they're the usual troublemakers.
+/// status - unsigned drivers float to the top as they're the usual troublemakers.
 /// </summary>
 public static class DriversInfo
 {
@@ -39,8 +39,8 @@ public static class DriversInfo
                         date = ManagementDateTimeConverter.ToDateTime(o["DriverDate"].ToString()).ToString(Dates.Date); }
                 catch { }
                 bool? signed = o["IsSigned"] is bool b ? b : null;
-                list.Add(new DriverItem(dev, o["DriverProviderName"]?.ToString()?.Trim() ?? "—",
-                    o["DriverVersion"]?.ToString()?.Trim() ?? "—", date, signed));
+                list.Add(new DriverItem(dev, o["DriverProviderName"]?.ToString()?.Trim() ?? "-",
+                    o["DriverVersion"]?.ToString()?.Trim() ?? "-", date, signed));
             }
         }
         catch { }

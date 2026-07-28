@@ -17,7 +17,7 @@ public record LiveSample(double CpuPct, double RamPct, double RamUsedGb, double 
 
 /// <summary>
 /// Lightweight live performance sampler for the Monitor page. CPU and RAM come from
-/// kernel APIs (GetSystemTimes / GlobalMemoryStatusEx — no perf-counter dependency, no
+/// kernel APIs (GetSystemTimes / GlobalMemoryStatusEx - no perf-counter dependency, no
 /// flakiness); disk-busy % from a WMI performance class; network throughput from network
 /// interface byte deltas. Stateful: keep one instance and call <see cref="Sample"/> on a timer.
 /// </summary>

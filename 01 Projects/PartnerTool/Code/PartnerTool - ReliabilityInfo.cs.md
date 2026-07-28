@@ -16,17 +16,17 @@ public record ReliabilityRecord(DateTime Time, string Source, string Message);
 /// <summary>
 /// Windows Reliability Monitor data (same as perfmon /rel). Split deliberately into two
 /// calls because the two WMI classes have wildly different costs:
-///   • <see cref="CollectIndex"/> reads Win32_ReliabilityStabilityMetrics — a couple of
-///     seconds — and gives the 1–10 System Stability Index. Safe for the startup snapshot.
+///   • <see cref="CollectIndex"/> reads Win32_ReliabilityStabilityMetrics - a couple of
+///     seconds - and gives the 1-10 System Stability Index. Safe for the startup snapshot.
 ///   • <see cref="CollectRecords"/> reads Win32_ReliabilityRecords, which can take the
 ///     better part of a MINUTE on some machines (the provider re-aggregates the whole
-///     reliability database). Never call it on the startup path — load it on demand.
+///     reliability database). Never call it on the startup path - load it on demand.
 /// </summary>
 public class ReliabilityInfo
 {
-    /// <summary>Latest System Stability Index 0–10 (10 = perfectly stable), or null if unavailable.</summary>
+    /// <summary>Latest System Stability Index 0-10 (10 = perfectly stable), or null if unavailable.</summary>
     public double? StabilityIndex { get; set; }
-    /// <summary>Best (highest) index seen in the last 7 days — context for a low current value, which
+    /// <summary>Best (highest) index seen in the last 7 days - context for a low current value, which
     /// Windows drops for app installs / updates / driver changes, not just crashes.</summary>
     public double? RecentPeak { get; set; }
     public List<ReliabilityRecord> Records { get; set; } = new();

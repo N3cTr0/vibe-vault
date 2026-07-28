@@ -14,8 +14,8 @@ using System.Threading;
 namespace PartnerTool;
 
 /// <summary>
-/// One row in the disk-usage explorer — a sub-folder (with its recursive size) or a file.
-/// NOTE: these are PROPERTIES, not fields — WPF data binding only sees properties.
+/// One row in the disk-usage explorer - a sub-folder (with its recursive size) or a file.
+/// NOTE: these are PROPERTIES, not fields - WPF data binding only sees properties.
 /// </summary>
 public class UsageEntry
 {
@@ -70,14 +70,14 @@ public record DriveEntry(string Root, string Label, long TotalBytes, long FreeBy
 }
 
 /// <summary>
-/// "What's eating the drive?" — a TreeSize-style drill-down. Pick a fixed drive, then step into any
+/// "What's eating the drive?" - a TreeSize-style drill-down. Pick a fixed drive, then step into any
 /// folder. <see cref="QuickList"/> shows the folder/file names instantly (folders A→Z); <see
 /// cref="Children"/> then computes each folder's recursive size in parallel and re-sorts
 /// largest-first. Reparse points (junctions/symlinks) are skipped; the walk honors cancellation.
 /// </summary>
 public static class DiskUsageInfo
 {
-    /// <summary>Fixed (internal hard) disks only — excludes network, removable and optical drives.</summary>
+    /// <summary>Fixed (internal hard) disks only - excludes network, removable and optical drives.</summary>
     public static List<DriveEntry> FixedDrives()
     {
         var list = new List<DriveEntry>();
@@ -136,7 +136,7 @@ public static class DiskUsageInfo
     {
         var entries = new List<UsageEntry>();
 
-        // Sub-folders — recursive size, computed in parallel (this is the slow part).
+        // Sub-folders - recursive size, computed in parallel (this is the slow part).
         string[] dirs;
         try { dirs = Directory.GetDirectories(path); } catch { dirs = Array.Empty<string>(); }
 
@@ -192,7 +192,7 @@ public static class DiskUsageInfo
 
     /// <summary>
     /// Actual bytes the file occupies ON DISK (allocated size). Reflects compression and, crucially,
-    /// sparse files — so OneDrive "online-only" placeholders (huge logical size, ~0 on disk) count as
+    /// sparse files - so OneDrive "online-only" placeholders (huge logical size, ~0 on disk) count as
     /// ~0. Metadata-only, so it never triggers a cloud download. Falls back to the logical length.
     /// </summary>
     private static long OnDiskSize(string path)

@@ -17,7 +17,7 @@ public class AppSettings
 {
     /// <summary>
     /// Logs in C:\PCI\Logs older than this many days are deleted at startup (the folder is
-    /// ACL-hardened, so only the elevated app can tidy it). Clamped to 1–365; default 30.
+    /// ACL-hardened, so only the elevated app can tidy it). Clamped to 1-365; default 30.
     /// </summary>
     public int LogRetentionDays { get; set; } = 30;
 }
@@ -62,7 +62,7 @@ public static class SettingsStore
             File.WriteAllText(FilePath,
                 JsonSerializer.Serialize(Current, new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch { /* read-only location etc. — keep running with in-memory settings */ }
+        catch { /* read-only location etc. - keep running with in-memory settings */ }
         Changed?.Invoke();
     }
 }

@@ -64,7 +64,7 @@ public static class SystemManagement
     /// Create or update an environment variable. <paramref name="machine"/> = true writes the
     /// System (Machine) scope, which needs elevation (we run elevated) and persists in the registry;
     /// .NET broadcasts WM_SETTINGCHANGE so new processes pick it up (already-running apps won't).
-    /// The name is validated — a real variable name has no '=', whitespace or control characters.
+    /// The name is validated - a real variable name has no '=', whitespace or control characters.
     /// </summary>
     public static (bool ok, string message) SetEnvVar(string name, string value, bool machine)
     {
@@ -72,7 +72,7 @@ public static class SystemManagement
         value ??= "";
         if (name.Length == 0) return (false, "Enter a variable name.");
         if (name.Length > 255 || name.Any(c => c == '=' || char.IsWhiteSpace(c) || char.IsControl(c)))
-            return (false, "Invalid name — no spaces, '=' or control characters.");
+            return (false, "Invalid name - no spaces, '=' or control characters.");
         if (value.Length == 0) return (false, "Enter a value.");
 
         var target = machine ? EnvironmentVariableTarget.Machine : EnvironmentVariableTarget.User;
@@ -109,7 +109,7 @@ public static class SystemManagement
     {
         var list = new List<UserProfileItem>();
 
-        // The account running this tool — never offer to delete its own profile.
+        // The account running this tool - never offer to delete its own profile.
         string currentSid = "";
         try { currentSid = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? ""; } catch { }
 
@@ -138,7 +138,7 @@ public static class SystemManagement
     }
 
     /// <summary>
-    /// Remove a user profile the *correct* way — via the Win32_UserProfile WMI delete, which deletes
+    /// Remove a user profile the *correct* way - via the Win32_UserProfile WMI delete, which deletes
     /// the profile folder, removes the <c>ProfileList\&lt;SID&gt;</c> registry entry and unloads the
     /// NTUSER.DAT hive (exactly what Advanced System Properties ▸ User Profiles ▸ Delete does).
     /// Refuses system/special profiles and any profile that's currently loaded (signed in).
@@ -149,7 +149,7 @@ public static class SystemManagement
         // The SID is interpolated into a WQL query that drives an ELEVATED, irreversible delete, so
         // validate its shape rather than trying to escape it: a SID is always S-1-<digits/hyphens>.
         // Anything else can't be a real profile and is refused outright.
-        if (!SidPattern.IsMatch(sid)) return (false, "That doesn't look like a valid SID — refused.");
+        if (!SidPattern.IsMatch(sid)) return (false, "That doesn't look like a valid SID - refused.");
         try
         {
             using var q = new ManagementObjectSearcher(
@@ -157,12 +157,12 @@ public static class SystemManagement
             foreach (ManagementObject o in q.Get())
             using (o)
             {
-                if (o["Special"] is bool sp && sp) return (false, "That's a system profile — refused.");
-                if (o["Loaded"]  is bool ld && ld) return (false, "Profile is in use — sign that user out first.");
+                if (o["Special"] is bool sp && sp) return (false, "That's a system profile - refused.");
+                if (o["Loaded"]  is bool ld && ld) return (false, "Profile is in use - sign that user out first.");
                 o.Delete();   // folder + ProfileList\<SID> registry key + NTUSER.DAT hive, all together
                 return (true, "Profile removed (folder, registry entry and data).");
             }
-            return (false, "Profile not found — it may already be removed.");
+            return (false, "Profile not found - it may already be removed.");
         }
         catch (Exception ex) { return (false, ex.Message); }
     }

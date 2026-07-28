@@ -17,7 +17,7 @@ public static class BitLockerInfo
 {
     /// <summary>
     /// Reads the 48-digit numerical recovery passwords for every BitLocker volume that
-    /// has a RecoveryPassword protector — the same data <c>manage-bde -protectors -get</c>
+    /// has a RecoveryPassword protector - the same data <c>manage-bde -protectors -get</c>
     /// returns. Requires admin (the app runs elevated). Returns an empty list when none
     /// exist (drive unencrypted, or TPM-only with no recovery password) or on error.
     /// </summary>
@@ -51,7 +51,7 @@ public static class BitLockerInfo
                             var pwd = outP?["NumericalPassword"]?.ToString();
                             if (!string.IsNullOrWhiteSpace(pwd))
                                 keys.Add(new BitLockerKey(
-                                    string.IsNullOrEmpty(drive) ? "—" : drive,
+                                    string.IsNullOrEmpty(drive) ? "-" : drive,
                                     id.Trim('{', '}'),
                                     pwd));
                         }

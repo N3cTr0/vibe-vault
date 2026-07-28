@@ -18,7 +18,7 @@ namespace PartnerTool;
 /// Runs a console process with redirected output, cleans the noise (ANSI codes,
 /// carriage-return overwrites, null bytes from UTF-16 tools like sfc), and
 /// surfaces percentage progress from tools that draw a progress bar (DISM).
-/// Output/error callbacks fire on a thread-pool thread — marshal to the UI yourself.
+/// Output/error callbacks fire on a thread-pool thread - marshal to the UI yourself.
 /// </summary>
 public static class ProcessRunner
 {
@@ -27,7 +27,7 @@ public static class ProcessRunner
 
     /// <summary>
     /// How long to keep reading output after the process itself has exited. Whatever the tool wrote
-    /// is already in the pipe by then, so this only needs to cover the reader flushing it — we are
+    /// is already in the pipe by then, so this only needs to cover the reader flushing it - we are
     /// not waiting for a lingering grandchild to close the handle (see RunAsync).
     /// </summary>
     private const int DrainMs = 1500;
@@ -35,7 +35,7 @@ public static class ProcessRunner
     /// <summary>
     /// Resolve a bare system-tool name (e.g. "powershell.exe", "powercfg") to its absolute path
     /// under System32. We run elevated, and CreateProcess searches the app folder and the current
-    /// directory before System32 — so a bare name could be hijacked by a planted binary if the app
+    /// directory before System32 - so a bare name could be hijacked by a planted binary if the app
     /// is run from a writable folder. Callers that pass a full path get it back unchanged.
     /// </summary>
     public static string ResolveSystemExe(string exe)
@@ -53,7 +53,7 @@ public static class ProcessRunner
         var full = Path.Combine(sys, name);
         if (File.Exists(full)) return full;
 
-        // Not every system tool sits directly in System32 — winmgmt.exe lives in System32\wbem.
+        // Not every system tool sits directly in System32 - winmgmt.exe lives in System32\wbem.
         // Without this it fell through to the bare name, which is the very hijack we're guarding
         // against (an elevated CreateProcess searches the app folder and CWD before PATH).
         var wbem = Path.Combine(sys, "wbem", name);
@@ -102,7 +102,7 @@ public static class ProcessRunner
 
             // Bound the read as well. ReadToEndAsync only completes at pipe EOF, and a grandchild
             // that inherited the handle (dism.exe → DismHost.exe) keeps it open after the tool has
-            // exited — so awaiting it unconditionally can hang a collector forever.
+            // exited - so awaiting it unconditionally can hang a collector forever.
             return await Task.WhenAny(stdout, Task.Delay(DrainMs)) == stdout
                 ? await stdout
                 : string.Empty;
@@ -139,12 +139,12 @@ public static class ProcessRunner
             void Handle(string? data)
             {
                 if (data == null || abandoned) return;
-                // Tools redraw progress lines with \r — keep only the final segment.
+                // Tools redraw progress lines with \r - keep only the final segment.
                 var seg = data.Contains('\r') ? data.Split('\r').Last() : data;
                 seg = Ansi.Replace(seg, "").Replace("\0", "").Trim();
                 if (seg.Length == 0) return;
 
-                // DISM progress bar: "[====  42.0%  ====]" — and early frames like "[==   5.8%   ]"
+                // DISM progress bar: "[====  42.0%  ====]" - and early frames like "[==   5.8%   ]"
                 // have too few fill chars to trip a fill-count test, so bracket-wrapped counts too.
                 var m = Percent.Match(seg);
                 bool barish = (seg.StartsWith('[') && seg.EndsWith(']'))
@@ -173,14 +173,14 @@ public static class ProcessRunner
             using var reg = cancel.Register(() => { try { p.Kill(true); } catch { } });
 
             // Wait for the PROCESS, not for the pipes to close. Process.WaitForExit[Async]() also
-            // waits for stdout/stderr to hit EOF — and dism.exe leaves DismHost.exe children holding
+            // waits for stdout/stderr to hit EOF - and dism.exe leaves DismHost.exe children holding
             // the inherited pipe handles long after dism itself exits. Waiting on EOF therefore hangs
             // the card at "Running…" with the operation visibly finished in the log (0.19.7 bug).
             await exited.Task;
 
             // The process is gone and the exit code is final; give the readers a moment to flush the
             // last lines, then move on regardless of who is still holding the pipe. DISM always
-            // leaves a DismHost.exe behind, so this window expiring is normal, not an error — don't
+            // leaves a DismHost.exe behind, so this window expiring is normal, not an error - don't
             // report it, just stop listening.
             var drained = Task.WhenAll(stdoutDone.Task, stderrDone.Task);
             if (await Task.WhenAny(drained, Task.Delay(DrainMs)) != drained)

@@ -35,7 +35,7 @@ public partial class AboutWindow : Window
     private void Link_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); }
-        catch { /* no browser / blocked — ignore */ }
+        catch { /* no browser / blocked - ignore */ }
         e.Handled = true;
     }
 
@@ -43,7 +43,7 @@ public partial class AboutWindow : Window
     {
         if (sender is not Hyperlink h || h.Tag is not string number) return;
 
-        try { Clipboard.SetText(number); } catch { /* clipboard busy — ignore */ }
+        try { Clipboard.SetText(number); } catch { /* clipboard busy - ignore */ }
 
         // Re-open so Placement=Mouse repositions the toast at the current cursor.
         CopiedPopup.IsOpen = false;

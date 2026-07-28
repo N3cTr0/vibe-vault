@@ -18,13 +18,13 @@ namespace PartnerTool;
 /// </summary>
 public class SystemExtras
 {
-    /// <summary>Flat one-line form — what the text/HTML reports print.</summary>
+    /// <summary>Flat one-line form - what the text/HTML reports print.</summary>
     public string PageFile  { get; set; } = "Unknown";
-    /// <summary>"System managed" / "Manually configured" / "No page file" — line 1 of the UI form.</summary>
+    /// <summary>"System managed" / "Manually configured" / "No page file" - line 1 of the UI form.</summary>
     public string PageFileMode  { get; set; } = "";
-    /// <summary>Page-file path, e.g. C:\pagefile.sys — line 2 of the UI form.</summary>
+    /// <summary>Page-file path, e.g. C:\pagefile.sys - line 2 of the UI form.</summary>
     public string PageFilePath  { get; set; } = "";
-    /// <summary>Sizes, e.g. "4864 MB allocated, 30 MB in use (peak 38 MB)" — line 3 of the UI form.</summary>
+    /// <summary>Sizes, e.g. "4864 MB allocated, 30 MB in use (peak 38 MB)" - line 3 of the UI form.</summary>
     public string PageFileUsage { get; set; } = "";
     public string Proxy     { get; set; } = "Not configured";
     public string PowerPlan { get; set; } = "Unknown";
@@ -63,7 +63,7 @@ public class SystemExtras
             x.PageFilePath  = path;
             x.PageFileUsage = usage;
 
-            string detail = path.Length > 0 ? $"{path} — {usage}" : "No page file";
+            string detail = path.Length > 0 ? $"{path} - {usage}" : "No page file";
             x.PageFile = (managed ? "System managed. " : "") + detail;
         }
         catch { }

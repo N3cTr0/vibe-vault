@@ -15,7 +15,7 @@ public record Connection(string Proto, string Local, string Remote, string State
 
 /// <summary>
 /// Active TCP/UDP connections and listening ports, parsed from <c>netstat -ano</c> with the
-/// owning process resolved by PID — quick triage for "what's this machine talking to?".
+/// owning process resolved by PID - quick triage for "what's this machine talking to?".
 /// </summary>
 public static class ConnectionsInfo
 {
@@ -28,7 +28,7 @@ public static class ConnectionsInfo
         {
             if (names.TryGetValue(pid, out var n)) return n;
             try { using var p = Process.GetProcessById(pid); n = p.ProcessName; }
-            catch { n = pid == 0 ? "System Idle" : "—"; }
+            catch { n = pid == 0 ? "System Idle" : "-"; }
             names[pid] = n;
             return n;
         }
@@ -45,7 +45,7 @@ public static class ConnectionsInfo
             if (proto == "TCP" && parts.Length >= 5 && int.TryParse(parts[4], out var tpid))
                 list.Add(new Connection(proto, parts[1], parts[2], parts[3], tpid, NameFor(tpid)));
             else if (proto == "UDP" && parts.Length >= 4 && int.TryParse(parts[^1], out var upid))
-                list.Add(new Connection(proto, parts[1], parts[2], "—", upid, NameFor(upid)));
+                list.Add(new Connection(proto, parts[1], parts[2], "-", upid, NameFor(upid)));
         }
 
         // Listening + established first, then everything else; cap the list.

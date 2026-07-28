@@ -10,7 +10,7 @@ source-path: installer\Product.wxs
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Partner Tool"
            Manufacturer="Progressive Computing"
-           Version="0.24.5.0"
+           Version="0.24.6.0"
            UpgradeCode="7C9E6A2B-4F1D-4E8A-9B3C-2A1D5E6F7B80"
            Scope="perMachine"
            Compressed="yes">
@@ -35,7 +35,7 @@ source-path: installer\Product.wxs
 
     <!-- C:\PCI\PartnerTool  (PCIDIR is implicitly rooted at TARGETDIR = C:\).
          This MSI installs the ONE self-contained single-file exe (from
-         publish-singlefile.bat) — no loose dependency DLLs — so C:\PCI\PartnerTool
+         publish-singlefile.bat) - no loose dependency DLLs - so C:\PCI\PartnerTool
          holds just PartnerTool.exe. -->
     <Directory Id="PCIDIR" Name="PCI">
       <Directory Id="INSTALLFOLDER" Name="PartnerTool" />

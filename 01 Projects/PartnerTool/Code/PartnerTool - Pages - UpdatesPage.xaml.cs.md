@@ -32,7 +32,7 @@ public partial class UpdatesPage : UserControl
     }
 
     /// <summary>
-    /// Detect the OEM tool, load Windows Update history, and scan all update sources — runs once,
+    /// Detect the OEM tool, load Windows Update history, and scan all update sources - runs once,
     /// whether triggered by the page being shown or pre-cached in the background from startup so the
     /// data is already there when the tech opens the tab. The guard is set before any await so a
     /// navigation landing here mid-preload can't kick off a second scan.
@@ -41,9 +41,9 @@ public partial class UpdatesPage : UserControl
     {
         if (_loadStarted) return;
         _loadStarted = true;
-        LoadWuPolicy();                    // fast registry read — show the update source up front
+        LoadWuPolicy();                    // fast registry read - show the update source up front
         await LoadMfrToolAsync();
-        var history = LoadHistoryAsync();   // own guard — runs alongside the scans
+        var history = LoadHistoryAsync();   // own guard - runs alongside the scans
         await ScanAllAsync();
         await history;
     }
@@ -60,7 +60,7 @@ public partial class UpdatesPage : UserControl
 
     private async System.Threading.Tasks.Task LoadHistoryAsync()
     {
-        if (_historyLoaded) return;     // WUA COM is slow — only the first time the page is shown
+        if (_historyLoaded) return;     // WUA COM is slow - only the first time the page is shown
         _historyLoaded = true;
         try
         {
@@ -92,13 +92,13 @@ public partial class UpdatesPage : UserControl
         {
             TxtMfrName.Text         = "MANUFACTURER UPDATE TOOL";
             TxtMfrDesc.Text         = ManufacturerTools.IsVirtualMachine(manufacturer, model)
-                ? "This is a virtual machine — no manufacturer firmware/driver updates (use Windows Update)."
+                ? "This is a virtual machine - no manufacturer firmware/driver updates (use Windows Update)."
                 : string.IsNullOrWhiteSpace(manufacturer)
                     ? "Could not detect hardware manufacturer."
                     : $"No known update tool for \"{manufacturer}\".";
             TxtMfrStatus.Text       = "● Not applicable";
             TxtMfrStatus.Foreground = StatusColors.Muted;
-            // Hide (not just disable) a button that can never work on this machine — a grayed
+            // Hide (not just disable) a button that can never work on this machine - a grayed
             // "Open" reads like something is broken or still loading.
             BtnMfr.Visibility       = Visibility.Collapsed;
             return;
@@ -154,9 +154,9 @@ public partial class UpdatesPage : UserControl
         }
     }
 
-    // ── AVAILABLE UPDATES — auto-scanned in parallel when the tab opens ───
+    // ── AVAILABLE UPDATES - auto-scanned in parallel when the tab opens ───
 
-    /// <summary>Run all scans together — they're network / subprocess bound, not CPU-heavy.</summary>
+    /// <summary>Run all scans together - they're network / subprocess bound, not CPU-heavy.</summary>
     private async Task ScanAllAsync()
         => await Task.WhenAll(ScanWindowsAsync(), ScanAppsAsync(), ScanVendorAsync(), ScanStoreAsync());
 
@@ -210,7 +210,7 @@ public partial class UpdatesPage : UserControl
     private async Task ScanVendorAsync()
     {
         SetStatus(TxtNoVendor, "● Scanning vendor driver/BIOS updates…", StatusColors.Yellow);
-        // Auto-scan never installs the OEM tool — it only scans if the tool is already present.
+        // Auto-scan never installs the OEM tool - it only scans if the tool is already present.
         void OnStatus(string s) => Dispatcher.Invoke(() => SetStatus(TxtNoVendor, "● " + s, StatusColors.Yellow));
         try
         {
@@ -240,17 +240,17 @@ public partial class UpdatesPage : UserControl
             return;
 
         // App-wide servicing gate: Update All must not overlap Full Repair / WU Reset / CHKDSK etc.
-        // (both sides drive CBS/TrustedInstaller; running them together makes one fail — observed
+        // (both sides drive CBS/TrustedInstaller; running them together makes one fail - observed
         // as DISM RestoreHealth 0x800F0915).
         if (!ServicingLock.TryAcquire("Update All"))
         {
             MessageWindow.Show("Please Wait", "Another heavy operation is running",
                 $"“{ServicingLock.CurrentOperation}” is still running. Running two Windows " +
-                "servicing operations at once makes them fail — wait for it to finish first.",
+                "servicing operations at once makes them fail - wait for it to finish first.",
                 MessageKind.Warning, Window.GetWindow(this));
             return;
         }
-        // Deliberately NOT tech-gated: keeping machines updated is encouraged, not destructive —
+        // Deliberately NOT tech-gated: keeping machines updated is encouraged, not destructive -
         // users can run the same updates themselves through Windows. Still fully activity-logged.
         ActivityLog.Action("Updates", "Update all (Defender signatures + Windows Update + manufacturer tool + winget upgrade)");
         BtnUpdateAll.IsEnabled = false;
@@ -276,7 +276,7 @@ public partial class UpdatesPage : UserControl
         try
         {
             // Soft-cancel: finish the current source, then stop before the next (doesn't kill a
-            // running download — safer than yanking a WUApi/winget operation mid-flight).
+            // running download - safer than yanking a WUApi/winget operation mid-flight).
             void Stop() { if (_updateCancel) throw new OperationCanceledException(); }
             await RunDefenderUpdate(_tDefender);          Stop();
             await RunWindowsUpdate(_tWinUpdate);          Stop();
@@ -288,17 +288,17 @@ public partial class UpdatesPage : UserControl
         }
         catch (OperationCanceledException)
         {
-            Log("━━━ Cancelled — remaining updates skipped ━━━");
+            Log("━━━ Cancelled - remaining updates skipped ━━━");
             int skipped = 0;
             foreach (var t in new[] { _tDefender, _tWinUpdate, _tManufacturer, _tWinget, _tStore, _tOffice })
                 if (t is { } tt && (string.IsNullOrEmpty(tt.StatusText) || tt.StatusText == "Pending"))
-                { Set(tt, "Skipped — cancelled", StatusColors.Muted); skipped++; }
+                { Set(tt, "Skipped - cancelled", StatusColors.Muted); skipped++; }
             ranCount = 6 - skipped;
             outcome  = $"cancelled after {ranCount} of 6 sources";
         }
         catch (Exception ex)
         {
-            Log($"━━━ Stopped — unexpected error: {ex.Message} ━━━");
+            Log($"━━━ Stopped - unexpected error: {ex.Message} ━━━");
             outcome = "stopped by an error";
         }
         finally
@@ -308,7 +308,7 @@ public partial class UpdatesPage : UserControl
             BtnUpdateAll.IsEnabled = true;
             // Persistent one-line history so a returning tech can see what the last run did
             // without reading the log. (The per-source statuses above stay too.)
-            TxtUpdateAllSummary.Text = $"Last run: {Dates.FormatWithTime(DateTime.Now)} — {outcome}.";
+            TxtUpdateAllSummary.Text = $"Last run: {Dates.FormatWithTime(DateTime.Now)} - {outcome}.";
             TxtUpdateAllSummary.Visibility = Visibility.Visible;
             SaveLog();
             ServicingLock.Release();
@@ -335,11 +335,11 @@ public partial class UpdatesPage : UserControl
             const string logDir = @"C:\PCI\Logs";
             Directory.CreateDirectory(logDir);
 
-            var timestamp = DateTime.Now.ToString("MMddyyyy_HHmmss");   // seconds — avoid same-minute overwrite
+            var timestamp = DateTime.Now.ToString("MMddyyyy_HHmmss");   // seconds - avoid same-minute overwrite
             var path      = Path.Combine(logDir, $"PartnerTool_{Environment.MachineName}_{timestamp}.log");
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("PARTNER TOOL — UPDATE ALL LOG");
+            sb.AppendLine("PARTNER TOOL - UPDATE ALL LOG");
             sb.AppendLine($"Device    : {Environment.MachineName}");
             sb.AppendLine($"User      : {Environment.UserName}");
             sb.AppendLine($"Date/Time : {DateTime.Now:MM-dd-yyyy HH:mm:ss}");
@@ -376,7 +376,7 @@ public partial class UpdatesPage : UserControl
     private static string? CleanOutput(string? raw)
     {
         if (raw == null) return null;
-        // Winget uses \r to overwrite progress lines — keep the last segment
+        // Winget uses \r to overwrite progress lines - keep the last segment
         var line = raw.Contains('\r') ? raw.Split('\r').Last() : raw;
         line = _ansi.Replace(line, "").Replace("\0", "").Trim();
         if (string.IsNullOrWhiteSpace(line)) return null;
@@ -526,7 +526,7 @@ Write-Output 'Done.'
         }
         else
         {
-            Log($"{_mfrTool.DisplayName}: no silent CLI available — opening app.");
+            Log($"{_mfrTool.DisplayName}: no silent CLI available - opening app.");
             Dispatcher.Invoke(() =>
             {
                 try
@@ -549,7 +549,7 @@ Write-Output 'Done.'
 
     private async Task RunDellUpdate(UpdateTask task)
     {
-        // Prefer the CLI executable — DCUx86.exe is the UI, dcu-cli.exe is the headless runner
+        // Prefer the CLI executable - DCUx86.exe is the UI, dcu-cli.exe is the headless runner
         var cliExe = _mfrExe?.EndsWith("dcu-cli.exe", StringComparison.OrdinalIgnoreCase) == true
             ? _mfrExe
             : FindDellCli();
@@ -557,20 +557,20 @@ Write-Output 'Done.'
         if (cliExe == null)
         {
             // Mirror the HUS script: auto-install Dell Command Update via winget, then re-resolve.
-            // (Update All is tech-gated, so installing the prerequisite here is expected behavior —
+            // (Update All is tech-gated, so installing the prerequisite here is expected behavior -
             // only the passive scan-on-open never installs anything.)
             Set(task, "Installing DCU…", StatusColors.Yellow);
-            Log("Dell: dcu-cli.exe not found — installing Dell Command Update via winget (one-time, can take a few minutes)…");
+            Log("Dell: dcu-cli.exe not found - installing Dell Command Update via winget (one-time, can take a few minutes)…");
             ActivityLog.Action("Updates", "Auto-install Dell Command Update (winget Dell.CommandUpdate.Universal)");
             try { await VendorUpdatesInfo.InstallViaWingetAsync("Dell.CommandUpdate.Universal"); } catch { }
             cliExe = FindDellCli();
-            if (cliExe != null) Log($"Dell: installed — CLI at {cliExe}.");
+            if (cliExe != null) Log($"Dell: installed - CLI at {cliExe}.");
         }
 
         if (cliExe == null)
         {
-            // Couldn't install (winget unavailable / blocked) — fall back to the GUI as a last resort.
-            Log("Dell: couldn't install Dell Command Update automatically — opening the GUI instead.");
+            // Couldn't install (winget unavailable / blocked) - fall back to the GUI as a last resort.
+            Log("Dell: couldn't install Dell Command Update automatically - opening the GUI instead.");
             Dispatcher.Invoke(() =>
             {
                 if (_mfrExe != null)
@@ -588,8 +588,8 @@ Write-Output 'Done.'
         Set(task, code switch
         {
             0   => "● Updated",
-            1   => "● Updated — Reboot Required",
-            5   => "● Reboot required from a prior update — rerun after restart",
+            1   => "● Updated - Reboot Required",
+            5   => "● Reboot required from a prior update - rerun after restart",
             500 => "● Up to date",
             501 => "● Up to date",
             _   => "● Done (check log)"
@@ -607,7 +607,7 @@ Write-Output 'Done.'
         Set(task, "Running…", StatusColors.Yellow);
         Log("Lenovo: using LSUClient PowerShell module (only unattended packages)...");
 
-        // LSUClient is a PS module designed for headless RMM contexts — much more reliable than tvsu.exe
+        // LSUClient is a PS module designed for headless RMM contexts - much more reliable than tvsu.exe
         var ps = @"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge '2.8.5.201' })) {
@@ -654,9 +654,9 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
         if (!File.Exists(hpiaPath))
         {
             // Mirror the HUS script: fetch HP Image Assistant from HP when it's missing.
-            // Harden the folder first — we're downloading an exe we'll run elevated.
+            // Harden the folder first - we're downloading an exe we'll run elevated.
             Set(task, "Downloading HPIA…", StatusColors.Yellow);
-            Log("HP: HP Image Assistant not found — downloading from HP (one-time, can take a few minutes)…");
+            Log("HP: HP Image Assistant not found - downloading from HP (one-time, can take a few minutes)…");
             ActivityLog.Action("Updates", "Auto-download HP Image Assistant to C:\\PCI\\Tools");
             SecureDirectory.EnsureHardened(@"C:\PCI\Tools");
             try { await VendorUpdatesInfo.EnsureHpiaAsync(); } catch { }
@@ -678,8 +678,8 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
         }
         else if (_mfrExe != null)
         {
-            // Download failed (connectivity / HP page changed) — open HP Support Assistant as last resort.
-            Log("HP: couldn't download HP Image Assistant — opening HP Support Assistant instead.");
+            // Download failed (connectivity / HP page changed) - open HP Support Assistant as last resort.
+            Log("HP: couldn't download HP Image Assistant - opening HP Support Assistant instead.");
             Dispatcher.Invoke(() =>
             {
                 try { Process.Start(new ProcessStartInfo(_mfrExe) { UseShellExecute = true }); } catch { }
@@ -701,7 +701,7 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
         {
             Log("▶ winget: skipped");
             Log("  " + WingetLocator.Unavailable);
-            Set(task, "● Skipped — winget unavailable", StatusColors.Yellow);
+            Set(task, "● Skipped - winget unavailable", StatusColors.Yellow);
             return;
         }
 
@@ -723,7 +723,7 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
             var updates  = await manager.SearchForAllUpdatesAsync();
 
             // A fresh search misses updates the Store already queued itself (stuck at
-            // ReadyToDownload, or errored with "app was in use") — pick those up from the
+            // ReadyToDownload, or errored with "app was in use") - pick those up from the
             // install queue and restart them so they retry now.
             var pendingNames = updates.Select(u => u.PackageFamilyName)
                                       .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -785,7 +785,7 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
                             Err: op.ErrorCode?.HResult ?? 0);
                 }).ToList();
 
-                // Every remaining item has reached a final state — stop now rather than
+                // Every remaining item has reached a final state - stop now rather than
                 // waiting out the full timeout (errored items linger in the queue).
                 bool allFinal = statuses.All(s =>
                     s.State is AppInstallState.Completed
@@ -806,7 +806,7 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
                         const int packagesInUse = unchecked((int)0x80073D02);   // ERROR_PACKAGES_IN_USE
                         foreach (var s in failed)
                             Log(s.State == AppInstallState.Error && s.Err == packagesInUse
-                                ? $"  {s.Name}: app was in use — the Store retries once it closes (or after a reboot)"
+                                ? $"  {s.Name}: app was in use - the Store retries once it closes (or after a reboot)"
                                 : $"  {s.Name}: {s.State}" + (s.Err != 0 ? $" (0x{s.Err:X8})" : ""));
                     }
                     return;
@@ -821,20 +821,20 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
                 }
                 else if (DateTime.Now - lastChange > stallTimeout)
                 {
-                    // No item advanced for 90s — something is wedged (e.g. stuck at
+                    // No item advanced for 90s - something is wedged (e.g. stuck at
                     // ReadyToDownload). Don't block the rest of Update All.
                     Set(task, "● Stalled (check Store)", StatusColors.Yellow);
-                    Log($"Store: no progress for {stallTimeout.TotalSeconds:F0}s — skipping. Last state: {line}");
+                    Log($"Store: no progress for {stallTimeout.TotalSeconds:F0}s - skipping. Last state: {line}");
                     return;
                 }
             }
 
             Set(task, "● Timed out (check Store)", StatusColors.Yellow);
-            Log("Store: timed out — check Microsoft Store for remaining updates.");
+            Log("Store: timed out - check Microsoft Store for remaining updates.");
         }
         catch (Exception ex)
         {
-            Log($"Store: {ex.GetType().Name} — opening Store updates page.");
+            Log($"Store: {ex.GetType().Name} - opening Store updates page.");
             Dispatcher.Invoke(() =>
                 Process.Start(new ProcessStartInfo("ms-windows-store://downloadsandupdates")
                     { UseShellExecute = true }));
@@ -858,13 +858,13 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
         }
 
         // Hand off to Office's own Click-to-Run updater and let it show its normal progress window
-        // — the previous silent registry-polling approach was unreliable (wrong "done"/timeout
+        // - the previous silent registry-polling approach was unreliable (wrong "done"/timeout
         // status). It pops up, downloads and installs on its own; we just launch it and move on.
         Set(task, "Launching…", StatusColors.Yellow);
         // The C2R updater checks/downloads silently first, so its window often doesn't appear until
-        // MINUTES after everything else here reads done — say so, or the popup gets reported as a
+        // MINUTES after everything else here reads done - say so, or the popup gets reported as a
         // mystery leak by whoever has moved on to something else (field report, 0.19.10).
-        Log("Office: launching the built-in Click-to-Run updater — its progress window may not appear for a few minutes.");
+        Log("Office: launching the built-in Click-to-Run updater - its progress window may not appear for a few minutes.");
         try
         {
             // displaylevel=true forces the visible update UI even when run elevated;
@@ -875,11 +875,11 @@ foreach ($r in $results) { Write-Output ""[$($r.Result)] $($r.Title)"" }
             });
             ActivityLog.Command("Updates", "OfficeC2RClient.exe", "/update user displaylevel=true");
             Log("Office: updater launched.");
-            Set(task, "● Launched — Office's own window may appear a few minutes later", StatusColors.Blue);
+            Set(task, "● Launched - Office's own window may appear a few minutes later", StatusColors.Blue);
         }
         catch (Exception ex)
         {
-            Log($"Office: couldn't launch the updater — {ex.Message}");
+            Log($"Office: couldn't launch the updater - {ex.Message}");
             Set(task, "● Failed to launch", StatusColors.Red);
         }
         await Task.CompletedTask;

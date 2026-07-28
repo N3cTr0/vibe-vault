@@ -17,14 +17,14 @@ namespace PartnerTool;
 /// Fixes the "mouse over an inline log blocks page scrolling" annoyance: a WPF ScrollViewer
 /// swallows every mouse-wheel event, even when it can't scroll any further (or has nothing to
 /// scroll). With this behavior enabled, an inner scroller only consumes the wheel while it can
-/// actually move in that direction — at its edge, the event is re-raised on its parent so the
+/// actually move in that direction - at its edge, the event is re-raised on its parent so the
 /// page's outer ScrollViewer keeps scrolling naturally.
 ///
 /// Enable per page with an implicit style:
 ///   &lt;Style TargetType="ScrollViewer"&gt;
 ///       &lt;Setter Property="pt:ScrollChaining.Enabled" Value="True"/&gt;
 ///   &lt;/Style&gt;
-/// (Harmless on the outer scroller itself — at its edge the forwarded event just goes nowhere.)
+/// (Harmless on the outer scroller itself - at its edge the forwarded event just goes nowhere.)
 /// </summary>
 public static class ScrollChaining
 {
@@ -47,7 +47,7 @@ public static class ScrollChaining
 
         bool canScrollDown = e.Delta < 0 && sv.VerticalOffset < sv.ScrollableHeight;
         bool canScrollUp   = e.Delta > 0 && sv.VerticalOffset > 0;
-        if (canScrollDown || canScrollUp) return;   // the inner scroller can handle it — let it
+        if (canScrollDown || canScrollUp) return;   // the inner scroller can handle it - let it
 
         // At the edge (or nothing to scroll): hand the wheel to the parent chain instead.
         e.Handled = true;

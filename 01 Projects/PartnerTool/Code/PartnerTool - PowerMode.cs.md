@@ -16,7 +16,7 @@ public record PowerModeOption(string Name, Guid Guid, bool Active);
 /// <summary>
 /// Windows 11 "Power Mode" (the Settings slider: Best power efficiency / Balanced / Best
 /// performance). On modern machines there's only one legacy power scheme (Balanced) and this
-/// overlay is the real control — set via the powrprof.dll overlay APIs the Settings UI uses.
+/// overlay is the real control - set via the powrprof.dll overlay APIs the Settings UI uses.
 /// </summary>
 public static class PowerMode
 {

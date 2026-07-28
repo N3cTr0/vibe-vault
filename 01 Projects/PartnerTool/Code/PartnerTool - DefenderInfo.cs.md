@@ -12,7 +12,7 @@ using System.Management;
 namespace PartnerTool;
 
 /// <summary>
-/// Microsoft Defender status from the root\Microsoft\Windows\Defender WMI namespace —
+/// Microsoft Defender status from the root\Microsoft\Windows\Defender WMI namespace -
 /// real-time protection, signature age, last scans and threat count. Returns
 /// <see cref="Available"/> = false when Defender isn't the active AV (e.g. a third-party
 /// product is installed), in which case the page just says so.
@@ -23,7 +23,7 @@ public class DefenderInfo
     public bool      RealTimeProtection        { get; set; }
     public bool      AntivirusEnabled          { get; set; }
     public bool      TamperProtection          { get; set; }
-    public string    SignatureVersion          { get; set; } = "—";
+    public string    SignatureVersion          { get; set; } = "-";
     public DateTime? SignatureUpdated          { get; set; }
     public int?      QuickScanAgeDays          { get; set; }
     public int?      FullScanAgeDays           { get; set; }
@@ -43,7 +43,7 @@ public class DefenderInfo
                 d.RealTimeProtection = o["RealTimeProtectionEnabled"] is bool rtp && rtp;
                 d.AntivirusEnabled   = o["AntivirusEnabled"] is bool av && av;
                 d.TamperProtection   = o["IsTamperProtected"] is bool tp && tp;
-                d.SignatureVersion   = o["AntivirusSignatureVersion"]?.ToString() ?? "—";
+                d.SignatureVersion   = o["AntivirusSignatureVersion"]?.ToString() ?? "-";
                 try { if (o["AntivirusSignatureLastUpdated"] != null)
                         d.SignatureUpdated = ManagementDateTimeConverter.ToDateTime(o["AntivirusSignatureLastUpdated"].ToString()); }
                 catch { }

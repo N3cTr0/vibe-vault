@@ -44,7 +44,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="QUICK FIXES" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="One-click fixes and quick housekeeping. Empty the recycle bin, fix the print spooler, or restart Explorer/Audio. For temp files, use Clean Temp Files (All Users) below — it has a Scan preview. No reboot unless noted."
+                    <TextBlock Text="One-click fixes and quick housekeeping. Empty the recycle bin, fix the print spooler, or restart Explorer/Audio. For temp files, use Clean Temp Files (All Users) below - it has a Scan preview. No reboot unless noted."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <WrapPanel>
                         <Button x:Name="BtnEmptyBin"        Content="Empty Recycle Bin"     Style="{StaticResource MaintBtn}" Click="EmptyBin_Click"/>
@@ -118,14 +118,14 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                 </StackPanel>
             </Border>
 
-            <!-- COLLECT DIAGNOSTICS — a report, not a repair, so it lives with Reports -->
+            <!-- COLLECT DIAGNOSTICS - a report, not a repair, so it lives with Reports -->
             <Border Style="{StaticResource Card}">
                 <DockPanel>
                     <Button x:Name="BtnCollectDiag" DockPanel.Dock="Right" Content="Create Bundle"
                             Style="{StaticResource ActionButton}" VerticalAlignment="Top" Click="CollectDiag_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="COLLECT DIAGNOSTICS" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Bundles a full system report into a single .zip — every section the tool collects: hardware, OS, performance, power, security &amp; hardening, network adapters &amp; saved Wi-Fi, monitors, printers, accounts, installed software, startup programs, Windows Update history and device problems. Great as an 'as-found' record of an old PC when setting up a new one. Includes an HTML report, a text summary and the tool's logs."
+                        <TextBlock Text="Bundles a full system report into a single .zip - every section the tool collects: hardware, OS, performance, power, security &amp; hardening, network adapters &amp; saved Wi-Fi, monitors, printers, accounts, installed software, startup programs, Windows Update history and device problems. Great as an 'as-found' record of an old PC when setting up a new one. Includes an HTML report, a text summary and the tool's logs."
                                    FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtCollectStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -174,7 +174,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="CHECK DISK (CHKDSK)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Scan runs an online, read-only check of C: for file-system errors (chkdsk C: /scan) — safe, no reboot. If it reports problems, Schedule /f /r queues a full repair that runs at the next restart (the PC is unusable while it runs)."
+                            <TextBlock Text="Scan runs an online, read-only check of C: for file-system errors (chkdsk C: /scan) - safe, no reboot. If it reports problems, Schedule /f /r queues a full repair that runs at the next restart (the PC is unusable while it runs)."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtChkdskStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
@@ -210,7 +210,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                 </StackPanel>
             </Border>
 
-            <!-- DELL SUPPORTASSIST (SYSTEM REPAIR) — only shown on Dell hardware -->
+            <!-- DELL SUPPORTASSIST (SYSTEM REPAIR) - only shown on Dell hardware -->
             <Border x:Name="CardDell" Style="{StaticResource Card}" Visibility="Collapsed">
                 <StackPanel>
                     <DockPanel>
@@ -221,7 +221,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="DELL SUPPORTASSIST (SYSTEM REPAIR)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Dell's OS Recovery keeps repair snapshots in C:\ProgramData\Dell\SARemediation — 15 GB reserved by default, but a known purge bug can grow it past 100 GB. Dell's guidance is NOT to delete that folder by hand (it breaks OS Recovery): turn System Repair off in SupportAssist and it purges itself on the next reboot. Separately, Dell KB 000129138: VSS ships with no size limit, so shadow copies can silently eat the drive. Capping shadow storage is Dell's own fix — ⚠ it discards existing System Restore points."
+                            <TextBlock Text="Dell's OS Recovery keeps repair snapshots in C:\ProgramData\Dell\SARemediation - 15 GB reserved by default, but a known purge bug can grow it past 100 GB. Dell's guidance is NOT to delete that folder by hand (it breaks OS Recovery): turn System Repair off in SupportAssist and it purges itself on the next reboot. Separately, Dell KB 000129138: VSS ships with no size limit, so shadow copies can silently eat the drive. Capping shadow storage is Dell's own fix - ⚠ it discards existing System Restore points."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtDellStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -244,7 +244,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="FEATURE-UPDATE LEFTOVERS" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Reclaims the big space Windows Disk Cleanup targets that the temp cleaner doesn't: the previous-Windows rollback image and upgrade staging (Windows.old, $Windows.~BT, $Windows.~WS, $GetCurrent) plus the Delivery Optimization peer cache. Often 15–30 GB after a feature update. Scan first to see what's present. ⚠ Removing Windows.old and the staging folders is PERMANENT and ends the ~10-day 'go back to the previous Windows' option."
+                            <TextBlock Text="Reclaims the big space Windows Disk Cleanup targets that the temp cleaner doesn't: the previous-Windows rollback image and upgrade staging (Windows.old, $Windows.~BT, $Windows.~WS, $GetCurrent) plus the Delivery Optimization peer cache. Often 15-30 GB after a feature update. Scan first to see what's present. ⚠ Removing Windows.old and the staging folders is PERMANENT and ends the ~10-day 'go back to the previous Windows' option."
                                        FontSize="11" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtFeatUpdStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -278,7 +278,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                 </StackPanel>
             </Border>
 
-            <!-- PROXY / AUTO-DETECT (WPAD) — Outlook/Office connectivity -->
+            <!-- PROXY / AUTO-DETECT (WPAD) - Outlook/Office connectivity -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="PROXY / AUTO-DETECT (WPAD)" Style="{StaticResource CardTitle}"/>
@@ -304,7 +304,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 Visibility="Collapsed" Click="CancelServicing_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="SYSTEM FILE &amp; IMAGE REPAIR" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Runs the standard no-reboot repair sequence: DISM CheckHealth → ScanHealth → RestoreHealth, then SFC /scannow. DISM runs first on purpose — SFC repairs system files from the component store that DISM restores. This can take 15–40 minutes; each step shows live progress and elapsed time."
+                            <TextBlock Text="Runs the standard no-reboot repair sequence: DISM CheckHealth → ScanHealth → RestoreHealth, then SFC /scannow. DISM runs first on purpose - SFC repairs system files from the component store that DISM restores. This can take 15-40 minutes; each step shows live progress and elapsed time."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>
                     </DockPanel>
@@ -336,7 +336,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="WINDOWS INSTALLER CLEANUP (ADOBE)" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Reclaims space from C:\Windows\Installer when Adobe Acrobat/Reader (or another app) leaves orphaned patch files behind — a known bug that can bloat that hidden folder to tens or hundreds of GB. It asks Windows Installer which cached .msi/.msp files are still needed and removes ONLY files no installed product references (so repair/uninstall of installed apps is unaffected); if that list can't be read it aborts. 'Prevent recurrence' sets Adobe's PatchCleanFlag so its updater cleans up going forward. Scan is a read-only preview; cleaning is tech-gated and every file is logged."
+                    <TextBlock Text="Reclaims space from C:\Windows\Installer when Adobe Acrobat/Reader (or another app) leaves orphaned patch files behind - a known bug that can bloat that hidden folder to tens or hundreds of GB. It asks Windows Installer which cached .msi/.msp files are still needed and removes ONLY files no installed product references (so repair/uninstall of installed apps is unaffected); if that list can't be read it aborts. 'Prevent recurrence' sets Adobe's PatchCleanFlag so its updater cleans up going forward. Scan is a read-only preview; cleaning is tech-gated and every file is logged."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <WrapPanel>
                         <Button x:Name="BtnAdobePatchFix"  Content="1. Prevent Recurrence (Adobe fix)" Style="{StaticResource MaintBtn}" Click="AdobePatchFix_Click"/>
@@ -368,7 +368,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                             <CheckBox x:Name="ChkWuSource" Margin="0,8,0,0" Foreground="#CDD6F4" FontSize="11"
                                       Content="Also reset the update source back to Windows Update (online)"
                                       ToolTip="Clears WUServer / UseWUServer, DoNotConnectToWindowsUpdateInternetLocations and NoAutoUpdate / AUOptions"/>
-                            <TextBlock Text="Use when UPDATE SOURCE on the Updates tab points at a WSUS server that is dead or no longer used — the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM policies are not touched, and if a live domain GPO sets these, the next policy refresh will put them back."
+                            <TextBlock Text="Use when UPDATE SOURCE on the Updates tab points at a WSUS server that is dead or no longer used - the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM policies are not touched, and if a live domain GPO sets these, the next policy refresh will put them back."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="24,3,0,0"/>
                             <TextBlock x:Name="TxtWuStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>

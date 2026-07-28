@@ -12,7 +12,7 @@ using Microsoft.Win32;
 
 namespace PartnerTool;
 
-/// <summary>Where a startup entry lives — also tells us how to enable/disable it.</summary>
+/// <summary>Where a startup entry lives - also tells us how to enable/disable it.</summary>
 public enum StartupSource { RunHKLM, RunHKLM32, RunHKCU, FolderCommon, FolderUser }
 
 public record StartupEntry(string Name, string Command, bool Enabled, StartupSource Source)
@@ -32,7 +32,7 @@ public record StartupEntry(string Name, string Command, bool Enabled, StartupSou
 }
 
 /// <summary>
-/// Programs that launch at sign-in — from the Run registry keys and the Startup folders —
+/// Programs that launch at sign-in - from the Run registry keys and the Startup folders -
 /// with their enabled/disabled state mirrored from the StartupApproved keys (the same
 /// mechanism Task Manager's Startup tab uses). Supports toggling entries on/off.
 /// </summary>
@@ -100,7 +100,7 @@ public static class StartupInfo
     // an odd/0x03 first byte = disabled. A missing value means enabled.
     private static bool IsApproved(byte[]? blob) => blob is not { Length: > 0 } || (blob[0] & 1) == 0;
 
-    /// <summary>True for startup entries belonging to AV/EDR/security software — disabling those
+    /// <summary>True for startup entries belonging to AV/EDR/security software - disabling those
     /// would weaken the machine's protection, so the UI refuses. Uses the shared
     /// <see cref="SecuritySoftware"/> matcher against the entry name + command line.</summary>
     public static bool IsSecurityCritical(StartupEntry entry)
@@ -112,7 +112,7 @@ public static class StartupInfo
         // Backstop for the UI check: never disable a security product's startup entry.
         if (!enable && IsSecurityCritical(entry))
             throw new InvalidOperationException(
-                "This is a security product's startup entry — disabling it is blocked.");
+                "This is a security product's startup entry - disabling it is blocked.");
 
         var (root, approvedPath, valueName) = entry.Source switch
         {
@@ -129,7 +129,7 @@ public static class StartupInfo
         blob[0] = (byte)(enable ? 0x02 : 0x03);
         if (!enable)
         {
-            // Task Manager stamps the disable time into bytes 4–11; harmless if we do too.
+            // Task Manager stamps the disable time into bytes 4-11; harmless if we do too.
             var ft = BitConverter.GetBytes(DateTime.UtcNow.ToFileTimeUtc());
             Array.Copy(ft, 0, blob, 4, 8);
         }

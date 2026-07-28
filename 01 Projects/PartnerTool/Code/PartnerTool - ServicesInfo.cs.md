@@ -43,19 +43,19 @@ public static class ServicesInfo
     }
 
     /// <summary>
-    /// Services that must not be stopped/restarted from here — stopping them can leave the
+    /// Services that must not be stopped/restarted from here - stopping them can leave the
     /// session or the whole machine unusable (RPC, DCOM, the service control manager, etc.),
     /// or strips the machine's security protection (firewall, Defender, EDR agents).
     /// </summary>
     private static readonly HashSet<string> Critical = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Core Windows — stopping these can hang or bugcheck the session
+        // Core Windows - stopping these can hang or bugcheck the session
         "RpcSs", "DcomLaunch", "RpcEptMapper", "LSM", "Power", "Winmgmt", "Schedule",
         "BrokerInfrastructure", "SystemEventsBroker", "gpsvc", "ProfSvc", "CoreMessagingRegistrar",
         "PlugPlay", "EventLog", "SamSs",
-        // Firewall / network filtering — stopping breaks the network stack and drops protection
+        // Firewall / network filtering - stopping breaks the network stack and drops protection
         "mpssvc", "BFE",
-        // Security / endpoint protection — never stop AV/EDR from a support tool
+        // Security / endpoint protection - never stop AV/EDR from a support tool
         "WinDefend", "Sense", "wscsvc", "SecurityHealthService", "WdNisSvc",
         "SentinelAgent", "SentinelHelperService", "SentinelStaticEngine",
         "HuntressAgent", "HuntressRio", "CSFalconService", "CylanceSvc",
@@ -66,7 +66,7 @@ public static class ServicesInfo
     /// <summary>
     /// WMI object paths are built by string interpolation and this app runs ELEVATED, so rather than
     /// trying to escape a hostile service name we refuse it. A real service key never contains a
-    /// quote, backslash, backtick or control character — anything that does isn't a service we
+    /// quote, backslash, backtick or control character - anything that does isn't a service we
     /// should be touching, and would otherwise be a way to break out of the path.
     /// </summary>
     private static bool ValidServiceName(string name) =>
@@ -75,9 +75,9 @@ public static class ServicesInfo
 
     public static (bool ok, string message) Control(string name, string action)
     {
-        if (!ValidServiceName(name)) return (false, "Invalid service name — refused.");
+        if (!ValidServiceName(name)) return (false, "Invalid service name - refused.");
         if ((action is "stop" or "restart") && IsCritical(name))
-            return (false, "Critical system service — blocked (stopping it can make Windows unusable).");
+            return (false, "Critical system service - blocked (stopping it can make Windows unusable).");
         try
         {
             using var svc = new ManagementObject($"Win32_Service.Name='{name}'");
@@ -110,9 +110,9 @@ public static class ServicesInfo
 
     public static (bool ok, string message) SetStartMode(string name, string mode)
     {
-        if (!ValidServiceName(name)) return (false, "Invalid service name — refused.");
+        if (!ValidServiceName(name)) return (false, "Invalid service name - refused.");
         if (mode is not ("Automatic" or "Manual" or "Disabled"))
-            return (false, "Invalid start mode — refused.");
+            return (false, "Invalid start mode - refused.");
         try
         {
             using var svc = new ManagementObject($"Win32_Service.Name='{name}'");

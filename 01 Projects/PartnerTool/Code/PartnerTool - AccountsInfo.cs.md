@@ -32,7 +32,7 @@ public record LocalAccount(
 
 /// <summary>
 /// Local user accounts on the machine, flagging which are members of the local
-/// Administrators group (SID S-1-5-32-544) and whose passwords never expire — a quick
+/// Administrators group (SID S-1-5-32-544) and whose passwords never expire - a quick
 /// security/hygiene check techs reach for.
 /// </summary>
 public static class AccountsInfo

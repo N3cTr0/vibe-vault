@@ -25,7 +25,7 @@ public record ProsentryReport(List<ManagedTool> Tools, ManagedTool Intune);
 /// </summary>
 public static class ProsentryInfo
 {
-    // Atakama routes DNS through a local resolver — when it's active the adapter's DNS servers are
+    // Atakama routes DNS through a local resolver - when it's active the adapter's DNS servers are
     // set to these loopback addresses.
     private static readonly string[] AtakamaDns = { "127.97.116.97", "127.97.116.98" };
 
@@ -44,7 +44,7 @@ public static class ProsentryInfo
                 if (ni.OperationalStatus != OperationalStatus.Up) continue;
                 foreach (var dns in ni.GetIPProperties().DnsAddresses)
                     if (AtakamaDns.Contains(dns.ToString()))
-                        return new("Atakama", true, $"Active — DNS routed via Atakama ({dns})");
+                        return new("Atakama", true, $"Active - DNS routed via Atakama ({dns})");
             }
         }
         catch { }
@@ -57,7 +57,7 @@ public static class ProsentryInfo
         var (exists, running) = ServiceState("HuntressAgent");
         if (!exists) (exists, running) = ServiceState("HuntressRio");
         if (exists)
-            return new("Huntress EDR", running, running ? "Agent running" : "Installed — agent not running");
+            return new("Huntress EDR", running, running ? "Agent running" : "Installed - agent not running");
         if (InstalledNameContains("Huntress"))
             return new("Huntress EDR", true, "Installed");
         return new("Huntress EDR", false, "Not installed");
@@ -66,7 +66,7 @@ public static class ProsentryInfo
     private static ManagedTool CheckDuo()
     {
         // Duo Authentication for Windows Logon is a credential provider (no long-running service).
-        // Check its DuoCredProv credential-provider subkey or uninstall entry — NOT the bare
+        // Check its DuoCredProv credential-provider subkey or uninstall entry - NOT the bare
         // "SOFTWARE\Duo Security" parent, which can linger as an empty key and false-positive.
         if (RegistryKeyExists(Registry.LocalMachine, @"SOFTWARE\Duo Security\DuoCredProv") ||
             InstalledNameContains("Duo Authentication"))
@@ -78,7 +78,7 @@ public static class ProsentryInfo
     {
         var (exists, running) = ServiceState("AutoElevateAgent");
         if (exists)
-            return new("AutoElevate", running, running ? "Agent running" : "Installed — agent not running");
+            return new("AutoElevate", running, running ? "Agent running" : "Installed - agent not running");
         if (InstalledNameContains("AutoElevate"))
             return new("AutoElevate", true, "Installed");
         return new("AutoElevate", false, "Not installed");
@@ -89,7 +89,7 @@ public static class ProsentryInfo
     private static ManagedTool CheckIntune()
     {
         // An MDM enrollment whose ProviderID is "MS DM Server" (and a non-zero EnrollmentType) is a
-        // real device enrollment — Intune uses this. The Intune Management Extension service is a
+        // real device enrollment - Intune uses this. The Intune Management Extension service is a
         // secondary signal (present on Intune-managed devices that got Win32/PowerShell policies).
         try
         {
@@ -104,7 +104,7 @@ public static class ProsentryInfo
                     {
                         var upn = k.GetValue("UPN") as string;
                         return new("Intune (MDM)", true,
-                            string.IsNullOrWhiteSpace(upn) ? "Enrolled" : $"Enrolled — {upn}");
+                            string.IsNullOrWhiteSpace(upn) ? "Enrolled" : $"Enrolled - {upn}");
                     }
                 }
         }
@@ -116,7 +116,7 @@ public static class ProsentryInfo
 
     // ── helpers ───────────────────────────────────────────────────────────
 
-    /// <summary>(exists, running) for a service — names are hardcoded constants, so the WMI path is safe.</summary>
+    /// <summary>(exists, running) for a service - names are hardcoded constants, so the WMI path is safe.</summary>
     private static (bool exists, bool running) ServiceState(string name)
     {
         try

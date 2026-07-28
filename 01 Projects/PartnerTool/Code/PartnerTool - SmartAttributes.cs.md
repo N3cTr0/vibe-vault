@@ -21,7 +21,7 @@ public record SmartDrive(string Instance, bool? PredictFailure, List<SmartAttr> 
 /// <summary>
 /// Full SMART attribute table (CrystalDiskInfo-style) for ATA/SATA drives, read from the
 /// root\wmi MSStorageDriver_* classes and parsed from the raw 512-byte SMART structures.
-/// NVMe drives generally don't expose this — their temperature/wear is already covered by
+/// NVMe drives generally don't expose this - their temperature/wear is already covered by
 /// the Storage reliability counters on the System Info page.
 /// </summary>
 public static class SmartAttributes

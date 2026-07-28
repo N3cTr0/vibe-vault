@@ -28,7 +28,7 @@ public class VendorScanResult
 
 /// <summary>
 /// Scan-only check for OEM driver/BIOS/firmware updates using the detected manufacturer's
-/// command-line tooling — Dell Command Update (dcu-cli), Lenovo (LSUClient), HP (HPIA).
+/// command-line tooling - Dell Command Update (dcu-cli), Lenovo (LSUClient), HP (HPIA).
 /// If the tool isn't present we install/download it first (Dell via winget, Lenovo's LSUClient
 /// is a PowerShell module that self-installs, HP Image Assistant is fetched from HP), then scan.
 /// These talk to the vendor and can take a couple of minutes, so only ever run on demand.
@@ -36,14 +36,14 @@ public class VendorScanResult
 /// so a missing tool or a malformed report degrades to a status message, never an exception.
 ///
 /// This is the scan-only adaptation of the production NinjaOne hardware update script
-/// (reference/HUS_MultiVendorUpdate_v1.14.1.ps1) — same vendor detection, tool auto-install and
+/// (reference/HUS_MultiVendorUpdate_v1.14.1.ps1) - same vendor detection, tool auto-install and
 /// CLI invocations, but it lists instead of installing. Keep the two in sync.
 /// </summary>
 public static class VendorUpdatesInfo
 {
     /// <param name="installIfMissing">
     /// When true (manual scan) the OEM tool is installed/downloaded if absent. When false
-    /// (auto-scan on tab open) a missing tool is just reported — we never install on open.
+    /// (auto-scan on tab open) a missing tool is just reported - we never install on open.
     /// </param>
     public static async Task<VendorScanResult> ScanAsync(Action<string>? onStatus = null, bool installIfMissing = true)
     {
@@ -57,7 +57,7 @@ public static class VendorUpdatesInfo
         if (tool == null)
         {
             r.Status = ManufacturerTools.IsVirtualMachine(maker, model)
-                ? "Virtual machine — no OEM driver/BIOS updates (use Windows Update)."
+                ? "Virtual machine - no OEM driver/BIOS updates (use Windows Update)."
                 : string.IsNullOrWhiteSpace(maker)
                     ? "Could not detect the hardware manufacturer."
                     : $"No command-line update scanner is available for \"{maker}\".";
@@ -71,14 +71,14 @@ public static class VendorUpdatesInfo
             if (name.Contains("lenovo"))                         return await ScanLenovoAsync(r, onStatus, installIfMissing);
             if (name.Contains("hp") || name.Contains("hewlett")) return await ScanHpAsync(r, model, onStatus, installIfMissing);
 
-            r.Status = $"{tool.DisplayName} has no command-line scanner — open it from the update " +
+            r.Status = $"{tool.DisplayName} has no command-line scanner - open it from the update " +
                        "sources below to check for driver/firmware updates.";
         }
         catch (Exception ex) { r.Status = $"Vendor scan failed: {ex.Message}"; }
         return r;
     }
 
-    // ── Dell — dcu-cli.exe /scan -report=<dir>  →  DCUApplicableUpdates.xml ──
+    // ── Dell - dcu-cli.exe /scan -report=<dir>  →  DCUApplicableUpdates.xml ──
     private static async Task<VendorScanResult> ScanDellAsync(VendorScanResult r, Action<string>? onStatus, bool installIfMissing)
     {
         var cli = FindDellCli();
@@ -89,7 +89,7 @@ public static class VendorUpdatesInfo
                 r.Status = "Dell Command Update isn't installed (open the Dell update source below to add it).";
                 return r;
             }
-            onStatus?.Invoke("Dell Command Update isn't installed — installing it via winget (one-time, can take a few minutes)…");
+            onStatus?.Invoke("Dell Command Update isn't installed - installing it via winget (one-time, can take a few minutes)…");
             await InstallViaWingetAsync("Dell.CommandUpdate.Universal");
             cli = FindDellCli();
         }
@@ -136,7 +136,7 @@ public static class VendorUpdatesInfo
         @"C:\Program Files (x86)\Dell\CommandUpdate\dcu-cli.exe",
     }.FirstOrDefault(File.Exists);
 
-    // ── Lenovo — LSUClient PowerShell module (self-installs if missing) ──
+    // ── Lenovo - LSUClient PowerShell module (self-installs if missing) ──
     private static async Task<VendorScanResult> ScanLenovoAsync(VendorScanResult r, Action<string>? onStatus, bool installIfMissing)
     {
         onStatus?.Invoke("Scanning with Lenovo LSUClient…");
@@ -191,15 +191,15 @@ Write-Output 'DONE'
         return r;
     }
 
-    // ── HP — HP Image Assistant analyze (downloaded from HP if missing) ──
+    // ── HP - HP Image Assistant analyze (downloaded from HP if missing) ──
     // HPIA only supports HP's *commercial* line (EliteBook/ProBook/ZBook, Pro/Elite desktops).
-    // Consumer models (Pavilion/Envy/Spectre/OmniBook) aren't in HP's reference database — HPIA
-    // fails with 16386 — so skip them up front and point the tech at Windows Update instead.
+    // Consumer models (Pavilion/Envy/Spectre/OmniBook) aren't in HP's reference database - HPIA
+    // fails with 16386 - so skip them up front and point the tech at Windows Update instead.
     private static async Task<VendorScanResult> ScanHpAsync(VendorScanResult r, string model, Action<string>? onStatus, bool installIfMissing)
     {
         if (!IsCommercialHp(model))
         {
-            r.Status = $"HP \"{model}\" looks like a consumer model — HP Image Assistant only supports " +
+            r.Status = $"HP \"{model}\" looks like a consumer model - HP Image Assistant only supports " +
                        "commercial HP models (EliteBook/ProBook/ZBook, HP Pro/Elite desktops). " +
                        "Use Windows Update for driver updates on this device.";
             return r;
@@ -217,7 +217,7 @@ Write-Output 'DONE'
                 r.Status = "HP Image Assistant isn't installed yet (it downloads on a manual vendor scan).";
                 return r;
             }
-            onStatus?.Invoke("HP Image Assistant isn't present — downloading it from HP (one-time)…");
+            onStatus?.Invoke("HP Image Assistant isn't present - downloading it from HP (one-time)…");
             await EnsureHpiaAsync();
         }
         if (!File.Exists(hpia))

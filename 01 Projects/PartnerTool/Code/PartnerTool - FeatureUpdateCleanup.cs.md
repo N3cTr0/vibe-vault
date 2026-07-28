@@ -38,12 +38,12 @@ public class FeatureUpdateScan
 /// `$Windows.~BT`, `$Windows.~WS`, `$GetCurrent`) and the Delivery Optimization peer cache.
 ///
 /// These are ACL-hardened (owned by TrustedInstaller/SYSTEM), so removing them needs an ownership
-/// grab first — done in <see cref="BuildCleanScript"/> via takeown + icacls (Administrators by SID,
+/// grab first - done in <see cref="BuildCleanScript"/> via takeown + icacls (Administrators by SID,
 /// so it's locale-independent) then a recursive delete. Delivery Optimization is cleared with its
 /// own cmdlet. Sizing is read-only and never follows reparse points.
 ///
 /// ⚠ `Windows.old` &amp; the `$Windows.~*` staging are what Windows uses to ROLL BACK a feature
-/// update (the ~10-day "go back" option). Deleting them is permanent and gives that up — the caller
+/// update (the ~10-day "go back" option). Deleting them is permanent and gives that up - the caller
 /// tech-gates and confirms, spelling that out.
 /// </summary>
 public static class FeatureUpdateCleanup
@@ -54,7 +54,7 @@ public static class FeatureUpdateCleanup
     private static readonly (string Path, string Label, bool Permanent, string Note)[] Targets =
     {
         (@"C:\Windows.old",   "Previous Windows installation (Windows.old)", true,
-            "Used to roll back to the previous Windows build — removing it ends the “go back” option."),
+            "Used to roll back to the previous Windows build - removing it ends the “go back” option."),
         (@"C:\$Windows.~BT",  "Feature-update staging ($Windows.~BT)", true,
             "Leftover setup files from the last feature update."),
         (@"C:\$Windows.~WS",  "Feature-update download ($Windows.~WS)", true,
@@ -96,7 +96,7 @@ public static class FeatureUpdateCleanup
                 sb.AppendLine("try { Delete-DeliveryOptimizationCache -Force -ErrorAction Stop; Write-Output '  cleared (cmdlet).' }");
                 sb.AppendLine("catch {");
                 // Fallback: empty the folder's CONTENTS (keep the folder itself). Enumerate then
-                // delete — NOT `Remove-Item -LiteralPath '…\*'`, which treats * literally and no-ops.
+                // delete - NOT `Remove-Item -LiteralPath '…\*'`, which treats * literally and no-ops.
                 sb.AppendLine($"  Get-ChildItem -LiteralPath '{item.Path}' -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue");
                 sb.AppendLine("  Write-Output '  cleared (folder).' }");
                 continue;
@@ -110,7 +110,7 @@ public static class FeatureUpdateCleanup
             sb.AppendLine("  takeown /f $p /r /d y | Out-Null");
             sb.AppendLine("  icacls $p /grant *S-1-5-32-544:F /t /c /q | Out-Null");
             sb.AppendLine("  Remove-Item -LiteralPath $p -Recurse -Force");
-            sb.AppendLine("  if (Test-Path -LiteralPath $p) { Write-Output '  some items remained (in use) — a reboot may finish it.' }");
+            sb.AppendLine("  if (Test-Path -LiteralPath $p) { Write-Output '  some items remained (in use) - a reboot may finish it.' }");
             sb.AppendLine("  else { Write-Output '  removed.' }");
             sb.AppendLine("}");
         }

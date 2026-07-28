@@ -33,7 +33,7 @@ public static class PrintersInfo
                 string status = Convert.ToInt32(o["PrinterStatus"] ?? 0) switch
                 {
                     1 => "Other", 2 => "Unknown", 3 => "Idle", 4 => "Printing",
-                    5 => "Warming up", 6 => "Stopped", 7 => "Offline", _ => "—",
+                    5 => "Warming up", 6 => "Stopped", 7 => "Offline", _ => "-",
                 };
                 list.Add(new PrinterInfo(
                     o["Name"]?.ToString() ?? "Printer",

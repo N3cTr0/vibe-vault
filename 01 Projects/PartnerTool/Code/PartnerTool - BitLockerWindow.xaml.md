@@ -24,7 +24,7 @@ source-path: PartnerTool\BitLockerWindow.xaml
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="BitLocker Recovery Key" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-            <TextBlock Text="⚠ The 48-digit recovery password below unlocks the drive. Treat it as sensitive — only store it somewhere secure."
+            <TextBlock Text="⚠ The 48-digit recovery password below unlocks the drive. Treat it as sensitive - only store it somewhere secure."
                        Foreground="#F9E2AF" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
         </StackPanel>
 

@@ -45,7 +45,7 @@ public static class NetworkInfo
 
     /// <summary>
     /// The adapter the machine is actually using: up, with an IPv4 default gateway,
-    /// not a virtual/VPN adapter, and — when several qualify — the one carrying the
+    /// not a virtual/VPN adapter, and - when several qualify - the one carrying the
     /// most traffic. Returns null if nothing qualifies.
     /// </summary>
     public static AdapterSummary? GetPrimaryAdapter()
@@ -63,7 +63,7 @@ public static class NetworkInfo
                 n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
             .Where(n =>
             {
-                // Must have a real IPv4 gateway — virtual adapters rarely do
+                // Must have a real IPv4 gateway - virtual adapters rarely do
                 var props = n.GetIPProperties();
                 return props.GatewayAddresses.Any(g =>
                     g.Address.AddressFamily == AddressFamily.InterNetwork);
@@ -73,7 +73,7 @@ public static class NetworkInfo
                 var id = (n.Name + " " + n.Description).ToLowerInvariant();
                 return !VirtualKeywords.Any(id.Contains);
             })
-            // Prefer the adapter with the most traffic — the one actually in use
+            // Prefer the adapter with the most traffic - the one actually in use
             .OrderByDescending(n =>
             {
                 try { var s = n.GetIPStatistics(); return s.BytesSent + s.BytesReceived; }

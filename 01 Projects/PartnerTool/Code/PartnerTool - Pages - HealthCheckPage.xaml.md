@@ -57,7 +57,7 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
             </Border>
         </DataTemplate>
 
-        <!-- A category group: header + its findings. The per-row Category prefix is gone —
+        <!-- A category group: header + its findings. The per-row Category prefix is gone -
              the group header carries it now. -->
         <DataTemplate x:Key="GroupTemplate">
             <StackPanel Margin="0,0,0,10">
@@ -76,7 +76,7 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
         <StackPanel Margin="20,16,20,16">
 
             <TextBlock Text="HEALTH CHECK" Style="{StaticResource CardTitle}"/>
-            <TextBlock Text="One scan of everything the tool already checks — junk, disk, updates, security, stability — with a score and one-click fixes for the safe items. No registry cleaning or fake tune-ups."
+            <TextBlock Text="One scan of everything the tool already checks - junk, disk, updates, security, stability - with a score and one-click fixes for the safe items. No registry cleaning or fake tune-ups."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,12"/>
 
             <!-- Score ring (click to scan / rescan) -->
@@ -127,7 +127,7 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
                                       ItemTemplate="{StaticResource GroupTemplate}"/>
                     </Grid>
 
-                    <!-- Fix log — shown while/after Fix Selected runs -->
+                    <!-- Fix log - shown while/after Fix Selected runs -->
                     <Border x:Name="FixLogPanel" Background="#11111B" CornerRadius="6" Padding="10,8"
                             Margin="0,4,0,0" Visibility="Collapsed">
                         <ScrollViewer x:Name="FixLogScroll" Height="120" VerticalScrollBarVisibility="Auto">

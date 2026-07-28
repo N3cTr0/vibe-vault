@@ -14,12 +14,12 @@ public record PendingUpdate(string Title, string Kb, double SizeMb)
     /// <summary>
     /// Human size. WUA reports the *maximum possible* download; for UUP cumulative updates that is
     /// the entire multi-GB payload range (~90 GB!) while the real express/delta download is a small
-    /// fraction — Windows doesn't expose the true size, so anything implausibly large shows as "—"
+    /// fraction - Windows doesn't expose the true size, so anything implausibly large shows as "-"
     /// (Settings hides those sizes too) instead of a scary wrong number.
     /// </summary>
     public string SizeText =>
         SizeMb <= 0     ? "" :
-        SizeMb > 4096   ? "—" :
+        SizeMb > 4096   ? "-" :
         SizeMb >= 1024  ? $"{SizeMb / 1024:F1} GB" :
         SizeMb < 1      ? $"{SizeMb * 1024:F0} KB" :
                           $"{SizeMb:F0} MB";
@@ -27,7 +27,7 @@ public record PendingUpdate(string Title, string Kb, double SizeMb)
 
 /// <summary>
 /// Windows updates that are available but not yet installed, via the Windows Update Agent
-/// COM API. The search talks to Windows Update so it can take a while — call it on demand
+/// COM API. The search talks to Windows Update so it can take a while - call it on demand
 /// (a button), never on the startup path.
 /// </summary>
 public static class PendingUpdatesInfo
@@ -52,7 +52,7 @@ public static class PendingUpdatesInfo
                     string title = (string)(u.Title ?? "");
                     string kb = "";
                     try { dynamic kbs = u.KBArticleIDs; if (kbs.Count > 0) kb = "KB" + kbs.Item(0); } catch { }
-                    // MaxDownloadSize on the parent sums every bundled variant — and bundles often
+                    // MaxDownloadSize on the parent sums every bundled variant - and bundles often
                     // hold several mutually-exclusive applicability variants of the SAME payload (e.g.
                     // a Defender signature update lists ~7 identical ~200 MB packages). Windows only
                     // downloads one, so the realistic size is the largest single bundled package.

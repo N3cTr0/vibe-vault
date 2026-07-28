@@ -16,7 +16,7 @@ public enum AuditLevel { Good, Warn, Bad, Info }
 
 /// <summary>
 /// Where to send the tech to change a setting. <paramref name="Target"/> is either a
-/// System32 tool/applet (launched by absolute path — we run elevated) or, when
+/// System32 tool/applet (launched by absolute path - we run elevated) or, when
 /// <paramref name="ShellExecute"/> is true, an ms-settings: URI or an .msc console.
 /// </summary>
 public record AuditFix(string Tooltip, string Target, string? Args = null, bool ShellExecute = false);
@@ -30,14 +30,14 @@ public record AuditItem(string Name, AuditLevel Level, string Detail, AuditFix? 
 /// </summary>
 public static class SecurityAudit
 {
-    /// <summary>Sentinel <see cref="AuditFix.Target"/> for "reset the PowerShell execution policy" —
+    /// <summary>Sentinel <see cref="AuditFix.Target"/> for "reset the PowerShell execution policy" -
     /// not a launchable path; <c>SecurityPage.Fix_Click</c> special-cases it and calls
     /// <see cref="ResetExecutionPolicy"/>.</summary>
     public const string ResetExecPolicyTarget = "pt:reset-execution-policy";
 
     /// <summary>
     /// Reset the machine PowerShell execution policy to the Windows default by deleting the
-    /// ExecutionPolicy value (both registry views) — Set-ExecutionPolicy Undefined without a shell.
+    /// ExecutionPolicy value (both registry views) - Set-ExecutionPolicy Undefined without a shell.
     /// </summary>
     public static void ResetExecutionPolicy()
     {
@@ -63,19 +63,19 @@ public static class SecurityAudit
         int? lua = RegInt(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System", "EnableLUA");
         items.Add(new("User Account Control (UAC)",
             lua == 1 ? AuditLevel.Good : AuditLevel.Bad,
-            lua == 1 ? "Enabled" : "Disabled — strongly recommend enabling",
+            lua == 1 ? "Enabled" : "Disabled - strongly recommend enabling",
             new AuditFix("Open User Account Control settings", "UserAccountControlSettings.exe")));
 
         // RDP
         int? denyRdp = RegInt(Registry.LocalMachine, @"SYSTEM\CurrentControlSet\Control\Terminal Server", "fDenyTSConnections");
         bool rdpOn = denyRdp == 0;
         // RDP-on is INFO (advisory), not a scored issue: the machines this tool manages are remotely
-        // supported, so RDP is usually intentionally enabled — flagging it as a Warn made the Health
+        // supported, so RDP is usually intentionally enabled - flagging it as a Warn made the Health
         // Check dock points on essentially every box. Still shown (blue) for the tech to review, and
-        // if it's on we still check NLA below — NLA-not-required is a genuine Bad.
+        // if it's on we still check NLA below - NLA-not-required is a genuine Bad.
         items.Add(new("Remote Desktop (RDP)",
             rdpOn ? AuditLevel.Info : AuditLevel.Good,
-            rdpOn ? "Enabled — ensure it's intended and restricted" : "Disabled",
+            rdpOn ? "Enabled - ensure it's intended and restricted" : "Disabled",
             new AuditFix("Open Remote Desktop settings", "ms-settings:remotedesktop", ShellExecute: true)));
         if (rdpOn)
         {
@@ -83,11 +83,11 @@ public static class SecurityAudit
                 @"SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp", "UserAuthentication");
             items.Add(new("RDP Network Level Authentication",
                 nla == 1 ? AuditLevel.Good : AuditLevel.Bad,
-                nla == 1 ? "Required (good)" : "Not required — enable NLA",
+                nla == 1 ? "Required (good)" : "Not required - enable NLA",
                 new AuditFix("Open Remote settings (System Properties)", "SystemPropertiesRemote.exe")));
         }
 
-        // SMBv1 — modern Windows uninstalls the SMB 1.0 feature by default, which removes the
+        // SMBv1 - modern Windows uninstalls the SMB 1.0 feature by default, which removes the
         // mrxsmb10 client driver and leaves NO LanmanServer\...\SMB1 value. A missing value is
         // not "enabled" (that was the old check's false positive). Flag it only when the server
         // has SMB1 explicitly on, or the SMB1 client driver is installed and not disabled
@@ -97,7 +97,7 @@ public static class SecurityAudit
         bool smb1On = smb1Srv == 1 || (mrxStart is int ms && ms != 4);
         items.Add(new("SMBv1 protocol",
             smb1On ? AuditLevel.Bad : AuditLevel.Good,
-            smb1On ? "Enabled — disable SMBv1 (legacy, insecure)" : "Not installed / disabled (good)",
+            smb1On ? "Enabled - disable SMBv1 (legacy, insecure)" : "Not installed / disabled (good)",
             new AuditFix("Open Windows Features to turn SMB 1.0 off", "OptionalFeatures.exe")));
 
         // PowerShell execution policy (machine). When it's been loosened, offer a one-click reset to
@@ -136,7 +136,7 @@ public static class SecurityAudit
                         new AuditFix("Open Local Users and Groups", "lusrmgr.msc", ShellExecute: true)));
                 else if (sid.EndsWith("-501"))
                     items.Add(new("Guest account", disabled ? AuditLevel.Good : AuditLevel.Bad,
-                        disabled ? "Disabled (good)" : "Enabled — disable the Guest account",
+                        disabled ? "Disabled (good)" : "Enabled - disable the Guest account",
                         new AuditFix("Open Local Users and Groups", "lusrmgr.msc", ShellExecute: true)));
             }
         }

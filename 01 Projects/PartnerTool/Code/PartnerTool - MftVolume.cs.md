@@ -16,12 +16,12 @@ namespace PartnerTool;
 
 /// <summary>
 /// WizTree-style fast disk scan: reads the raw NTFS Master File Table ($MFT) in one sequential pass
-/// (read-only — the app runs elevated, which is the one requirement) to enumerate every file and
+/// (read-only - the app runs elevated, which is the one requirement) to enumerate every file and
 /// folder with its size, then builds the whole directory tree in memory so drill-downs are instant.
 ///
 /// NTFS fixed drives only. <see cref="TryScan"/> returns null on anything else, or on any failure /
 /// parse error, and the caller falls back to the recursive folder walk in <see cref="DiskUsageInfo"/>.
-/// Opening \\.\X: with GENERIC_READ is read-only — no writes, nothing executed — so there is no data
+/// Opening \\.\X: with GENERIC_READ is read-only - no writes, nothing executed - so there is no data
 /// or privilege-escalation risk beyond the admin rights the tool already has.
 /// </summary>
 public sealed class MftVolume
@@ -105,7 +105,7 @@ public sealed class MftVolume
         return (bytes, files);
     }
 
-    /// <summary>Immediate children of <paramref name="path"/> from the in-memory tree — instant.</summary>
+    /// <summary>Immediate children of <paramref name="path"/> from the in-memory tree - instant.</summary>
     public List<UsageEntry> Children(string path)
     {
         var list = new List<UsageEntry>();
@@ -223,7 +223,7 @@ public sealed class MftVolume
 
             for (int i = 0; i < recordCount; i++)
             {
-                // Zero OneDrive cloud placeholders — data lives in the cloud, not on disk. Use ONLY the
+                // Zero OneDrive cloud placeholders - data lives in the cloud, not on disk. Use ONLY the
                 // precise IO_REPARSE_TAG_CLOUD reparse tag; the $STANDARD_INFORMATION attribute field is
                 // not a clean GetFileAttributes and falsely flagged normal Windows/Program Files files.
                 if (cloud[i]) size[i] = 0;
@@ -305,7 +305,7 @@ public sealed class MftVolume
             {
                 // Sum EVERY data stream, not just the unnamed one: WOF/CompactOS-compressed Windows
                 // files keep their real data in a "WofCompressedData" named stream (the unnamed one
-                // is ~0), and alternate data streams take space too — WizTree counts all of them.
+                // is ~0), and alternate data streams take space too - WizTree counts all of them.
                 if (nonRes == 0) size[target] += U32(b, a + 0x10);                         // resident stream (tiny)
                 else if (a + 0x30 <= end && I64(b, a + 0x10) == 0)                         // only the StartingVCN=0 header
                 {
@@ -321,11 +321,11 @@ public sealed class MftVolume
                         size[target] += I64(b, a + 0x28);                                  // AllocatedSize (handles fragmented + WOF)
                 }
             }
-            else if (type == 0xC0 && nonRes == 0)               // $REPARSE_POINT — flag OneDrive cloud placeholders
+            else if (type == 0xC0 && nonRes == 0)               // $REPARSE_POINT - flag OneDrive cloud placeholders
             {
                 // A cloud placeholder's AllocatedSize equals its logical size, so it would wrongly
                 // count as local space. Detect the IO_REPARSE_TAG_CLOUD* family (0x9000XX1A) and
-                // zero it later — the file's data lives in the cloud, not on disk.
+                // zero it later - the file's data lives in the cloud, not on disk.
                 int v = a + U16(b, a + 0x14);
                 if (v + 4 <= end && (U32(b, v) & 0xFFFF0FFF) == 0x9000001A) cloud[target] = true;
             }

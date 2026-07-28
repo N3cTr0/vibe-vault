@@ -14,7 +14,7 @@ namespace PartnerTool;
 public record PowerEvent(DateTime Time, string Kind, string Detail);
 
 /// <summary>
-/// Boot / shutdown / unexpected-restart history from the System event log — the quick
+/// Boot / shutdown / unexpected-restart history from the System event log - the quick
 /// answer to "why did it reboot?". Covers clean shutdowns (6006), unexpected shutdowns
 /// (6008), dirty power loss (Kernel-Power 41) and user/process-initiated restarts (1074).
 /// </summary>

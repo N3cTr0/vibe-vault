@@ -60,7 +60,7 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="CPU" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtCpuRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                            <TextBlock x:Name="TxtCpuRail" Foreground="#9399B2" FontSize="11" Text="-"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>
@@ -71,7 +71,7 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Memory" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtMemRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                            <TextBlock x:Name="TxtMemRail" Foreground="#9399B2" FontSize="11" Text="-"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>
@@ -82,7 +82,7 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Disk" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtDiskRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                            <TextBlock x:Name="TxtDiskRail" Foreground="#9399B2" FontSize="11" Text="-"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>
@@ -93,7 +93,7 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Network" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtNetRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                            <TextBlock x:Name="TxtNetRail" Foreground="#9399B2" FontSize="11" Text="-"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>
@@ -107,7 +107,7 @@ source-path: PartnerTool\PerformanceWindow.xaml
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Processes" Foreground="#CDD6F4" FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock x:Name="TxtProcRail" Foreground="#9399B2" FontSize="11" Text="—"/>
+                            <TextBlock x:Name="TxtProcRail" Foreground="#9399B2" FontSize="11" Text="-"/>
                         </StackPanel>
                     </DockPanel>
                 </Button>
@@ -140,10 +140,10 @@ source-path: PartnerTool\PerformanceWindow.xaml
                             </Grid>
                         </Border>
                     </Grid>
-                    <!-- per-logical-processor grid (CPU) — built in code -->
+                    <!-- per-logical-processor grid (CPU) - built in code -->
                     <Grid x:Name="CorePanel" Visibility="Collapsed">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Logical processors — % utilization" Foreground="#6C7086"
+                        <TextBlock Grid.Row="0" Text="Logical processors - % utilization" Foreground="#6C7086"
                                    FontSize="10" Margin="6,4,0,2"/>
                         <UniformGrid Grid.Row="1" x:Name="CoreGrid" Margin="4"/>
                     </Grid>

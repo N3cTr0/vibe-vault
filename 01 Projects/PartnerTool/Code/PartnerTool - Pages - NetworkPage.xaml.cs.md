@@ -78,7 +78,7 @@ public partial class NetworkPage : UserControl
     private void ConnFilter_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         => ApplyConnFilter();
 
-    // One box filters every column — process names, addresses, ports, and states all live in
+    // One box filters every column - process names, addresses, ports, and states all live in
     // different columns, and a tech's question ("what's chrome doing?", "who has 443 open?")
     // could target any of them.
     private void ApplyConnFilter()
@@ -116,15 +116,15 @@ public partial class NetworkPage : UserControl
 
     // Ping and Traceroute both stream their output line-by-line as it arrives (a wrong host or a
     // path with dead hops shouldn't leave the panel looking frozen). One cts drives the shared Stop
-    // button — only one live tool runs at a time (guarded by _netBusy).
+    // button - only one live tool runs at a time (guarded by _netBusy).
     private CancellationTokenSource? _liveToolCts;
 
     private async void Traceroute_Click(object sender, RoutedEventArgs e)
     {
         var host = TxtNetHost.Text.Trim();
-        await RunLiveTool($"Traceroute to {host} — hops appear as they answer…\n",
+        await RunLiveTool($"Traceroute to {host} - hops appear as they answer…\n",
             (onLine, ct) => NetTools.TracerouteLiveAsync(host, onLine, ct),
-            // tracert prints its own "Trace complete." on success — only add ours when it didn't
+            // tracert prints its own "Trace complete." on success - only add ours when it didn't
             // (unresolvable host), so the tech still sees the run is over.
             completeNote: "Trace complete.");
     }
@@ -132,7 +132,7 @@ public partial class NetworkPage : UserControl
     private async void Ping_Click(object sender, RoutedEventArgs e)
     {
         var host = TxtNetHost.Text.Trim();
-        await RunLiveTool($"Pinging {host} — replies appear as they arrive…\n",
+        await RunLiveTool($"Pinging {host} - replies appear as they arrive…\n",
             (onLine, ct) => NetTools.PingLiveAsync(host, onLine, ct));
     }
 
@@ -250,7 +250,7 @@ public partial class NetworkPage : UserControl
         }
 
         bool deep = ChkScanDeep.IsChecked == true;
-        // Only a deep scan produces open-port data — hide that column entirely otherwise so it's
+        // Only a deep scan produces open-port data - hide that column entirely otherwise so it's
         // not dead space. (Empty row cells + hidden header collapse the shared-size column to 0.)
         TxtPortsHeader.Visibility = deep ? Visibility.Visible : Visibility.Collapsed;
         ActivityLog.Action("Network", $"IP scan {TxtScanRange.Text.Trim()} ({addresses.Count} addresses{(deep ? ", deep" : "")})");
@@ -306,12 +306,12 @@ public partial class NetworkPage : UserControl
         {
             TxtScanStatus.Foreground = StatusColors.Muted;
             TxtScanStatus.Text = stopped
-                ? $"● Stopped — {hosts.Count} host(s) found so far."
+                ? $"● Stopped - {hosts.Count} host(s) found so far."
                 : $"● {hosts.Count} host(s) alive out of {addresses.Count:N0} scanned  ·  {sw.Elapsed.TotalSeconds:F1} s";
         }
         ActivityLog.Result("Network", stopped
-            ? $"IP scan stopped — {hosts.Count} host(s) found"
-            : $"IP scan complete — {found} host(s) alive in {sw.Elapsed.TotalSeconds:F1} s");
+            ? $"IP scan stopped - {hosts.Count} host(s) found"
+            : $"IP scan complete - {found} host(s) alive in {sw.Elapsed.TotalSeconds:F1} s");
     }
 
     // Hosts answer out of order, so slot each one into its numeric place as it arrives.
@@ -363,7 +363,7 @@ public partial class NetworkPage : UserControl
 
     private async void RenewIp_Click(object sender, RoutedEventArgs e)
     {
-        // Release/renew drops connectivity for a moment — enough to cut a remote-support session.
+        // Release/renew drops connectivity for a moment - enough to cut a remote-support session.
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         await NetGuarded(async () =>
         {
@@ -411,10 +411,10 @@ public partial class NetworkPage : UserControl
             using var p = new Ping();
             var r = await p.SendPingAsync(host, 2000);
             NetLog(r.Status == IPStatus.Success
-                ? $"  ✓ {label} — {r.RoundtripTime} ms"
-                : $"  ✗ {label} — {r.Status}");
+                ? $"  ✓ {label} - {r.RoundtripTime} ms"
+                : $"  ✗ {label} - {r.Status}");
         }
-        catch (Exception ex) { NetLog($"  ✗ {label} — {ex.Message}"); }
+        catch (Exception ex) { NetLog($"  ✗ {label} - {ex.Message}"); }
     }
 
     // ── NETWORK RESETS ────────────────────────────────────────────────────
@@ -428,7 +428,7 @@ public partial class NetworkPage : UserControl
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (!MessageWindow.Confirm("Network Stack Reset", "Reset the network stack?",
                 "This resets Winsock and the TCP/IP stack and flushes DNS.\n\n" +
-                "You won't lose connectivity — your adapters, internet, and remote session stay " +
+                "You won't lose connectivity - your adapters, internet, and remote session stay " +
                 "active. A restart is needed to fully finish, but you can do it later. Continue?",
                 MessageKind.Warning, Window.GetWindow(this)))
             return;
@@ -440,7 +440,7 @@ public partial class NetworkPage : UserControl
             await NetRun("netsh.exe", "winsock reset", "Reset Winsock catalog");
             await NetRun("netsh.exe", "int ip reset", "Reset TCP/IP stack");
             await NetRun("ipconfig.exe", "/flushdns", "Flush DNS cache");
-            SetStatus(TxtNetResetStatus, "● Done — connectivity kept; restart later to finish", StatusColors.Yellow);
+            SetStatus(TxtNetResetStatus, "● Done - connectivity kept; restart later to finish", StatusColors.Yellow);
         });
     }
 
@@ -450,28 +450,28 @@ public partial class NetworkPage : UserControl
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (!MessageWindow.Confirm("Network Reset", "Full network reset?",
                 "This removes ALL network adapters and resets every networking component to " +
-                "defaults — Windows reinstalls the adapters on the next reboot.\n\n" +
+                "defaults - Windows reinstalls the adapters on the next reboot.\n\n" +
                 "⚠ This WILL drop your remote session, and the PC will restart automatically to " +
                 "finish (it reconnects after boot). It also clears VPN clients, static IP settings " +
                 "and saved Wi-Fi networks.\n\nOnly use this as a last resort. Continue?",
                 MessageKind.Warning, Window.GetWindow(this)))
             return;
 
-        ActivityLog.Action("Network", "Full network reset (netcfg -d — removes all adapters, reinstalls on reboot)");
+        ActivityLog.Action("Network", "Full network reset (netcfg -d - removes all adapters, reinstalls on reboot)");
         await NetGuarded(async () =>
         {
             SetStatus(TxtNetFullResetStatus, "Running…", StatusColors.Yellow);
             var code = await NetRun("netcfg.exe", "-d", "Network reset (remove + reinstall adapters)");
             if (code != 0)
             {
-                // Don't force a reboot on a reset that didn't take — show the failure instead.
-                SetStatus(TxtNetFullResetStatus, $"● Reset failed (exit {code}) — not restarting", StatusColors.Red);
+                // Don't force a reboot on a reset that didn't take - show the failure instead.
+                SetStatus(TxtNetFullResetStatus, $"● Reset failed (exit {code}) - not restarting", StatusColors.Red);
                 return;
             }
-            // The adapters only come back after a reboot, and remote connectivity is already going —
+            // The adapters only come back after a reboot, and remote connectivity is already going -
             // so finish the job for the tech: schedule an automatic restart (short delay so this
             // status paints and the action logs before the box goes down).
-            SetStatus(TxtNetFullResetStatus, "● Done — restarting automatically in ~20s to reinstall adapters…", StatusColors.Yellow);
+            SetStatus(TxtNetFullResetStatus, "● Done - restarting automatically in ~20s to reinstall adapters…", StatusColors.Yellow);
             ActivityLog.Action("Network", "Auto-restart after full network reset (shutdown /r /t 20)");
             await NetRun("shutdown.exe",
                 "/r /t 20 /c \"PartnerTool: finishing the network reset. The PC will restart now and reconnect once Windows is back up.\"",
@@ -540,7 +540,7 @@ public partial class NetworkPage : UserControl
 
         AdapterList.ItemsSource = adapters.Count > 0
             ? adapters
-            : new List<AdapterVm> { new() { Header = "NO ACTIVE ADAPTERS", IpAddress = "—", SubnetMask = "—", Gateway = "—", Dns = "—", Mac = "—" } };
+            : new List<AdapterVm> { new() { Header = "NO ACTIVE ADAPTERS", IpAddress = "-", SubnetMask = "-", Gateway = "-", Dns = "-", Mac = "-" } };
     }
 
 }

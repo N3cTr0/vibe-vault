@@ -31,7 +31,7 @@ public partial class HealthCheckPage : UserControl
             ? $"{n} issue(s)" : "all clear";
     }
 
-    // Fixed display order — problem areas a tech acts on first, OEM-specific last. Categories
+    // Fixed display order - problem areas a tech acts on first, OEM-specific last. Categories
     // not listed (future additions) fall to the end alphabetically.
     private static readonly string[] GroupOrder =
         ["Security", "Stability", "Disk", "Junk", "Updates", "Startup", "Shortcuts", "Maintenance", "Dell"];
@@ -109,15 +109,15 @@ public partial class HealthCheckPage : UserControl
             TxtScore.Text = report.Score.ToString(); TxtScore.Foreground = color;
             TxtScoreSub.Text = "/ 100";
             TxtStatus.Text = report.ProblemCount == 0
-                ? "All clear — no issues found. Click the circle to rescan."
-                : $"{report.ProblemCount} issue(s) found — click the circle to rescan.";
+                ? "All clear - no issues found. Click the circle to rescan."
+                : $"{report.ProblemCount} issue(s) found - click the circle to rescan.";
 
             UpdateFixButton();
         }
         catch (Exception ex)
         {
             EllRing.Stroke = StatusColors.Red;
-            TxtScore.FontSize = 26; TxtScore.Text = "—"; TxtScoreSub.Text = "error";
+            TxtScore.FontSize = 26; TxtScore.Text = "-"; TxtScoreSub.Text = "error";
             TxtStatus.Text = $"Scan failed: {ex.Message}";
         }
         finally
@@ -164,7 +164,7 @@ public partial class HealthCheckPage : UserControl
             mw.NavigateTo(tag);
     }
 
-    // ── Fix Selected — run the checked in-place fixes ─────────────────────
+    // ── Fix Selected - run the checked in-place fixes ─────────────────────
     private async void FixSelected_Click(object sender, RoutedEventArgs e)
     {
         if (_busy) return;
@@ -204,10 +204,10 @@ public partial class HealthCheckPage : UserControl
                 catch (Exception ex)
                 {
                     Log($"  ✗ {ex.Message}");
-                    ActivityLog.Result("Health Check", $"{f.Title}: failed — {ex.Message}");
+                    ActivityLog.Result("Health Check", $"{f.Title}: failed - {ex.Message}");
                 }
             }
-            Log("━━━ Done — rescanning ━━━");
+            Log("━━━ Done - rescanning ━━━");
         }
         finally { _busy = false; }
 

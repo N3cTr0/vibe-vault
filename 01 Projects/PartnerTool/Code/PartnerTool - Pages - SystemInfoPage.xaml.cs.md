@@ -27,7 +27,7 @@ public partial class SystemInfoPage : UserControl
     private readonly DispatcherTimer _liveTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     // Auto-refresh the (non-live) snapshot data every 45s. Uses Normal priority and runs for the
     // life of the page (work is gated on IsVisible inside the tick) so it can't be left un-started
-    // by a missed visibility change — the manual Refresh button is gone, so this must be reliable.
+    // by a missed visibility change - the manual Refresh button is gone, so this must be reliable.
     private const int RefreshSeconds = 45;
     private readonly DispatcherTimer _autoRefresh =
         new(DispatcherPriority.Normal) { Interval = TimeSpan.FromSeconds(RefreshSeconds) };
@@ -36,7 +36,7 @@ public partial class SystemInfoPage : UserControl
     private readonly List<double> _cpu = new(), _ram = new(), _disk = new(), _net = new();
     private bool _liveTicking;
     private bool _hasBattery;   // set from the snapshot; gates the live battery poll to laptops
-    private int  _tick;         // battery is polled every 3rd tick — its rate needn't be 1 Hz
+    private int  _tick;         // battery is polled every 3rd tick - its rate needn't be 1 Hz
 
     public SystemInfoPage()
     {
@@ -59,7 +59,7 @@ public partial class SystemInfoPage : UserControl
         _liveTicking = true;
         try
         {
-            // WMI disk / NIC reads can take 50–200ms — keep them off the UI thread. Do the perf
+            // WMI disk / NIC reads can take 50-200ms - keep them off the UI thread. Do the perf
             // sample (and, every 3rd tick, the battery sample) in a single thread-pool hop.
             bool pollBattery = _hasBattery && _tick % 3 == 0;
             var (s, b) = await Task.Run(() =>
@@ -71,7 +71,7 @@ public partial class SystemInfoPage : UserControl
             {
                 TxtBattPower.Text       = b.Summary;
                 TxtBattPower.Foreground = b.OnAc ? StatusColors.Green : StatusColors.Yellow;
-                TxtBattVoltage.Text     = b.VoltageV is { } vv ? $"{vv:F1} V" : "—";
+                TxtBattVoltage.Text     = b.VoltageV is { } vv ? $"{vv:F1} V" : "-";
             }
         }
         catch { }
@@ -91,7 +91,7 @@ public partial class SystemInfoPage : UserControl
             for (int i = 0; i < 3; i++)
             {
                 var s = await Task.Run(() => _live.Sample());
-                ApplyLiveSample(s);     // page isn't visible yet — populate it anyway
+                ApplyLiveSample(s);     // page isn't visible yet - populate it anyway
                 await Task.Delay(250);
             }
         }
@@ -134,14 +134,10 @@ public partial class SystemInfoPage : UserControl
     }
 
     // Clicking a LIVE STATS tile opens the Task-Manager-style Performance window.
-    private PerformanceWindow? _perfWin;
     private void LiveTile_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { Tag: string res }) return;
-        if (_perfWin != null) { _perfWin.SelectResource(res); _perfWin.Activate(); return; }
-        _perfWin = new PerformanceWindow(res) { Owner = Window.GetWindow(this) };
-        _perfWin.Closed += (_, _) => _perfWin = null;
-        _perfWin.Show();
+        if (sender is FrameworkElement { Tag: string res })
+            PerformanceWindow.Open(Window.GetWindow(this), res);
     }
 
     /// <summary>Paint immediately from the startup snapshot (no collection).</summary>
@@ -154,7 +150,7 @@ public partial class SystemInfoPage : UserControl
     private static string DomainText(SystemInfo info, AzureAdInfo aad)
     {
         if (aad.AzureAdJoined && !aad.DomainJoined)
-            return string.IsNullOrWhiteSpace(aad.TenantName) || aad.TenantName == "—"
+            return string.IsNullOrWhiteSpace(aad.TenantName) || aad.TenantName == "-"
                 ? "Azure AD Joined"
                 : $"Azure AD Joined · {aad.TenantName}";
         if (aad.DomainJoined)
@@ -167,7 +163,7 @@ public partial class SystemInfoPage : UserControl
     {
         try
         {
-            // ManufacturerModel is "Maker, Model" — the maker is what the lookup needs.
+            // ManufacturerModel is "Maker, Model" - the maker is what the lookup needs.
             var maker = _manufacturer.Split(',')[0].Trim();
             var url   = WarrantyLink.For(maker, _serial);
             bool prefilled = WarrantyLink.IsPrefilled(maker);
@@ -179,7 +175,7 @@ public partial class SystemInfoPage : UserControl
             if (!prefilled)
                 MessageWindow.Show("Warranty Lookup", "Serial copied to clipboard",
                     $"Opened {maker}'s warranty page.\n\nThe service tag / serial ({_serial}) has been " +
-                    "copied — paste it into the lookup form.", MessageKind.Info, Window.GetWindow(this));
+                    "copied - paste it into the lookup form.", MessageKind.Info, Window.GetWindow(this));
         }
         catch (Exception ex)
         {
@@ -212,7 +208,7 @@ public partial class SystemInfoPage : UserControl
         }
     }
 
-    // Toggle hibernation directly — the settings page has no obvious switch for it, so the link
+    // Toggle hibernation directly - the settings page has no obvious switch for it, so the link
     // that just opened Power Options left techs hunting. powercfg /hibernate needs admin (we are).
     // Side effect worth knowing: OFF also deletes hiberfil.sys and disables fast startup (hiberboot
     // needs the hibernation file); the fast-startup row refreshes to reflect that.
@@ -253,7 +249,7 @@ public partial class SystemInfoPage : UserControl
     }
 
     // Full CrystalDiskInfo-style SMART attribute table (SATA/ATA; empty on NVMe, which the window
-    // explains). Collected off the UI thread — the WMI reads can take a moment.
+    // explains). Collected off the UI thread - the WMI reads can take a moment.
     private async void Smart_Click(object sender, RoutedEventArgs e)
     {
         BtnSmart.IsEnabled = false;
@@ -273,7 +269,7 @@ public partial class SystemInfoPage : UserControl
     // Click-to-copy on the identifiers techs paste into tickets (hostname, serial, IP, MAC).
     private void CopyField_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (sender is not TextBlock { Text: { Length: > 0 } text } tb || text == "—") return;
+        if (sender is not TextBlock { Text: { Length: > 0 } text } tb || text == "-") return;
         try
         {
             Clipboard.SetText(text);
@@ -283,7 +279,7 @@ public partial class SystemInfoPage : UserControl
             t.Tick += (_, _) => { tb.ToolTip = orig; t.Stop(); };
             t.Start();
         }
-        catch { /* clipboard can transiently fail if another app holds it — ignore */ }
+        catch { /* clipboard can transiently fail if another app holds it - ignore */ }
     }
 
     // ── POWER (moved from the old Actions tab) ────────────────────────────
@@ -344,7 +340,7 @@ public partial class SystemInfoPage : UserControl
         catch (Exception ex)
         {
             // A single collector fault must never break the auto-refresh loop or crash the app.
-            TxtRefreshed.Text = $"Last refresh failed at {DateTime.Now:HH:mm:ss} — {ex.Message}";
+            TxtRefreshed.Text = $"Last refresh failed at {DateTime.Now:HH:mm:ss} - {ex.Message}";
         }
         finally { _loading = false; }
     }
@@ -402,7 +398,7 @@ public partial class SystemInfoPage : UserControl
 
         // ── Memory modules ────────────────────────────────────
         IcMemory.ItemsSource = hw.Memory;
-        // Hide "max" when firmware reports nonsense (0, or less than what's installed — common on VMs).
+        // Hide "max" when firmware reports nonsense (0, or less than what's installed - common on VMs).
         TxtMemSummary.Text   =
             $"{hw.TotalMemoryGb:F0} GB  ·  {hw.SlotsUsed} of {hw.SlotsTotal} slots used"
             + (hw.MaxMemoryGb >= hw.TotalMemoryGb ? $"  ·  max {hw.MaxMemoryGb:F0} GB" : "");
@@ -416,7 +412,7 @@ public partial class SystemInfoPage : UserControl
 
         // ── Firmware ──────────────────────────────────────────
         TxtBios.Text      = hw.BiosVersion;
-        TxtBiosDate.Text  = string.IsNullOrEmpty(hw.BiosDate) ? "—" : hw.BiosDate;
+        TxtBiosDate.Text  = string.IsNullOrEmpty(hw.BiosDate) ? "-" : hw.BiosDate;
         TxtBootMode.Text  = hw.BootMode;
         TxtTpm.Text       = hw.Tpm;
         TxtTpm.Foreground = hw.TpmHealthy == true ? StatusColors.Green
@@ -434,10 +430,10 @@ public partial class SystemInfoPage : UserControl
             BarBattery.Foreground  = pct < 20 ? StatusColors.Red
                                    : pct < 50 ? StatusColors.Yellow
                                    : StatusColors.Green;
-            // Initial status — the live tick enriches this with charge/discharge rate + runtime.
+            // Initial status - the live tick enriches this with charge/discharge rate + runtime.
             TxtBattPower.Text       = perf.OnAcPower == true ? "Plugged in" : "On battery";
             TxtBattPower.Foreground = perf.OnAcPower == true ? StatusColors.Green : StatusColors.Yellow;
-            TxtBattVoltage.Text     = "—";   // filled by the live tick's battery poll
+            TxtBattVoltage.Text     = "-";   // filled by the live tick's battery poll
 
             // Wear / capacity, when the battery reports it
             if (hw.BatteryWearPct is { } wear)
@@ -447,8 +443,8 @@ public partial class SystemInfoPage : UserControl
                 TxtWear.Foreground = wear <= 20 ? StatusColors.Green
                                    : wear <= 40 ? StatusColors.Yellow
                                    : StatusColors.Red;
-                TxtBattDesign.Text = hw.BatteryDesignMwh is { } d ? $"{d / 1000.0:F1} Wh" : "—";
-                TxtBattFull.Text   = hw.BatteryFullMwh   is { } f ? $"{f / 1000.0:F1} Wh" : "—";
+                TxtBattDesign.Text = hw.BatteryDesignMwh is { } d ? $"{d / 1000.0:F1} Wh" : "-";
+                TxtBattFull.Text   = hw.BatteryFullMwh   is { } f ? $"{f / 1000.0:F1} Wh" : "-";
             }
             else
             {
@@ -500,7 +496,7 @@ public partial class SystemInfoPage : UserControl
         {
             TxtNoNet.Visibility = Visibility.Collapsed;
             NetGrid.Visibility  = Visibility.Visible;
-            // This is the primary/default route's adapter — label it so it's clear WHY this one was
+            // This is the primary/default route's adapter - label it so it's clear WHY this one was
             // picked (a machine can have several NICs, VPNs, virtual switches, etc.).
             TxtNetName.Text     = $"{adapter.Name}   (Default)";
             TxtNetType.Text     = adapter.Type;
@@ -510,8 +506,8 @@ public partial class SystemInfoPage : UserControl
             TxtNetDns.Text      = adapter.Dns;
             TxtNetMac.Text      = adapter.Mac;
             TxtNetDhcp.Text       = adapter.IpAssignment;
-            TxtNetDhcpServer.Text = string.IsNullOrEmpty(adapter.DhcpServer) ? "—" : adapter.DhcpServer;
-            TxtNetLease.Text      = adapter.LeaseExpires is { } le ? le.ToString(Dates.DateTime) : "—";
+            TxtNetDhcpServer.Text = string.IsNullOrEmpty(adapter.DhcpServer) ? "-" : adapter.DhcpServer;
+            TxtNetLease.Text      = adapter.LeaseExpires is { } le ? le.ToString(Dates.DateTime) : "-";
         }
 
         // ── Printers ──────────────────────────────────────────

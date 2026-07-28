@@ -15,7 +15,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
         <!-- Live-metric tile (inset well inside the card) -->
         <!-- Clickable live-stat tile. A Button (not a bare Border) so it's keyboard-focusable,
              announced by screen readers via AutomationProperties.Name, and addressable by scripted
-             tests — a plain Border never enters the UIA control tree at all. Templated to look exactly
+             tests - a plain Border never enters the UIA control tree at all. Templated to look exactly
              like the old tile, with a hover/focus highlight. -->
         <Style x:Key="LiveTileButton" TargetType="Button">
             <Setter Property="Background" Value="#1E1E2E"/>
@@ -43,7 +43,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
             </Setter>
         </Style>
         <!-- Live-tile header: name on the left, current value right-aligned on the same line.
-             Fixed height so every tile's graph starts at exactly the same y — NETWORK's value
+             Fixed height so every tile's graph starts at exactly the same y - NETWORK's value
              uses a smaller font than the other three, which knocked its plot out of line when
              the value sat on its own row. -->
         <Style x:Key="LiveHeader" TargetType="DockPanel">
@@ -91,7 +91,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Auto-refresh status (no manual button — the page refreshes itself) -->
+        <!-- Auto-refresh status (no manual button - the page refreshes itself) -->
         <DockPanel Grid.Row="0" Margin="20,12,20,4">
             <TextBlock x:Name="TxtRefreshed" Foreground="#6C7086" FontSize="11"
                        VerticalAlignment="Center"/>
@@ -115,10 +115,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                         <TextBlock Text="LIVE STATS" Style="{StaticResource CardTitle}"/>
                         <UniformGrid Rows="2" Columns="2">
                             <Button Style="{StaticResource LiveTileButton}" Tag="cpu" Click="LiveTile_Click"
-                                    AutomationProperties.AutomationId="LiveTileCpu" AutomationProperties.Name="CPU — open Performance monitor">
+                                    AutomationProperties.AutomationId="LiveTileCpu" AutomationProperties.Name="CPU - open Performance monitor">
                                 <StackPanel>
                                     <DockPanel Style="{StaticResource LiveHeader}">
-                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveCpu" Text="—" Style="{StaticResource LiveValue}" Foreground="#89B4FA"/>
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveCpu" Text="-" Style="{StaticResource LiveValue}" Foreground="#89B4FA"/>
                                         <TextBlock Text="CPU" Style="{StaticResource LiveLabel}"/>
                                     </DockPanel>
                                     <Border x:Name="LiveCpuPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
@@ -130,10 +130,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource LiveTileButton}" Tag="mem" Click="LiveTile_Click"
-                                    AutomationProperties.AutomationId="LiveTileMem" AutomationProperties.Name="Memory — open Performance monitor">
+                                    AutomationProperties.AutomationId="LiveTileMem" AutomationProperties.Name="Memory - open Performance monitor">
                                 <StackPanel>
                                     <DockPanel Style="{StaticResource LiveHeader}">
-                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveRam" Text="—" Style="{StaticResource LiveValue}" Foreground="#A6E3A1"/>
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveRam" Text="-" Style="{StaticResource LiveValue}" Foreground="#A6E3A1"/>
                                         <TextBlock Text="MEMORY" Style="{StaticResource LiveLabel}"/>
                                     </DockPanel>
                                     <Border x:Name="LiveRamPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
@@ -145,10 +145,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource LiveTileButton}" Tag="disk" Click="LiveTile_Click"
-                                    AutomationProperties.AutomationId="LiveTileDisk" AutomationProperties.Name="Disk — open Performance monitor">
+                                    AutomationProperties.AutomationId="LiveTileDisk" AutomationProperties.Name="Disk - open Performance monitor">
                                 <StackPanel>
                                     <DockPanel Style="{StaticResource LiveHeader}">
-                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveDisk" Text="—" Style="{StaticResource LiveValue}" Foreground="#F9E2AF"/>
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveDisk" Text="-" Style="{StaticResource LiveValue}" Foreground="#F9E2AF"/>
                                         <TextBlock Text="DISK" Style="{StaticResource LiveLabel}"/>
                                     </DockPanel>
                                     <Border x:Name="LiveDiskPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
@@ -160,10 +160,10 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 </StackPanel>
                             </Button>
                             <Button Style="{StaticResource LiveTileButton}" Tag="net" Click="LiveTile_Click"
-                                    AutomationProperties.AutomationId="LiveTileNet" AutomationProperties.Name="Network — open Performance monitor">
+                                    AutomationProperties.AutomationId="LiveTileNet" AutomationProperties.Name="Network - open Performance monitor">
                                 <StackPanel>
                                     <DockPanel Style="{StaticResource LiveHeader}">
-                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveNet" Text="—" Style="{StaticResource LiveValue}" FontSize="15" Foreground="#CBA6F7"/>
+                                        <TextBlock DockPanel.Dock="Right" x:Name="TxtLiveNet" Text="-" Style="{StaticResource LiveValue}" FontSize="15" Foreground="#CBA6F7"/>
                                         <TextBlock Text="NETWORK (Mbps)" Style="{StaticResource LiveLabel}"/>
                                     </DockPanel>
                                     <Border x:Name="LiveNetPlot" Height="56" Margin="0,6,0,0" Background="#11111B" CornerRadius="4" ClipToBounds="True">
@@ -209,7 +209,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             </TextBlock>
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Fast startup"  Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis">
-                                <Run x:Name="TxtPwrFast"/><Run Text="   "/><Hyperlink Click="ChangeStartupSettings_Click" Foreground="#89B4FA" ToolTip="Open 'Choose what the power buttons do' — fast startup + hibernation live here">(change)</Hyperlink>
+                                <Run x:Name="TxtPwrFast"/><Run Text="   "/><Hyperlink Click="ChangeStartupSettings_Click" Foreground="#89B4FA" ToolTip="Open 'Choose what the power buttons do' - fast startup + hibernation live here">(change)</Hyperlink>
                             </TextBlock>
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Hibernation"   Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2">
@@ -217,7 +217,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             </TextBlock>
                             <TextBlock Grid.Row="4" Grid.Column="0" Text="Sleep after"   Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis">
-                                <Run x:Name="TxtPwrSleep"/><Run Text="   "/><Hyperlink Click="ChangeSleepSettings_Click" Foreground="#89B4FA" ToolTip="Open Windows Settings — Power &amp; sleep">(change)</Hyperlink>
+                                <Run x:Name="TxtPwrSleep"/><Run Text="   "/><Hyperlink Click="ChangeSleepSettings_Click" Foreground="#89B4FA" ToolTip="Open Windows Settings - Power &amp; sleep">(change)</Hyperlink>
                             </TextBlock>
                             <TextBlock Grid.Row="5" Grid.Column="0" Text="Display off"   Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="5" Grid.Column="1" x:Name="TxtPwrDisplay" Foreground="#CDD6F4" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis"/>
@@ -618,7 +618,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <!-- Connected monitors (EDID) — Make / Model / Size / Year / Serial columns -->
+                            <!-- Connected monitors (EDID) - Make / Model / Size / Year / Serial columns -->
                             <StackPanel x:Name="MonitorsSection" Visibility="Collapsed" Grid.IsSharedSizeScope="True">
                                 <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>
                                 <TextBlock Text="MONITORS" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
@@ -734,7 +734,7 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                 <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtBattVoltage" Style="{StaticResource RowValue}"/>
                             </Grid>
 
-                            <!-- Battery health (wear) — shown only when capacity is readable -->
+                            <!-- Battery health (wear) - shown only when capacity is readable -->
                             <StackPanel x:Name="BattHealthSection" Visibility="Collapsed">
                                 <Rectangle Style="{StaticResource RowDivider}" Margin="0"/>
                                 <Grid>

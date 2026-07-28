@@ -58,7 +58,7 @@ public static class SnapshotHistory
             File.WriteAllText(FilePath,
                 JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch { /* read-only location — history is best-effort */ }
+        catch { /* read-only location - history is best-effort */ }
     }
 }
 ```

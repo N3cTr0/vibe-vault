@@ -16,7 +16,7 @@ namespace PartnerTool;
 /// Repairs for the WinINET proxy / auto-detect (WPAD) settings that firewalls like SonicWall like to
 /// flip, which breaks Office/Outlook auto-discovery and MAPI-over-HTTP. "Automatically detect
 /// settings" lives as bit 0x08 of the flags byte (offset 8) in the binary DefaultConnectionSettings
-/// blob — there's no friendlier registry value for it. All of this is per-user (HKCU), so it applies
+/// blob - there's no friendlier registry value for it. All of this is per-user (HKCU), so it applies
 /// to the signed-in user running the tool.
 /// </summary>
 public static class ProxyRepair
@@ -58,7 +58,7 @@ public static class ProxyRepair
             SetAutoDetect(false);
             System.Threading.Thread.Sleep(300);
             SetAutoDetect(true);
-            return (true, "Done — toggled off then on.  " + CurrentState());
+            return (true, "Done - toggled off then on.  " + CurrentState());
         }
         catch (Exception ex) { return (false, ex.Message); }
     }

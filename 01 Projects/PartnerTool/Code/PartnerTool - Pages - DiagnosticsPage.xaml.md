@@ -33,7 +33,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Auto-refresh status (no manual button — refreshes when the page is opened) -->
+        <!-- Auto-refresh status (no manual button - refreshes when the page is opened) -->
         <DockPanel Grid.Row="0" Margin="20,12,20,4">
             <TextBlock x:Name="TxtRefreshed" Foreground="#6C7086" FontSize="11"
                        VerticalAlignment="Center"/>
@@ -61,7 +61,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                     </StackPanel>
                 </Border>
 
-                <!-- CRASH HISTORY — directly under Reliability, because its caption points here -->
+                <!-- CRASH HISTORY - directly under Reliability, because its caption points here -->
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="CRASH HISTORY" Style="{StaticResource CardTitle}"/>
@@ -154,9 +154,9 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                         <TextBlock Grid.Column="2" Foreground="#CDD6F4" FontSize="11"
                                                    Text="{Binding RamPct, StringFormat={}{0:F0}%, Mode=OneWay}"/>
                                         <TextBlock Grid.Column="3" Foreground="#CDD6F4" FontSize="11"
-                                                   Text="{Binding BatteryWearPct, StringFormat={}{0}%, Mode=OneWay, TargetNullValue=—}"/>
+                                                   Text="{Binding BatteryWearPct, StringFormat={}{0}%, Mode=OneWay, TargetNullValue=-}"/>
                                         <TextBlock Grid.Column="4" Foreground="#CDD6F4" FontSize="11"
-                                                   Text="{Binding StabilityIndex, StringFormat={}{0:F1}, Mode=OneWay, TargetNullValue=—}"/>
+                                                   Text="{Binding StabilityIndex, StringFormat={}{0:F1}, Mode=OneWay, TargetNullValue=-}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -320,7 +320,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                             <Button x:Name="BtnMoreEvents" DockPanel.Dock="Right" Content="More…"
                                     Style="{StaticResource ActionButton}" Padding="12,4" FontSize="11"
                                     Click="MoreEvents_Click" Visibility="Collapsed"/>
-                            <TextBlock Text="RECENT ERRORS — CRITICAL &amp; ERROR (SYSTEM &amp; APPLICATION)"
+                            <TextBlock Text="RECENT ERRORS - CRITICAL &amp; ERROR (SYSTEM &amp; APPLICATION)"
                                        Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                         </DockPanel>
                         <TextBlock x:Name="TxtNoEvents" Text="● No critical or error events in the last 10 days"

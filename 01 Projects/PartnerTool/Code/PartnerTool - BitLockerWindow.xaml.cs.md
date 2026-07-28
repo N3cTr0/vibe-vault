@@ -44,7 +44,7 @@ public partial class BitLockerWindow : Window
                 _copyTimer.Stop();
                 _copyTimer.Start();
             }
-            catch { /* clipboard busy — ignore */ }
+            catch { /* clipboard busy - ignore */ }
         }
     }
 

@@ -73,7 +73,7 @@ public static class OfficeLanguages
                 var culture = m.Groups[1].Value;
                 if (culture.Equals("x-none", StringComparison.OrdinalIgnoreCase)) continue;
 
-                // 32- and 64-bit views can both list the same culture — keep one.
+                // 32- and 64-bit views can both list the same culture - keep one.
                 if (scan.Packs.Any(p => p.Culture.Equals(culture, StringComparison.OrdinalIgnoreCase))) continue;
 
                 var display = entry.GetValue("DisplayName") as string ?? sub;

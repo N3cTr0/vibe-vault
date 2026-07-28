@@ -23,7 +23,7 @@ public class BrokenShortcut
 /// Finds broken shortcuts (.lnk whose target no longer exists) on the Desktop and Start Menu, and
 /// can send them to the Recycle Bin (reversible, never a permanent delete). Deliberately
 /// conservative to avoid false positives: only flags a shortcut whose target is an absolute path on
-/// a ready FIXED drive that doesn't exist — never UNC/network or removable targets (which may just
+/// a ready FIXED drive that doesn't exist - never UNC/network or removable targets (which may just
 /// be temporarily offline), and never shortcuts with an empty target (URLs, special items).
 /// </summary>
 public static class ShortcutScan
@@ -66,7 +66,7 @@ public static class ShortcutScan
                                 Target  = target,
                             });
                     }
-                    catch { /* unreadable shortcut — skip */ }
+                    catch { /* unreadable shortcut - skip */ }
                 }
             }
         }
@@ -78,7 +78,7 @@ public static class ShortcutScan
     private static bool IsBrokenTarget(string target)
     {
         if (string.IsNullOrWhiteSpace(target)) return false;   // URL / special item
-        if (target.StartsWith(@"\\")) return false;            // UNC — may be offline
+        if (target.StartsWith(@"\\")) return false;            // UNC - may be offline
         if (!Path.IsPathFullyQualified(target)) return false;
         try
         {

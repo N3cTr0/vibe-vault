@@ -16,7 +16,7 @@ namespace PartnerTool;
 /// <summary>
 /// Creates and locks down directories the elevated app trusts (its logs, and the folder it
 /// downloads/executes vendor tools from). The default ACL inherited from <c>C:\</c> lets
-/// authenticated users create files in freshly-made subfolders — which would let a standard user
+/// authenticated users create files in freshly-made subfolders - which would let a standard user
 /// plant a binary (or a junction) that this admin-level process then reads, writes or executes.
 /// Hardening strips that: only Administrators + SYSTEM may write; everyone else is read-only.
 /// </summary>
@@ -43,7 +43,7 @@ public static class SecureDirectory
 
             di.SetAccessControl(sec);
         }
-        catch { /* best effort — never block the app on an ACL failure */ }
+        catch { /* best effort - never block the app on an ACL failure */ }
     }
 }
 ```

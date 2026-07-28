@@ -16,7 +16,7 @@ public record RestorePoint(int Sequence, string Description, DateTime Created, s
 
 /// <summary>
 /// Existing System Restore points (root\default SystemRestore). We list them and hand off
-/// the actual restore to the built-in rstrui.exe wizard — rolling a machine back is a
+/// the actual restore to the built-in rstrui.exe wizard - rolling a machine back is a
 /// reboot-and-pray operation best left to the OS UI with its own confirmation.
 /// </summary>
 public static class RestorePointsInfo

@@ -23,7 +23,7 @@ public static class OutdatedAppsInfo
         try
         {
             var winget = WingetLocator.Path();
-            if (winget.Length == 0) return list;   // not usable by this account — nothing to report
+            if (winget.Length == 0) return list;   // not usable by this account - nothing to report
 
             // No --include-unknown: entries whose current version winget can't read ("Unknown → x.y")
             // are noise the techs don't act on, so leave them out of the list.
@@ -49,7 +49,7 @@ public static class OutdatedAppsInfo
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (line.StartsWith("-") || line.TrimStart().StartsWith("---")) continue;
-                // Stop at winget's summary footers — "N upgrades available." and the "M package(s)
+                // Stop at winget's summary footers - "N upgrades available." and the "M package(s)
                 // have version numbers that cannot be determined. Use --include-unknown …" line,
                 // which otherwise gets column-sliced into a bogus "app" row.
                 if (line.Contains("upgrades available") || line.Contains("package(s)")) break;
@@ -63,7 +63,7 @@ public static class OutdatedAppsInfo
                 var cur  = Slice(cVer, cAvail);
                 var avail= Slice(cAvail, cSrc);
                 // A real winget row has a non-empty package Id with no spaces (Google.Chrome,
-                // Microsoft.VisualStudio…) and a known current version — anything else is a stray
+                // Microsoft.VisualStudio…) and a known current version - anything else is a stray
                 // wrapped/footer line, so skip it.
                 if (name.Length == 0 || id.Length == 0 || id.Contains(' ')) continue;
                 if (cur.Length == 0 || cur.Equals("Unknown", StringComparison.OrdinalIgnoreCase)) continue;

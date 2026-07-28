@@ -18,19 +18,19 @@ namespace PartnerTool;
 ///
 /// TWO SEPARATE THINGS, routinely confused:
 ///
-///  1. C:\ProgramData\Dell\SARemediation\SystemRepair\Snapshots — Dell's own repair points. NOT VSS.
-///     The default reserve is 15 GB, Dell staff call 20–25 GB "normal", and a known purge bug lets it
-///     reach 85–100 GB+. Dell's guidance is explicit: do NOT delete the folder by hand (it breaks the
-///     repair feature) — turn System Repair OFF in SupportAssist and it purges itself on reboot.
+///  1. C:\ProgramData\Dell\SARemediation\SystemRepair\Snapshots - Dell's own repair points. NOT VSS.
+///     The default reserve is 15 GB, Dell staff call 20-25 GB "normal", and a known purge bug lets it
+///     reach 85-100 GB+. Dell's guidance is explicit: do NOT delete the folder by hand (it breaks the
+///     repair feature) - turn System Repair OFF in SupportAssist and it purges itself on reboot.
 ///     So we only REPORT this, and point the tech at the SupportAssist setting.
 ///
-///  2. VSS shadow storage — Dell KB 000129138: VSS ships with MaxSize unset, so when SupportAssist OS
+///  2. VSS shadow storage - Dell KB 000129138: VSS ships with MaxSize unset, so when SupportAssist OS
 ///     Recovery reads VSS the service goes UNBOUNDED and quietly fills the drive with shadow copies
 ///     (the classic "unaccounted-for space"). Dell's own fix is to bound it:
 ///         vssadmin resize shadowstorage /For=C: /On=C: /MaxSize=2%
 ///     That we CAN do safely, so it's offered as a fix.
 ///
-/// Reading the folder size needs elevation (ProgramData\Dell is ACL'd) — the app runs elevated.
+/// Reading the folder size needs elevation (ProgramData\Dell is ACL'd) - the app runs elevated.
 /// </summary>
 public static class DellRemediation
 {
@@ -39,11 +39,11 @@ public static class DellRemediation
 
     /// <summary>
     /// The cap we set when bounding runaway shadow storage. Dell's KB suggests 2%; we use 5% as our
-    /// house default — it stops the runaway growth while leaving more room for real restore points.
+    /// house default - it stops the runaway growth while leaving more room for real restore points.
     /// </summary>
     public const int VssMaxPercent = 5;
 
-    // "Normal" per Dell is 20–25 GB, so warn above that and call it bad once it's clearly the bug.
+    // "Normal" per Dell is 20-25 GB, so warn above that and call it bad once it's clearly the bug.
     private const double WarnGb = 25.0;
     private const double BadGb  = 40.0;
 
@@ -65,14 +65,14 @@ public static class DellRemediation
         public double VssUsedGb  => VssUsedBytes  / 1073741824.0;
 
         /// <summary>
-        /// A shadow-storage association EXISTS and is uncapped (or capped so high it may as well be) —
+        /// A shadow-storage association EXISTS and is uncapped (or capped so high it may as well be) -
         /// the actual Dell KB 000129138 problem. A machine with no association at all (System
         /// Protection off) is NOT flagged: that's a normal, healthy state, not runaway shadow storage.
         /// </summary>
         public bool VssUnbounded => VssQueried && VssHasAssociation &&
                                     (VssMaxBytes < 0 || (VolumeBytes > 0 && VssMaxBytes >= VolumeBytes / 2));
 
-        /// <summary>Shadow storage is set up with a sane limit — nothing to do.</summary>
+        /// <summary>Shadow storage is set up with a sane limit - nothing to do.</summary>
         public bool VssConfigured => VssQueried && VssHasAssociation && !VssUnbounded;
 
         public bool Bloated  => TotalGb >= WarnGb;
@@ -119,7 +119,7 @@ public static class DellRemediation
     /// <summary>
     /// Shadow-storage limits for a drive, straight from WMI (no wmic). <paramref name="queried"/> is
     /// false only if the query itself couldn't run. <paramref name="hasAssoc"/> is false when the
-    /// volume has NO shadow-storage association — System Protection is simply off, a normal state we
+    /// volume has NO shadow-storage association - System Protection is simply off, a normal state we
     /// deliberately don't treat as the Dell runaway. MaxBytes = -1 means VSS reports UNBOUNDED.
     /// </summary>
     private static (bool queried, bool hasAssoc, long max, long used, long volume) ShadowStorage(string driveLetter)
@@ -176,7 +176,7 @@ public static class DellRemediation
     }
 
     /// <summary>
-    /// Bound VSS shadow storage on C: to <see cref="VssMaxPercent"/>% — Dell KB 000129138's own fix.
+    /// Bound VSS shadow storage on C: to <see cref="VssMaxPercent"/>% - Dell KB 000129138's own fix.
     /// Shrinking the limit below what's currently used discards the oldest shadow copies, so this
     /// can delete existing System Restore points. Tech-gated by the caller.
     /// </summary>
@@ -194,7 +194,7 @@ public static class DellRemediation
         bool ok = output.Contains("Successfully resized", StringComparison.OrdinalIgnoreCase);
         var result = ok
             ? $"VSS shadow storage on C: is now capped at {VssMaxPercent}% of the drive."
-            : "vssadmin did not report success — see the log above.";
+            : "vssadmin did not report success - see the log above.";
         ActivityLog.Result("Dell", result);
         return result;
     }

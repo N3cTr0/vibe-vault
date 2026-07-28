@@ -28,7 +28,7 @@ public partial class ManagePage : UserControl
 
     /// <summary>
     /// Warm the two slowest sections (Services + Scheduled Tasks) in the background at startup so
-    /// the first jump into Manage — and switching between its sections — is instant. Marks them
+    /// the first jump into Manage - and switching between its sections - is instant. Marks them
     /// loaded so a later ShowSection won't collect them again.
     /// </summary>
     private static readonly string[] AllSections =
@@ -36,8 +36,8 @@ public partial class ManagePage : UserControl
 
     public async Task PreloadAsync()
     {
-        // Warm EVERY section in the background so any jump into Manage — and switching between its
-        // sections — is instant, not just Services/Tasks.
+        // Warm EVERY section in the background so any jump into Manage - and switching between its
+        // sections - is instant, not just Services/Tasks.
         foreach (var tag in AllSections)
         {
             try { await EnsureLoaded(tag); }
@@ -255,7 +255,7 @@ public partial class ManagePage : UserControl
         string name  = TxtEnvName.Text;
         string value = TxtEnvValue.Text;
 
-        // Machine scope changes the environment for every user — gate it. (User scope too, for
+        // Machine scope changes the environment for every user - gate it. (User scope too, for
         // consistency with the tool's other system-changing actions.)
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         if (machine && !MessageWindow.Confirm("Environment Variable",
@@ -297,11 +297,11 @@ public partial class ManagePage : UserControl
 
         if (!MessageWindow.Confirm("Delete Profile", $"Permanently delete the profile for “{p.Name}”?",
                 $"This removes {p.Path} and everything in it (desktop, documents, settings) AND the user's " +
-                "profile registry entry. It cannot be undone — only do this if they no longer use this machine.",
+                "profile registry entry. It cannot be undone - only do this if they no longer use this machine.",
                 MessageKind.Warning, Window.GetWindow(this)))
             return;
 
-        ActivityLog.Action("Profiles", $"Delete user profile {p.Name} (SID {p.Sid}) — {p.Path}");
+        ActivityLog.Action("Profiles", $"Delete user profile {p.Name} (SID {p.Sid}) - {p.Path}");
         var (ok, msg) = await Task.Run(() => SystemManagement.DeleteUserProfile(p.Sid));
         ActivityLog.Result("Profiles", ok ? "removed" : msg);
         MessageWindow.Show("Delete Profile", ok ? "Profile removed" : "Couldn't remove the profile",

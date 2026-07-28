@@ -14,7 +14,7 @@ namespace PartnerTool;
 public record UpdateEntry(DateTime Date, string Title, string Result);
 
 /// <summary>
-/// Recent Windows Update history — "when was this machine last patched?". Primary source
+/// Recent Windows Update history - "when was this machine last patched?". Primary source
 /// is the Windows Update Agent COM API (Microsoft.Update.Session), which includes quality
 /// and feature updates with install dates and result codes. Falls back to the installed
 /// hotfix list (Win32_QuickFixEngineering) if the COM API is unavailable.

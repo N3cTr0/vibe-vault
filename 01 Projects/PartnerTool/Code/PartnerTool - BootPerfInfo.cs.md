@@ -17,7 +17,7 @@ public record BootContributor(string Kind, string Name, double Seconds);
 
 /// <summary>
 /// Boot-performance data from the Microsoft-Windows-Diagnostics-Performance/Operational
-/// log — Windows already times every boot and names the apps/drivers/services that slow it
+/// log - Windows already times every boot and names the apps/drivers/services that slow it
 /// down. Event 100 = boot duration; 101/102/103 = slow app/driver/service contributors.
 /// </summary>
 public class BootPerfInfo

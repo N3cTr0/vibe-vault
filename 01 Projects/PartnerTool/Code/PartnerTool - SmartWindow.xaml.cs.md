@@ -21,9 +21,9 @@ public partial class SmartWindow : Window
         public string Name       => A.Name;
         public string Current    => A.Current.ToString();
         public string Worst      => A.Worst.ToString();
-        public string ThreshText => A.Threshold is { } t && t > 0 ? t.ToString() : "—";
+        public string ThreshText => A.Threshold is { } t && t > 0 ? t.ToString() : "-";
         public string RawText    => A.Raw.ToString("N0");
-        // A value at/under its threshold is a failing attribute — flag it red.
+        // A value at/under its threshold is a failing attribute - flag it red.
         public Brush  RowBrush   => A.BelowThreshold ? StatusColors.Red : StatusColors.Text;
     }
 
@@ -45,7 +45,7 @@ public partial class SmartWindow : Window
             _     => StatusColors.Muted,
         };
 
-        // Instance names look like "IDE\\DiskSAMSUNG…\\5&…" — keep the readable middle chunk.
+        // Instance names look like "IDE\\DiskSAMSUNG…\\5&…" - keep the readable middle chunk.
         private static string CleanInstance(string inst)
         {
             if (string.IsNullOrWhiteSpace(inst)) return "Drive";

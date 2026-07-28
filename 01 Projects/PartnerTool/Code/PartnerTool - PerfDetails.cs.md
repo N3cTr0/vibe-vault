@@ -22,25 +22,25 @@ namespace PartnerTool;
 public class PerfDetails
 {
     // CPU
-    public string CpuName = "—";
+    public string CpuName = "-";
     public double BaseGhz;
     public int    Sockets = 1, Cores, Logical;
-    public string Virtualization = "—";
-    public string L1 = "—", L2 = "—", L3 = "—";
-    public string Uptime = "—";
+    public string Virtualization = "-";
+    public string L1 = "-", L2 = "-", L3 = "-";
+    public string Uptime = "-";
 
     // Memory
     public double RamTotalGb;
-    public string RamType = "—";
+    public string RamType = "-";
     public int    RamSpeed;
-    public string Slots = "—";
+    public string Slots = "-";
 
     // Disk
-    public string DiskModel = "—", DiskType = "—";
+    public string DiskModel = "-", DiskType = "-";
     public double DiskSizeGb;
 
     // Network
-    public string NetName = "—", NetType = "—", NetIp = "—";
+    public string NetName = "-", NetType = "-", NetIp = "-";
 
     public static PerfDetails Collect()
     {
@@ -63,16 +63,16 @@ public class PerfDetails
                 l3      += o["L3CacheSize"] is { } x3 ? Convert.ToUInt32(x3) : 0;
                 if (o["VirtualizationFirmwareEnabled"] is bool vb) virt = vb;
             }
-            d.CpuName        = name.Length > 0 ? name : "—";
+            d.CpuName        = name.Length > 0 ? name : "-";
             d.BaseGhz        = maxMhz / 1000.0;
             d.Sockets        = Math.Max(1, sockets);
             d.Cores          = cores; d.Logical = logical;
-            d.Virtualization = virt is { } v ? (v ? "Enabled" : "Disabled") : "—";
+            d.Virtualization = virt is { } v ? (v ? "Enabled" : "Disabled") : "-";
             d.L2 = Cache(l2); d.L3 = Cache(l3);
         }
         catch { }
 
-        // L1 isn't on Win32_Processor — sum the Level-3 (= L1) caches from Win32_CacheMemory.
+        // L1 isn't on Win32_Processor - sum the Level-3 (= L1) caches from Win32_CacheMemory.
         try
         {
             uint l1 = 0;
@@ -112,7 +112,7 @@ public class PerfDetails
                 foreach (ManagementObject o in q2.Get()) using (o)
                     total = o["MemoryDevices"] is { } md ? Convert.ToInt32(md) : total;
             d.RamSpeed = speed;
-            d.RamType  = type.Length > 0 ? type : "—";
+            d.RamType  = type.Length > 0 ? type : "-";
             d.Slots    = total > 0 ? $"{used} of {total}" : used.ToString();
         }
         catch { }
@@ -153,7 +153,7 @@ public class PerfDetails
         catch { return Array.Empty<double>(); }
     }
 
-    /// <summary>Live process / thread / handle totals (a process sweep — call on a slow cadence).</summary>
+    /// <summary>Live process / thread / handle totals (a process sweep - call on a slow cadence).</summary>
     public static (int procs, int threads, int handles) ProcessCounts()
     {
         int procs = 0, threads = 0, handles = 0;
@@ -171,7 +171,7 @@ public class PerfDetails
         return (procs, threads, handles);
     }
 
-    private static string Cache(uint kb) => kb == 0 ? "—" : kb >= 1024 ? $"{kb / 1024.0:0.#} MB" : $"{kb} KB";
+    private static string Cache(uint kb) => kb == 0 ? "-" : kb >= 1024 ? $"{kb / 1024.0:0.#} MB" : $"{kb} KB";
 
     private static string MemType(int t) => t switch
     {

@@ -30,7 +30,7 @@ public class InstallerScanResult
 
     public double OrphanGb => OrphanBytes / 1073741824.0;
 
-    /// <summary>Orphans grouped by what they're for, largest first — for the confirm dialog.</summary>
+    /// <summary>Orphans grouped by what they're for, largest first - for the confirm dialog.</summary>
     public IEnumerable<(string Product, int Count, long Bytes)> TopProducts(int top) =>
         Orphans.GroupBy(o => o.Description.Length > 0 ? o.Description : "(unidentified)")
                .Select(g => (Product: g.Key, Count: g.Count(), Bytes: g.Sum(o => o.Bytes)))
@@ -39,10 +39,10 @@ public class InstallerScanResult
 }
 
 /// <summary>
-/// Cleans orphaned .msi/.msp files out of C:\Windows\Installer — the classic Adobe Acrobat/Reader
+/// Cleans orphaned .msi/.msp files out of C:\Windows\Installer - the classic Adobe Acrobat/Reader
 /// bloat where the updater caches monthly patches and never removes the superseded ones.
 ///
-/// SAFETY: the Windows Installer cache is NOT junk — deleting a package still referenced by an
+/// SAFETY: the Windows Installer cache is NOT junk - deleting a package still referenced by an
 /// installed product breaks its repair/uninstall/patching. So we ask Windows Installer itself
 /// (WindowsInstaller.Installer COM) for the authoritative set of cached packages every installed
 /// product and patch still needs, and remove ONLY files on disk that aren't in that set. If that
@@ -107,7 +107,7 @@ public static class InstallerCleanup
         r.KeepSetValid = keep.Count > 0;
         if (!r.KeepSetValid)
         {
-            r.Error = "The installer database returned no referenced packages — aborting so nothing referenced can be deleted.";
+            r.Error = "The installer database returned no referenced packages - aborting so nothing referenced can be deleted.";
             return r;
         }
 
@@ -115,7 +115,7 @@ public static class InstallerCleanup
         {
             var di = new DirectoryInfo(InstallerDir);
             if (di.Exists)
-                foreach (var f in di.EnumerateFiles())   // top level only — never the {GUID} subfolders
+                foreach (var f in di.EnumerateFiles())   // top level only - never the {GUID} subfolders
                 {
                     bool msiFile = f.Extension.Equals(".msi", StringComparison.OrdinalIgnoreCase);
                     bool mspFile = f.Extension.Equals(".msp", StringComparison.OrdinalIgnoreCase);
@@ -150,14 +150,14 @@ public static class InstallerCleanup
                 deleted++; freed += o.Bytes;
                 onLog?.Invoke(Line("deleted", o));
             }
-            catch (Exception ex) { failed++; onLog?.Invoke($"skipped {o.Name} — {ex.Message}"); }
+            catch (Exception ex) { failed++; onLog?.Invoke($"skipped {o.Name} - {ex.Message}"); }
         }
         return (deleted, freed, failed);
     }
 
-    /// <summary>One log line: "name (size) — description".</summary>
+    /// <summary>One log line: "name (size) - description".</summary>
     public static string Line(string verb, OrphanFile o)
-        => $"{verb} {o.Name}  ({o.Mb:F0} MB)" + (o.Description.Length > 0 ? $"  —  {o.Description}" : "");
+        => $"{verb} {o.Name}  ({o.Mb:F0} MB)" + (o.Description.Length > 0 ? $"  -  {o.Description}" : "");
 
     private static void AddLocalPackage(HashSet<string> keep, string? path)
     {
@@ -172,7 +172,7 @@ public static class InstallerCleanup
         {
             if (isPatch)
             {
-                // Patches have no Property table — use the summary stream (Subject = product).
+                // Patches have no Property table - use the summary stream (Subject = product).
                 dynamic db = msi.OpenDatabase(path, PatchFile);
                 dynamic si = db.SummaryInformation(0);
                 var d = FirstNonEmpty(Si(si, PidSubject), Si(si, PidComments), Si(si, PidTitle));
@@ -194,7 +194,7 @@ public static class InstallerCleanup
                 return FirstNonEmpty(Si(si, PidSubject), Si(si, PidComments));
             }
         }
-        catch { return ""; }   // corrupt / 0-byte / unreadable — leave blank
+        catch { return ""; }   // corrupt / 0-byte / unreadable - leave blank
     }
 
     private static string Prop(dynamic db, string property)
@@ -243,7 +243,7 @@ public static class InstallerCleanup
         }
 
         return set > 0
-            ? (true, $"Set PatchCleanFlag=1 in {set} Adobe policy key(s) — Acrobat/Reader will purge old cached patches on its next update.")
+            ? (true, $"Set PatchCleanFlag=1 in {set} Adobe policy key(s) - Acrobat/Reader will purge old cached patches on its next update.")
             : (false, "Couldn't set the Adobe policy value. " + string.Join("; ", errs));
     }
 }

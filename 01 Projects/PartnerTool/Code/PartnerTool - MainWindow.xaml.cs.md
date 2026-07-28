@@ -148,8 +148,8 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
 
-        // Keep the window inside the screen's working area so the title bar — and its
-        // close button — is always reachable. A fixed 900px height overflowed the top
+        // Keep the window inside the screen's working area so the title bar - and its
+        // close button - is always reachable. A fixed 900px height overflowed the top
         // of the screen on laptops at lower resolutions or display scaling: the window
         // was centred, pushing the title bar above the top edge, and CanMinimize left
         // no way to recover. WorkArea is in the same device-independent units as Width/Height.
@@ -228,8 +228,8 @@ public partial class MainWindow : Window
         //   2) Environment.Exit still runs the native C++ CRT module-unload callbacks
         //      (_app_exit_callback / __scrt_uninitialize_type_info); a native lib extracted to the
         //      single-file temp dir can already be gone by then → DllNotFoundException.
-        // Nothing needs graceful shutdown — every log and setting is written synchronously as it
-        // changes — so TerminateProcess ends the process immediately, skipping ALL teardown
+        // Nothing needs graceful shutdown - every log and setting is written synchronously as it
+        // changes - so TerminateProcess ends the process immediately, skipping ALL teardown
         // (managed finalizers, native dtors, atexit). No exit-time fault is possible.
         TerminateProcess(GetCurrentProcess(), 0);
     }

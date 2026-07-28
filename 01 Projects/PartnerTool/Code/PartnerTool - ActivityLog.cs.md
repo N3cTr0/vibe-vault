@@ -13,8 +13,8 @@ using System.Reflection;
 namespace PartnerTool;
 
 /// <summary>
-/// Append-only audit trail of what the tool actually did — every external command it runs and
-/// every system-changing action a tech takes — with timestamp and the signed-in user, so an
+/// Append-only audit trail of what the tool actually did - every external command it runs and
+/// every system-changing action a tech takes - with timestamp and the signed-in user, so an
 /// issue can be traced after the fact (e.g. "what did that cleanup touch on the server?").
 /// Written to C:\PCI\Logs\PartnerTool_activity.log and persists across runs.
 ///
@@ -51,7 +51,7 @@ public static class ActivityLog
                     _headerWritten = true;
                     var ver = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?";
                     // Logs are written as plain ASCII (UTF-8, no BOM) so they never mojibake when a
-                    // tech pastes them into a ticket / RMM tool — see LogText. The in-app view keeps
+                    // tech pastes them into a ticket / RMM tool - see LogText. The in-app view keeps
                     // its nicer glyphs; only the file is flattened.
                     File.AppendAllText(LogFile, LogText.ToAscii(
                         $"{Environment.NewLine}===== Session {DateTime.Now:yyyy-MM-dd HH:mm:ss}  ·  " +

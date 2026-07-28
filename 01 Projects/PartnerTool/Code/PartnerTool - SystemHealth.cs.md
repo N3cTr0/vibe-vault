@@ -14,7 +14,7 @@ namespace PartnerTool;
 public static class SystemHealth
 {
     /// <summary>
-    /// True when Windows genuinely needs a restart to finish servicing — Component-Based
+    /// True when Windows genuinely needs a restart to finish servicing - Component-Based
     /// Servicing flagged a reboot, or a Windows Update installed something that needs one.
     ///
     /// Deliberately does NOT check PendingFileRenameOperations. That value is written by
@@ -25,7 +25,7 @@ public static class SystemHealth
     public static bool IsRebootPending() => PendingReasons().Count > 0;
 
     /// <summary>
-    /// Why a restart is pending, if any — so the UI can show the cause rather than a bare
+    /// Why a restart is pending, if any - so the UI can show the cause rather than a bare
     /// "reboot pending". Empty list means nothing is pending. Same two sources as before
     /// (CBS + Windows Update); still deliberately ignores PendingFileRenameOperations.
     /// </summary>

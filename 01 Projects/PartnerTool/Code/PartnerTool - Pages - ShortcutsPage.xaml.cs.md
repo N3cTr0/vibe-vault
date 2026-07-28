@@ -30,7 +30,7 @@ public partial class ShortcutsPage : UserControl
         try
         {
             // Security: this app is elevated and ShellExecute searches the working directory for
-            // bare names — always pin tools to System32/Windows so a planted file can't run as admin.
+            // bare names - always pin tools to System32/Windows so a planted file can't run as admin.
             if (tag.StartsWith("rundll32://"))
             {
                 var args = tag["rundll32://".Length..];

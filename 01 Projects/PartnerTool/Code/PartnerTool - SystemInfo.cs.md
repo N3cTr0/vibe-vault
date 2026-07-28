@@ -39,7 +39,7 @@ public class SystemInfo
         return string.Empty;
     }
 
-    /// <summary>Manufacturer + model in one WMI read — needed to tell a Surface from a Microsoft VM
+    /// <summary>Manufacturer + model in one WMI read - needed to tell a Surface from a Microsoft VM
     /// (and any OEM box from a virtual machine) when picking the vendor update tool.</summary>
     public static (string Manufacturer, string Model) GetMakeModel()
     {
@@ -81,7 +81,7 @@ public class SystemInfo
         }
         catch { }
 
-        // Feature-update version (e.g. 22H2 / 23H2 / 24H2) — what winver shows.
+        // Feature-update version (e.g. 22H2 / 23H2 / 24H2) - what winver shows.
         try
         {
             using var k = Registry.LocalMachine.OpenSubKey(

@@ -40,8 +40,8 @@ public partial class PerformanceWindow : Window
     private LiveSample? _last;
     private (int procs, int threads, int handles) _counts;
 
-    private static readonly SolidColorBrush SelBorder = Frozen("#89B4FA");   // selected tile — bright accent
-    private static readonly SolidColorBrush OffBorder = Frozen("#313244");   // unselected tile — subtle box
+    private static readonly SolidColorBrush SelBorder = Frozen("#89B4FA");   // selected tile - bright accent
+    private static readonly SolidColorBrush OffBorder = Frozen("#313244");   // unselected tile - subtle box
 
     public PerformanceWindow(string initial = "cpu")
     {
@@ -64,6 +64,27 @@ public partial class PerformanceWindow : Window
 
     /// <summary>Switch the focused resource from outside (clicking a different tile on System Info).</summary>
     public void SelectResource(string res) => Select(Normalize(res));
+
+    private static PerformanceWindow? _instance;
+
+    /// <summary>
+    /// Open the Performance window, or focus the existing one and switch it to <paramref name="res"/>.
+    /// Single-instance app-wide: every call site must go through here, or each page ends up owning its
+    /// own window, each running its own 1s sampler.
+    /// </summary>
+    public static void Open(Window? owner, string res)
+    {
+        if (_instance != null)
+        {
+            _instance.SelectResource(res);
+            if (_instance.WindowState == WindowState.Minimized) _instance.WindowState = WindowState.Normal;
+            _instance.Activate();
+            return;
+        }
+        _instance = new PerformanceWindow(res) { Owner = owner };
+        _instance.Closed += (_, _) => _instance = null;
+        _instance.Show();
+    }
 
     private static string Normalize(string r) => r.ToLowerInvariant() switch
     {
@@ -151,7 +172,7 @@ public partial class PerformanceWindow : Window
 
             PlotBig();
 
-            // Per-core graphs (CPU view only — extra WMI poll, so skip it otherwise).
+            // Per-core graphs (CPU view only - extra WMI poll, so skip it otherwise).
             if (_sel == "cpu" && _coreLines.Count > 0)
             {
                 var cores = await System.Threading.Tasks.Task.Run(PerfDetails.CoreLoads);
@@ -166,7 +187,7 @@ public partial class PerformanceWindow : Window
             if (_tick % 5 == 0)
                 try { _counts = await System.Threading.Tasks.Task.Run(PerfDetails.ProcessCounts); } catch { }
             _tick++;
-            TxtProcRail.Text = _counts.procs > 0 ? $"{_counts.procs} running" : "—";
+            TxtProcRail.Text = _counts.procs > 0 ? $"{_counts.procs} running" : "-";
 
             if (_sel != "proc") RenderStats();   // the Processes view has no stats panel
         }
@@ -231,23 +252,23 @@ public partial class PerformanceWindow : Window
             "mem" => MemRows(d, s),
             "disk" => new List<StatRow>
             {
-                new("Active",   s is { } ds ? $"{ds.DiskPct:F0}%" : "—"),
+                new("Active",   s is { } ds ? $"{ds.DiskPct:F0}%" : "-"),
                 new("Model",    d.DiskModel),
                 new("Type",     d.DiskType),
-                new("Capacity", d.DiskSizeGb > 0 ? $"{d.DiskSizeGb:F0} GB" : "—"),
+                new("Capacity", d.DiskSizeGb > 0 ? $"{d.DiskSizeGb:F0} GB" : "-"),
             },
             "net" => new List<StatRow>
             {
-                new("Receive",    s is { } ns ? $"{ns.NetDownMbps:F1} Mbps" : "—"),
-                new("Send",       s is { } us ? $"{us.NetUpMbps:F1} Mbps"   : "—"),
+                new("Receive",    s is { } ns ? $"{ns.NetDownMbps:F1} Mbps" : "-"),
+                new("Send",       s is { } us ? $"{us.NetUpMbps:F1} Mbps"   : "-"),
                 new("Adapter",    d.NetName),
                 new("Type",       d.NetType),
                 new("IP address", d.NetIp),
             },
             _ => new List<StatRow>
             {
-                new("Utilization",       s is { } cs ? $"{cs.CpuPct:F0}%" : "—"),
-                new("Base speed",        d.BaseGhz > 0 ? $"{d.BaseGhz:F2} GHz" : "—"),
+                new("Utilization",       s is { } cs ? $"{cs.CpuPct:F0}%" : "-"),
+                new("Base speed",        d.BaseGhz > 0 ? $"{d.BaseGhz:F2} GHz" : "-"),
                 new("Sockets",           d.Sockets.ToString()),
                 new("Cores",             d.Cores.ToString()),
                 new("Logical processors",d.Logical.ToString()),
@@ -269,11 +290,11 @@ public partial class PerformanceWindow : Window
         double used = s is { } ms ? d.RamTotalGb * ms.RamPct / 100.0 : 0;
         return new List<StatRow>
         {
-            new("In use",     s is { } ms2 ? $"{used:F1} GB  ({ms2.RamPct:F0}%)" : "—"),
-            new("Available",  d.RamTotalGb > 0 ? $"{Math.Max(0, d.RamTotalGb - used):F1} GB" : "—"),
-            new("Total",      d.RamTotalGb > 0 ? $"{d.RamTotalGb:F1} GB" : "—"),
+            new("In use",     s is { } ms2 ? $"{used:F1} GB  ({ms2.RamPct:F0}%)" : "-"),
+            new("Available",  d.RamTotalGb > 0 ? $"{Math.Max(0, d.RamTotalGb - used):F1} GB" : "-"),
+            new("Total",      d.RamTotalGb > 0 ? $"{d.RamTotalGb:F1} GB" : "-"),
             new("Type",       d.RamType),
-            new("Speed",      d.RamSpeed > 0 ? $"{d.RamSpeed} MHz" : "—"),
+            new("Speed",      d.RamSpeed > 0 ? $"{d.RamSpeed} MHz" : "-"),
             new("Slots used", d.Slots),
         };
     }

@@ -167,7 +167,7 @@ source-path: PartnerTool\MainWindow.xaml
                             VerticalContentAlignment="Stretch"/>
         </Grid>
 
-        <!-- Loading splash — covers everything until the first snapshot is ready -->
+        <!-- Loading splash - covers everything until the first snapshot is ready -->
         <Border x:Name="LoadingOverlay" Grid.Row="0" Grid.RowSpan="2" Background="#1E1E2E" Panel.ZIndex="100">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Image Source="Resources/logo.png" Width="72" Height="72"

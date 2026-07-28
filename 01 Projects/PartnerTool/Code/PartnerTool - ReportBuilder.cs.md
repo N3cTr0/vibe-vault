@@ -13,8 +13,8 @@ using System.Text;
 namespace PartnerTool;
 
 /// <summary>
-/// Builds the exported system report — a dark-themed, branded HTML page and a plain-text
-/// version — covering everything the tool collects (see <see cref="FullReportData"/>). Handy as
+/// Builds the exported system report - a dark-themed, branded HTML page and a plain-text
+/// version - covering everything the tool collects (see <see cref="FullReportData"/>). Handy as
 /// an "as-found" record of an old PC when setting up a new one.
 ///
 /// GOING FORWARD: a new collector should get a section here so it lands in the report.
@@ -31,7 +31,7 @@ public static class ReportBuilder
         var sb = new StringBuilder();
         void H(string t) { sb.AppendLine(); sb.AppendLine(t); sb.AppendLine(new string('-', t.Length)); }
 
-        sb.AppendLine("PARTNER SUPPORT TOOL — SYSTEM REPORT");
+        sb.AppendLine("PARTNER SUPPORT TOOL - SYSTEM REPORT");
         sb.AppendLine($"Generated: {s.CapturedAt:MM/dd/yyyy} at {s.CapturedAt:HH:mm:ss}");
         sb.AppendLine(new string('=', 60));
 
@@ -56,13 +56,13 @@ public static class ReportBuilder
         foreach (var m in hw.Memory)
             sb.AppendLine($"    • {m.Slot}: {m.SizeGb:F0} GB @ {m.SpeedMhz} MHz ({m.Maker})");
         foreach (var disk in hw.Disks)
-            sb.AppendLine($"  Disk               : {disk.Model} [{disk.Type}] {disk.SizeGb:F0} GB — {disk.Health}" +
+            sb.AppendLine($"  Disk               : {disk.Model} [{disk.Type}] {disk.SizeGb:F0} GB - {disk.Health}" +
                           (disk.HasSmart ? $" ({disk.SmartText})" : ""));
         foreach (var v in hw.Volumes)
             sb.AppendLine($"  Volume             : {v.Letter} {v.Label} [{v.FileSystem}] {v.UsedGb:F0}/{v.TotalGb:F0} GB used ({v.UsedPct:F0}%)");
         foreach (var g in hw.Gpus)
             sb.AppendLine($"  Graphics           : {g.Name}" + (g.VramGb > 0 ? $", {g.VramGb:F1} GB" : "") +
-                          $" — driver {g.Driver} ({g.DriverDate}){(string.IsNullOrEmpty(g.Resolution) ? "" : $", {g.Resolution}")}");
+                          $" - driver {g.Driver} ({g.DriverDate}){(string.IsNullOrEmpty(g.Resolution) ? "" : $", {g.Resolution}")}");
         sb.AppendLine($"  BIOS               : {hw.BiosVersion} ({hw.BiosDate})  ·  {hw.BootMode}  ·  TPM {hw.Tpm}");
         if (hw.BatteryWearPct is { } bw)
             sb.AppendLine($"  Battery            : {bw}% wear (design {hw.BatteryDesignMwh} mWh, full {hw.BatteryFullMwh} mWh)");
@@ -102,14 +102,14 @@ public static class ReportBuilder
         if (d.Hardening.Count > 0)
         {
             H("HARDENING SCORECARD");
-            foreach (var it in d.Hardening) sb.AppendLine($"  [{it.Level,-4}] {it.Name} — {it.Detail}");
+            foreach (var it in d.Hardening) sb.AppendLine($"  [{it.Level,-4}] {it.Name} - {it.Detail}");
         }
 
         if (d.Prosentry is { } pro)
         {
             H("PROSENTRY / MANAGED TOOLS");
-            foreach (var t in pro.Tools) sb.AppendLine($"  [{(t.Active ? "ON " : "off")}] {t.Name} — {t.Detail}");
-            sb.AppendLine($"  [{(pro.Intune.Active ? "ON " : "off")}] {pro.Intune.Name} — {pro.Intune.Detail}");
+            foreach (var t in pro.Tools) sb.AppendLine($"  [{(t.Active ? "ON " : "off")}] {t.Name} - {t.Detail}");
+            sb.AppendLine($"  [{(pro.Intune.Active ? "ON " : "off")}] {pro.Intune.Name} - {pro.Intune.Detail}");
         }
 
         if (d.Defender is { Available: true } def)
@@ -118,13 +118,13 @@ public static class ReportBuilder
             sb.AppendLine($"  Real-time protection : {(def.RealTimeProtection ? "On" : "Off")}");
             sb.AppendLine($"  Tamper protection    : {(def.TamperProtection ? "On" : "Off")}");
             sb.AppendLine($"  Signature version    : {def.SignatureVersion}");
-            sb.AppendLine($"  Signatures updated   : {(def.SignatureUpdated is { } su ? su.ToString(Dates.DateTime) : "—")}");
-            sb.AppendLine($"  Last quick scan      : {(def.QuickScanAgeDays is { } q ? $"{q} day(s) ago" : "—")}");
+            sb.AppendLine($"  Signatures updated   : {(def.SignatureUpdated is { } su ? su.ToString(Dates.DateTime) : "-")}");
+            sb.AppendLine($"  Last quick scan      : {(def.QuickScanAgeDays is { } q ? $"{q} day(s) ago" : "-")}");
             sb.AppendLine($"  Last full scan       : {(def.FullScanAgeDays is { } f ? $"{f} day(s) ago" : "Never / unknown")}");
             sb.AppendLine($"  Threats in history   : {def.ThreatCount}");
         }
 
-        H("NETWORK — PRIMARY ADAPTER");
+        H("NETWORK - PRIMARY ADAPTER");
         if (s.PrimaryAdapter is { } a)
         {
             sb.AppendLine($"  Adapter   : {a.Name} ({a.Type})");
@@ -137,9 +137,9 @@ public static class ReportBuilder
 
         if (d.Adapters.Count > 0)
         {
-            H("NETWORK — ALL ADAPTERS");
+            H("NETWORK - ALL ADAPTERS");
             foreach (var ad in d.Adapters)
-                sb.AppendLine($"  {ad.Name} ({ad.Type}) — {ad.IpAddress} / {ad.SubnetMask} [{ad.IpAssignment}], GW {ad.Gateway}, DNS {ad.Dns}, MAC {ad.Mac}");
+                sb.AppendLine($"  {ad.Name} ({ad.Type}) - {ad.IpAddress} / {ad.SubnetMask} [{ad.IpAssignment}], GW {ad.Gateway}, DNS {ad.Dns}, MAC {ad.Mac}");
         }
         if (d.Wifi.Count > 0)
         {
@@ -150,17 +150,17 @@ public static class ReportBuilder
         if (s.Displays.Count > 0)
         {
             H("MONITORS");
-            foreach (var m in s.Displays) sb.AppendLine($"  {m.Name} — {m.Detail}");
+            foreach (var m in s.Displays) sb.AppendLine($"  {m.Name} - {m.Detail}");
         }
         if (s.Printers.Count > 0)
         {
             H("PRINTERS");
-            foreach (var p in s.Printers) sb.AppendLine($"  {p.Display} — {p.Detail}");
+            foreach (var p in s.Printers) sb.AppendLine($"  {p.Display} - {p.Detail}");
         }
         if (s.Accounts.Count > 0)
         {
             H("LOCAL ACCOUNTS");
-            foreach (var ac in s.Accounts) sb.AppendLine($"  {ac.Name} — {ac.Detail}");
+            foreach (var ac in s.Accounts) sb.AppendLine($"  {ac.Name} - {ac.Detail}");
         }
 
         H($"INSTALLED SOFTWARE ({d.Software.Count})");
@@ -173,7 +173,7 @@ public static class ReportBuilder
         {
             H($"STARTUP PROGRAMS ({d.Startup.Count})");
             foreach (var su in d.Startup)
-                sb.AppendLine($"  [{su.StateText,-8}] {su.Name} — {su.LocationText}");
+                sb.AppendLine($"  [{su.StateText,-8}] {su.Name} - {su.LocationText}");
         }
 
         if (d.WuPolicy is { } wup)
@@ -193,7 +193,7 @@ public static class ReportBuilder
         if (s.Diagnostics.Devices.Count > 0)
         {
             H("DEVICE PROBLEMS");
-            foreach (var dev in s.Diagnostics.Devices) sb.AppendLine($"  {dev.Name} — {dev.Problem}");
+            foreach (var dev in s.Diagnostics.Devices) sb.AppendLine($"  {dev.Name} - {dev.Problem}");
         }
         H("CRASH DUMPS");
         sb.AppendLine($"  Minidumps: {s.Diagnostics.MinidumpCount}" +
@@ -209,19 +209,19 @@ public static class ReportBuilder
         {
             H($"SERVICES ({d.Services.Count})");
             foreach (var sv in d.Services.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
-                sb.AppendLine($"  [{sv.State,-8}] {sv.DisplayName} ({sv.Name}) — start: {sv.StartMode}");
+                sb.AppendLine($"  [{sv.State,-8}] {sv.DisplayName} ({sv.Name}) - start: {sv.StartMode}");
         }
         if (d.Drivers.Count > 0)
         {
             H($"DRIVERS ({d.Drivers.Count})");
             foreach (var dr in d.Drivers)
-                sb.AppendLine($"  {dr.Device} — {dr.Provider} {dr.Version} ({dr.Date}) [{dr.SignedText}]");
+                sb.AppendLine($"  {dr.Device} - {dr.Provider} {dr.Version} ({dr.Date}) [{dr.SignedText}]");
         }
         if (d.Tasks.Count > 0)
         {
             H($"SCHEDULED TASKS ({d.Tasks.Count})");
             foreach (var tk in d.Tasks)
-                sb.AppendLine($"  [{tk.Status}] {tk.Name} — next {tk.NextRun}, last {tk.LastRun} ({tk.LastResult})");
+                sb.AppendLine($"  [{tk.Status}] {tk.Name} - next {tk.NextRun}, last {tk.LastRun} ({tk.LastResult})");
         }
         if (d.EnvVars.Count > 0)
         {
@@ -249,7 +249,7 @@ public static class ReportBuilder
         var sb = new StringBuilder();
 
         sb.Append($@"<!DOCTYPE html><html lang=""en""><head><meta charset=""utf-8"">
-<title>Partner Tool — System Report — {E(info.Hostname)}</title>
+<title>Partner Tool - System Report - {E(info.Hostname)}</title>
 <style>
  body{{background:#1E1E2E;color:#CDD6F4;font-family:Segoe UI,Arial,sans-serif;margin:0;padding:32px;}}
  h1{{color:#CBA6F7;font-size:22px;margin:0 0 4px;}}
@@ -268,7 +268,7 @@ public static class ReportBuilder
  .empty{{color:#6C7086;font-size:12px;}}
  .ok{{color:#A6E3A1;}} .warn{{color:#F9E2AF;}} .bad{{color:#F38BA8;}} .info{{color:#89B4FA;}}
 </style></head><body>
-<h1>Partner Support Tool — System Report</h1>
+<h1>Partner Support Tool - System Report</h1>
 <div class=""sub"">Progressive Computing &middot; {E(info.Hostname)} &middot; generated {E(s.CapturedAt.ToString(Dates.DateTimeSec))}</div>");
 
         // Table of contents
@@ -341,7 +341,7 @@ public static class ReportBuilder
             hw.Volumes.Select(v => new[] { v.Letter, v.Label, v.FileSystem, $"{v.UsedGb:F0} GB", $"{v.FreeGb:F0} GB", $"{v.UsedPct:F0}%" }).ToList());
 
         TableCard("graphics", "Graphics", new[] { "Adapter", "VRAM", "Driver", "Driver date", "Resolution" },
-            hw.Gpus.Select(g => new[] { g.Name, g.VramGb > 0 ? $"{g.VramGb:F1} GB" : "—", g.Driver, g.DriverDate, g.Resolution }).ToList());
+            hw.Gpus.Select(g => new[] { g.Name, g.VramGb > 0 ? $"{g.VramGb:F1} GB" : "-", g.Driver, g.DriverDate, g.Resolution }).ToList());
 
         // ── OS / performance / power ──
         Card("os", "Operating system",
@@ -353,7 +353,7 @@ public static class ReportBuilder
             ("Memory", $"{perf.RamUsedGb:F1} / {perf.RamTotalGb:F1} GB ({perf.RamPct:F0}%)"),
             ("Disk C:", $"{perf.DiskUsedGb:F0} / {perf.DiskTotalGb:F0} GB ({perf.DiskPct:F0}%)"),
             ("Uptime", perf.UptimeText),
-            ("Stability index", s.Reliability.StabilityIndex is { } si ? $"{si:F1} / 10" : "—"),
+            ("Stability index", s.Reliability.StabilityIndex is { } si ? $"{si:F1} / 10" : "-"),
             ("Reboot pending", s.RebootPending ? string.Join(", ", s.RebootReasons) : "No"));
 
         Card("power", "Power & battery",
@@ -403,20 +403,20 @@ public static class ReportBuilder
                 ("Real-time protection", def2.RealTimeProtection ? "On" : "Off"),
                 ("Tamper protection", def2.TamperProtection ? "On" : "Off"),
                 ("Signature version", def2.SignatureVersion),
-                ("Signatures updated", def2.SignatureUpdated is { } su2 ? su2.ToString(Dates.DateTime) : "—"),
-                ("Last quick scan", def2.QuickScanAgeDays is { } q2 ? $"{q2} day(s) ago" : "—"),
+                ("Signatures updated", def2.SignatureUpdated is { } su2 ? su2.ToString(Dates.DateTime) : "-"),
+                ("Last quick scan", def2.QuickScanAgeDays is { } q2 ? $"{q2} day(s) ago" : "-"),
                 ("Last full scan", def2.FullScanAgeDays is { } f2 ? $"{f2} day(s) ago" : "Never / unknown"),
                 ("Threats in history", def2.ThreatCount.ToString()));
 
         // ── Network ──
         if (s.PrimaryAdapter is { } a)
-            Card("network", "Network — primary adapter",
+            Card("network", "Network - primary adapter",
                 ("Adapter", $"{a.Name} ({a.Type})"), ("IP / Mask", $"{a.IpAddress} / {a.SubnetMask}"),
                 ("Assignment", a.IpAssignment), ("Gateway", a.Gateway), ("DNS", a.Dns), ("MAC", a.Mac));
         else
-            Card("network", "Network — primary adapter", ("Status", "No active adapter detected."));
+            Card("network", "Network - primary adapter", ("Status", "No active adapter detected."));
 
-        TableCard("alladapters", "Network — all adapters", new[] { "Adapter", "Type", "IP / Mask", "Assignment", "Gateway", "DNS", "MAC" },
+        TableCard("alladapters", "Network - all adapters", new[] { "Adapter", "Type", "IP / Mask", "Assignment", "Gateway", "DNS", "MAC" },
             d.Adapters.Select(x => new[] { x.Name, x.Type, $"{x.IpAddress} / {x.SubnetMask}", x.IpAssignment, x.Gateway, x.Dns, x.Mac }).ToList());
 
         TableCard("wifi", "Saved Wi-Fi networks", new[] { "Profile" },

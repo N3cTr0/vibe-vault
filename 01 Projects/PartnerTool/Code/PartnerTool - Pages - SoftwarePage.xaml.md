@@ -127,7 +127,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
                         </WrapPanel>
                         </StackPanel>
 
-                        <!-- Loading overlay — covers the list while we detect installed apps (first visit only) -->
+                        <!-- Loading overlay - covers the list while we detect installed apps (first visit only) -->
                         <Border x:Name="InstallLoadingOverlay" Background="#313244" Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40">
                                 <TextBlock Text="Checking for installed software…" Foreground="#CDD6F4"
@@ -223,7 +223,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
                     <!-- Search bar -->
                     <Border Background="#11111B" CornerRadius="6" Padding="12,0" Margin="0,0,0,8">
                         <!-- Placeholder note: the Background must be set via the Style (NOT as a local
-                             attribute) — a local value beats a trigger Setter, so an inline
+                             attribute) - a local value beats a trigger Setter, so an inline
                              Background="Transparent" would stop the placeholder brush from ever showing. -->
                         <TextBox x:Name="SearchBox" Foreground="#CDD6F4"
                                  CaretBrush="#CDD6F4" FontSize="12" BorderThickness="0"

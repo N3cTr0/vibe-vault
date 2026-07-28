@@ -22,10 +22,10 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#1E1E2E">
         <StackPanel Margin="20,16,20,16">
 
-            <TextBlock Text="Each source below is scanned automatically when this tab opens (can take a minute). Its status and its “Open” button live together — use Update All to run everything at once."
+            <TextBlock Text="Each source below is scanned automatically when this tab opens (can take a minute). Its status and its “Open” button live together - use Update All to run everything at once."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="2,0,2,12"/>
 
-            <!-- UPDATE SOURCE / POLICY — where this PC gets updates + the policies steering it.
+            <!-- UPDATE SOURCE / POLICY - where this PC gets updates + the policies steering it.
                  On a managed device this is usually why WU can't connect. -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
@@ -93,7 +93,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="APP UPDATES (WINGET)" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Outdated apps detected by winget — upgraded by Update All below."
+                    <TextBlock Text="Outdated apps detected by winget - upgraded by Update All below."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,8"/>
                     <ItemsControl x:Name="IcOutdated">
                         <ItemsControl.ItemTemplate>
@@ -150,7 +150,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                                 VerticalAlignment="Top" Click="OpenStore_Click"/>
                         <StackPanel Margin="0,0,12,0">
                             <TextBlock Text="MICROSOFT STORE" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Store (UWP/MSIX) app updates — installed by Update All below."
+                            <TextBlock Text="Store (UWP/MSIX) app updates - installed by Update All below."
                                        FontSize="11" Foreground="#6C7086"/>
                         </StackPanel>
                     </DockPanel>
@@ -201,7 +201,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <!-- Live output log — only shown while/after Update All runs -->
+                        <!-- Live output log - only shown while/after Update All runs -->
                         <DockPanel Margin="0,14,0,8">
                             <CheckBox x:Name="ChkAutoScroll" DockPanel.Dock="Right"
                                       Content="Auto-scroll" IsChecked="True"

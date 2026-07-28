@@ -34,7 +34,7 @@ public record PerfSnapshot(
     public string MaxClockText => MaxClockMhz > 0 ? $"{MaxClockMhz / 1000.0:F2} GHz" : "";
 
     /// <summary>
-    /// Current vs rated clock — a rough throttle hint. WMI's CurrentClockSpeed often tracks the
+    /// Current vs rated clock - a rough throttle hint. WMI's CurrentClockSpeed often tracks the
     /// power/thermal cap, so a current well below the rated max can indicate throttling.
     /// </summary>
     public string ClockText => MaxClockMhz <= 0

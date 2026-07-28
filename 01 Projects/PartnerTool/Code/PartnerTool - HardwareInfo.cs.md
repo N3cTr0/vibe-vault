@@ -16,11 +16,11 @@ public record DiskInfo(string Model, string Type, string Health, double SizeGb)
 {
     /// <summary>Drive temperature in °C, from SMART reliability counters (null if unavailable).</summary>
     public int?  TempC        { get; init; }
-    /// <summary>SSD wear indicator 0–100% (% of rated write life consumed); null for HDDs / unknown.</summary>
+    /// <summary>SSD wear indicator 0-100% (% of rated write life consumed); null for HDDs / unknown.</summary>
     public int?  WearPct      { get; init; }
     /// <summary>Total powered-on hours from SMART (null if unavailable).</summary>
     public long? PowerOnHours { get; init; }
-    /// <summary>Uncorrected read+write errors from SMART — a non-zero value is a warning sign.</summary>
+    /// <summary>Uncorrected read+write errors from SMART - a non-zero value is a warning sign.</summary>
     public long? Errors       { get; init; }
 
     /// <summary>One-line SMART summary for the UI (empty when no SMART data is available).</summary>
@@ -46,10 +46,10 @@ public record VolumeInfo(string Letter, string Label, string FileSystem,
 public record MemoryModule(string Slot, double SizeGb, int SpeedMhz, string Maker)
 {
     // Column values for the System Info memory table (Slot / Size / Speed / Maker).
-    public string SlotText  => string.IsNullOrWhiteSpace(Slot) ? "—" : Slot;
+    public string SlotText  => string.IsNullOrWhiteSpace(Slot) ? "-" : Slot;
     public string SizeText  => $"{SizeGb:F0} GB";
-    public string SpeedText => SpeedMhz > 0 ? $"{SpeedMhz} MHz" : "—";
-    public string MakerText => string.IsNullOrWhiteSpace(Maker) ? "—" : Maker;
+    public string SpeedText => SpeedMhz > 0 ? $"{SpeedMhz} MHz" : "-";
+    public string MakerText => string.IsNullOrWhiteSpace(Maker) ? "-" : Maker;
 }
 public record GpuInfo(string Name, double VramGb, string Driver, string DriverDate, string Resolution);
 
@@ -93,7 +93,7 @@ public class HardwareInfo
 
                 // SMART reliability data (temperature, wear, power-on hours, errors).
                 // It lives on the MSFT_StorageReliabilityCounter related to this disk,
-                // and needs no third-party tool or kernel driver — just admin (we are).
+                // and needs no third-party tool or kernel driver - just admin (we are).
                 int? tempC = null, wear = null; long? poh = null, errs = null;
                 try
                 {
@@ -166,7 +166,7 @@ public class HardwareInfo
                 hw.Memory.Add(new MemoryModule(
                     o["DeviceLocator"]?.ToString()?.Trim() ?? "DIMM",
                     gb, speed,
-                    o["Manufacturer"]?.ToString()?.Trim() is { Length: > 0 } m ? m : "—"));
+                    o["Manufacturer"]?.ToString()?.Trim() is { Length: > 0 } m ? m : "-"));
                 hw.TotalMemoryGb += gb;
             }
             hw.SlotsUsed = hw.Memory.Count;
@@ -180,7 +180,7 @@ public class HardwareInfo
             foreach (ManagementObject o in q.Get())
             {
                 hw.SlotsTotal  = Convert.ToInt32(o["MemoryDevices"] ?? 0);
-                // MaxCapacityEx is in KILOBYTES (unlike most WMI byte fields) — KB → GB is /2^20.
+                // MaxCapacityEx is in KILOBYTES (unlike most WMI byte fields) - KB → GB is /2^20.
                 // The old /2^30 made every machine read ~0, so "max" never showed (or showed "0 GB").
                 if (o["MaxCapacityEx"] != null)
                     hw.MaxMemoryGb = Convert.ToDouble(o["MaxCapacityEx"]) / 1048576.0;
@@ -211,7 +211,7 @@ public class HardwareInfo
                     if (o["CurrentRefreshRate"] != null) res += $" @ {o["CurrentRefreshRate"]} Hz";
                 }
                 hw.Gpus.Add(new GpuInfo(name, vram,
-                    o["DriverVersion"]?.ToString() ?? "—", drvDate, res));
+                    o["DriverVersion"]?.ToString() ?? "-", drvDate, res));
             }
         }
         catch { }

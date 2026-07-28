@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace PartnerTool;
 
-/// <summary>One row of the Processes page — the fields Windows Task Manager shows that we can
+/// <summary>One row of the Processes page - the fields Windows Task Manager shows that we can
 /// read without ETW. (Per-process Network needs an ETW session, so that column is omitted.)</summary>
 public class ProcRow
 {
@@ -28,7 +28,7 @@ public class ProcRow
     public string Arch    { get; init; } = "";
     public string Desc    { get; init; } = "";
     public string Path    { get; init; } = "";
-    public bool   Critical { get; init; }            // OS marks it critical — killing bugchecks Windows
+    public bool   Critical { get; init; }            // OS marks it critical - killing bugchecks Windows
 
     public string CpuText  => Cpu  >= 0.05 ? $"{Cpu:F1}%" : "0%";
     public string MemText  => MemMb >= 1024 ? $"{MemMb / 1024:F1} GB" : $"{MemMb:F0} MB";
@@ -51,7 +51,7 @@ public class ProcessSampler
     private readonly Dictionary<int, Prev>   _prev   = new();
     private readonly Dictionary<int, Static> _static = new();
 
-    /// <summary>Snapshot all processes. Call on a background thread — it touches every process.</summary>
+    /// <summary>Snapshot all processes. Call on a background thread - it touches every process.</summary>
     public List<ProcRow> Sample()
     {
         var now  = DateTime.UtcNow;
@@ -63,7 +63,7 @@ public class ProcessSampler
         {
             try
             {
-                if (p.Id == 0) continue;   // Idle pseudo-process — taskmgr hides the real one too
+                if (p.Id == 0) continue;   // Idle pseudo-process - taskmgr hides the real one too
                 seen.Add(p.Id);
 
                 // CPU/IO deltas vs the previous sample (0 on the first sighting).
@@ -107,7 +107,7 @@ public class ProcessSampler
                     Arch = st.Arch, Desc = st.Desc, Path = st.Path, Critical = st.Critical,
                 });
             }
-            catch { /* exited mid-walk — skip */ }
+            catch { /* exited mid-walk - skip */ }
             finally { p.Dispose(); }
         }
 
@@ -117,7 +117,7 @@ public class ProcessSampler
         return rows;
     }
 
-    // ── static per-process facts (cached — PID + start time guards against PID reuse) ──
+    // ── static per-process facts (cached - PID + start time guards against PID reuse) ──
 
     private Static GetStatic(Process p)
     {

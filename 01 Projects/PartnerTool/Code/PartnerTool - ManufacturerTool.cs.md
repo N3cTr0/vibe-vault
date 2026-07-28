@@ -106,7 +106,7 @@ public static class ManufacturerTools
         "kvm", "qemu", "xen", "bochs", "parallels", "google compute engine", "amazon ec2",
     };
 
-    /// <summary>True for VMs — Windows 365 Cloud PC, Azure/Hyper-V, VMware, VirtualBox, etc.
+    /// <summary>True for VMs - Windows 365 Cloud PC, Azure/Hyper-V, VMware, VirtualBox, etc.
     /// They have no OEM firmware/driver tool, so we must not offer one.</summary>
     public static bool IsVirtualMachine(string manufacturer, string model)
     {
@@ -118,13 +118,13 @@ public static class ManufacturerTools
     {
         manufacturer ??= ""; model ??= "";
         // A Windows 365 Cloud PC / Hyper-V VM reports Manufacturer "Microsoft Corporation" and used
-        // to match the Surface tool — but a VM has no firmware to update. Skip all VMs.
+        // to match the Surface tool - but a VM has no firmware to update. Skip all VMs.
         if (IsVirtualMachine(manufacturer, model)) return null;
 
         foreach (var (key, tool) in Lookup)
         {
             if (!manufacturer.Contains(key, StringComparison.OrdinalIgnoreCase)) continue;
-            // "Microsoft" also covers non-Surface Microsoft machines — only offer the Surface tool
+            // "Microsoft" also covers non-Surface Microsoft machines - only offer the Surface tool
             // when the model actually says Surface.
             if (key == "microsoft" && !model.Contains("Surface", StringComparison.OrdinalIgnoreCase))
                 return null;

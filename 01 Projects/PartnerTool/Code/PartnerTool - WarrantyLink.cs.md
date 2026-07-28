@@ -35,7 +35,7 @@ public static class WarrantyLink
         if (m.Contains("acer"))
             return "https://www.acer.com/us-en/support/warranty-find";
 
-        // Unknown OEM — a serial-scoped web search is the most useful fallback.
+        // Unknown OEM - a serial-scoped web search is the most useful fallback.
         return $"https://www.bing.com/search?q={Uri.EscapeDataString($"{manufacturer} warranty check {serial}")}";
     }
 

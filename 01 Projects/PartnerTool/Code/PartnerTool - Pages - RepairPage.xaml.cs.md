@@ -38,7 +38,7 @@ public partial class RepairPage : UserControl
     // ── Dell SupportAssist / VSS shadow storage (Dell hardware only) ──────
 
     /// <summary>
-    /// Decide whether the Dell card should appear — a cheap manufacturer + folder-exists check, no
+    /// Decide whether the Dell card should appear - a cheap manufacturer + folder-exists check, no
     /// directory walk. The actual sizing waits for the tech to click Scan, so opening the Repair
     /// page never kicks off a multi-GB folder walk on its own.
     /// </summary>
@@ -51,7 +51,7 @@ public partial class RepairPage : UserControl
 
         CardDell.Visibility = Visibility.Visible;
         BtnDellRefresh.Content = "Scan";
-        TxtDellStatus.Text = "Not scanned yet — click Scan to size SARemediation and check shadow storage on C:.";
+        TxtDellStatus.Text = "Not scanned yet - click Scan to size SARemediation and check shadow storage on C:.";
         TxtDellStatus.Foreground = StatusColors.Muted;
     }
 
@@ -68,7 +68,7 @@ public partial class RepairPage : UserControl
         if (!info.IsDell || !info.FolderExists) return;   // leave the card collapsed
 
         CardDell.Visibility = Visibility.Visible;
-        BtnDellRefresh.Content = "Refresh";   // first scan done — the button now re-scans
+        BtnDellRefresh.Content = "Refresh";   // first scan done - the button now re-scans
         _dellVssUnbounded = info.VssUnbounded;
         BtnDellCapVss.IsEnabled = info.VssUnbounded;
 
@@ -99,7 +99,7 @@ public partial class RepairPage : UserControl
 
     private async void DellCapVss_Click(object sender, RoutedEventArgs e)
     {
-        // Shrinking the shadow-storage limit discards existing restore points — confirm, then gate.
+        // Shrinking the shadow-storage limit discards existing restore points - confirm, then gate.
         if (!MessageWindow.Confirm("Shadow Storage",
                 $"Cap VSS shadow storage on C: at {DellRemediation.VssMaxPercent}%?",
                 "This is Dell's own fix for unbounded shadow copies (KB 000129138). Existing System Restore " +
@@ -135,7 +135,7 @@ public partial class RepairPage : UserControl
         BtnFixWpad.IsEnabled = false;
         TxtProxyStatus.Text = "Toggling auto-detect…";
         TxtProxyStatus.Foreground = StatusColors.Yellow;
-        // ResetAutoDetect sleeps ~300ms between the off/on toggle — run it off the UI thread.
+        // ResetAutoDetect sleeps ~300ms between the off/on toggle - run it off the UI thread.
         var (ok, msg) = await Task.Run(ProxyRepair.ResetAutoDetect);
         ActivityLog.Result("Proxy", ok ? "done" : msg);
         TxtProxyStatus.Text = msg;
@@ -165,14 +165,14 @@ public partial class RepairPage : UserControl
     }
 
     // ── Clean temp files (all users) ──────────────────────────────────────
-    // Scan is a read-only dry-run (no gate) — shows how much the targets hold before cleaning.
+    // Scan is a read-only dry-run (no gate) - shows how much the targets hold before cleaning.
     private async void ScanTemp_Click(object sender, RoutedEventArgs e)
     {
         if (!BeginBusy()) return;
         TxtCleanTempStatus.Foreground = StatusColors.Yellow;
         TxtCleanTempStatus.Text = "Scanning…";
         UseLog(CleanTempLogScroll, CleanTempLog);
-        Log("▶ Scan temp files (all users) — nothing is deleted");
+        Log("▶ Scan temp files (all users) - nothing is deleted");
         try
         {
             void Status(string s) => Dispatcher.Invoke(() => TxtCleanTempStatus.Text = s);
@@ -180,7 +180,7 @@ public partial class RepairPage : UserControl
             foreach (var line in result.Lines) Log(line);
             Log($"━━━ {result.Summary} ━━━");
             TxtCleanTempStatus.Text = result.FileCount == 0
-                ? "Nothing to clean — the temp folders are already empty."
+                ? "Nothing to clean - the temp folders are already empty."
                 : $"{result.Summary}  Click Clean to delete.";
             TxtCleanTempStatus.Foreground = StatusColors.Green;
         }
@@ -201,7 +201,7 @@ public partial class RepairPage : UserControl
                 "Continue?", MessageKind.Warning, Window.GetWindow(this)))
             return;
 
-        if (!BeginBusy()) return;   // page-wide lock — don't let another heavy fix run concurrently
+        if (!BeginBusy()) return;   // page-wide lock - don't let another heavy fix run concurrently
         TxtCleanTempStatus.Foreground = StatusColors.Yellow;
         TxtCleanTempStatus.Text = "Cleaning…";
         UseLog(CleanTempLogScroll, CleanTempLog);
@@ -228,11 +228,11 @@ public partial class RepairPage : UserControl
 
     /// <summary>
     /// BeginBusy + the app-wide ServicingLock, for fixes that drive CBS/TrustedInstaller
-    /// (DISM, SFC, CHKDSK, Windows Update work) — so they can't overlap Update All (or each
+    /// (DISM, SFC, CHKDSK, Windows Update work) - so they can't overlap Update All (or each
     /// other across pages). Pair with <see cref="EndServicing"/> in the handler's finally.
     /// </summary>
     // Cancels the process of the currently-running servicing op (DISM/SFC/etc). Created when a
-    // servicing op starts, so its Cancel button — and RunWithProgress — can kill a stuck/slow run.
+    // servicing op starts, so its Cancel button - and RunWithProgress - can kill a stuck/slow run.
     private CancellationTokenSource? _servicingCts;
 
     private bool BeginServicing(string operation)
@@ -241,7 +241,7 @@ public partial class RepairPage : UserControl
         {
             MessageWindow.Show("Please Wait", "Another heavy operation is running",
                 $"“{ServicingLock.CurrentOperation}” is still running. Running two Windows " +
-                "servicing operations at once makes them fail — wait for it to finish first.",
+                "servicing operations at once makes them fail - wait for it to finish first.",
                 MessageKind.Warning, Window.GetWindow(this));
             return false;
         }
@@ -338,7 +338,7 @@ public partial class RepairPage : UserControl
 
     private void Log(string line) => Dispatcher.Invoke(() =>
     {
-        if (_logText is null) return;   // no active section log — output dropped (e.g. Reports)
+        if (_logText is null) return;   // no active section log - output dropped (e.g. Reports)
         _logText.Text += line + "\n";
         _logScroll?.ScrollToBottom();
     });
@@ -353,10 +353,10 @@ public partial class RepairPage : UserControl
             const string logDir = @"C:\PCI\Logs";
             Directory.CreateDirectory(logDir);
             var path = Path.Combine(logDir,
-                $"PartnerTool_{tag}_{Environment.MachineName}_{DateTime.Now:MMddyyyy_HHmmss}.log");   // seconds — a Scan then Clean in the same minute must not overwrite each other
+                $"PartnerTool_{tag}_{Environment.MachineName}_{DateTime.Now:MMddyyyy_HHmmss}.log");   // seconds - a Scan then Clean in the same minute must not overwrite each other
 
             var sb = new StringBuilder();
-            sb.AppendLine($"PARTNER TOOL — {tag.ToUpperInvariant()} LOG");
+            sb.AppendLine($"PARTNER TOOL - {tag.ToUpperInvariant()} LOG");
             sb.AppendLine($"Device    : {Environment.MachineName}");
             sb.AppendLine($"User      : {Environment.UserName}");
             sb.AppendLine($"Date/Time : {DateTime.Now:MM-dd-yyyy HH:mm:ss}");
@@ -464,17 +464,17 @@ public partial class RepairPage : UserControl
         ShowCancel(BtnFullRepairCancel, true);
         UseLog(FullRepairLogScroll, FullRepairLog);
 
-        var tCheck   = new UpdateTask { Name = "DISM — CheckHealth" };
-        var tScan    = new UpdateTask { Name = "DISM — ScanHealth" };
-        var tRestore = new UpdateTask { Name = "DISM — RestoreHealth" };
-        var tSfc     = new UpdateTask { Name = "SFC — /scannow" };
+        var tCheck   = new UpdateTask { Name = "DISM - CheckHealth" };
+        var tScan    = new UpdateTask { Name = "DISM - ScanHealth" };
+        var tRestore = new UpdateTask { Name = "DISM - RestoreHealth" };
+        var tSfc     = new UpdateTask { Name = "SFC - /scannow" };
 
         TaskList.ItemsSource = new[] { tCheck, tScan, tRestore, tSfc };
         PnlTasks.Visibility  = Visibility.Visible;
 
         try
         {
-            // DISM first, then SFC — SFC repairs system files from the component store
+            // DISM first, then SFC - SFC repairs system files from the component store
             // that DISM restores, so the store must be healthy before SFC runs. Bail between
             // steps if the tech hit Cancel (the running process is killed inside RunWithProgress).
             void Bail() { if (_servicingCts?.IsCancellationRequested == true) throw new OperationCanceledException(); }
@@ -486,11 +486,11 @@ public partial class RepairPage : UserControl
         }
         catch (OperationCanceledException)
         {
-            Log("━━━ Cancelled — stopped at the tech's request ━━━");
+            Log("━━━ Cancelled - stopped at the tech's request ━━━");
         }
         catch (Exception ex)
         {
-            Log($"━━━ Stopped — unexpected error: {ex.Message} ━━━");
+            Log($"━━━ Stopped - unexpected error: {ex.Message} ━━━");
         }
         finally
         {
@@ -508,9 +508,9 @@ public partial class RepairPage : UserControl
         if (code != 0 && code != 3010)
             Set(task, "● Error (check log)", StatusColors.Red);
         else if (t.Contains("repairable"))
-            Set(task, "● Corruption found — repairable", StatusColors.Yellow);
+            Set(task, "● Corruption found - repairable", StatusColors.Yellow);
         else if (t.Contains("not repairable"))
-            Set(task, "● Corruption — not repairable", StatusColors.Red);
+            Set(task, "● Corruption - not repairable", StatusColors.Red);
         else
             Set(task, "● No corruption", StatusColors.Green);
     }
@@ -522,9 +522,9 @@ public partial class RepairPage : UserControl
         string t = text.ToLowerInvariant();
 
         if (t.Contains("0x800f081f") || t.Contains("source files could not be found"))
-            Set(task, "● Failed — repair source unavailable", StatusColors.Red);
+            Set(task, "● Failed - repair source unavailable", StatusColors.Red);
         else if (code == 3010)
-            Set(task, "● Repaired — reboot required", StatusColors.Yellow);
+            Set(task, "● Repaired - reboot required", StatusColors.Yellow);
         else if (code == 0)
             Set(task, t.Contains("corruption was repaired") ? "● Repaired" : "● Healthy", StatusColors.Green);
         else
@@ -533,7 +533,7 @@ public partial class RepairPage : UserControl
 
     private async Task RunSfc(UpdateTask task)
     {
-        // sfc.exe writes UTF-16 to stdout — decode it as Unicode so result text is readable.
+        // sfc.exe writes UTF-16 to stdout - decode it as Unicode so result text is readable.
         var (_, text) = await RunStep(task, Encoding.Unicode, "sfc.exe", "/scannow", "SFC /scannow");
         string t = text.ToLowerInvariant();
 
@@ -549,11 +549,11 @@ public partial class RepairPage : UserControl
             Set(task, "● Done (check log)", StatusColors.Yellow);
     }
 
-    // ── CHECK DISK (CHKDSK) — standalone ──────────────────────────────────
+    // ── CHECK DISK (CHKDSK) - standalone ──────────────────────────────────
 
     private async void Chkdsk_Click(object sender, RoutedEventArgs e)
     {
-        // Read-only scan is free — no tech code (matches the temp/installer/feature scans). `chkdsk
+        // Read-only scan is free - no tech code (matches the temp/installer/feature scans). `chkdsk
         // C: /scan` is an online, non-destructive check; scheduling the /f /r repair is gated below.
         if (!BeginServicing("Check Disk (CHKDSK scan)")) return;
         ShowCancel(BtnChkdskCancel, true);
@@ -565,7 +565,7 @@ public partial class RepairPage : UserControl
             if (_servicingCts?.IsCancellationRequested == true)
                 Set(TxtChkdskStatus, "● Cancelled", StatusColors.Yellow);
             else
-                Set(TxtChkdskStatus, code == 0 ? "● No problems found" : "● Problems found — run chkdsk /f /r",
+                Set(TxtChkdskStatus, code == 0 ? "● No problems found" : "● Problems found - run chkdsk /f /r",
                     code == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
         finally { ShowCancel(BtnChkdskCancel, false); EndServicing(); SaveLog("Chkdsk"); }
@@ -588,18 +588,18 @@ public partial class RepairPage : UserControl
             if (r.Orphans.Count == 0)
             {
                 Set(TxtInstallerStatus,
-                    $"● No orphaned installer files — {r.ReferencedCount} referenced package(s), nothing to clean.",
+                    $"● No orphaned installer files - {r.ReferencedCount} referenced package(s), nothing to clean.",
                     StatusColors.Green);
                 return;
             }
 
             // Dry-run preview: list what WOULD be removed + what each package is for.
             UseLog(InstallerLogScroll, InstallerLog);
-            Log($"▶ Installer scan (preview — nothing deleted) — {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB");
+            Log($"▶ Installer scan (preview - nothing deleted) - {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB");
             LogInstallerBreakdown(r);
             Log("  ── files ──");
             foreach (var o in r.Orphans) Log("  " + InstallerCleanup.Line("would remove", o));
-            Log($"━━━ {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB — review, then click Clean ━━━");
+            Log($"━━━ {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB - review, then click Clean ━━━");
             SaveLog("InstallerScan");
 
             Set(TxtInstallerStatus,
@@ -614,7 +614,7 @@ public partial class RepairPage : UserControl
     {
         Log("  ── by product ──");
         foreach (var (product, count, bytes) in r.TopProducts(12))
-            Log($"  {product} — {count} file(s), {bytes / 1073741824.0:F1} GB");
+            Log($"  {product} - {count} file(s), {bytes / 1073741824.0:F1} GB");
     }
 
     private async void CleanInstaller_Click(object sender, RoutedEventArgs e)
@@ -626,7 +626,7 @@ public partial class RepairPage : UserControl
             var r = await Task.Run(InstallerCleanup.Scan);
             if (!r.KeepSetValid)
             {
-                Set(TxtInstallerStatus, "● " + (r.Error ?? "Scan failed — aborted for safety."), StatusColors.Red);
+                Set(TxtInstallerStatus, "● " + (r.Error ?? "Scan failed - aborted for safety."), StatusColors.Red);
                 return;
             }
             if (r.Orphans.Count == 0)
@@ -637,9 +637,9 @@ public partial class RepairPage : UserControl
 
             if (!TechGate.Verify(Window.GetWindow(this))) return;
             var breakdown = string.Join("\n", r.TopProducts(8)
-                .Select(p => $"   • {p.Product} — {p.Count} file(s), {p.Bytes / 1073741824.0:F1} GB"));
+                .Select(p => $"   • {p.Product} - {p.Count} file(s), {p.Bytes / 1073741824.0:F1} GB"));
             if (!MessageWindow.Confirm("Installer Cleanup",
-                    $"Delete {r.Orphans.Count} orphaned installer file(s) — freeing {r.OrphanGb:F1} GB?",
+                    $"Delete {r.Orphans.Count} orphaned installer file(s) - freeing {r.OrphanGb:F1} GB?",
                     $"Mostly:\n{breakdown}\n\nThese files in C:\\Windows\\Installer are not referenced by any installed product " +
                     $"(checked against Windows Installer's own database), so removing them is safe and won't affect the repair " +
                     $"or uninstall of anything installed. {r.ReferencedCount} referenced package(s) will be kept. The full list is " +
@@ -648,7 +648,7 @@ public partial class RepairPage : UserControl
                 return;
 
             UseLog(InstallerLogScroll, InstallerLog);
-            Log($"▶ Installer cleanup — {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB");
+            Log($"▶ Installer cleanup - {r.Orphans.Count} orphaned file(s), {r.OrphanGb:F1} GB");
             LogInstallerBreakdown(r);
             Log("  ── files ──");
             ActivityLog.Action("Repair", $"Clean {r.Orphans.Count} orphaned installer file(s) (~{r.OrphanGb:F1} GB) from C:\\Windows\\Installer");
@@ -705,9 +705,9 @@ public partial class RepairPage : UserControl
             }
             if (scan.English.Count == 0)
             {
-                // Never strip the last language — Office would be left with none.
+                // Never strip the last language - Office would be left with none.
                 Set(TxtOfficeLangStatus,
-                    "● No English pack is installed — not removing the others (Office would have no language). " +
+                    "● No English pack is installed - not removing the others (Office would have no language). " +
                     "Add English first.", StatusColors.Red);
                 return;
             }
@@ -745,8 +745,8 @@ public partial class RepairPage : UserControl
             Log("━━━ Office language cleanup complete ━━━");
             Set(TxtOfficeLangStatus,
                 failed == 0
-                    ? $"● Done — removed {removed} language pack(s); kept English ({keepList})."
-                    : $"● Removed {removed}, {failed} still present (check log) — may need a retry or a reboot.",
+                    ? $"● Done - removed {removed} language pack(s); kept English ({keepList})."
+                    : $"● Removed {removed}, {failed} still present (check log) - may need a retry or a reboot.",
                 failed == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
         catch (Exception ex)
@@ -767,15 +767,15 @@ public partial class RepairPage : UserControl
             var scan = await Task.Run(FeatureUpdateCleanup.Scan);
             if (scan.Items.Count == 0)
             {
-                Set(TxtFeatUpdStatus, "● Nothing to clean — no feature-update leftovers found.", StatusColors.Green);
+                Set(TxtFeatUpdStatus, "● Nothing to clean - no feature-update leftovers found.", StatusColors.Green);
                 return;
             }
 
             UseLog(FeatUpdLogScroll, FeatUpdLog);
-            Log($"▶ Feature-update leftovers scan (preview — nothing deleted) — {scan.TotalGb:F1} GB total");
+            Log($"▶ Feature-update leftovers scan (preview - nothing deleted) - {scan.TotalGb:F1} GB total");
             foreach (var i in scan.Items)
-                Log($"  {i.Label} — {i.Gb:F1} GB{(i.Permanent ? "  ⚠ permanent" : "")}\n      {i.Path} · {i.Note}");
-            Log($"━━━ {scan.TotalGb:F1} GB reclaimable — review, then click Clean ━━━");
+                Log($"  {i.Label} - {i.Gb:F1} GB{(i.Permanent ? "  ⚠ permanent" : "")}\n      {i.Path} · {i.Note}");
+            Log($"━━━ {scan.TotalGb:F1} GB reclaimable - review, then click Clean ━━━");
             SaveLog("FeatUpdScan");
 
             Set(TxtFeatUpdStatus,
@@ -803,13 +803,13 @@ public partial class RepairPage : UserControl
             if (!TechGate.Verify(Window.GetWindow(this))) return;
 
             var breakdown = string.Join("\n", scan.Items.Select(i =>
-                $"   • {i.Label} — {i.Gb:F1} GB{(i.Permanent ? "  (permanent)" : "")}"));
+                $"   • {i.Label} - {i.Gb:F1} GB{(i.Permanent ? "  (permanent)" : "")}"));
             string warn = scan.AnyPermanent
                 ? "\n\n⚠ This includes Windows.old and/or upgrade staging. Removing them is PERMANENT and ends the " +
                   "~10-day option to roll back (\"go back\") to the previous Windows build."
                 : "";
             if (!MessageWindow.Confirm("Feature-Update Leftovers",
-                    $"Delete {scan.Items.Count} feature-update leftover location(s) — freeing {scan.TotalGb:F1} GB?",
+                    $"Delete {scan.Items.Count} feature-update leftover location(s) - freeing {scan.TotalGb:F1} GB?",
                     $"Will remove:\n{breakdown}{warn}\n\nThis is what Windows Disk Cleanup's \"Previous Windows " +
                     "installation\" / \"Windows Update Cleanup\" options do. It cannot be undone. Continue?",
                     MessageKind.Warning, Window.GetWindow(this)))
@@ -827,7 +827,7 @@ public partial class RepairPage : UserControl
                 (after.Items.Count > 0 ? $"; {after.TotalGb:F1} GB remains (reboot may finish it) ━━━" : " ━━━"));
             Set(TxtFeatUpdStatus,
                 after.Items.Count == 0
-                    ? $"● Done — freed ~{freed / 1073741824.0:F1} GB."
+                    ? $"● Done - freed ~{freed / 1073741824.0:F1} GB."
                     : $"● Freed ~{freed / 1073741824.0:F1} GB; {after.TotalGb:F1} GB left (a reboot may be needed).",
                 after.Items.Count == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
@@ -861,7 +861,7 @@ Write-Output 'Windows Update components reset.'
         if (!TechGate.Verify(Window.GetWindow(this))) return;
 
         // Clearing the source policies changes where this PC gets updates, so confirm it separately
-        // and spell out exactly which values go — a tech may be looking at a deliberately managed PC.
+        // and spell out exactly which values go - a tech may be looking at a deliberately managed PC.
         bool resetSource = ChkWuSource.IsChecked == true;
         if (resetSource && MessageBox.Show(Window.GetWindow(this),
                 "Reset the update source so this PC looks for updates at Microsoft directly?\n\n" +
@@ -874,7 +874,7 @@ Write-Output 'Windows Update components reset.'
                 "Reset Windows Update source", MessageBoxButton.YesNo, MessageBoxImage.Warning)
             != MessageBoxResult.Yes) return;
 
-        if (!BeginServicing("Windows Update Reset")) return;   // stops/clears WU services — must not overlap Update All
+        if (!BeginServicing("Windows Update Reset")) return;   // stops/clears WU services - must not overlap Update All
         UseLog(WuLogScroll, WuLog);
         Set(TxtWuStatus, "Running…", StatusColors.Yellow);
         try
@@ -884,7 +884,7 @@ Write-Output 'Windows Update components reset.'
             {
                 Log("Resetting the update source back to Windows Update (online)...");
                 var removed = await Task.Run(WuPolicyInfo.ResetToOnline);
-                if (removed.Count == 0) Log("  no source policies were set — nothing to reset");
+                if (removed.Count == 0) Log("  no source policies were set - nothing to reset");
                 else foreach (var line in removed) Log(line);
                 Log("");
             }
@@ -893,8 +893,8 @@ Write-Output 'Windows Update components reset.'
                 "Windows Update reset", TxtWuStatus);
             Set(TxtWuStatus,
                 code != 0        ? "● Done (check log)"
-                : resetSource    ? "● Done — caches cleared, source reset to online"
-                                 : "● Done — caches cleared",
+                : resetSource    ? "● Done - caches cleared, source reset to online"
+                                 : "● Done - caches cleared",
                 code == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
         finally { EndServicing(); SaveLog("WUReset"); }
@@ -957,7 +957,7 @@ Start-Service -Name Spooler
 Write-Output 'Print queue cleared and spooler restarted.'
 ";
 
-    // Lives in the System Restore Points card — writes its own status/log there and refreshes
+    // Lives in the System Restore Points card - writes its own status/log there and refreshes
     // the list so the new point shows up immediately.
     private async void RestorePoint_Click(object sender, RoutedEventArgs e)
     {
@@ -975,7 +975,7 @@ Write-Output 'Print queue cleared and spooler restarted.'
     }
 
     // "Clear Temp Files" quick fix retired (0.17.66): it duplicated Clean Temp Files (All Users),
-    // which covers more locations and has a Scan preview — one obvious way beats two similar ones.
+    // which covers more locations and has a Scan preview - one obvious way beats two similar ones.
 
     private async void EmptyBin_Click(object sender, RoutedEventArgs e)
     {
@@ -1055,8 +1055,8 @@ Write-Output 'Icon and thumbnail caches cleared.'
     private void MemDiag_Click(object sender, RoutedEventArgs e)
     {
         if (!TechGate.Verify(Window.GetWindow(this))) return;
-        // mdsched is a GUI that prompts to restart now / on next boot — just launch it.
-        // (Pinned to System32 — ShellExecute would search the working directory for a bare name.)
+        // mdsched is a GUI that prompts to restart now / on next boot - just launch it.
+        // (Pinned to System32 - ShellExecute would search the working directory for a bare name.)
         try { Process.Start(new ProcessStartInfo(ProcessRunner.ResolveSystemTool("mdsched.exe")) { UseShellExecute = true }); }
         catch (Exception ex)
         {
@@ -1080,7 +1080,7 @@ Write-Output 'Icon and thumbnail caches cleared.'
             // Pipe Y to answer the "schedule at next boot?" prompt.
             var code = await RunUtil("cmd.exe", "/c echo Y| chkdsk C: /f /r", null,
                 "Schedule CHKDSK C: /f /r at next boot", TxtChkdskStatus);
-            Set(TxtChkdskStatus, "● Scheduled — runs at next restart", StatusColors.Green);
+            Set(TxtChkdskStatus, "● Scheduled - runs at next restart", StatusColors.Green);
         }
         finally { EndBusy(); SaveLog("Chkdsk"); }
     }
@@ -1090,7 +1090,7 @@ Write-Output 'Icon and thumbnail caches cleared.'
     private async void BatteryReport_Click(object sender, RoutedEventArgs e)
     {
         if (!BeginBusy()) return;
-        _logText = null;   // Reports just open a browser — no inline log for this card
+        _logText = null;   // Reports just open a browser - no inline log for this card
         Set(TxtReportStatus, "Generating…", StatusColors.Yellow);
         try
         {
@@ -1110,7 +1110,7 @@ Write-Output 'Icon and thumbnail caches cleared.'
     private async void GpReport_Click(object sender, RoutedEventArgs e)
     {
         if (!BeginBusy()) return;
-        _logText = null;   // Reports just open a browser — no inline log for this card
+        _logText = null;   // Reports just open a browser - no inline log for this card
         Set(TxtReportStatus, "Generating…", StatusColors.Yellow);
         try
         {

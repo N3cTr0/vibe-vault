@@ -10,7 +10,7 @@ source-path: PartnerTool\SecuritySoftware.cs
 namespace PartnerTool;
 
 /// <summary>
-/// Single source of truth for "is this AV / EDR / security software?" — used to block the tool from
+/// Single source of truth for "is this AV / EDR / security software?" - used to block the tool from
 /// weakening a machine's protection: stopping its services, killing its processes, disabling its
 /// startup entries, or uninstalling it. Match on any name/command/display-name string.
 /// </summary>
@@ -25,7 +25,7 @@ public static class SecuritySoftware
         "sentinelone", "sentinel one", "sentinelagent",
         "huntress", "crowdstrike", "falcon", "cylance", "carbon black", "carbonblack",
         "sophos", "bitdefender", "webroot", "malwarebytes", "kaspersky",
-        // ESET — bare "eset" would substring-match "Reset", so use its product/exe/service names.
+        // ESET - bare "eset" would substring-match "Reset", so use its product/exe/service names.
         "eset nod32", "eset endpoint", "eset internet", "eset smart", "eset security",
         "eset file", "eset server", "eset mail", "ekrn", "egui",
         "mcafee", "trellix", "cortex xdr", "symantec", "norton", "avast", "avg antivirus",

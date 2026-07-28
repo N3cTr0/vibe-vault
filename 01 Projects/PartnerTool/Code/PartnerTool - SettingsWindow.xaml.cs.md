@@ -38,13 +38,13 @@ public partial class SettingsWindow : Window
         s.LogRetentionDays     = days;
         SettingsStore.Save();
 
-        ActivityLog.Action("Settings", $"Updated settings — log retention {days} day(s)");
+        ActivityLog.Action("Settings", $"Updated settings - log retention {days} day(s)");
         DialogResult = true;
     }
 
     /// <summary>
-    /// Delete every log file in C:\PCI\Logs right now, regardless of retention age. Tech-gated —
-    /// it erases the audit trail — and the purge itself is recorded as the first entry of the
+    /// Delete every log file in C:\PCI\Logs right now, regardless of retention age. Tech-gated -
+    /// it erases the audit trail - and the purge itself is recorded as the first entry of the
     /// fresh activity log so the trail shows it happened.
     /// </summary>
     private void PurgeLogs_Click(object sender, RoutedEventArgs e)
@@ -60,7 +60,7 @@ public partial class SettingsWindow : Window
                 foreach (var f in dir.GetFiles())
                 {
                     try { long len = f.Length; f.Delete(); count += 1; bytes += len; }
-                    catch { locked += 1; }   // in use — leave it; retention gets it later
+                    catch { locked += 1; }   // in use - leave it; retention gets it later
                 }
             }
         }
@@ -71,7 +71,7 @@ public partial class SettingsWindow : Window
         }
 
         ActivityLog.Action("Logs", $"Purged all log files ({count} file(s), {bytes / 1048576.0:F1} MB)"
-                                   + (locked > 0 ? $" — {locked} in use, skipped" : ""));
+                                   + (locked > 0 ? $" - {locked} in use, skipped" : ""));
         TxtPurgeStatus.Text = $"Deleted {count} file(s) ({bytes / 1048576.0:F1} MB)"
                               + (locked > 0 ? $"; {locked} in use, skipped." : ".");
     }

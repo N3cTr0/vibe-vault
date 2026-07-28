@@ -20,7 +20,7 @@ public class TempCleanResult
     public readonly List<string> SkippedFiles = new();   // in-use files left behind (for the log)
 
     public string Summary =>
-        $"Freed {BytesFreed / 1048576.0:F0} MB — {FilesDeleted:N0} file(s) across {ProfilesProcessed} profile(s)"
+        $"Freed {BytesFreed / 1048576.0:F0} MB - {FilesDeleted:N0} file(s) across {ProfilesProcessed} profile(s)"
         + (Skipped > 0 ? $"  ·  {Skipped:N0} in use/skipped." : ".");
 }
 
@@ -56,7 +56,7 @@ public static class TempCleaner
     };
 
     // When shipped single-file, the exe self-extracts its native DLLs to %TEMP%\.net\PartnerTool-<ver>\…
-    // and holds them open while running — so the temp cleaner would only ever "skip (in use)" them and
+    // and holds them open while running - so the temp cleaner would only ever "skip (in use)" them and
     // log noise. Skip our own extraction folder outright. Null in a normal (multi-file) dev build.
     private static readonly string? SelfExtractDir = FindSelfExtractDir();
 
@@ -148,12 +148,12 @@ public static class TempCleaner
         SizeContents(dir, r);
         int df = r.FileCount - f0;
         long mb = (r.TotalBytes - b0) / 1048576;
-        if (df > 0) r.Lines.Add($"  {dir} — {df:N0} file(s), {mb:N0} MB");
+        if (df > 0) r.Lines.Add($"  {dir} - {df:N0} file(s), {mb:N0} MB");
     }
 
     private static void SizeContents(string dir, TempScanResult r)
     {
-        if (IsSelfExtract(dir)) return;   // our own in-use extracted DLLs — never count/clean them
+        if (IsSelfExtract(dir)) return;   // our own in-use extracted DLLs - never count/clean them
         DirectoryInfo di;
         try
         {
@@ -187,12 +187,12 @@ public static class TempCleaner
         int df = r.FilesDeleted - f0, sk = r.Skipped - s0;
         long mb = (r.BytesFreed - b0) / 1048576;
         if (df > 0 || sk > 0)
-            onLog?.Invoke($"  {dir} — {df:N0} file(s), {mb:N0} MB" + (sk > 0 ? $", {sk} skipped" : ""));
+            onLog?.Invoke($"  {dir} - {df:N0} file(s), {mb:N0} MB" + (sk > 0 ? $", {sk} skipped" : ""));
     }
 
     private static void CleanContents(string dir, TempCleanResult r)
     {
-        if (IsSelfExtract(dir)) return;   // our own in-use extracted DLLs — never try to delete them
+        if (IsSelfExtract(dir)) return;   // our own in-use extracted DLLs - never try to delete them
         DirectoryInfo di;
         try
         {
@@ -214,7 +214,7 @@ public static class TempCleaner
                 r.BytesFreed += len;
                 r.FilesDeleted++;
             }
-            catch { r.Skipped++; r.SkippedFiles.Add(f.FullName); }   // locked / in use — leave it
+            catch { r.Skipped++; r.SkippedFiles.Add(f.FullName); }   // locked / in use - leave it
         }
 
         DirectoryInfo[] subs;

@@ -15,19 +15,22 @@ namespace PartnerTool;
 /// <summary>
 /// Reduces log text to plain 7-bit ASCII so shared logs never "mojibake" in a ticketing / RMM tool
 /// that misreads UTF-8 (e.g. "Â·", "â", "âââ", the "ï»¿" BOM). Applied ONLY at the file-write
-/// sinks — the live in-app log and status lines keep their nicer glyphs (▶ ● — · …). Decorative
+/// sinks - the live in-app log and status lines keep their nicer glyphs (▶ ● - · …). Decorative
 /// glyphs map to ASCII tokens; accented letters fold to their base letter (é → e); anything else
 /// non-ASCII is dropped.
 /// </summary>
 public static class LogText
 {
-    /// <summary>UTF-8 with NO BOM — pure-ASCII content is then byte-identical under any code page.</summary>
+    /// <summary>UTF-8 with NO BOM - pure-ASCII content is then byte-identical under any code page.</summary>
     public static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private static readonly (string From, string To)[] Glyphs =
     {
         ("▶", ">"),  ("●", "*"),   ("■", "*"),   ("◆", "*"),
-        ("━", "-"),  ("─", "-"),   ("–", "-"),   ("—", "-"),
+        // Dashes are \u escapes on purpose: the repo is kept free of literal em/en dash bytes,
+        // but this table still has to fold them out of text that arrives from elsewhere
+        // (command stdout, event-log messages).
+        ("━", "-"),  ("─", "-"),   ("\u2013", "-"), ("\u2014", "-"),
         ("»", ">"),  ("«", "<"),   ("•", "-"),   ("·", "-"),
         ("✓", "[OK]"), ("✔", "[OK]"), ("✗", "[X]"), ("⚠", "[!]"),
         ("→", "->"), ("←", "<-"),  ("…", "..."),

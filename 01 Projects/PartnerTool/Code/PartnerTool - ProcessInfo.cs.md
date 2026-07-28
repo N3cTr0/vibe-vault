@@ -14,15 +14,15 @@ namespace PartnerTool;
 public record ProcInfo(int Pid, string Name, double CpuPct, double MemMb)
 {
     /// <summary>
-    /// False for rows the tool refuses to end — critical Windows processes (which would BSOD) plus
-    /// the tool's own process — so the End button can disable itself instead of failing on click.
+    /// False for rows the tool refuses to end - critical Windows processes (which would BSOD) plus
+    /// the tool's own process - so the End button can disable itself instead of failing on click.
     /// Checks both our name list and the OS's own critical flag.
     /// </summary>
     public bool CanEnd => !ProcessInfo.IsProtected(Pid, Name) && !ProcessInfo.IsOsCritical(Pid);
 }
 
 /// <summary>
-/// A lightweight "top processes" snapshot — like the Task Manager Processes tab. CPU% is
+/// A lightweight "top processes" snapshot - like the Task Manager Processes tab. CPU% is
 /// measured by sampling each process's total processor time across a short interval and
 /// normalising by the logical-processor count, so it's a real over-the-window figure.
 /// </summary>
@@ -70,7 +70,7 @@ public static class ProcessInfo
                 if (p.Id == 0) continue;
                 list.Add((p.Id, p.ProcessName, p.TotalProcessorTime, p.WorkingSet64 / 1048576.0));
             }
-            catch { /* access denied / exited — skip */ }
+            catch { /* access denied / exited - skip */ }
             finally { p.Dispose(); }
         }
         return list;
@@ -85,10 +85,10 @@ public static class ProcessInfo
     {
         "system", "idle", "registry", "memory compression", "secure system",
         "smss", "csrss", "wininit", "winlogon", "services", "lsass", "lsaiso", "fontdrvhost",
-        // Killing the wrong svchost (e.g. the RPC/DcomLaunch host) also bugchecks — and the tool
+        // Killing the wrong svchost (e.g. the RPC/DcomLaunch host) also bugchecks - and the tool
         // can't tell which services an instance hosts, so block them all. Use services.msc instead.
         "svchost",
-        // Security / endpoint protection engines — never kill AV/EDR from a support tool. Mirrors
+        // Security / endpoint protection engines - never kill AV/EDR from a support tool. Mirrors
         // the guards that already block stopping their services (ServicesInfo.Critical) and
         // disabling their startup entries (StartupInfo.IsSecurityCritical).
         "MsMpEng", "NisSrv", "MpDefenderCoreService", "SecurityHealthService", "MsSense",
@@ -103,13 +103,13 @@ public static class ProcessInfo
 
     /// <summary>
     /// Ask Windows whether killing this process would bugcheck the machine (CRITICAL_PROCESS_DIED).
-    /// This is the authoritative check — it catches critical processes that aren't in our name list,
+    /// This is the authoritative check - it catches critical processes that aren't in our name list,
     /// including third-party ones the OS marks critical. Returns false if it can't be determined
-    /// (access denied / already exited) — the name list remains the backstop.
+    /// (access denied / already exited) - the name list remains the backstop.
     /// </summary>
     public static bool IsOsCritical(int pid)
     {
-        if (pid <= 4) return true;   // System / Idle — never openable, always fatal
+        if (pid <= 4) return true;   // System / Idle - never openable, always fatal
         IntPtr h = OpenProcess(0x1000 /*QUERY_LIMITED_INFORMATION*/, false, pid);
         if (h == IntPtr.Zero) return false;
         try { return IsProcessCritical(h, out bool critical) && critical; }

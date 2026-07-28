@@ -15,17 +15,17 @@ namespace PartnerTool;
 /// Canonical date/time formatting for everything the tool shows a tech.
 ///
 /// **Progressive Computing standard: displayed dates are always MM/DD/YYYY.** Use these format
-/// strings (or the helpers) for every user-facing date so the whole app reads consistently — never
+/// strings (or the helpers) for every user-facing date so the whole app reads consistently - never
 /// hand-roll a `d MMM yyyy` / `dd/MM/yy` / locale-default format. The app also pins the process
 /// culture to en-US with a MM/dd/yyyy short-date pattern (see <c>App.ForceEnUsCulture</c>), which
 /// covers any default <c>DateTime.ToString()</c> and XAML <c>{0:d}</c> binding as a safety net.
 ///
 /// XAML bindings can't reference these consts, so they use the same literal patterns inline, e.g.
-/// <c>StringFormat={}{0:MM/dd/yyyy}</c> / <c>{0:MM/dd/yyyy HH:mm}</c> — keep them in sync with here.
+/// <c>StringFormat={}{0:MM/dd/yyyy}</c> / <c>{0:MM/dd/yyyy HH:mm}</c> - keep them in sync with here.
 /// </summary>
 public static class Dates
 {
-    /// <summary>MM/DD/YYYY — the house date format.</summary>
+    /// <summary>MM/DD/YYYY - the house date format.</summary>
     public const string Date = "MM/dd/yyyy";
     /// <summary>MM/DD/YYYY HH:mm.</summary>
     public const string DateTime = "MM/dd/yyyy HH:mm";

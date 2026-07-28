@@ -13,7 +13,7 @@ namespace PartnerTool;
 
 /// <summary>
 /// Keeps C:\PCI\Logs from growing forever. The folder is ACL-hardened (only elevated contexts can
-/// write or delete), so techs can't tidy it by hand — the elevated app prunes it at startup
+/// write or delete), so techs can't tidy it by hand - the elevated app prunes it at startup
 /// instead, deleting log files whose last write is older than the configured retention
 /// (Settings ▸ Log retention, default 30 days). The always-appended activity log's LastWriteTime
 /// refreshes every session, so it survives as long as the tool is actually in use; a stale
@@ -42,7 +42,7 @@ public static class LogRetention
                     f.Delete();
                     count += 1; bytes += len;
                 }
-                catch { /* locked / in use — the next launch gets it */ }
+                catch { /* locked / in use - the next launch gets it */ }
             }
 
             if (count > 0)

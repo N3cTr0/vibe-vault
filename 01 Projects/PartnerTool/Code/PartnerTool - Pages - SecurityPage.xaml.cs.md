@@ -34,7 +34,7 @@ public partial class SecurityPage : UserControl
         new BitLockerWindow { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
-    // Jump to the Windows setting/applet that changes this audit item — or, for the special
+    // Jump to the Windows setting/applet that changes this audit item - or, for the special
     // reset-execution-policy target, do the reset in-app after confirming.
     private async void Fix_Click(object sender, RoutedEventArgs e)
     {
@@ -71,7 +71,7 @@ public partial class SecurityPage : UserControl
             }
             else
             {
-                // System32 tool/applet — launch by absolute path (we run elevated).
+                // System32 tool/applet - launch by absolute path (we run elevated).
                 psi = new ProcessStartInfo(ProcessRunner.ResolveSystemExe(fix.Target), fix.Args ?? "")
                 { UseShellExecute = false };
             }
@@ -114,10 +114,10 @@ public partial class SecurityPage : UserControl
         TxtRtp.Foreground  = d.RealTimeProtection ? StatusColors.Green : StatusColors.Red;
         TxtTamper.Text     = d.TamperProtection ? "On" : "Off";
         TxtSig.Text        = d.SignatureVersion;
-        TxtSigDate.Text    = d.SignatureUpdated is { } s ? s.ToString(Dates.DateTime) : "—";
+        TxtSigDate.Text    = d.SignatureUpdated is { } s ? s.ToString(Dates.DateTime) : "-";
         if (d.SignatureUpdated is { } su)
             TxtSigDate.Foreground = (DateTime.Now - su).TotalDays > 7 ? StatusColors.Yellow : StatusColors.Green;
-        TxtQuick.Text      = d.QuickScanAgeDays is { } qa ? $"{qa} day(s) ago" : "—";
+        TxtQuick.Text      = d.QuickScanAgeDays is { } qa ? $"{qa} day(s) ago" : "-";
         TxtFull.Text       = d.FullScanAgeDays is { } fa ? $"{fa} day(s) ago" : "Never / unknown";
         TxtThreats.Text    = d.ThreatCount == 0 ? "None recorded" : $"{d.ThreatCount} in history";
         TxtThreats.Foreground = d.ThreatCount == 0 ? StatusColors.Green : StatusColors.Yellow;

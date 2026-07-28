@@ -12,7 +12,7 @@ using System.Text.RegularExpressions;
 namespace PartnerTool;
 
 /// <summary>
-/// Device join state from <c>dsregcmd /status</c> — Azure AD joined / hybrid / on-prem
+/// Device join state from <c>dsregcmd /status</c> - Azure AD joined / hybrid / on-prem
 /// domain joined, tenant and device id. Increasingly the first thing to check on modern
 /// client machines (sign-in / Intune / conditional-access issues).
 /// </summary>
@@ -21,8 +21,8 @@ public class AzureAdInfo
     public bool   AzureAdJoined  { get; set; }
     public bool   DomainJoined   { get; set; }
     public bool   EnterpriseJoined { get; set; }
-    public string TenantName     { get; set; } = "—";
-    public string DeviceId       { get; set; } = "—";
+    public string TenantName     { get; set; } = "-";
+    public string DeviceId       { get; set; } = "-";
 
     public static async Task<AzureAdInfo> CollectAsync()
     {
@@ -38,7 +38,7 @@ public class AzureAdInfo
             string Val(string key)
             {
                 var m = Regex.Match(text, $@"{Regex.Escape(key)}\s*:\s*(.+)", RegexOptions.IgnoreCase);
-                return m.Success ? m.Groups[1].Value.Trim() : "—";
+                return m.Success ? m.Groups[1].Value.Trim() : "-";
             }
             info.AzureAdJoined    = Yes("AzureAdJoined");
             info.DomainJoined     = Yes("DomainJoined");

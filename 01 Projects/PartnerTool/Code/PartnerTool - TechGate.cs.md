@@ -13,7 +13,7 @@ namespace PartnerTool;
 
 /// <summary>
 /// Soft gate in front of destructive actions: the first time a tech triggers one in a session they
-/// must enter today's date code — day-of-month then 4-digit year (e.g. 6/26/2026 → "262026"). Once
+/// must enter today's date code - day-of-month then 4-digit year (e.g. 6/26/2026 → "262026"). Once
 /// entered correctly the session is unlocked and later destructive actions go straight to their own
 /// confirm. It's a "are you really a tech" speed-bump to stop an end-user clicking something
 /// destructive, not real security.

@@ -52,7 +52,7 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
                                FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <StackPanel>
                         <TextBlock Text="PROCESSES" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Live view of every running process — refreshes every 2 seconds. CPU is across all cores; Disk is that process's read+write rate. (Per-process network needs Windows' ETW tracing, so Task Manager's Network column isn't shown.)"
+                        <TextBlock Text="Live view of every running process - refreshes every 2 seconds. CPU is across all cores; Disk is that process's read+write rate. (Per-process network needs Windows' ETW tracing, so Task Manager's Network column isn't shown.)"
                                    FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </StackPanel>
                 </DockPanel>
@@ -87,7 +87,7 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
                 <!-- Header + rows share one horizontal scroll surface: below ~860px the fixed
                      columns would otherwise crush the star-sized Name/Description to nothing.
                      Width is pinned to the viewport (not left to content) because a horizontal
-                     ScrollViewer measures children with infinite width — star columns would size
+                     ScrollViewer measures children with infinite width - star columns would size
                      per-row to their content and every row would misalign. -->
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                 <DockPanel MinWidth="860"

@@ -125,7 +125,7 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="PROSENTRY" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="PCI's managed security stack — a green dot means the agent is active on this PC."
+                            <TextBlock Text="PCI's managed security stack - a green dot means the agent is active on this PC."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,4"/>
                             <ItemsControl x:Name="IcProsentry" ItemTemplate="{StaticResource ToolRow}"/>
                             <Rectangle Style="{StaticResource RowDivider}" Margin="0,8"/>
@@ -168,7 +168,7 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                         </StackPanel>
                     </Border>
 
-                    <!-- BITLOCKER RECOVERY KEY — directly under Defender; only shown when a recovery key exists on this PC -->
+                    <!-- BITLOCKER RECOVERY KEY - directly under Defender; only shown when a recovery key exists on this PC -->
                     <Border x:Name="BitLockerCard" Style="{StaticResource Card}">
                         <DockPanel>
                             <Button x:Name="BtnBitLocker" DockPanel.Dock="Right" Content="Show recovery key"
@@ -176,7 +176,7 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                                     Click="BitLocker_Click"/>
                             <StackPanel>
                                 <TextBlock Text="BITLOCKER RECOVERY KEY" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="Reveal the 48-digit BitLocker recovery key(s) for this machine's drives — for unlocking a drive after a TPM/hardware change. Keys are read on demand and only shown when you click."
+                                <TextBlock Text="Reveal the 48-digit BitLocker recovery key(s) for this machine's drives - for unlocking a drive after a TPM/hardware change. Keys are read on demand and only shown when you click."
                                            FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,12,0"/>
                             </StackPanel>
                         </DockPanel>

@@ -30,7 +30,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel x:Name="PnlNetTools">
                     <TextBlock Text="NETWORK TOOLS" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Quick network actions — just click a button (no input needed). Results appear below once you run one."
+                    <TextBlock Text="Quick network actions - just click a button (no input needed). Results appear below once you run one."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <WrapPanel>
                         <Button Content="Flush DNS"          Style="{StaticResource NetBtn}" Click="FlushDns_Click"/>
@@ -53,12 +53,12 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="PING &amp; DIAGNOSTIC TOOLS" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Enter a target, then pick a tool. DNS type applies to DNS Lookup; Port applies to Port Check (one or several — e.g. 80,443,3389 or 1000-1010). Output appears below."
+                    <TextBlock Text="Enter a target, then pick a tool. DNS type applies to DNS Lookup; Port applies to Port Check (one or several - e.g. 80,443,3389 or 1000-1010). Output appears below."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,10"/>
 
                     <!-- Only the inputs + tool buttons disable while a tool runs. The output panel
                          must stay OUT of this scope: IsEnabled inherits, and the Stop button lives
-                         down there — disabling the whole card disabled the very button meant to
+                         down there - disabling the whole card disabled the very button meant to
                          interrupt the run (caught by the scripted UI test). -->
                     <StackPanel x:Name="PnlNetDiag">
                     <!-- One aligned input row: Host/IP grows; DNS type + Port are compact -->
@@ -138,7 +138,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                         </StackPanel>
                         <TextBlock Text="IP SCANNER" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
-                    <TextBlock Text="Finds live devices on a network — like Advanced IP Scanner. Enter a range as CIDR (192.168.1.0/24), a span (192.168.1.1-254) or a single address. Each host is pinged, then ARP-probed (which finds devices that ignore ping, and gets the MAC), then reverse-DNS'd for a name. Deep scan also knocks on common TCP ports (445/3389/139/80/443/22) and lists each host's open ports — slower, but the only way to spot a ping-blocking device on another subnet."
+                    <TextBlock Text="Finds live devices on a network - like Advanced IP Scanner. Enter a range as CIDR (192.168.1.0/24), a span (192.168.1.1-254) or a single address. Each host is pinged, then ARP-probed (which finds devices that ignore ping, and gets the MAC), then reverse-DNS'd for a name. Deep scan also knocks on common TCP ports (445/3389/139/80/443/22) and lists each host's open ports - slower, but the only way to spot a ping-blocking device on another subnet."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,10"/>
 
                     <Grid Margin="0,0,0,10">
@@ -241,7 +241,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                     <TextBlock x:Name="TxtNoWifi" Text="No saved Wi-Fi networks (or Wi-Fi not present)."
                                Foreground="#6C7086" FontSize="12" Visibility="Collapsed"/>
 
-                    <!-- Nearby networks (Scan Nearby) — hidden until a scan runs -->
+                    <!-- Nearby networks (Scan Nearby) - hidden until a scan runs -->
                     <StackPanel x:Name="PnlWifiScan" Visibility="Collapsed">
                         <Rectangle Style="{StaticResource RowDivider}" Margin="0,8,0,6"/>
                         <TextBlock Text="NEARBY NETWORKS" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
@@ -389,7 +389,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <!-- ══ Destructive resets last — risk increases as you scroll ══ -->
+            <!-- ══ Destructive resets last - risk increases as you scroll ══ -->
 
             <!-- NETWORK STACK RESET (moved from Repair) -->
             <Border Style="{StaticResource Card}">
@@ -399,7 +399,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                             Click="NetReset_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="NETWORK STACK RESET" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Resets Winsock and the TCP/IP stack and flushes the DNS cache. Fixes broken connectivity without touching your adapters. ✔ You will NOT lose connectivity — your adapters, internet, and remote (Ninja) session stay active. A restart is needed to fully finish, but you can do that later at a convenient time."
+                        <TextBlock Text="Resets Winsock and the TCP/IP stack and flushes the DNS cache. Fixes broken connectivity without touching your adapters. ✔ You will NOT lose connectivity - your adapters, internet, and remote (Ninja) session stay active. A restart is needed to fully finish, but you can do that later at a convenient time."
                                    FontSize="11" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtNetResetStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -414,7 +414,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                             Click="NetFullReset_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="NETWORK RESET (REINSTALL ADAPTERS)" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="The full Windows Network reset: removes every network adapter and resets all networking components to defaults — Windows reinstalls the adapters on the next reboot. ⚠ This WILL drop your remote (Ninja) session. The tool restarts the PC automatically to finish — it reconnects once Windows is back up. Last resort; this clears VPN clients, static IPs and saved Wi-Fi networks."
+                        <TextBlock Text="The full Windows Network reset: removes every network adapter and resets all networking components to defaults - Windows reinstalls the adapters on the next reboot. ⚠ This WILL drop your remote (Ninja) session. The tool restarts the PC automatically to finish - it reconnects once Windows is back up. Last resort; this clears VPN clients, static IPs and saved Wi-Fi networks."
                                    FontSize="11" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtNetFullResetStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>

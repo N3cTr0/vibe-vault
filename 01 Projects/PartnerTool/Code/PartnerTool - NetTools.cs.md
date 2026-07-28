@@ -23,18 +23,18 @@ public record WifiNetwork(string Ssid, string Signal, string Radio, string Chann
 public static class NetTools
 {
     /// <summary>
-    /// ONE HttpClient for the whole app. A new client per call is the documented .NET anti-pattern —
+    /// ONE HttpClient for the whole app. A new client per call is the documented .NET anti-pattern -
     /// each disposed client leaves its socket in TIME_WAIT, so repeated use can exhaust ports.
     /// Timeout is a per-CLIENT property, so per-request limits come from a CancellationToken instead;
     /// this client's own timeout is just a generous backstop.
     /// </summary>
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
-    /// <summary>Traceroute with live output — one callback per line as each hop answers.</summary>
+    /// <summary>Traceroute with live output - one callback per line as each hop answers.</summary>
     public static Task<int> TracerouteLiveAsync(string host, Action<string> onLine, CancellationToken cancel = default)
         => ProcessRunner.RunAsync("tracert.exe", $"-d -h 20 -w 1000 {Sanitize(host)}", null, onLine, cancel: cancel);
 
-    /// <summary>Ping with live output — the familiar per-reply lines stream in as each packet
+    /// <summary>Ping with live output - the familiar per-reply lines stream in as each packet
     /// answers (paced ~1 s apart by ping.exe), rather than one summary at the end.</summary>
     public static Task<int> PingLiveAsync(string host, Action<string> onLine, CancellationToken cancel = default)
         => ProcessRunner.RunAsync("ping.exe", $"-n 4 {Sanitize(host)}", null, onLine, cancel: cancel);
@@ -51,8 +51,8 @@ public static class NetTools
 
     /// <summary>
     /// Test one TCP port. Distinguishes the three real outcomes: OPEN (connected), CLOSED (the host
-    /// actively refused — RST, so something's there but nothing's listening) and FILTERED (no reply
-    /// within the timeout — a firewall silently dropped it). The old version awaited WhenAny and only
+    /// actively refused - RST, so something's there but nothing's listening) and FILTERED (no reply
+    /// within the timeout - a firewall silently dropped it). The old version awaited WhenAny and only
     /// checked <c>client.Connected</c>, so a refusal and a timeout looked identical.
     /// </summary>
     public static async Task<string> PortCheckAsync(string host, int port)
@@ -81,14 +81,14 @@ public static class NetTools
             // Time out by CANCELLING the connect, not by racing it against Task.Delay and walking
             // away. An abandoned connect still faults later (SocketException 995 once the TcpClient
             // is disposed); with nobody awaiting it that lands in the unobserved-exception handler
-            // and floods PartnerTool_errors.log — a scan of a /24 wrote megabytes of them.
+            // and floods PartnerTool_errors.log - a scan of a /24 wrote megabytes of them.
             using var cts = new CancellationTokenSource(timeoutMs);
             await client.ConnectAsync(host, port, cts.Token);
             return ("OPEN", "");
         }
         catch (OperationCanceledException)
         {
-            return ("FILTERED", $"no response in {timeoutMs / 1000}s — firewall likely dropping it");
+            return ("FILTERED", $"no response in {timeoutMs / 1000}s - firewall likely dropping it");
         }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionRefused)
         {
@@ -116,7 +116,7 @@ public static class NetTools
             else { error = $"Invalid port “{tokenRaw}”."; return new(); }
         }
         if (set.Count == 0) error = "Enter one or more ports (e.g. 80,443 or 1000-1010).";
-        else if (set.Count > 256) { error = "Too many ports — 256 max."; return new(); }
+        else if (set.Count > 256) { error = "Too many ports - 256 max."; return new(); }
         return set.ToList();
     }
 

@@ -33,7 +33,7 @@ public partial class DiskUsagePage : UserControl
     // Columns that read largest/newest-first the first time you click them.
     private static readonly bool[] DescFirst = { false, true, true, true, true, false };
 
-    private int  _sortCol  = 1;      // "% of Parent" — the WizTree default
+    private int  _sortCol  = 1;      // "% of Parent" - the WizTree default
     private bool _sortDesc = true;
 
     public DiskUsagePage()
@@ -73,7 +73,7 @@ public partial class DiskUsagePage : UserControl
     /// <summary>
     /// Sort the children by the active column. "% of Parent" and "Size" are the same ordering
     /// (percent is derived from bytes), and every sort falls back to size so equal keys stay useful.
-    /// The synthetic ".." row is never sorted — <see cref="ApplyView"/> pins it to the top.
+    /// The synthetic ".." row is never sorted - <see cref="ApplyView"/> pins it to the top.
     /// </summary>
     private List<UsageEntry> SortItems(IEnumerable<UsageEntry> items)
     {
@@ -136,7 +136,7 @@ public partial class DiskUsagePage : UserControl
         TxtPath.Text = root;
         LstEntries.ItemsSource = null;
         Busy.Visibility = Visibility.Visible;
-        TxtStatus.Text = $"⚡ Fast scan — reading the MFT for {root} …";
+        TxtStatus.Text = $"⚡ Fast scan - reading the MFT for {root} …";
 
         MftVolume? vol = null;
         var sw = Stopwatch.StartNew();
@@ -147,7 +147,7 @@ public partial class DiskUsagePage : UserControl
 
         if (_cts != cts) return;   // superseded
         if (vol != null) { _mft = vol; _mftRoot = root; }
-        else TxtStatus.Text = "MFT unavailable (non-NTFS or blocked) — using the folder walk.";
+        else TxtStatus.Text = "MFT unavailable (non-NTFS or blocked) - using the folder walk.";
 
         UpdateSummary(root, vol != null ? sw.Elapsed : null, vol != null);
         Navigate(goTo ?? root);
@@ -160,7 +160,7 @@ public partial class DiskUsagePage : UserControl
         BtnRescan.IsEnabled = true;
         BtnOpen.IsEnabled   = true;
 
-        // ── Fast path: in-memory MFT tree — instant, no walk. ──
+        // ── Fast path: in-memory MFT tree - instant, no walk. ──
         if (_mft != null && _mftRoot != null &&
             path.StartsWith(_mftRoot, StringComparison.OrdinalIgnoreCase))
         {
@@ -199,7 +199,7 @@ public partial class DiskUsagePage : UserControl
     }
 
     // Build the visible list from _items: a ".." row (unless at a root) + children, filtering out
-    // hidden items unless "Show hidden items" is ticked. Folder sizes are unaffected — the scan's
+    // hidden items unless "Show hidden items" is ticked. Folder sizes are unaffected - the scan's
     // totals always include hidden content; this only hides rows.
     private void ApplyView()
     {

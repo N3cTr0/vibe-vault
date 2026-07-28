@@ -12,11 +12,11 @@ namespace PartnerTool;
 /// <summary>
 /// A single, point-in-time capture of everything the information tabs display.
 /// Collected once at startup (behind the loading splash) so navigating between
-/// tabs is instant — the pages just paint from this instead of re-querying WMI.
+/// tabs is instant - the pages just paint from this instead of re-querying WMI.
 /// The per-page Refresh buttons still re-collect their own fresh data.
 ///
 /// Live/heavy data that only one page needs (top processes, active connections, Wi-Fi,
-/// installed-programs inventory, disk-usage scan) is deliberately NOT captured here —
+/// installed-programs inventory, disk-usage scan) is deliberately NOT captured here -
 /// those pages load it on demand so startup stays quick.
 /// </summary>
 public class SystemSnapshot
@@ -50,14 +50,14 @@ public class SystemSnapshot
         var hw       = Task.Run(HardwareInfo.Collect);
         var reasons  = Task.Run(SystemHealth.PendingReasons);
         var diag     = Task.Run(DiagnosticsInfo.Collect);
-        var rel      = Task.Run(ReliabilityInfo.CollectIndex);   // index only — records are slow, loaded on demand
+        var rel      = Task.Run(ReliabilityInfo.CollectIndex);   // index only - records are slow, loaded on demand
         var displays = Task.Run(DisplaysInfo.Collect);
         var printers = Task.Run(PrintersInfo.Collect);
         var accounts = Task.Run(AccountsInfo.Collect);
         var updates  = Task.Run(UpdateHistoryInfo.Collect);
         var power    = Task.Run(() => PowerEventsInfo.Collect());
         var extras   = Task.Run(SystemExtras.Collect);
-        var aad      = AzureAdInfo.CollectAsync();   // device join — already async (dsregcmd)
+        var aad      = AzureAdInfo.CollectAsync();   // device join - already async (dsregcmd)
         var pwr      = PowerStatusInfo.CollectAsync();   // already async (powercfg)
 
         await Task.WhenAll(info, perf, sec, net, hw, reasons, diag, rel,

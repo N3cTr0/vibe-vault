@@ -14,11 +14,11 @@ namespace PartnerTool;
 public record DisplayInfo(string Name, string Manufacturer, string Serial, int? Year, string Size)
 {
     // Column values for the System Info monitors table (Make / Model / Size / Year / Serial).
-    public string MakeText   => string.IsNullOrWhiteSpace(Manufacturer) ? "—" : Manufacturer;
-    public string ModelText  => string.IsNullOrWhiteSpace(Name) ? "—" : Name;
-    public string SizeText   => string.IsNullOrWhiteSpace(Size) ? "—" : Size;
-    public string YearText   => Year is { } y ? y.ToString() : "—";
-    public string SerialText => string.IsNullOrWhiteSpace(Serial) ? "—" : Serial;
+    public string MakeText   => string.IsNullOrWhiteSpace(Manufacturer) ? "-" : Manufacturer;
+    public string ModelText  => string.IsNullOrWhiteSpace(Name) ? "-" : Name;
+    public string SizeText   => string.IsNullOrWhiteSpace(Size) ? "-" : Size;
+    public string YearText   => Year is { } y ? y.ToString() : "-";
+    public string SerialText => string.IsNullOrWhiteSpace(Serial) ? "-" : Serial;
 
     public string Detail
     {
@@ -26,7 +26,7 @@ public record DisplayInfo(string Name, string Manufacturer, string Serial, int? 
         {
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(Manufacturer)) parts.Add(Manufacturer);
-            if (Size != "—" && Size.Length > 0)           parts.Add(Size);
+            if (Size != "-" && Size.Length > 0)           parts.Add(Size);
             if (Year is { } y)                            parts.Add(y.ToString());
             if (!string.IsNullOrWhiteSpace(Serial))       parts.Add($"S/N {Serial}");
             return string.Join("   ·   ", parts);
@@ -78,7 +78,7 @@ public static class DisplaysInfo
                 list.Add(new DisplayInfo(
                     string.IsNullOrWhiteSpace(name) ? "Display" : name,
                     maker, serial, year,
-                    sizes.TryGetValue(inst, out var s) ? s : "—"));
+                    sizes.TryGetValue(inst, out var s) ? s : "-"));
             }
         }
         catch { }

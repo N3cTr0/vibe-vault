@@ -13,7 +13,7 @@ using System.IO.Compression;
 namespace PartnerTool;
 
 /// <summary>
-/// "Collect diagnostics" — bundles the system report, summary, and the tool's own logs into
+/// "Collect diagnostics" - bundles the system report, summary, and the tool's own logs into
 /// a single zip a tech can attach to a ticket.
 /// </summary>
 public static class DiagnosticsBundle
@@ -71,7 +71,7 @@ public static class DiagnosticsBundle
                 {
                     // Read with ReadWrite share so the tool's OWN currently-open logs (activity /
                     // errors, appended to as we run) don't fail with a sharing violation and get
-                    // silently dropped — CreateEntryFromFile opens with only FileShare.Read.
+                    // silently dropped - CreateEntryFromFile opens with only FileShare.Read.
                     var rel = Path.GetRelativePath(dir, f).Replace('\\', '/');
                     var entry = zip.CreateEntry($"{entryFolder}/{rel}");
                     using var src = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

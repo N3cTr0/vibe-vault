@@ -45,7 +45,7 @@ public partial class ProcessesPage : UserControl
             _rows = await Task.Run(_sampler.Sample);
             ApplyView();
         }
-        catch { /* transient — try again next tick */ }
+        catch { /* transient - try again next tick */ }
         finally { _sampling = false; }
     }
 
@@ -128,7 +128,7 @@ public partial class ProcessesPage : UserControl
     private async void EndTask_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: ProcRow row }) return;
-        if (!row.CanEnd) return;   // belt & braces — the button is disabled for protected procs
+        if (!row.CanEnd) return;   // belt & braces - the button is disabled for protected procs
 
         if (!MessageWindow.Confirm("End Task", $"End “{row.Name}” (PID {row.Pid})?",
                 "Unsaved work in this program will be lost. Ending a process the system depends on can " +

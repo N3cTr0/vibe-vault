@@ -36,16 +36,16 @@ public partial class SoftwarePage : UserControl
     /// </summary>
     public async Task EnsureLoadedAsync()
     {
-        if (_detectedOnce) return;   // first visit only — don't re-scan when tabbing away and back
+        if (_detectedOnce) return;   // first visit only - don't re-scan when tabbing away and back
         _detectedOnce = true;
 
         InstallLoadingOverlay.Visibility = Visibility.Visible;
         BtnInstall.IsEnabled = false;
         try
         {
-            // Startup is a quick registry read — show it first, before the slow winget detection.
+            // Startup is a quick registry read - show it first, before the slow winget detection.
             ShowStartup(await Task.Run(StartupInfo.Collect));   // startup programs (merged from Inventory)
-            await LoadAsync();                  // installed-software list (registry — quick)
+            await LoadAsync();                  // installed-software list (registry - quick)
             await RefreshInstalledStateAsync(); // detect + lock already-installed apps (slow: winget export)
         }
         finally
@@ -106,13 +106,13 @@ public partial class SoftwarePage : UserControl
         BtnInstall.IsEnabled = false;
         try
         {
-            // Phase 1 — instant: match the registry list we already have. Catches apps
+            // Phase 1 - instant: match the registry list we already have. Catches apps
             // installed outside winget (e.g. a Zoom downloaded from the web) that winget
             // can't correlate to a catalog ID.
             ApplyInstalled(_ => false);
             TxtInstallStatus.Text = "Checking which apps are already installed…";
 
-            // Phase 2 — add winget's exact-ID matches (differently-named apps like the
+            // Phase 2 - add winget's exact-ID matches (differently-named apps like the
             // Adobe Reader or the .NET runtimes that the registry name won't catch).
             var wingetIds = await DetectInstalledIdsAsync();
             int locked = ApplyInstalled(wingetIds.Contains);
@@ -129,7 +129,7 @@ public partial class SoftwarePage : UserControl
     }
 
     /// <summary>
-    /// Tick + lock every app that's installed — either matched by winget ID
+    /// Tick + lock every app that's installed - either matched by winget ID
     /// (<paramref name="wingetHasId"/>) or found in the registry by name. Returns the
     /// number locked.
     /// </summary>
@@ -164,7 +164,7 @@ public partial class SoftwarePage : UserControl
         return locked;
     }
 
-    /// <summary>True if an installed program matches this display name — exactly, or as
+    /// <summary>True if an installed program matches this display name - exactly, or as
     /// the leading part of the registry name (e.g. "VLC" ⇒ "VLC media player").</summary>
     private bool RegistryHasApp(string displayName)
     {
@@ -220,8 +220,8 @@ public partial class SoftwarePage : UserControl
 
     // Re-read the installed-software list AND re-run the winget "already installed" detection.
     // The list is otherwise built once per app run (EnsureLoadedAsync is guarded), so after an
-    // uninstall the removed app would linger in the list — and stay ticked/locked in the install
-    // catalog — until restart without this. Keeps the current search filter.
+    // uninstall the removed app would linger in the list - and stay ticked/locked in the install
+    // catalog - until restart without this. Keeps the current search filter.
     private async void SoftwareRefresh_Click(object sender, RoutedEventArgs e)
         => await RefreshAllAsync();
 
@@ -259,7 +259,7 @@ public partial class SoftwarePage : UserControl
     {
         if (sender is not Button { Tag: AppEntry app } || string.IsNullOrWhiteSpace(app.Uninstall)) return;
 
-        // Never uninstall AV/EDR/security software from a support tool — it would drop the machine's
+        // Never uninstall AV/EDR/security software from a support tool - it would drop the machine's
         // protection. (Most such products also enforce tamper protection, but block it here first so
         // it's a clear refusal, not a confusing half-run.) Mirrors the guards on ending their
         // processes, stopping their services, and disabling their startup entries.
@@ -280,7 +280,7 @@ public partial class SoftwarePage : UserControl
         // to launch user-controlled uninstallers from the elevated process.
         if (!app.Machine)
         {
-            MessageWindow.Show("Uninstall", "Per-user app — not removed from here",
+            MessageWindow.Show("Uninstall", "Per-user app - not removed from here",
                 $"“{app.Name}” is registered under the current user (HKCU), so its uninstall command is " +
                 "user-editable. Running it from this elevated tool could let a standard user run code as " +
                 "administrator, so it's blocked.\n\nUninstall it from Windows Settings ▸ Apps in the user's " +
@@ -289,10 +289,10 @@ public partial class SoftwarePage : UserControl
         }
 
         if (!MessageWindow.Confirm("Uninstall", $"Uninstall {app.Name}?",
-                "This launches the program's own uninstaller. Follow its prompts to finish — the list " +
+                "This launches the program's own uninstaller. Follow its prompts to finish - the list " +
                 "refreshes itself when the uninstaller closes.", MessageKind.Warning, Window.GetWindow(this)))
             return;
-        ActivityLog.Action("Software", $"Uninstall {app.Name} — {app.Uninstall}");
+        ActivityLog.Action("Software", $"Uninstall {app.Name} - {app.Uninstall}");
         try
         {
             // Uninstall strings are command lines: `"C:\..\unins.exe" /S` or `MsiExec.exe /X{GUID}`.
@@ -315,7 +315,7 @@ public partial class SoftwarePage : UserControl
             var proc = System.Diagnostics.Process.Start(psi);
 
             // Auto-refresh once the uninstaller exits, so the list updates itself. Some uninstallers
-            // hand off to a child and exit immediately — the manual Refresh button stays as fallback.
+            // hand off to a child and exit immediately - the manual Refresh button stays as fallback.
             if (proc is not null)
             {
                 using (proc) { try { await proc.WaitForExitAsync(); } catch { } }
@@ -338,7 +338,7 @@ public partial class SoftwarePage : UserControl
             Version     = a.Version,
             Publisher   = a.Publisher,
             InstallDate = a.InstallDate,
-            Uninstall   = a.Uninstall,   // HKCU ones are user-writable — see UninstallApp_Click.
+            Uninstall   = a.Uninstall,   // HKCU ones are user-writable - see UninstallApp_Click.
             Machine     = a.Machine,
         }).ToList();
 
@@ -355,7 +355,7 @@ public partial class SoftwarePage : UserControl
     {
         if (_busy) return;
 
-        // Skip anything already installed (ticked + disabled) — only take live ticks.
+        // Skip anything already installed (ticked + disabled) - only take live ticks.
         var apps = AllCheckBoxes(PnlInstall)
             .Where(c => c.IsChecked == true && c.IsEnabled)
             .Select(c => (Name: c.Content?.ToString() ?? "", Id: c.Tag?.ToString() ?? ""))
@@ -365,7 +365,7 @@ public partial class SoftwarePage : UserControl
         PnlLog.Visibility = Visibility.Visible;
         if (apps.Count == 0) { Log("No apps selected."); return; }
 
-        // Confirm the batch — each app runs a winget installer silently and elevated, so show the
+        // Confirm the batch - each app runs a winget installer silently and elevated, so show the
         // tech exactly what's about to be installed before it starts.
         if (!MessageWindow.Confirm("Install Software", $"Install {apps.Count} app(s)?",
                 "The following will be installed silently via winget:\n\n" +
@@ -398,14 +398,14 @@ public partial class SoftwarePage : UserControl
         {
             foreach (var (name, id) in apps)
             {
-                if (_installCts.IsCancellationRequested) { Log("━━━ Cancelled — remaining installs skipped ━━━"); break; }
+                if (_installCts.IsCancellationRequested) { Log("━━━ Cancelled - remaining installs skipped ━━━"); break; }
                 Log($"▶ Installing {name}");
                 ActivityLog.Action("Software", $"Install {name} ({id})");
                 var code = await ProcessRunner.RunAsync(winget,
                     $"install --id {id} -e --silent --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     System.Text.Encoding.UTF8, l => Log($"  {l}"), null, _installCts.Token);
-                // A cancelled install is a killed process — label it honestly, not "finished (exit -1)".
-                Log(_installCts.IsCancellationRequested ? "  ✗ killed — cancelled"
+                // A cancelled install is a killed process - label it honestly, not "finished (exit -1)".
+                Log(_installCts.IsCancellationRequested ? "  ✗ killed - cancelled"
                     : code == 0 ? "  ✓ done" : $"  finished (exit {code})");
             }
             if (!_installCts.IsCancellationRequested) Log("━━━ Install complete ━━━");

@@ -17,7 +17,7 @@ public enum HealthSeverity { Good, Warn, Bad }
 /// One row in the Health Check results. A finding is either FIXABLE in place (has a
 /// <see cref="Fixer"/> → gets a checkbox and is run by "Fix Selected") or ADVISORY (has a
 /// <see cref="NavTag"/> → shows an "Open" button that jumps to the relevant tab), or purely
-/// informational. Deliberately: everything here reuses PartnerTool's existing, trustworthy checks —
+/// informational. Deliberately: everything here reuses PartnerTool's existing, trustworthy checks -
 /// no registry "cleaning", no privacy wiping, no placebo "optimization".
 /// </summary>
 public class HealthFinding
@@ -53,11 +53,11 @@ public class HealthReport
 /// <summary>
 /// One-scan machine health check: runs PartnerTool's existing read-only collectors in parallel and
 /// turns them into a scored list of findings, some fixable in place. It's the friendly "SCAN" view
-/// — a curated front-end over checks we already trust, NOT an IObit-style optimizer.
+/// - a curated front-end over checks we already trust, NOT an IObit-style optimizer.
 /// </summary>
 public static class HealthCheck
 {
-    /// <param name="progress">Reports (percent 0–100, current step) as the scan runs. Invoked on the
+    /// <param name="progress">Reports (percent 0-100, current step) as the scan runs. Invoked on the
     /// caller's context (we don't ConfigureAwait(false)) so the UI can update directly.</param>
     public static async Task<HealthReport> RunAsync(Action<int, string>? progress = null)
     {
@@ -110,14 +110,14 @@ public static class HealthCheck
                 Fixer = log => Task.Run(() => { var res = TempCleaner.Clean(null, log); return res.Summary; }),
             });
         else
-            r.Findings.Add(Good("Junk", "Temp & cache files", $"{temp.TotalBytes / 1048576.0:N0} MB — nothing significant to clean."));
+            r.Findings.Add(Good("Junk", "Temp & cache files", $"{temp.TotalBytes / 1048576.0:N0} MB - nothing significant to clean."));
 
         // ── Junk: orphaned installer files ───────────────────
         if (inst.KeepSetValid && inst.Orphans.Count > 0 && inst.OrphanGb >= 0.5)
             r.Findings.Add(new HealthFinding
             {
                 Category = "Junk", Title = "Windows Installer orphans", Severity = HealthSeverity.Warn, Deduction = 4,
-                Detail = $"{inst.Orphans.Count} orphaned .msi/.msp file(s) — {inst.OrphanGb:F1} GB reclaimable.",
+                Detail = $"{inst.Orphans.Count} orphaned .msi/.msp file(s) - {inst.OrphanGb:F1} GB reclaimable.",
                 FixLabel = "Clean", NeedsGate = true, Selected = true,
                 Fixer = log => Task.Run(() =>
                 {
@@ -171,26 +171,26 @@ public static class HealthCheck
 
         // ── Dell: SupportAssist snapshots + VSS shadow storage ──
         // Only ever shown on Dell hardware. The snapshot folder is REPORTED, never deleted (Dell says
-        // hand-deleting breaks OS Recovery — System Repair must be turned off in SupportAssist).
+        // hand-deleting breaks OS Recovery - System Repair must be turned off in SupportAssist).
         // Unbounded shadow storage IS fixable, and is Dell's own documented remedy (KB 000129138).
         if (dell.IsDell && dell.FolderExists)
         {
             if (dell.VeryBad)
                 r.Findings.Add(Advisory("Dell", "SupportAssist snapshots are huge", HealthSeverity.Bad, 8,
                     $"{DellRemediation.RootPath} is using {dell.TotalGb:F1} GB. Turn System Repair off in " +
-                    "SupportAssist to purge it — don't delete the folder by hand.", null));
+                    "SupportAssist to purge it - don't delete the folder by hand.", null));
             else if (dell.Bloated)
                 r.Findings.Add(Advisory("Dell", "SupportAssist snapshots are large", HealthSeverity.Warn, 4,
                     $"{DellRemediation.RootPath} is using {dell.TotalGb:F1} GB (Dell reserves 15 GB by default).", null));
             else
-                r.Findings.Add(Good("Dell", "SupportAssist snapshots", $"{dell.TotalGb:F1} GB — within Dell's normal range."));
+                r.Findings.Add(Good("Dell", "SupportAssist snapshots", $"{dell.TotalGb:F1} GB - within Dell's normal range."));
         }
 
         if (dell.IsDell && dell.VssUnbounded)
             r.Findings.Add(new HealthFinding
             {
                 Category = "Dell", Title = "VSS shadow storage is unbounded", Severity = HealthSeverity.Warn, Deduction = 5,
-                Detail = $"Shadow copies on C: have no size limit (currently {dell.VssUsedGb:F1} GB) — Dell KB 000129138. " +
+                Detail = $"Shadow copies on C: have no size limit (currently {dell.VssUsedGb:F1} GB) - Dell KB 000129138. " +
                          $"Capping at {DellRemediation.VssMaxPercent}% stops the runaway growth, but discards existing " +
                          "System Restore points. Tick to apply.",
                 FixLabel = $"Cap at {DellRemediation.VssMaxPercent}%", NeedsGate = true, Selected = false,
@@ -199,7 +199,7 @@ public static class HealthCheck
         else if (dell.IsDell && dell.VssConfigured)
             r.Findings.Add(Good("Dell", "VSS shadow storage", $"Capped at {dell.VssMaxText} on C:."));
         else if (dell.IsDell && dell.VssQueried)
-            r.Findings.Add(Good("Dell", "VSS shadow storage", $"{dell.VssMaxText} on C: — nothing to bound."));
+            r.Findings.Add(Good("Dell", "VSS shadow storage", $"{dell.VssMaxText} on C: - nothing to bound."));
 
         // ── Updates ──────────────────────────────────────────
         int updTotal = winCount + appCount;
@@ -244,7 +244,7 @@ public static class HealthCheck
         else if (appErrs >= 3)
             // Shown so the tech can investigate (Open → Diagnostics), but it doesn't dock the score:
             // app crashes are usually app-specific and not something the tech can fix from here.
-            // (Blue screens above still count — those are serious.)
+            // (Blue screens above still count - those are serious.)
             r.Findings.Add(Advisory("Stability", "Frequent app crashes", HealthSeverity.Warn, 0,
                 $"{appErrs} application crash(es) in the last 14 days.", "Diag"));
         else
@@ -265,7 +265,7 @@ public static class HealthCheck
                 "Windows has a pending reboot (updates/installs won't finish until you restart).", null));
         else if (upDays > 14)
             r.Findings.Add(Advisory("Maintenance", "Long uptime", HealthSeverity.Warn, 3,
-                $"Up for {upDays:F0} days — a restart clears leaks and applies staged updates.", null));
+                $"Up for {upDays:F0} days - a restart clears leaks and applies staged updates.", null));
         else
             r.Findings.Add(Good("Maintenance", "Uptime", perf.BootKnown ? $"Up for {upDays:F0} day(s)." : "Uptime unavailable."));
 
@@ -273,7 +273,7 @@ public static class HealthCheck
         int enabled = startupAll.Count(s => s.Enabled);
         if (enabled > 15)
             r.Findings.Add(Advisory("Startup", "Many startup programs", HealthSeverity.Warn, 3,
-                $"{enabled} programs run at sign-in — review to speed up boot.", "Software"));
+                $"{enabled} programs run at sign-in - review to speed up boot.", "Software"));
         else
             r.Findings.Add(Good("Startup", "Startup programs", $"{enabled} program(s) run at sign-in."));
 
