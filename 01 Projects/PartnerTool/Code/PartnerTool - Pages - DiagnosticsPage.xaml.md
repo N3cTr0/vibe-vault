@@ -196,50 +196,63 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <DockPanel>
                             <Button x:Name="BtnProcRefresh" DockPanel.Dock="Right" Content="Refresh"
                                     Style="{StaticResource ActionButton}" Click="ProcRefresh_Click"/>
-                            <!-- Docked after Refresh, so it sits to its left. Opens the full
-                                 Task-Manager-style process list in the Performance window. -->
-                            <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="11">
-                                <Hyperlink Click="OpenProcesses_Click" Foreground="#89B4FA"
-                                           ToolTip="Open the full process list (Performance ▸ Processes)">All processes</Hyperlink>
-                            </TextBlock>
+                            <Button x:Name="BtnAllProcs" DockPanel.Dock="Right" Content="All Processes"
+                                    Style="{StaticResource ActionButton}" Margin="0,0,8,0"
+                                    Click="OpenProcesses_Click"
+                                    ToolTip="Open the full process list (Performance ▸ Processes)"/>
                             <TextBlock Text="TOP PROCESSES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                         </DockPanel>
                         <Grid Margin="0,4,0,2">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="70"/>
-                                <ColumnDefinition Width="70"/>
-                                <ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="56"/>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="64"/>
+                                <ColumnDefinition Width="84"/>
+                                <ColumnDefinition Width="76"/>
+                                <ColumnDefinition Width="62"/>
+                                <ColumnDefinition Width="62"/>
+                                <ColumnDefinition Width="3*"/>
                                 <ColumnDefinition Width="60"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Process"  Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
-                            <TextBlock Grid.Column="1" Text="PID"      Foreground="#6C7086" FontSize="10" FontWeight="Bold" TextAlignment="Right"/>
-                            <TextBlock Grid.Column="2" Text="CPU"      Foreground="#6C7086" FontSize="10" FontWeight="Bold" TextAlignment="Right"/>
-                            <TextBlock Grid.Column="3" Text="Memory"   Foreground="#6C7086" FontSize="10" FontWeight="Bold" TextAlignment="Right"/>
-                            <TextBlock Grid.Column="4" Text=""         />
+                            <TextBlock Grid.Column="0" Text="Process"     Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="1" Text="PID"         Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="2" Text="User"        Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="3" Text="CPU"         Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="4" Text="Memory"      Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="5" Text="Disk"        Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="6" Text="Threads"     Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="7" Text="Handles"     Foreground="#6C7086" FontSize="10" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="8" Text="Description" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="8,0,0,0"/>
                         </Grid>
                         <ItemsControl x:Name="IcProcesses">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <!-- Tight rows: the End button's padding already sets the row
-                                         height, so extra row margin just spread the list out. -->
                                     <Grid Margin="0,1">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="70"/>
-                                            <ColumnDefinition Width="70"/>
-                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="2*"/>
+                                            <ColumnDefinition Width="56"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="64"/>
+                                            <ColumnDefinition Width="84"/>
+                                            <ColumnDefinition Width="76"/>
+                                            <ColumnDefinition Width="62"/>
+                                            <ColumnDefinition Width="62"/>
+                                            <ColumnDefinition Width="3*"/>
                                             <ColumnDefinition Width="60"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12"
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}" ToolTip="{Binding PathTip}" Foreground="#CDD6F4" FontSize="12"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Pid}" Foreground="#6C7086"
-                                                   FontSize="11" TextAlignment="Right" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="{Binding CpuPct, StringFormat={}{0:F0}%}" Foreground="#9399B2"
-                                                   FontSize="12" TextAlignment="Right" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="{Binding MemMb, StringFormat={}{0:F0} MB}" Foreground="#9399B2"
-                                                   FontSize="12" TextAlignment="Right" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="4" Content="End" Tag="{Binding Pid}" Click="KillProc_Click"
+                                        <TextBlock Grid.Column="1" Text="{Binding Pid}"      Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding User}"     Foreground="#9399B2" FontSize="11" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding CpuText}"  Foreground="#9399B2" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding MemText}"  Foreground="#9399B2" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5" Text="{Binding DiskText}" Foreground="#9399B2" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="6" Text="{Binding Threads}"  Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="7" Text="{Binding Handles}"  Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="8" Text="{Binding Desc}"     Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" Margin="8,0,0,0"/>
+                                        <Button Grid.Column="9" Content="End" Tag="{Binding Pid}" Click="KillProc_Click"
                                                 IsEnabled="{Binding CanEnd}"
                                                 Style="{StaticResource ActionButton}" Padding="0,2" Margin="8,0,0,0" FontSize="11"/>
                                     </Grid>
@@ -256,6 +269,8 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <ItemsControl x:Name="IcPowerEvents">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
+                                  <StackPanel>
+                                    <Rectangle Style="{StaticResource ItemDivider}" Margin="0,4"/>
                                     <DockPanel Margin="0,4">
                                         <TextBlock DockPanel.Dock="Left" Width="120" VerticalAlignment="Top"
                                                    Foreground="#9399B2" FontSize="11"
@@ -266,6 +281,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                                        TextWrapping="Wrap" Margin="0,1,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
+                                  </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -312,6 +328,8 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <ItemsControl x:Name="IcEvents">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
+                                  <StackPanel>
+                                    <Rectangle Style="{StaticResource ItemDivider}" Margin="0,6"/>
                                     <DockPanel Margin="0,6">
                                         <Ellipse Style="{StaticResource EventDot}" DockPanel.Dock="Left"/>
                                         <StackPanel>
@@ -325,6 +343,7 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                                                        FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </DockPanel>
+                                  </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -579,7 +579,6 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
 
                                 <!-- Page file -->
                                 <TextBlock Grid.Row="8" Grid.Column="0" Text="Page file"   Style="{StaticResource RowLabel}"/>
-                                <!-- Three lines (mode / path / sizes): as one string it ran off the card. -->
                                 <StackPanel Grid.Row="8" Grid.Column="1" Margin="0,5,0,5">
                                     <TextBlock x:Name="TxtPageFile" Foreground="#CDD6F4" FontSize="12"/>
                                     <TextBlock x:Name="TxtPageFilePath"  Foreground="#9399B2" FontSize="11" Margin="0,2,0,0"
@@ -642,9 +641,6 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                           <StackPanel>
-                                            <!-- 3 top + the previous row's 3 bottom = 6 above the line,
-                                                 3 bottom + this row's 3 top = 6 below. Even margins here
-                                                 would put the line 3px above the text and 9px below it. -->
                                             <Rectangle Style="{StaticResource ItemDivider}" Margin="0,3"/>
                                             <Grid Margin="0,3">
                                                 <Grid.ColumnDefinitions>
@@ -740,9 +736,6 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
 
                             <!-- Battery health (wear) — shown only when capacity is readable -->
                             <StackPanel x:Name="BattHealthSection" Visibility="Collapsed">
-                                <!-- No margin: the rows either side already carry RowLabel/RowValue's
-                                     5px padding, so this lines up with the card's other dividers. A
-                                     margin here made the Voltage/Wear band 12px taller than the rest. -->
                                 <Rectangle Style="{StaticResource RowDivider}" Margin="0"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>

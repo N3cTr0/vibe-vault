@@ -113,8 +113,16 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
 
         <StackPanel Grid.Row="0" Margin="20,16,20,4">
             <TextBlock Text="DISK USAGE" Style="{StaticResource CardTitle}"/>
-            <TextBlock Text="Find what's using space, TreeSize/WizTree-style. Pick a drive — NTFS drives get a ⚡ fast scan (reads the Master File Table directly); others fall back to a folder walk. Sizes are 'size on disk' (so cloud-only OneDrive files count as ~0). Double-click a folder to browse into it, or the '..' row to go up. Click any column header to sort (click again to reverse)."
-                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
+            <StackPanel Margin="0,4,0,8">
+                <TextBlock Text="Find out what's using space."
+                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
+                <TextBlock Text="Click a drive to start the scan — with only one drive it starts automatically."
+                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <TextBlock Text="NTFS drives get a ⚡ fast scan straight from the Master File Table; others fall back to a folder walk, which takes longer."
+                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                <TextBlock Text="Sizes are size-on-disk, so cloud-only OneDrive files count as ~0."
+                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
+            </StackPanel>
             <WrapPanel x:Name="PnlDrives"/>
             <TextBlock x:Name="TxtSummary" Foreground="#9399B2" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
         </StackPanel>

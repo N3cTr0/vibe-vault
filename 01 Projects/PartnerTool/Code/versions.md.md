@@ -25,6 +25,20 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.5 — 2026-07-28
+### Changed
+- **Diagnostics ▸ Top processes** now shows User, Disk, Threads, Handles and Description alongside
+  Process/PID/CPU/Memory. It reads from `ProcessSampler` (the Processes page's sampler) instead of
+  `ProcessInfo.TopAsync`, so the two views show the same fields and the same numbers; CPU and disk are
+  deltas, so the card primes a sample 600 ms before the one it displays. Column widths match the
+  Processes page.
+- **"All processes" is a button** beside Refresh rather than a hyperlink.
+- **Dividers between rows** in Power & Restart History and Recent Errors, matching System Info's lists.
+- **Disk Usage intro rewritten** as four short lines: what it does, that clicking a drive starts the
+  scan (automatic with a single drive), the NTFS ⚡ MFT fast scan vs the slower folder-walk fallback,
+  and that sizes are size-on-disk so cloud-only OneDrive files count as ~0. The double-click and
+  column-sort hints were dropped as self-evident.
+
 ## 0.24.4 — 2026-07-28
 ### Fixed
 - **Row text was not centred between its dividers** (regression from 0.24.2). The `ItemDivider` sits at

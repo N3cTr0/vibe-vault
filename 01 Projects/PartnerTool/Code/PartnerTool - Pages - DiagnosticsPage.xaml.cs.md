@@ -209,8 +209,7 @@ public partial class DiagnosticsPage : UserControl
     // ── Live processes ───────────────────────────────────────
     private async void ProcRefresh_Click(object sender, RoutedEventArgs e) => await LoadProcessesAsync();
 
-    // This card only shows the top 10. "All processes" opens the full Task-Manager-style list.
-    // Single-instance like the System Info tiles: reuse the window if it is already up.
+    // Single-instance, like the System Info tiles: reuse the window if it is already up.
     private PerformanceWindow? _perfWin;
     private void OpenProcesses_Click(object sender, RoutedEventArgs e)
     {
@@ -220,12 +219,27 @@ public partial class DiagnosticsPage : UserControl
         _perfWin.Show();
     }
 
+    // CPU and disk are deltas between samples, so keep the instance alive and prime it before reading.
+    private readonly ProcessSampler _procSampler = new();
+
     private async Task LoadProcessesAsync()
     {
         if (_procsLoading) return;
         _procsLoading = true;
         BtnProcRefresh.IsEnabled = false;
-        try { IcProcesses.ItemsSource = (await ProcessInfo.TopAsync()).Take(10).ToList(); }
+        try
+        {
+            IcProcesses.ItemsSource = await Task.Run(() =>
+            {
+                _procSampler.Sample();
+                Thread.Sleep(600);
+                return _procSampler.Sample()
+                                   .OrderByDescending(r => r.Cpu)
+                                   .ThenByDescending(r => r.MemMb)
+                                   .Take(10)
+                                   .ToList();
+            });
+        }
         finally { _procsLoading = false; BtnProcRefresh.IsEnabled = true; }
     }
 
