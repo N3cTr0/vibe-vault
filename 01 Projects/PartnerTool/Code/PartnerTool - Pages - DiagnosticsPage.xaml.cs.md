@@ -240,10 +240,10 @@ public partial class DiagnosticsPage : UserControl
 
     private async void KillProc_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: int pid }) return;
+        if (sender is not Button { Tag: int pid, DataContext: ProcRow row }) return;
+        if (!row.CanEnd) return;   // belt & braces - the button is disabled for protected procs
         if (!TechGate.Verify(Window.GetWindow(this))) return;
-        var row = (sender as Button)?.DataContext as ProcInfo;
-        var name = row?.Name ?? pid.ToString();
+        var name = row.Name;
 
         // Ending a critical Windows process forces a BSOD - block it outright.
         if (ProcessInfo.IsCritical(name))

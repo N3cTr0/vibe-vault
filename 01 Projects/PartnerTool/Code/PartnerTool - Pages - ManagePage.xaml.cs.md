@@ -365,6 +365,9 @@ public partial class ManagePage : UserControl
     private async void DeleteProfile_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: UserProfileItem p }) return;
+        // The button renders on every row now (disabled, saying why) rather than only on deletable
+        // ones, so don't let IsEnabled be the only guard.
+        if (!p.CanDelete) return;
         if (!TechGate.Verify(Window.GetWindow(this))) return;
 
         if (!MessageWindow.Confirm("Delete Profile", $"Permanently delete the profile for “{p.Name}”?",

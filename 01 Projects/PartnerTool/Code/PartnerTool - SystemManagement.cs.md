@@ -164,6 +164,14 @@ public static class SystemManagement
         // validate its shape rather than trying to escape it: a SID is always S-1-<digits/hyphens>.
         // Anything else can't be a real profile and is refused outright.
         if (!SidPattern.IsMatch(sid)) return (false, "That doesn't look like a valid SID - refused.");
+        // Never the signed-in user's own profile. In practice Loaded below catches it, but that is an
+        // inference; this is explicit, and deleting the running user's profile is unrecoverable.
+        try
+        {
+            if (sid == (System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? " "))
+                return (false, "That's the profile you're signed in with - refused.");
+        }
+        catch { }
         try
         {
             using var q = new ManagementObjectSearcher(

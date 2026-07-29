@@ -25,6 +25,50 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.9 - 2026-07-30
+Security audit of everything added in 0.24.3-0.24.8. One real regression, two hardening fixes.
+
+### Fixed
+- **Diagnostics ▸ Top Processes: the kill handler's guard was dead code.** 0.24.5 switched that card's
+  rows from `ProcInfo` to `ProcRow`, but `KillProc_Click` still did `DataContext as ProcInfo` - which
+  from then on always returned null. So `name` fell back to `pid.ToString()`, the
+  `ProcessInfo.IsCritical(name)` check compared the name list against a PID and could never match, and
+  the activity log recorded "End process 8044" instead of the process name. The button's `CanEnd`
+  binding and `ProcessInfo.TryKill`'s live re-checks meant nothing unprotected could actually be
+  killed, so this was a broken layer rather than an open door - but it was the layer that explains
+  *why* to the tech, and it degraded the audit trail. Now casts to `ProcRow`, re-checks `CanEnd`, and
+  fails safe: a type mismatch returns early instead of continuing with a PID as the name.
+- **Removed the now-dead `ProcInfo` record and `ProcessInfo.TopAsync`.** Nothing had called `TopAsync`
+  since 0.24.5, and leaving `ProcInfo` in the codebase is exactly what let `as ProcInfo` keep
+  compiling. With it gone that mistake is a compile error.
+
+### Changed
+- **Printer protection no longer depends on the queue name alone.** Built-in queue names are localised
+  on non-English Windows, so a name-prefix match can silently fail to protect Print to PDF / XPS / Fax
+  and let an irreversible delete through. `PrintersInfo` now also matches the (non-localised) driver
+  name, re-checked inside `Remove` against the full WMI instance - the last gate before the delete.
+  - Trade-off: this also refuses a *duplicate* queue a tech built on one of those drivers. That is the
+    safe side, and the message says so accurately ("uses a built-in Windows print driver ... use
+    Windows' own Printers settings if you are sure") rather than claiming it is a Windows printer.
+- **`DeleteProfile_Click` re-checks `CanDelete`.** 0.24.8 made the button render on every row (disabled,
+  saying why) instead of only on deletable ones, which left the `IsEnabled` binding as the only
+  UI-layer guard. Now the handler checks too.
+- **`DeleteUserProfile` refuses the signed-in user's own SID explicitly.** `Loaded` already caught it in
+  practice, but that was an inference; deleting the running user's profile is unrecoverable.
+
+### Audited clean
+- No injection surface in any of the new code. Printer removal enumerates and matches in C# rather than
+  building a WQL filter from a user-supplied name; `WuPolicyInfo.ResetToOnline` only ever touches two
+  hardcoded registry paths with hardcoded value names; profile deletion still shape-validates the SID
+  before it reaches WQL.
+- New launchers take no user input: `fsmgmt.msc` is pinned to System32 by absolute path (so a planted
+  file in a writable working directory can't run elevated in its place) and the Defender links are
+  hardcoded `windowsdefender://` URIs.
+- Every new destructive action is tech-gated and confirmed: printer removal (single and selected) and
+  the Windows Update source reset. Network Shares is read-only.
+- Known and accepted: `PruneIfEmpty` has a microsecond check-then-delete window on the two WU policy
+  keys. A value written by another process in that window would be lost. Not worth a lock.
+
 ## 0.24.8 - 2026-07-30
 ### Added
 - **System Shortcuts: a short description on every shortcut.** Device Manager (admin) was the only one
