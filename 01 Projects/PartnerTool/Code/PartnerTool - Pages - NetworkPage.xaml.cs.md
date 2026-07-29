@@ -38,7 +38,26 @@ public partial class NetworkPage : UserControl
     private async void WifiRefresh_Click(object sender, RoutedEventArgs e) => await LoadWifiAsync();
     private async void ConnRefresh_Click(object sender, RoutedEventArgs e) => await LoadConnectionsAsync();
 
-    private async Task LoadNetInfoAsync() => await Task.WhenAll(LoadWifiAsync(), LoadConnectionsAsync());
+    private async Task LoadNetInfoAsync()
+        => await Task.WhenAll(LoadWifiAsync(), LoadConnectionsAsync(), LoadSharesAsync());
+
+    private async void SharesRefresh_Click(object sender, RoutedEventArgs e) => await LoadSharesAsync();
+
+    private async Task LoadSharesAsync()
+    {
+        BtnSharesRefresh.IsEnabled = false;
+        try
+        {
+            var shares = await Task.Run(SharesInfo.Collect);
+            IcShares.ItemsSource = shares;
+            int admin = shares.Count(s => s.Admin);
+            TxtSharesStatus.Text = shares.Count == 0
+                ? "No shares published on this PC."
+                : $"{shares.Count} share(s)  ·  {shares.Count - admin} published, {admin} hidden admin share(s)";
+        }
+        catch { TxtSharesStatus.Text = "Share information unavailable."; }
+        finally { BtnSharesRefresh.IsEnabled = true; }
+    }
 
     private async Task LoadWifiAsync()
     {

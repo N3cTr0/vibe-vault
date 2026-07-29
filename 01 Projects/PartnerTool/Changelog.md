@@ -25,6 +25,27 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.7 - 2026-07-29
+### Added
+- **Manage ▸ Printers.** Lists every print queue with its status, port and driver, a Remove button per
+  row and a Remove All. Windows' own **Microsoft Print to PDF, XPS Document Writer and Fax are
+  protected** - matched by name prefix so RDP-redirected copies are covered, blocked in
+  `PrintersInfo.Remove` itself rather than only greyed out in the UI, and skipped by Remove All.
+  Both actions are tech-gated and confirmed; Remove All lists what it will delete first.
+- **Network ▸ Network Shares**, alongside Wi-Fi. Every share from `Win32_Share` including the hidden
+  administrative ones (`C$`, `ADMIN$`, `IPC$`) - the high bit of `Type` marks those. Published shares
+  are listed first, then the admin ones. Read-only.
+
+### Fixed
+- **Disk Usage looked broken with more than one drive.** Nothing auto-scans when there are two or more
+  drives, so the summary and status lines sat blank, leaving a gap under the drive buttons. Both now
+  collapse while empty via a `HideWhenEmpty` style trigger, so they cost no space until a drive is
+  picked. Verified against a real second volume.
+
+### Changed
+- Diagnostics: "All Processes" renamed **Live Processes**, and the Top Processes header now carries a
+  **last updated at HH:mm:ss** stamp.
+
 ## 0.24.6 - 2026-07-28
 ### Fixed
 - **Two Performance windows could be open at once.** System Info and Diagnostics each kept their own

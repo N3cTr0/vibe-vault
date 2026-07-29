@@ -210,8 +210,15 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                 </StackPanel>
             </Border>
 
-            <!-- WI-FI -->
-            <Border Style="{StaticResource Card}">
+            <!-- WI-FI + NETWORK SHARES -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Card}">
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -264,6 +271,36 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                    <DockPanel>
+                        <Button x:Name="BtnSharesRefresh" DockPanel.Dock="Right" Content="Refresh"
+                                Style="{StaticResource ActionButton}" Click="SharesRefresh_Click"/>
+                        <TextBlock Text="NETWORK SHARES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock x:Name="TxtSharesStatus" Foreground="#6C7086" FontSize="11" Margin="0,2,0,6" TextWrapping="Wrap"/>
+                    <ItemsControl x:Name="IcShares">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <StackPanel>
+                                <Rectangle Style="{StaticResource ItemDivider}" Margin="0,4"/>
+                                <DockPanel Margin="0,4">
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Kind}" Foreground="#6C7086" FontSize="11"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" Foreground="#CDD6F4" FontSize="12" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11"
+                                                   Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DockPanel>
+                              </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            </Grid>
 
             <!-- ACTIVE CONNECTIONS -->
             <Border Style="{StaticResource Card}">

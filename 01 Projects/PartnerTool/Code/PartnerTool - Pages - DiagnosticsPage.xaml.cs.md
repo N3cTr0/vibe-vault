@@ -232,6 +232,7 @@ public partial class DiagnosticsPage : UserControl
                                    .Take(10)
                                    .ToList();
             });
+            TxtProcUpdated.Text = $"last updated at {DateTime.Now:HH:mm:ss}";
         }
         catch { /* transient process-walk failure - leave the previous list up */ }
         finally { _procsLoading = false; BtnProcRefresh.IsEnabled = true; }

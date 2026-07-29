@@ -56,6 +56,7 @@ public partial class ManagePage : UserControl
         SecServices.Visibility = tag == "Services" ? Visibility.Visible : Visibility.Collapsed;
         SecTasks.Visibility    = tag == "Tasks"    ? Visibility.Visible : Visibility.Collapsed;
         SecDrivers.Visibility  = tag == "Drivers"  ? Visibility.Visible : Visibility.Collapsed;
+        SecPrinters.Visibility = tag == "Printers" ? Visibility.Visible : Visibility.Collapsed;
         SecHosts.Visibility    = tag == "Hosts"    ? Visibility.Visible : Visibility.Collapsed;
         SecEnv.Visibility      = tag == "Env"      ? Visibility.Visible : Visibility.Collapsed;
         SecFeatures.Visibility = tag == "Features" ? Visibility.Visible : Visibility.Collapsed;
@@ -73,6 +74,7 @@ public partial class ManagePage : UserControl
             case "Services": await LoadServices(); break;
             case "Tasks":    await LoadTasks(); break;
             case "Drivers":  await LoadDrivers(); break;
+            case "Printers": await LoadPrinters(); break;
             case "Hosts":    HostsReload_Click(this, new RoutedEventArgs()); break;
             case "Env":      LstEnv.ItemsSource = await Task.Run(SystemManagement.EnvVars); break;
             case "Features": LstFeatures.ItemsSource = await Task.Run(SystemManagement.OptionalFeatures); break;
@@ -208,6 +210,63 @@ public partial class ManagePage : UserControl
         TxtDriversStatus.Text = "Loading…";
         _allDrivers = await Task.Run(DriversInfo.Collect);
         FilterDrivers();
+    }
+
+    // ── Printers ─────────────────────────────────────────────
+
+    private async Task LoadPrinters()
+    {
+        TxtPrintersStatus.Text = "Loading…";
+        var printers = await Task.Run(PrintersInfo.Collect);
+        LstPrinters.ItemsSource = printers;
+        int locked = printers.Count(p => p.Protected);
+        TxtPrintersStatus.Text = printers.Count == 0
+            ? "No printers installed."
+            : $"{printers.Count} printer(s)" + (locked > 0 ? $"  ·  {locked} built into Windows (protected)" : "");
+        BtnPrintersRemoveAll.IsEnabled = printers.Any(p => p.CanRemove);
+    }
+
+    private async void PrintersRefresh_Click(object sender, RoutedEventArgs e) => await LoadPrinters();
+
+    private async void PrinterRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string name }) return;
+        if (!TechGate.Verify(Window.GetWindow(this))) return;
+        if (!MessageWindow.Confirm("Printers", $"Remove “{name}”?",
+                "The print queue is deleted from this PC. Any pending jobs on it are lost.\n\n" +
+                "The driver stays installed, so the printer can be added again.",
+                MessageKind.Warning, Window.GetWindow(this))) return;
+
+        var (ok, msg) = await Task.Run(() => PrintersInfo.Remove(name));
+        MessageWindow.Show("Printers", ok ? "Printer removed" : "Couldn't remove the printer",
+            msg, ok ? MessageKind.Info : MessageKind.Error, Window.GetWindow(this));
+        await LoadPrinters();
+    }
+
+    private async void PrintersRemoveAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TechGate.Verify(Window.GetWindow(this))) return;
+
+        var printers = (LstPrinters.ItemsSource as IEnumerable<PrinterInfo>)?.ToList() ?? new();
+        var removable = printers.Where(p => p.CanRemove).Select(p => p.Name).ToList();
+        if (removable.Count == 0)
+        {
+            MessageWindow.Show("Printers", "Nothing to remove",
+                "Only Windows' own protected printers are installed.", MessageKind.Info, Window.GetWindow(this));
+            return;
+        }
+
+        if (!MessageWindow.Confirm("Printers", $"Remove all {removable.Count} printer(s)?",
+                string.Join("\n", removable.Select(n => "  " + n)) +
+                "\n\nWindows' Print to PDF, XPS Document Writer and Fax are left in place.",
+                MessageKind.Warning, Window.GetWindow(this))) return;
+
+        var (removed, skipped, errors) = await Task.Run(PrintersInfo.RemoveAll);
+        string detail = $"Removed {removed} printer(s); {skipped} protected printer(s) left in place.";
+        if (errors.Count > 0) detail += "\n\nCouldn't remove:\n" + string.Join("\n", errors.Select(x => "  " + x));
+        MessageWindow.Show("Printers", errors.Count == 0 ? "Printers removed" : "Finished with errors",
+            detail, errors.Count == 0 ? MessageKind.Info : MessageKind.Error, Window.GetWindow(this));
+        await LoadPrinters();
     }
 
     private void DriverSearch_TextChanged(object sender, TextChangedEventArgs e) => FilterDrivers();

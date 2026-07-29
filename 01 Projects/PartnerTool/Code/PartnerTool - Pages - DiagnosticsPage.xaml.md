@@ -196,11 +196,13 @@ source-path: PartnerTool\Pages\DiagnosticsPage.xaml
                         <DockPanel>
                             <Button x:Name="BtnProcRefresh" DockPanel.Dock="Right" Content="Refresh"
                                     Style="{StaticResource ActionButton}" Click="ProcRefresh_Click"/>
-                            <Button x:Name="BtnAllProcs" DockPanel.Dock="Right" Content="All Processes"
+                            <Button x:Name="BtnAllProcs" DockPanel.Dock="Right" Content="Live Processes"
                                     Style="{StaticResource ActionButton}" Margin="0,0,8,0"
                                     Click="OpenProcesses_Click"
-                                    ToolTip="Open the full process list (Performance ▸ Processes)"/>
+                                    ToolTip="Open the live process list (Performance ▸ Processes)"/>
                             <TextBlock Text="TOP PROCESSES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtProcUpdated" Foreground="#6C7086" FontSize="11"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </DockPanel>
                         <Grid Margin="0,4,0,2">
                             <Grid.ColumnDefinitions>

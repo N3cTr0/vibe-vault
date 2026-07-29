@@ -15,6 +15,12 @@ public record PrinterInfo(string Name, bool Default, bool Offline, string Status
 {
     public string Display => (Default ? "★ " : "") + Name;
     public string Detail  => $"{(Offline ? "Offline" : Status)}   ·   {Port}   ·   {Driver}";
+
+    public bool   Protected => PrintersInfo.IsProtected(Name);
+    public bool   CanRemove => !Protected;
+    public string RemoveTip => Protected
+        ? "Built into Windows - cannot be removed"
+        : $"Remove {Name}";
 }
 
 /// <summary>Installed printers, the default, and whether each is offline (Win32_Printer).</summary>
@@ -46,6 +52,61 @@ public static class PrintersInfo
         }
         catch { }
         return list.OrderByDescending(p => p.Default).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>
+    /// Windows' own virtual printers. Deleting these breaks Print to PDF / XPS / Fax for every user
+    /// on the machine and they can only be restored through Optional Features, so removal is blocked.
+    /// Matched by prefix so RDP-redirected copies ("... (redirected 2)") are covered too.
+    /// </summary>
+    private static readonly string[] Builtin =
+    {
+        "Microsoft Print to PDF",
+        "Microsoft XPS Document Writer",
+        "Fax",
+    };
+
+    public static bool IsProtected(string name) =>
+        !string.IsNullOrWhiteSpace(name) &&
+        Builtin.Any(b => name.StartsWith(b, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Delete one printer queue. Protected built-ins are refused.</summary>
+    public static (bool Ok, string Message) Remove(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return (false, "No printer selected.");
+        if (IsProtected(name))               return (false, $"“{name}” is built into Windows and cannot be removed.");
+
+        try
+        {
+            // SELECT * on purpose: a projection returns partial instances with no object path, and
+            // Delete() then throws "operation is not valid due to the current state of the object".
+            // Matching in C# rather than a WQL filter keeps user-supplied names out of the query.
+            using var q = new ManagementObjectSearcher("SELECT * FROM Win32_Printer");
+            foreach (ManagementObject o in q.Get())
+                using (o)
+                {
+                    if (!string.Equals(o["Name"]?.ToString(), name, StringComparison.OrdinalIgnoreCase)) continue;
+                    o.Delete();
+                    return (true, $"Removed “{name}”.");
+                }
+            return (false, $"“{name}” was not found - it may already be gone.");
+        }
+        catch (Exception ex) { return (false, ex.Message); }
+    }
+
+    /// <summary>Remove every removable printer, skipping the Windows built-ins.</summary>
+    public static (int Removed, int Skipped, List<string> Errors) RemoveAll()
+    {
+        int removed = 0, skipped = 0;
+        var errors = new List<string>();
+        foreach (var p in Collect())
+        {
+            if (p.Protected) { skipped++; continue; }
+            var (ok, msg) = Remove(p.Name);
+            if (ok) removed++;
+            else errors.Add($"{p.Name}: {msg}");
+        }
+        return (removed, skipped, errors);
     }
 }
 ```

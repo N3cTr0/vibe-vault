@@ -56,6 +56,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <Button Content="Environment Variables" Style="{StaticResource SubNav}" Tag="Env"      Click="Sub_Click"/>
             <Button Content="Features"              Style="{StaticResource SubNav}" Tag="Features" Click="Sub_Click"/>
             <Button Content="Hosts File"            Style="{StaticResource SubNav}" Tag="Hosts"    Click="Sub_Click"/>
+            <Button Content="Printers"              Style="{StaticResource SubNav}" Tag="Printers" Click="Sub_Click"/>
             <Button Content="Scheduled Tasks"       Style="{StaticResource SubNav}" Tag="Tasks"    Click="Sub_Click"/>
             <Button Content="User Profiles"         Style="{StaticResource SubNav}" Tag="Profiles" Click="Sub_Click"/>
         </WrapPanel>
@@ -246,6 +247,44 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             </Border>
 
             <!-- HOSTS FILE -->
+            <Border x:Name="SecPrinters" Style="{StaticResource Card}" Visibility="Collapsed">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" x:Name="BtnPrintersRemoveAll" Content="Remove All"
+                                Style="{StaticResource ActionButton}" Click="PrintersRemoveAll_Click"/>
+                        <Button DockPanel.Dock="Right" x:Name="BtnPrintersRefresh" Content="Refresh"
+                                Style="{StaticResource ActionButton}" Margin="0,0,8,0" Click="PrintersRefresh_Click"/>
+                        <TextBlock Text="PRINTERS" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Foreground="#6C7086" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
+                               Text="Removes the print queue from this PC. Windows' own Print to PDF, XPS Document Writer and Fax cannot be removed - deleting those breaks printing for every user and they only come back through Optional Features."/>
+                    <TextBlock DockPanel.Dock="Top" x:Name="TxtPrintersStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
+                    <ListBox x:Name="LstPrinters" Style="{StaticResource PlainList}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#45475A" BorderThickness="0,0,0,1" Padding="0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="90"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Display}" Foreground="#CDD6F4" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11"
+                                                       Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Remove" Tag="{Binding Name}"
+                                                Click="PrinterRemove_Click" IsEnabled="{Binding CanRemove}"
+                                                ToolTip="{Binding RemoveTip}"
+                                                Style="{StaticResource ActionButton}" Padding="0,3" FontSize="11"
+                                                VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
             <Border x:Name="SecHosts" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">

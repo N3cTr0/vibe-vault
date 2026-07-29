@@ -12,6 +12,15 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
+        <!-- Collapses while Text is empty, so a label that has nothing to say yet leaves no gap. -->
+        <Style x:Key="HideWhenEmpty" TargetType="TextBlock">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Dark column header. Click to sort (handled in Header_Click). -->
         <Style TargetType="GridViewColumnHeader">
             <Setter Property="Foreground" Value="#9399B2"/>
@@ -124,7 +133,8 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
                            FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
             </StackPanel>
             <WrapPanel x:Name="PnlDrives"/>
-            <TextBlock x:Name="TxtSummary" Foreground="#9399B2" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+            <TextBlock x:Name="TxtSummary" Style="{StaticResource HideWhenEmpty}"
+                       Foreground="#9399B2" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
         </StackPanel>
 
         <DockPanel Grid.Row="1" Margin="20,6,20,4">
@@ -138,7 +148,8 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
         </DockPanel>
 
         <StackPanel Grid.Row="2" Margin="20,0,20,6">
-            <TextBlock x:Name="TxtStatus" Foreground="#6C7086" FontSize="11"/>
+            <TextBlock x:Name="TxtStatus" Style="{StaticResource HideWhenEmpty}"
+                       Foreground="#6C7086" FontSize="11"/>
             <ProgressBar x:Name="Busy" Height="3" IsIndeterminate="True" Margin="0,4,0,0"
                          Visibility="Collapsed" Background="#313244" Foreground="#89B4FA" BorderThickness="0"/>
         </StackPanel>
