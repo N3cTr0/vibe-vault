@@ -25,6 +25,34 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.10 - 2026-07-30
+Coverage pass over Health Check: everything the tool can detect now surfaces there, and where the tool
+has a fix, Health Check offers it.
+
+### Added
+- **Updates: "Update source is policy-managed"** - FIXABLE via `WuPolicyInfo.ResetToOnline`. This was the
+  worst gap. A dead WSUS entry or a "don't reach Microsoft" policy stops the machine scanning at all, so
+  the existing "Updates available" finding reports **0 pending** and the machine reads as healthy. It
+  now says where updates come from and offers the reset. Not pre-ticked and tech-gated: on a genuinely
+  managed device the policy belongs there and a live GPO re-applies it anyway.
+- **Security: "PowerShell execution policy loosened"** - FIXABLE via `SecurityAudit.ResetExecutionPolicy`.
+  It was already counted in the hardening rollup, but that rollup only offers an "Open" button; this is
+  the one scorecard item the tool can put right in place. Deduction 0 so the rollup isn't double-counted.
+- **Security: "Threats in Defender history"** - advisory, opens Security. Defender's threat count was
+  collected and shown on the Security page but never reached Health Check.
+- **Junk: "Feature-update leftovers"** - advisory, opens Repair. Windows.old and the `$Windows.~*`
+  staging are routinely 15-30 GB and the tool has always been able to clear them, but Health Check
+  never mentioned it. Deliberately an advisory rather than a tick-box: clearing it is permanent and
+  gives up the ~10-day rollback, so the tech goes to the Repair card that spells that out instead of
+  having it swept into a bulk "Fix Selected".
+
+### Known gaps (deliberate)
+- **WinSxS component-store cleanup** is detectable via `DISM /AnalyzeComponentStore`, but that takes
+  minutes - too slow for a scan that should finish in under a minute. Stays on the Repair page.
+- **SFC/DISM corruption** has no cheap probe; finding out means running the 15-40 minute repair.
+- **ProSentry (Atakama/Huntress/Duo/AutoElevate) and Intune** are shown on the Security page but not
+  scored here: not every machine is meant to have them, so a missing one is not automatically a fault.
+
 ## 0.24.9 - 2026-07-30
 Security audit of everything added in 0.24.3-0.24.8. One real regression, two hardening fixes.
 

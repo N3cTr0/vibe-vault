@@ -77,9 +77,13 @@ public static class HealthCheck
         P(42, "Reading disk space & drive health…");
         var hw = await Task.Run(HardwareInfo.Collect);
 
+        P(50, "Measuring feature-update leftovers…");
+        var featUpd = await Task.Run(FeatureUpdateCleanup.Scan);
+
         P(55, "Checking for Windows & app updates…");
         int winCount = (await Task.Run(PendingUpdatesInfo.Collect)).Count;
         int appCount = (await OutdatedAppsInfo.CollectAsync()).Count;
+        var wuPolicy = await Task.Run(WuPolicyInfo.Collect);
 
         P(72, "Checking security & antivirus…");
         var audit = await Task.Run(SecurityAudit.Collect);
@@ -128,6 +132,20 @@ public static class HealthCheck
             });
         else
             r.Findings.Add(Good("Junk", "Windows Installer orphans", "No significant orphaned installer files."));
+
+        // ── Junk: feature-update leftovers ───────────────────
+        // Advisory, not a tick-box fix: removing Windows.old / the $Windows.~* staging is permanent
+        // and gives up the ~10-day rollback, so the tech goes to the Repair card that spells that out
+        // rather than having it swept up in a bulk "Fix Selected".
+        if (featUpd.TotalGb >= 1.0)
+            r.Findings.Add(Advisory("Junk", "Feature-update leftovers", HealthSeverity.Warn,
+                featUpd.TotalGb >= 10 ? 6 : 3,
+                $"{featUpd.TotalGb:F1} GB in {featUpd.Items.Count} location(s) after a Windows feature update" +
+                (featUpd.AnyPermanent ? " - includes rollback data, so clearing it is permanent." : "."),
+                "Repair"));
+        else
+            r.Findings.Add(Good("Junk", "Feature-update leftovers",
+                featUpd.Items.Count == 0 ? "None left behind." : $"{featUpd.TotalGb:F1} GB - nothing worth reclaiming."));
 
         // ── Broken shortcuts ─────────────────────────────────
         if (broken.Count > 0)
@@ -209,6 +227,41 @@ public static class HealthCheck
         else
             r.Findings.Add(Good("Updates", "Updates", "No pending Windows or app updates found."));
 
+        // ── Updates: where they come from ────────────────────
+        // A dead WSUS entry or a "don't reach Microsoft" policy is the usual reason a machine reports
+        // no pending updates while actually being unable to scan at all - which the count above can't
+        // distinguish. Not pre-ticked: on a genuinely managed device the policy is meant to be there
+        // and a live GPO will re-apply it anyway.
+        var wuWarn = wuPolicy.Rows.Where(x => x.Level == AuditLevel.Warn).ToList();
+        if (wuWarn.Count > 0)
+        {
+            // Skip any row whose value the Source line already states, or the WSUS address gets
+            // printed twice.
+            var extra = wuWarn
+                .Where(x => !wuPolicy.Source.Contains(x.Value, StringComparison.OrdinalIgnoreCase))
+                .Select(x => $"{x.Name}: {x.Value}")
+                .ToList();
+            r.Findings.Add(new HealthFinding
+            {
+                Category = "Updates", Title = "Update source is policy-managed",
+                Severity = HealthSeverity.Warn, Deduction = 3,
+                Detail = wuPolicy.Source + "."
+                       + (extra.Count > 0 ? "  " + string.Join("; ", extra) + "." : "")
+                       + "  Resetting points this PC back at Microsoft - expected on a managed device, "
+                       + "so only tick it if that WSUS server is dead or no longer used.",
+                FixLabel = "Reset to online", NeedsGate = true, Selected = false,
+                Fixer = log => Task.Run(() =>
+                {
+                    var removed = WuPolicyInfo.ResetToOnline();
+                    if (removed.Count == 0) return "No source policies were set - nothing to reset.";
+                    foreach (var line in removed) log(line);
+                    return $"Cleared {removed.Count} policy value(s)/key(s); update source is back to Windows Update.";
+                }),
+            });
+        }
+        else
+            r.Findings.Add(Good("Updates", "Update source", wuPolicy.Source + "."));
+
         // ── Security: hardening scorecard ────────────────────
         int bad  = audit.Count(a => a.Level == AuditLevel.Bad);
         int warn = audit.Count(a => a.Level == AuditLevel.Warn);
@@ -221,6 +274,25 @@ public static class HealthCheck
         else
             r.Findings.Add(Good("Security", "Security hardening", "No hardening issues flagged."));
 
+        // ── Security: PowerShell execution policy ────────────
+        // Counted above in the hardening rollup, but broken out here because it is the one item on
+        // that scorecard the tool can put right in place, and the rollup offers no fix.
+        if (audit.Any(a => a.Fix?.Target == SecurityAudit.ResetExecPolicyTarget))
+            r.Findings.Add(new HealthFinding
+            {
+                Category = "Security", Title = "PowerShell execution policy loosened",
+                Severity = HealthSeverity.Warn, Deduction = 0,   // already docked by the rollup above
+                Detail = "The machine policy is set to Bypass/Unrestricted. Resetting it reverts to the " +
+                         "Windows default - scripts relying on the loosened policy may stop running.",
+                FixLabel = "Reset to default", NeedsGate = true, Selected = false,
+                Fixer = log => Task.Run(() =>
+                {
+                    SecurityAudit.ResetExecutionPolicy();
+                    log("  cleared the machine ExecutionPolicy value (both registry views)");
+                    return "Execution policy reset to the Windows default.";
+                }),
+            });
+
         // ── Security: antivirus (only when Defender is the active AV) ──
         if (def.Available && def.AntivirusEnabled)
         {
@@ -232,6 +304,15 @@ public static class HealthCheck
                     $"Defender signatures last updated {(int)(DateTime.Now - sig).TotalDays} days ago.", "Updates"));
             else
                 r.Findings.Add(Good("Security", "Antivirus", "Defender active with recent signatures."));
+
+            // Threats Defender has acted on. Worth surfacing even when handled - repeat detections on
+            // one machine usually mean a source that hasn't been dealt with.
+            if (def.ThreatCount > 0)
+                r.Findings.Add(Advisory("Security", "Threats in Defender history", HealthSeverity.Warn, 2,
+                    $"{def.ThreatCount} threat(s) recorded. Review what was found and whether the source " +
+                    "was dealt with.", "Security"));
+            else
+                r.Findings.Add(Good("Security", "Defender threat history", "No threats recorded."));
         }
 
         // ── Stability: crashes (last 14 days) ────────────────
