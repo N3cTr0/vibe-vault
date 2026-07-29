@@ -35,6 +35,17 @@ public class FullReportData
     public List<EnvVar>                 EnvVars    { get; init; } = new();
     public string                       HostsFile  { get; init; } = "";
     public WuPolicyInfo?                WuPolicy   { get; init; }
+    public List<ShareInfo>              Shares     { get; init; } = new();
+    public CrashInfo?                   Crashes    { get; init; }
+    public BootPerfInfo?                BootPerf   { get; init; }
+    public List<PendingUpdate>          Pending    { get; init; } = new();
+    public List<OutdatedApp>            AppUpdates { get; init; } = new();
+    public List<RestorePoint>           Restore    { get; init; } = new();
+    public List<UserProfileItem>        Profiles   { get; init; } = new();
+    public List<OptionalFeature>        Features   { get; init; } = new();
+
+    // Deliberately NOT here: BitLocker recovery keys. The bundle gets attached to tickets, so the
+    // keys stay on the Security page where a tech reads them off screen.
 }
 
 public static class FullReport
@@ -55,9 +66,18 @@ public static class FullReport
         var envVars   = Task.Run(SystemManagement.EnvVars);
         var hosts     = Task.Run(SystemManagement.ReadHosts);
         var wuPolicy  = Task.Run(WuPolicyInfo.Collect);
+        var shares    = Task.Run(SharesInfo.Collect);
+        var crashes   = Task.Run(CrashInfo.Collect);
+        var bootPerf  = Task.Run(BootPerfInfo.Collect);
+        var pending   = Task.Run(PendingUpdatesInfo.Collect);
+        var appUpd    = OutdatedAppsInfo.CollectAsync();
+        var restore   = Task.Run(RestorePointsInfo.Collect);
+        var profiles  = Task.Run(SystemManagement.UserProfiles);
+        var features  = Task.Run(SystemManagement.OptionalFeatures);
 
         await Task.WhenAll(software, startup, adapters, harden, wifi,
-                           prosentry, defender, services, drivers, tasks, envVars, hosts, wuPolicy);
+                           prosentry, defender, services, drivers, tasks, envVars, hosts, wuPolicy,
+                           shares, crashes, bootPerf, pending, appUpd, restore, profiles, features);
 
         return new FullReportData
         {
@@ -75,6 +95,14 @@ public static class FullReport
             EnvVars   = await envVars,
             HostsFile = await hosts,
             WuPolicy  = await wuPolicy,
+            Shares    = await shares,
+            Crashes   = await crashes,
+            BootPerf  = await bootPerf,
+            Pending   = await pending,
+            AppUpdates= await appUpd,
+            Restore   = await restore,
+            Profiles  = await profiles,
+            Features  = await features,
         };
     }
 }

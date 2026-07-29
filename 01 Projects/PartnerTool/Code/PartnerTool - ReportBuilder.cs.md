@@ -205,6 +205,58 @@ public static class ReportBuilder
         sb.AppendLine($"  Page file  : {s.Extras.PageFile}");
         sb.AppendLine($"  Proxy      : {s.Extras.Proxy}");
 
+        if (d.Shares.Count > 0)
+        {
+            H($"NETWORK SHARES ({d.Shares.Count})");
+            foreach (var sh in d.Shares)
+                sb.AppendLine($"  {sh.Name,-16} {sh.Kind,-18} {sh.Path} {sh.Description}".TrimEnd());
+        }
+        if (d.Crashes is { } cr)
+        {
+            H("CRASH HISTORY");
+            sb.AppendLine($"  Minidumps on disk : {d.Snap.Diagnostics.MinidumpCount}");
+            if (cr.Bsods.Count == 0) sb.AppendLine("  Blue screens      : none recorded");
+            foreach (var b in cr.Bsods)
+                sb.AppendLine($"  BSOD  {b.Time:MM/dd/yyyy HH:mm}  {b.StopCode}  {b.Detail}");
+            if (cr.Crashes.Count == 0) sb.AppendLine("  App crashes       : none recorded");
+            foreach (var c in cr.Crashes)
+                sb.AppendLine($"  CRASH {c.Time:MM/dd/yyyy HH:mm}  {c.App}  ({c.Module})");
+            foreach (var hg in cr.Hangs)
+                sb.AppendLine($"  HANG  {hg.Time:MM/dd/yyyy HH:mm}  {hg.App}  ({hg.Module})");
+        }
+        if (d.BootPerf is { } bp && (bp.BootTimes.Count > 0 || bp.Contributors.Count > 0))
+        {
+            H("BOOT PERFORMANCE");
+            foreach (var t in bp.BootTimes)
+                sb.AppendLine($"  {t.When:MM/dd/yyyy HH:mm}  {t.Seconds:F1} s");
+            foreach (var c in bp.Contributors)
+                sb.AppendLine($"  [{c.Kind}] {c.Name} - {c.Seconds:F1} s");
+        }
+        if (d.Pending.Count > 0 || d.AppUpdates.Count > 0)
+        {
+            H($"PENDING UPDATES ({d.Pending.Count} Windows, {d.AppUpdates.Count} apps)");
+            foreach (var u in d.Pending) sb.AppendLine($"  [{u.Kb}] {u.Title} - {u.SizeText}");
+            foreach (var au in d.AppUpdates) sb.AppendLine($"  {au.Name} {au.Current} -> {au.Available} ({au.Id})");
+        }
+        if (d.Restore.Count > 0)
+        {
+            H($"SYSTEM RESTORE POINTS ({d.Restore.Count})");
+            foreach (var rp in d.Restore)
+                sb.AppendLine($"  {rp.Created:MM/dd/yyyy HH:mm}  #{rp.Sequence}  {rp.Description} [{rp.Type}]");
+        }
+        if (d.Profiles.Count > 0)
+        {
+            H($"USER PROFILES ({d.Profiles.Count})");
+            foreach (var p in d.Profiles)
+                sb.AppendLine($"  {p.Name,-20} {p.Path,-32} last used " +
+                              (p.LastUsed is { } lu ? lu.ToString("MM/dd/yyyy") : "unknown") +
+                              (p.Loaded ? "  [loaded]" : "") + (p.IsCurrent ? "  [current user]" : ""));
+        }
+        if (d.Features.Count > 0)
+        {
+            H($"WINDOWS OPTIONAL FEATURES ({d.Features.Count(f => f.Enabled)} of {d.Features.Count} enabled)");
+            foreach (var f in d.Features.Where(f => f.Enabled)) sb.AppendLine($"  [on]  {f.Name}");
+        }
         if (d.Services.Count > 0)
         {
             H($"SERVICES ({d.Services.Count})");
@@ -279,7 +331,9 @@ public static class ReportBuilder
 <a href=""#network"">Network</a><a href=""#monitors"">Monitors</a>
 <a href=""#printers"">Printers</a><a href=""#accounts"">Accounts</a><a href=""#software"">Software</a>
 <a href=""#startup"">Startup</a><a href=""#wupolicy"">Update source</a><a href=""#updates"">Updates</a><a href=""#devices"">Device problems</a>
-<a href=""#extras"">Extras</a><a href=""#services"">Services</a><a href=""#drivers"">Drivers</a>
+<a href=""#extras"">Extras</a><a href=""#shares"">Shares</a><a href=""#crashes"">Crashes</a><a href=""#bootperf"">Boot</a>
+<a href=""#pending"">Pending updates</a><a href=""#restore"">Restore points</a><a href=""#profiles"">Profiles</a>
+<a href=""#features"">Features</a><a href=""#services"">Services</a><a href=""#drivers"">Drivers</a>
 <a href=""#tasks"">Tasks</a><a href=""#envvars"">Env vars</a><a href=""#hosts"">Hosts</a></div>");
 
         // ── Local helpers ──
@@ -461,6 +515,50 @@ public static class ReportBuilder
                 $"; full memory dump {(s.Diagnostics.MemoryDump ? "present" : "none")}"));
 
         // ── Manage-tab inventories ──
+        TableCard("shares", "Network shares", new[] { "Share", "Kind", "Path", "Description" },
+            d.Shares.Select(sh => new[] { sh.Name, sh.Kind, sh.Path, sh.Description }).ToList(),
+            "No shares published.");
+
+        TableCard("crashes", "Crash history", new[] { "When", "Kind", "What", "Detail" },
+            (d.Crashes is { } cr
+                ? cr.Bsods.Select(b => new[] { b.Time.ToString("MM/dd/yyyy HH:mm"), "Blue screen", b.StopCode, b.Detail })
+                   .Concat(cr.Crashes.Select(c => new[] { c.Time.ToString("MM/dd/yyyy HH:mm"), "App crash", c.App, c.Module }))
+                   .Concat(cr.Hangs.Select(h => new[] { h.Time.ToString("MM/dd/yyyy HH:mm"), "App hang", h.App, h.Module }))
+                   .OrderByDescending(x => x[0]).ToList()
+                : new List<string[]>()),
+            "No crashes recorded.");
+
+        TableCard("bootperf", "Boot performance", new[] { "When / item", "Kind", "Seconds" },
+            (d.BootPerf is { } bp
+                ? bp.BootTimes.Select(t => new[] { t.When.ToString("MM/dd/yyyy HH:mm"), "Boot", $"{t.Seconds:F1}" })
+                    .Concat(bp.Contributors.Select(c => new[] { c.Name, c.Kind, $"{c.Seconds:F1}" }))
+                    .ToList()
+                : new List<string[]>()),
+            "No boot timing recorded.");
+
+        TableCard("pending", "Pending updates", new[] { "Item", "KB / ID", "From", "To / size" },
+            d.Pending.Select(u => new[] { u.Title, u.Kb, "", u.SizeText })
+                .Concat(d.AppUpdates.Select(a => new[] { a.Name, a.Id, a.Current, a.Available }))
+                .ToList(),
+            "Nothing pending.");
+
+        TableCard("restore", "System restore points", new[] { "Created", "Sequence", "Description", "Type" },
+            d.Restore.Select(rp => new[] { rp.Created.ToString("MM/dd/yyyy HH:mm"), rp.Sequence.ToString(),
+                                           rp.Description, rp.Type }).ToList(),
+            "No restore points.");
+
+        TableCard("profiles", "User profiles", new[] { "Name", "Path", "Last used", "State" },
+            d.Profiles.Select(p => new[]
+            {
+                p.Name, p.Path,
+                p.LastUsed is { } lu ? lu.ToString("MM/dd/yyyy") : "unknown",
+                (p.IsCurrent ? "current user" : p.Loaded ? "loaded" : ""),
+            }).ToList());
+
+        TableCard("features", "Windows optional features (enabled)", new[] { "Feature" },
+            d.Features.Where(f => f.Enabled).Select(f => new[] { f.Name }).ToList(),
+            "None enabled / not readable.");
+
         TableCard("services", "Services", new[] { "Service", "Name", "State", "Startup", "Log on as" },
             d.Services.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .Select(sv => new[] { sv.DisplayName, sv.Name, sv.State, sv.StartMode, sv.LogOn }).ToList());

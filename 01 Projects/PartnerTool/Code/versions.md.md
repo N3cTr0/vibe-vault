@@ -25,6 +25,42 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.11 - 2026-07-30
+Coverage pass over Collect Diagnostics: seven collectors the tool has were never reaching the bundle.
+
+### Added to the bundle
+- **Network shares** (`SharesInfo`, added in 0.24.7 and never wired in) - including the hidden admin
+  shares, which is exactly what you want on an as-found record.
+- **Crash history** (`CrashInfo`) - blue screens, app crashes and hangs. The bundle previously carried
+  only the minidump *count* from `DiagnosticsInfo`, not what actually crashed.
+- **Boot performance** (`BootPerfInfo`) - boot times and the slow-boot contributors.
+- **Pending updates** (`PendingUpdatesInfo` + `OutdatedAppsInfo`) - the bundle had Windows Update
+  *history* but never what was still outstanding.
+- **System restore points** (`RestorePointsInfo`) - whether there was anything to roll back to.
+- **User profiles** (`SystemManagement.UserProfiles`) - with loaded / current-user state.
+- **Windows optional features** (`SystemManagement.OptionalFeatures`) - the enabled ones.
+
+All seven appear in both the HTML report (with nav links) and the text summary.
+
+### Confirmed already working
+- **The tool's own logs were already in the bundle** and comprehensively so: `Logs/` carries the
+  activity log, the error log and every per-operation log (chkdsk, temp clean, feature-update, installer
+  cleanup, Office languages, quick fixes, repair, restore point, WU reset). `TryAddFolder` opens with
+  `FileShare.ReadWrite` on purpose so the live activity/errors logs the tool is still appending to don't
+  fail with a sharing violation and get silently dropped.
+
+### Deliberately excluded
+- **BitLocker recovery keys.** `BitLockerInfo.GetRecoveryKeys` is reachable only from the Security page
+  and the BitLocker window - never from `FullReport`. The bundle gets attached to tickets, so the keys
+  stay on screen where a tech reads them. Verified by pattern-scanning a generated bundle. The card's
+  description now says so, so nobody adds them "for completeness".
+- Disk-usage scans and active connections stay out: heavy to collect, and the report is already ~100 KB
+  of HTML.
+
+### Changed
+- The Collect Diagnostics description listed what it gathers and had fallen well behind; it now matches
+  what the bundle actually contains.
+
 ## 0.24.10 - 2026-07-30
 Coverage pass over Health Check: everything the tool can detect now surfaces there, and where the tool
 has a fix, Health Check offers it.
