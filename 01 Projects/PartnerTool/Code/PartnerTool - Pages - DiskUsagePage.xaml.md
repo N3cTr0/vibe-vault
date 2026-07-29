@@ -129,8 +129,6 @@ source-path: PartnerTool\Pages\DiskUsagePage.xaml
                            FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
                 <TextBlock Text="NTFS drives get a ⚡ fast scan straight from the Master File Table; others fall back to a folder walk, which takes longer."
                            FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                <TextBlock Text="Sizes are size-on-disk, so cloud-only OneDrive files count as ~0."
-                           FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,2,0,0"/>
             </StackPanel>
             <WrapPanel x:Name="PnlDrives"/>
             <TextBlock x:Name="TxtSummary" Style="{StaticResource HideWhenEmpty}"

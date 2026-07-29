@@ -25,6 +25,44 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.8 - 2026-07-30
+### Added
+- **System Shortcuts: a short description on every shortcut.** Device Manager (admin) was the only one
+  with a tooltip; all 23 now have one. They say what the tool is for rather than restating its name,
+  and call out the traps: Group Policy is local-only and absent on Home, Registry Editor opens elevated
+  with no undo, Devices & Printers is the classic view rather than the Settings page, and Task Manager
+  duplicates the tool's own Performance window.
+- **Network ▸ Network Shares: a Shared Folders button**, opening `fsmgmt.msc` - Computer Management's
+  Shared Folders snap-in standalone, so it lands on the Shares tree. Pinned to System32 by absolute
+  path like the Security page's `.msc` launches.
+- **Security ▸ Defender: an Open Defender button**, and the threat count is now a link when non-zero.
+  It keeps its warning colour and gains an underline, so it reads as both a warning and a link.
+  - It targets `windowsdefender://threat` (Virus & threat protection, which carries Current threats and
+    a Protection history link). There is **no** working URI for the history page itself -
+    `windowsdefender://protectionhistory` is accepted but silently lands on Home, confirmed here.
+
+### Changed
+- **Manage ▸ Printers: tick-to-select replaces Remove All.** Each removable printer gets a check box;
+  protected built-ins get none, so they cannot be selected at all. The button becomes
+  **Remove Selected (n)**, disabled until something is ticked, and names the printers in its
+  confirmation. Still tech-gated, and `SelectedPrinters()` re-checks `CanRemove` so a protected printer
+  can never reach the removal path. `RemoveAll` replaced by `RemoveMany(names)`.
+- **Manage ▸ User Profiles: every row has a button in the same place.** The Delete button used to render
+  only on deletable profiles, so rows jumped about. Now every profile shows a fixed-width button:
+  "Delete profile" when it can go, otherwise disabled and saying why - **Current user**, **Signed in**
+  for a loaded profile, or **Can't delete** when Windows reports no SID. `UserProfileItem` gained
+  `IsCurrent` so the current user can be told apart from other blocked rows.
+- **Network ▸ IP Scanner: the Scan button doubles as Stop.** The separate Stop button is gone; Scan
+  toggles to Stop in place while a scan runs and back afterwards, so nothing greys out and no extra
+  button appears. Pressing Enter in the range box now also stops a running scan.
+- **Updates: Update Source folded into the Windows Update card.** They were two cards saying related
+  things; the source now sits between the launcher and Pending Updates, since on a managed device it is
+  usually why nothing is pending.
+- **Repair ▸ System Restore Points:** Refresh moved to the right of Open System Restore.
+- **Disk Usage:** dropped "Sizes are size-on-disk, so cloud-only OneDrive files count as ~0."
+- **Software ▸ Install Software:** dropped "Apps already on this PC are ticked and locked." - the status
+  line beneath already says it, with a live count.
+
 ## 0.24.7 - 2026-07-29
 ### Added
 - **Manage ▸ Printers.** Lists every print queue with its status, port and driver, a Remove button per

@@ -130,11 +130,11 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button x:Name="BtnScanStop" Content="Stop" Style="{StaticResource ActionButton}"
-                                    Margin="0,0,8,0" Click="ScanStop_Click" Visibility="Collapsed"/>
                             <Button x:Name="BtnScanCopy" Content="Copy" Style="{StaticResource ActionButton}"
                                     Margin="0,0,8,0" Click="ScanCopy_Click" IsEnabled="False"/>
-                            <Button x:Name="BtnScan" Content="Scan" Style="{StaticResource ActionButton}" Click="Scan_Click"/>
+                            <!-- Doubles as Stop while a scan is running; MinWidth stops the row shifting. -->
+                            <Button x:Name="BtnScan" Content="Scan" Style="{StaticResource ActionButton}"
+                                    MinWidth="76" Click="Scan_Click"/>
                         </StackPanel>
                         <TextBlock Text="IP SCANNER" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
@@ -277,6 +277,9 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                     <DockPanel>
                         <Button x:Name="BtnSharesRefresh" DockPanel.Dock="Right" Content="Refresh"
                                 Style="{StaticResource ActionButton}" Click="SharesRefresh_Click"/>
+                        <Button x:Name="BtnSharesOpen" DockPanel.Dock="Right" Content="Shared Folders"
+                                Style="{StaticResource ActionButton}" Margin="0,0,8,0" Click="OpenShares_Click"
+                                ToolTip="Open Shared Folders (fsmgmt.msc) - the Shares snap-in from Computer Management"/>
                         <TextBlock Text="NETWORK SHARES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBlock x:Name="TxtSharesStatus" Foreground="#6C7086" FontSize="11" Margin="0,2,0,6" TextWrapping="Wrap"/>

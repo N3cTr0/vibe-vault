@@ -41,7 +41,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
                                 Visibility="Collapsed" Click="CancelInstall_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="INSTALL SOFTWARE" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Tick the apps to install, then click Install Selected. Everything installs silently via winget. Apps already on this PC are ticked and locked."
+                            <TextBlock Text="Tick the apps to install, then click Install Selected. Everything installs silently via winget."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtInstallStatus" FontSize="11" Foreground="#89B4FA"
                                        TextWrapping="Wrap" Margin="0,6,0,0"/>

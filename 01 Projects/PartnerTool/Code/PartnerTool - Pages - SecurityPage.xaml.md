@@ -141,7 +141,14 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                     <!-- MICROSOFT DEFENDER -->
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
-                            <TextBlock Text="MICROSOFT DEFENDER" Style="{StaticResource CardTitle}"/>
+                            <DockPanel Margin="0,0,0,8">
+                                <Button x:Name="BtnOpenDefender" DockPanel.Dock="Right" Content="Open Defender"
+                                        Style="{StaticResource ActionButton}" Padding="10,4" FontSize="11"
+                                        Click="OpenDefender_Click"
+                                        ToolTip="Open Windows Security"/>
+                                <TextBlock Text="MICROSOFT DEFENDER" Style="{StaticResource CardTitle}"
+                                           VerticalAlignment="Center" Margin="0"/>
+                            </DockPanel>
                             <TextBlock x:Name="TxtNoDefender" Foreground="#6C7086" FontSize="12"
                                        Text="Defender is not the active antivirus (third-party AV installed)." Visibility="Collapsed"/>
                             <Grid x:Name="DefenderGrid">

@@ -21,6 +21,9 @@ public record PrinterInfo(string Name, bool Default, bool Offline, string Status
     public string RemoveTip => Protected
         ? "Built into Windows - cannot be removed"
         : $"Remove {Name}";
+
+    /// <summary>Ticked in the Manage list. Only ever set on rows where CanRemove is true.</summary>
+    public bool Selected { get; set; }
 }
 
 /// <summary>Installed printers, the default, and whether each is offline (Win32_Printer).</summary>
@@ -94,19 +97,18 @@ public static class PrintersInfo
         catch (Exception ex) { return (false, ex.Message); }
     }
 
-    /// <summary>Remove every removable printer, skipping the Windows built-ins.</summary>
-    public static (int Removed, int Skipped, List<string> Errors) RemoveAll()
+    /// <summary>Remove the named printers. Protected built-ins are refused by <see cref="Remove"/>.</summary>
+    public static (int Removed, List<string> Errors) RemoveMany(IEnumerable<string> names)
     {
-        int removed = 0, skipped = 0;
+        int removed = 0;
         var errors = new List<string>();
-        foreach (var p in Collect())
+        foreach (var name in names)
         {
-            if (p.Protected) { skipped++; continue; }
-            var (ok, msg) = Remove(p.Name);
+            var (ok, msg) = Remove(name);
             if (ok) removed++;
-            else errors.Add($"{p.Name}: {msg}");
+            else errors.Add($"{name}: {msg}");
         }
-        return (removed, skipped, errors);
+        return (removed, errors);
     }
 }
 ```

@@ -250,14 +250,15 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <Border x:Name="SecPrinters" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                        <Button DockPanel.Dock="Right" x:Name="BtnPrintersRemoveAll" Content="Remove All"
-                                Style="{StaticResource ActionButton}" Click="PrintersRemoveAll_Click"/>
+                        <Button DockPanel.Dock="Right" x:Name="BtnPrintersRemoveSel" Content="Remove Selected"
+                                Style="{StaticResource ActionButton}" IsEnabled="False"
+                                Click="PrintersRemoveSelected_Click"/>
                         <Button DockPanel.Dock="Right" x:Name="BtnPrintersRefresh" Content="Refresh"
                                 Style="{StaticResource ActionButton}" Margin="0,0,8,0" Click="PrintersRefresh_Click"/>
                         <TextBlock Text="PRINTERS" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBlock DockPanel.Dock="Top" Foreground="#6C7086" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
-                               Text="Removes the print queue from this PC. Windows' own Print to PDF, XPS Document Writer and Fax cannot be removed - deleting those breaks printing for every user and they only come back through Optional Features."/>
+                               Text="Tick the printers to remove, then use Remove Selected. Windows' own Print to PDF, XPS Document Writer and Fax have no tick box - deleting those breaks printing for every user and they only come back through Optional Features."/>
                     <TextBlock DockPanel.Dock="Top" x:Name="TxtPrintersStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
                     <ListBox x:Name="LstPrinters" Style="{StaticResource PlainList}">
                         <ListBox.ItemTemplate>
@@ -265,14 +266,18 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                                 <Border BorderBrush="#45475A" BorderThickness="0,0,0,1" Padding="0,6">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="28"/><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/>
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Selected, Mode=TwoWay}"
+                                                  Checked="PrinterSel_Changed" Unchecked="PrinterSel_Changed"
+                                                  VerticalAlignment="Center" ToolTip="Select for removal"
+                                                  Visibility="{Binding CanRemove, Converter={StaticResource BoolToVis}}"/>
+                                        <StackPanel Grid.Column="1">
                                             <TextBlock Text="{Binding Display}" Foreground="#CDD6F4" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding Detail}" Foreground="#6C7086" FontSize="11"
                                                        Margin="0,1,0,0" TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Content="Remove" Tag="{Binding Name}"
+                                        <Button Grid.Column="2" Content="Remove" Tag="{Binding Name}"
                                                 Click="PrinterRemove_Click" IsEnabled="{Binding CanRemove}"
                                                 ToolTip="{Binding RemoveTip}"
                                                 Style="{StaticResource ActionButton}" Padding="0,3" FontSize="11"
@@ -401,10 +406,11 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <DockPanel Margin="0,5">
-                                    <Button DockPanel.Dock="Right" Content="Delete profile" Tag="{Binding}"
+                                    <Button DockPanel.Dock="Right" Content="{Binding ActionText}" Tag="{Binding}"
                                             Click="DeleteProfile_Click" Style="{StaticResource ActionButton}"
                                             Padding="10,4" FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
-                                            Visibility="{Binding CanDelete, Converter={StaticResource BoolToVis}}"/>
+                                            MinWidth="104" IsEnabled="{Binding CanDelete}"
+                                            ToolTip="{Binding ActionTip}"/>
                                     <TextBlock DockPanel.Dock="Right" Foreground="#6C7086" FontSize="11" VerticalAlignment="Center">
                                         <Run Text="last used "/><Run Text="{Binding LastUsed, StringFormat='{}{0:MM/dd/yyyy}', Mode=OneWay}"/>
                                     </TextBlock>

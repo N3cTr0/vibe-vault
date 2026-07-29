@@ -223,8 +223,23 @@ public partial class ManagePage : UserControl
         TxtPrintersStatus.Text = printers.Count == 0
             ? "No printers installed."
             : $"{printers.Count} printer(s)" + (locked > 0 ? $"  ·  {locked} built into Windows (protected)" : "");
-        BtnPrintersRemoveAll.IsEnabled = printers.Any(p => p.CanRemove);
+        UpdatePrinterSelection();
     }
+
+    private void PrinterSel_Changed(object sender, RoutedEventArgs e) => UpdatePrinterSelection();
+
+    private void UpdatePrinterSelection()
+    {
+        int n = SelectedPrinters().Count;
+        BtnPrintersRemoveSel.IsEnabled = n > 0;
+        BtnPrintersRemoveSel.Content   = n > 0 ? $"Remove Selected ({n})" : "Remove Selected";
+    }
+
+    // CanRemove is re-checked here so a protected printer can never reach the removal path even if
+    // its row were somehow ticked.
+    private List<PrinterInfo> SelectedPrinters()
+        => (LstPrinters.ItemsSource as IEnumerable<PrinterInfo>)?
+               .Where(p => p.Selected && p.CanRemove).ToList() ?? new();
 
     private async void PrintersRefresh_Click(object sender, RoutedEventArgs e) => await LoadPrinters();
 
@@ -243,26 +258,24 @@ public partial class ManagePage : UserControl
         await LoadPrinters();
     }
 
-    private async void PrintersRemoveAll_Click(object sender, RoutedEventArgs e)
+    private async void PrintersRemoveSelected_Click(object sender, RoutedEventArgs e)
     {
+        var names = SelectedPrinters().Select(p => p.Name).ToList();
+        if (names.Count == 0) return;
+
         if (!TechGate.Verify(Window.GetWindow(this))) return;
 
-        var printers = (LstPrinters.ItemsSource as IEnumerable<PrinterInfo>)?.ToList() ?? new();
-        var removable = printers.Where(p => p.CanRemove).Select(p => p.Name).ToList();
-        if (removable.Count == 0)
-        {
-            MessageWindow.Show("Printers", "Nothing to remove",
-                "Only Windows' own protected printers are installed.", MessageKind.Info, Window.GetWindow(this));
-            return;
-        }
-
-        if (!MessageWindow.Confirm("Printers", $"Remove all {removable.Count} printer(s)?",
-                string.Join("\n", removable.Select(n => "  " + n)) +
-                "\n\nWindows' Print to PDF, XPS Document Writer and Fax are left in place.",
+        string heading = names.Count == 1
+            ? $"Remove “{names[0]}”?"
+            : $"Remove these {names.Count} printers?";
+        if (!MessageWindow.Confirm("Printers", heading,
+                string.Join("\n", names.Select(n => "  " + n)) +
+                "\n\nThe print queues are deleted from this PC and any pending jobs on them are lost. " +
+                "The drivers stay installed, so the printers can be added again.",
                 MessageKind.Warning, Window.GetWindow(this))) return;
 
-        var (removed, skipped, errors) = await Task.Run(PrintersInfo.RemoveAll);
-        string detail = $"Removed {removed} printer(s); {skipped} protected printer(s) left in place.";
+        var (removed, errors) = await Task.Run(() => PrintersInfo.RemoveMany(names));
+        string detail = $"Removed {removed} of {names.Count} printer(s).";
         if (errors.Count > 0) detail += "\n\nCouldn't remove:\n" + string.Join("\n", errors.Select(x => "  " + x));
         MessageWindow.Show("Printers", errors.Count == 0 ? "Printers removed" : "Finished with errors",
             detail, errors.Count == 0 ? MessageKind.Info : MessageKind.Error, Window.GetWindow(this));

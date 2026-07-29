@@ -72,10 +72,10 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button x:Name="BtnRestorePoint" Content="Create Restore Point" Style="{StaticResource ActionButton}"
                                     Margin="0,0,8,0" Click="RestorePoint_Click"/>
-                            <Button x:Name="BtnRefreshRestore" Content="Refresh" Style="{StaticResource ActionButton}"
-                                    Margin="0,0,8,0" Click="RefreshRestore_Click"/>
                             <Button x:Name="BtnOpenRestore" Content="Open System Restore" Style="{StaticResource ActionButton}"
-                                    Click="OpenRestore_Click"/>
+                                    Margin="0,0,8,0" Click="OpenRestore_Click"/>
+                            <Button x:Name="BtnRefreshRestore" Content="Refresh" Style="{StaticResource ActionButton}"
+                                    Click="RefreshRestore_Click"/>
                         </StackPanel>
                         <TextBlock Text="SYSTEM RESTORE POINTS" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>

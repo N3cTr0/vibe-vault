@@ -25,11 +25,23 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
             <TextBlock Text="Each source below is scanned automatically when this tab opens (can take a minute). Its status and its “Open” button live together - use Update All to run everything at once."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="2,0,2,12"/>
 
-            <!-- UPDATE SOURCE / POLICY - where this PC gets updates + the policies steering it.
-                 On a managed device this is usually why WU can't connect. -->
+            <!-- WINDOWS UPDATE: where this PC gets updates, the policies steering it, then what is
+                 pending. On a managed device the source is usually why WU can't connect, so it sits
+                 above the pending list rather than in a card of its own. -->
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="UPDATE SOURCE" Style="{StaticResource CardTitle}"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource ActionButton}"
+                                VerticalAlignment="Top" Click="OpenWindowsUpdate_Click"/>
+                        <StackPanel Margin="0,0,12,0">
+                            <TextBlock Text="WINDOWS UPDATE" Style="{StaticResource CardTitle}"/>
+                            <TextBlock Text="Latest Windows updates and security patches."
+                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <Rectangle Style="{StaticResource RowDivider}" Margin="0,10"/>
+
+                    <TextBlock Text="UPDATE SOURCE" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
                     <TextBlock x:Name="TxtWuSource" FontSize="12" TextWrapping="Wrap"/>
                     <ItemsControl x:Name="IcWuPolicy" Margin="0,6,0,0">
                         <ItemsControl.ItemTemplate>
@@ -55,21 +67,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </StackPanel>
-            </Border>
 
-            <!-- WINDOWS UPDATE (launcher + pending scan, merged) -->
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Open" Style="{StaticResource ActionButton}"
-                                VerticalAlignment="Top" Click="OpenWindowsUpdate_Click"/>
-                        <StackPanel Margin="0,0,12,0">
-                            <TextBlock Text="WINDOWS UPDATE" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Latest Windows updates and security patches."
-                                       FontSize="11" Foreground="#6C7086" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </DockPanel>
                     <Rectangle Style="{StaticResource RowDivider}" Margin="0,10"/>
                     <TextBlock Text="PENDING UPDATES" Foreground="#6C7086" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
                     <ItemsControl x:Name="IcPending">

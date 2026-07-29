@@ -43,6 +43,25 @@ public partial class NetworkPage : UserControl
 
     private async void SharesRefresh_Click(object sender, RoutedEventArgs e) => await LoadSharesAsync();
 
+    private void OpenShares_Click(object sender, RoutedEventArgs e)
+    {
+        // fsmgmt.msc is Computer Management's Shared Folders snap-in standalone, so it opens on the
+        // Shares tree directly. Pinned to System32 so a planted .msc can't be launched instead.
+        var console = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "fsmgmt.msc");
+        try
+        {
+            ActivityLog.Action("Network", "Open Shared Folders (fsmgmt.msc)");
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(console) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show("Shared Folders", "Couldn't open Shared Folders",
+                ex.Message, MessageKind.Warning, Window.GetWindow(this));
+        }
+    }
+
     private async Task LoadSharesAsync()
     {
         BtnSharesRefresh.IsEnabled = false;
@@ -253,11 +272,10 @@ public partial class NetworkPage : UserControl
         if (e.Key == Key.Enter) Scan_Click(sender, e);
     }
 
-    private void ScanStop_Click(object sender, RoutedEventArgs e) => _scanCts?.Cancel();
-
     private async void Scan_Click(object sender, RoutedEventArgs e)
     {
-        if (_scanCts is not null) return;   // already scanning
+        // One button: Scan when idle, Stop while a scan is running.
+        if (_scanCts is not null) { _scanCts.Cancel(); return; }
 
         var addresses = IpScanner.ParseRange(TxtScanRange.Text, out string error);
         if (error.Length > 0)
@@ -278,9 +296,8 @@ public partial class NetworkPage : UserControl
         var hosts = new System.Collections.ObjectModel.ObservableCollection<IpHost>();
         IcScanHosts.ItemsSource   = hosts;
         PnlScanResults.Visibility = Visibility.Visible;
-        BtnScan.IsEnabled         = false;
+        BtnScan.Content           = "Stop";
         BtnScanCopy.IsEnabled     = false;
-        BtnScanStop.Visibility    = Visibility.Visible;
         ScanBusy.Visibility       = Visibility.Visible;
         ScanBusy.Value            = 0;
         TxtScanStatus.Foreground  = StatusColors.Muted;
@@ -314,9 +331,8 @@ public partial class NetworkPage : UserControl
             stopped = cts.IsCancellationRequested;   // read it before the source is disposed
             _scanCts = null;
             cts.Dispose();
-            BtnScan.IsEnabled      = true;
-            BtnScanStop.Visibility = Visibility.Collapsed;
-            ScanBusy.Visibility    = Visibility.Collapsed;
+            BtnScan.Content     = "Scan";
+            ScanBusy.Visibility = Visibility.Collapsed;
         }
 
         // A cancelled scan still shows whatever it found before the tech hit Stop.

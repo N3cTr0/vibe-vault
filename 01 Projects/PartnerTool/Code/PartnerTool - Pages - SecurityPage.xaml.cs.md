@@ -85,6 +85,30 @@ public partial class SecurityPage : UserControl
         }
     }
 
+    private void OpenDefender_Click(object sender, RoutedEventArgs e)
+        => OpenWindowsSecurity("windowsdefender://", "Windows Security");
+
+    // windowsdefender://threat lands on Virus & threat protection, which carries Current threats and
+    // a Protection history link. There is no working URI for the history page itself - the obvious
+    // windowsdefender://protectionhistory is not recognised and silently drops you on Home.
+    private void OpenThreatHistory_Click(object sender, RoutedEventArgs e)
+        => OpenWindowsSecurity("windowsdefender://threat", "Virus & threat protection");
+
+    private void OpenWindowsSecurity(string uri, string what)
+    {
+        ActivityLog.Action("Security", $"Open {what}");
+        try
+        {
+            Process.Start(new ProcessStartInfo(uri) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show("Windows Security", $"Couldn't open {what}",
+                "Windows wouldn't open the Security app on this machine.\n\n" + ex.Message,
+                MessageKind.Warning, Window.GetWindow(this));
+        }
+    }
+
     private async Task LoadAsync()
     {
         var auditTask = Task.Run(SecurityAudit.Collect);
@@ -119,8 +143,25 @@ public partial class SecurityPage : UserControl
             TxtSigDate.Foreground = (DateTime.Now - su).TotalDays > 7 ? StatusColors.Yellow : StatusColors.Green;
         TxtQuick.Text      = d.QuickScanAgeDays is { } qa ? $"{qa} day(s) ago" : "-";
         TxtFull.Text       = d.FullScanAgeDays is { } fa ? $"{fa} day(s) ago" : "Never / unknown";
-        TxtThreats.Text    = d.ThreatCount == 0 ? "None recorded" : $"{d.ThreatCount} in history";
-        TxtThreats.Foreground = d.ThreatCount == 0 ? StatusColors.Green : StatusColors.Yellow;
+        // A non-zero count becomes a link straight to Protection history so the tech can see what
+        // was found instead of hunting through Windows Security.
+        TxtThreats.Inlines.Clear();
+        if (d.ThreatCount == 0)
+        {
+            TxtThreats.Inlines.Add(new System.Windows.Documents.Run("None recorded"));
+            TxtThreats.Foreground = StatusColors.Green;
+        }
+        else
+        {
+            var link = new System.Windows.Documents.Hyperlink(
+                new System.Windows.Documents.Run($"{d.ThreatCount} in history"))
+            {
+                Foreground = StatusColors.Yellow,
+                ToolTip    = "Open Protection history in Windows Security",
+            };
+            link.Click += OpenThreatHistory_Click;
+            TxtThreats.Inlines.Add(link);
+        }
     }
 }
 ```

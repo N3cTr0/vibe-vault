@@ -19,6 +19,18 @@ public record UserProfileItem(string Path, DateTime? LastUsed, bool Loaded, stri
 {
     public string Name => System.IO.Path.GetFileName(Path.TrimEnd('\\'));
     public bool CanDelete { get; init; }   // false for the current user / loaded (in-use) profiles
+    public bool IsCurrent { get; init; }
+
+    /// <summary>Every row shows a button in the same place; when it can't delete, it says why.</summary>
+    public string ActionText => CanDelete ? "Delete profile"
+                              : IsCurrent ? "Current user"
+                              : Loaded    ? "Signed in"
+                                          : "Can't delete";
+
+    public string ActionTip => CanDelete ? $"Delete {Path} and its registry entry"
+                             : IsCurrent ? "This is the profile you are signed in with - sign in as another admin to remove it"
+                             : Loaded    ? "This profile is loaded - sign that user out, then refresh"
+                                         : "Windows reports no SID for this profile, so it can't be removed from here";
 }
 
 /// <summary>
@@ -127,9 +139,11 @@ public static class SystemManagement
                 catch { }
                 var loaded = o["Loaded"] is bool b && b;
                 var sid    = o["SID"]?.ToString() ?? "";
+                bool isCurrent = sid.Length > 0 && sid == currentSid;
                 list.Add(new UserProfileItem(path, last, loaded, sid)
                 {
-                    CanDelete = !loaded && sid.Length > 0 && sid != currentSid,
+                    IsCurrent = isCurrent,
+                    CanDelete = !loaded && sid.Length > 0 && !isCurrent,
                 });
             }
         }
