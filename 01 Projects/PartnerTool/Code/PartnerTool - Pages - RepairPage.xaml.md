@@ -164,11 +164,12 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top">
-                            <ComboBox x:Name="CmbChkdskDrive" Width="150" Height="30"
+                            <ComboBox x:Name="CmbChkdskDrive" Width="150" Visibility="Collapsed"
+                                      Style="{StaticResource DarkCombo}" Margin="0,0,0,8"
                                       SelectionChanged="ChkdskDrive_Changed"
                                       ToolTip="Which volume to check"/>
                             <Button x:Name="BtnChkdsk" Content="Scan"
-                                    Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="Chkdsk_Click"/>
+                                    Style="{StaticResource ActionButton}" Click="Chkdsk_Click"/>
                             <Button x:Name="BtnChkdskCancel" Content="Cancel"
                                     Style="{StaticResource ActionButton}" Margin="0,8,0,0"
                                     Visibility="Collapsed" Click="CancelServicing_Click"/>
@@ -177,7 +178,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="CHECK DISK (CHKDSK)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Pick a volume, then Scan for a read-only online check (chkdsk /scan) - safe, no reboot. If it reports problems, Repair /f /r fixes them: on a data drive it dismounts and runs straight away, on the Windows drive it has to be queued for the next restart."
+                            <TextBlock x:Name="TxtChkdskHelp"
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtChkdskStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>

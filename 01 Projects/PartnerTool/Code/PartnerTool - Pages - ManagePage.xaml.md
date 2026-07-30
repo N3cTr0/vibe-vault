@@ -326,8 +326,8 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="Name"   Foreground="#6C7086" FontSize="10" Margin="2,0,8,3"/>
                             <TextBlock Grid.Row="0" Grid.Column="2" Text="Value"  Foreground="#6C7086" FontSize="10" Margin="2,0,8,3"/>
 
-                            <ComboBox Grid.Row="1" Grid.Column="0" x:Name="CmbEnvScope" Width="90" Height="30" Margin="0,0,8,0"
-                                      VerticalContentAlignment="Center" SelectedIndex="0">
+                            <ComboBox Grid.Row="1" Grid.Column="0" x:Name="CmbEnvScope" Width="90" Margin="0,0,8,0"
+                                      Style="{StaticResource DarkCombo}" SelectedIndex="0">
                                 <ComboBoxItem Content="System"/>
                                 <ComboBoxItem Content="User"/>
                             </ComboBox>

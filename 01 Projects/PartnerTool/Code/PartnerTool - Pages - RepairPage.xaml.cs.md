@@ -184,8 +184,7 @@ public partial class RepairPage : UserControl
                 ? "Nothing to clean - the temp folders are already empty."
                 : $"{result.Summary}  Click Clean to delete.";
             TxtCleanTempStatus.Foreground = StatusColors.Green;
-            // Clean stays disabled until a scan has shown what would go.
-            BtnCleanTemp.IsEnabled = result.FileCount > 0;
+            _tempFound = result.FileCount > 0;
         }
         catch (Exception ex)
         {
@@ -205,6 +204,7 @@ public partial class RepairPage : UserControl
             return;
 
         if (!BeginBusy()) return;   // page-wide lock - don't let another heavy fix run concurrently
+        _tempFound = false;         // what the scan found is gone - re-scan before cleaning again
         TxtCleanTempStatus.Foreground = StatusColors.Yellow;
         TxtCleanTempStatus.Text = "Cleaning…";
         UseLog(CleanTempLogScroll, CleanTempLog);
@@ -309,12 +309,13 @@ public partial class RepairPage : UserControl
         BtnCollectDiag.IsEnabled     = on;
         BtnRemoveOfficeLangs.IsEnabled = on;
         BtnScanInstaller.IsEnabled   = on;
-        BtnCleanInstaller.IsEnabled  = on;
         BtnAdobePatchFix.IsEnabled   = on;
         BtnScanTemp.IsEnabled        = on;
-        BtnCleanTemp.IsEnabled       = on;
         BtnScanFeatUpd.IsEnabled     = on;
-        BtnCleanFeatUpd.IsEnabled    = on;
+        // Clean only ever comes back on if that card's scan found something to remove.
+        BtnCleanInstaller.IsEnabled  = on && _installerFound;
+        BtnCleanTemp.IsEnabled       = on && _tempFound;
+        BtnCleanFeatUpd.IsEnabled    = on && _featUpdFound;
         BtnFixWpad.IsEnabled         = on;
         BtnResetWinhttp.IsEnabled    = on;
         BtnDellRefresh.IsEnabled     = on;
@@ -324,6 +325,12 @@ public partial class RepairPage : UserControl
     }
 
     private bool _dellVssUnbounded;
+
+    // Scan-before-clean state. SetButtons() runs on every busy transition, so these have to own
+    // the Clean buttons - a handler setting IsEnabled directly is undone by the next EndBusy().
+    private bool _tempFound;
+    private bool _installerFound;
+    private bool _featUpdFound;
 
     // ── logging (per-section: each action points Log() at its own inline log) ──
 
@@ -554,9 +561,21 @@ public partial class RepairPage : UserControl
 
     // ── CHECK DISK (CHKDSK) - standalone ──────────────────────────────────
 
-    /// <summary>Fixed volumes for the CHKDSK picker; the Windows drive is selected by default.</summary>
+    /// <summary>
+    /// Fixed volumes for the CHKDSK picker; the Windows drive is selected by default. On a
+    /// single-drive machine there is nothing to pick, so the picker stays hidden and the help
+    /// text drops the parts that only apply to a data volume.
+    /// </summary>
     private void LoadChkdskDrives()
     {
+        const string oneDrive =
+            "Scan runs a read-only online check (chkdsk /scan) - safe, no reboot. If it reports " +
+            "problems, Schedule /f /r queues a full repair for the next restart: Windows can't " +
+            "dismount the drive it is running from.";
+        const string manyDrives =
+            "Pick a volume, then Scan for a read-only online check (chkdsk /scan) - safe, no reboot. " +
+            "If it reports problems, /f /r fixes them: a data drive dismounts and repairs straight " +
+            "away, the Windows drive has to be queued for the next restart.";
         try
         {
             var sys = System.IO.Path.GetPathRoot(Environment.SystemDirectory)?[..1].ToUpperInvariant() ?? "C";
@@ -565,13 +584,15 @@ public partial class RepairPage : UserControl
                 .Select(d => d.Name[..1].ToUpperInvariant())
                 .Select(l => new { Letter = l, Text = l == sys ? $"{l}:  (Windows)" : $"{l}:" })
                 .ToList();
+            TxtChkdskHelp.Text = items.Count > 1 ? manyDrives : oneDrive;
             if (items.Count == 0) return;
             CmbChkdskDrive.ItemsSource       = items;
             CmbChkdskDrive.DisplayMemberPath = "Text";
             CmbChkdskDrive.SelectedValuePath = "Letter";
             CmbChkdskDrive.SelectedValue     = sys;
+            CmbChkdskDrive.Visibility        = items.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         }
-        catch { }
+        catch { TxtChkdskHelp.Text = oneDrive; }
     }
 
     private string ChkdskDrive =>
@@ -646,7 +667,7 @@ public partial class RepairPage : UserControl
             Set(TxtInstallerStatus,
                 $"● {r.Orphans.Count} orphaned file(s) using {r.OrphanGb:F1} GB can be freed  ·  {r.ReferencedCount} referenced package(s) kept. See the log below for the full list.",
                 StatusColors.Yellow);
-            BtnCleanInstaller.IsEnabled = r.Orphans.Count > 0;
+            _installerFound = r.Orphans.Count > 0;
         }
         catch (Exception ex) { Set(TxtInstallerStatus, "● " + ex.Message, StatusColors.Red); }
         finally { EndBusy(); }
@@ -662,6 +683,7 @@ public partial class RepairPage : UserControl
     private async void CleanInstaller_Click(object sender, RoutedEventArgs e)
     {
         if (!BeginBusy()) return;
+        _installerFound = false;
         try
         {
             Set(TxtInstallerStatus, "Scanning…", StatusColors.Yellow);
@@ -824,7 +846,7 @@ public partial class RepairPage : UserControl
                 $"● {scan.TotalGb:F1} GB across {scan.Items.Count} location(s) can be freed. See the log below."
                 + (scan.AnyPermanent ? "  ⚠ includes Windows.old / staging (permanent)." : ""),
                 StatusColors.Yellow);
-            BtnCleanFeatUpd.IsEnabled = scan.Items.Count > 0;
+            _featUpdFound = scan.Items.Count > 0;
         }
         catch (Exception ex) { Set(TxtFeatUpdStatus, "● " + ex.Message, StatusColors.Red); }
         finally { EndBusy(); }
@@ -833,6 +855,7 @@ public partial class RepairPage : UserControl
     private async void CleanFeatUpd_Click(object sender, RoutedEventArgs e)
     {
         if (!BeginBusy()) return;
+        _featUpdFound = false;
         try
         {
             Set(TxtFeatUpdStatus, "Sizing…", StatusColors.Yellow);

@@ -25,6 +25,26 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.13 - 2026-07-30
+
+### Fixed
+- **The Clean buttons were never actually disabled.** 0.24.12 set `IsEnabled` on each Clean button
+  from its scan result, but `EndBusy()` runs `SetButtons(true)` on every busy transition and
+  re-enabled all of them a moment later - including the two cards whose scan had not been run at all.
+  The scan-before-clean state now lives in three fields that `SetButtons` reads, so Clean comes back
+  only for the card whose scan found something, and a Clean run resets its own flag so the next clean
+  needs a fresh scan.
+
+### Changed
+- **The CHKDSK drive picker is themed** and only appears on machines with more than one fixed volume.
+  It was the default Windows ComboBox - light chrome on a dark card. There is now a shared
+  `DarkCombo` style (matching the action buttons: same fill, radius, hover, and a chevron that turns
+  mauve while the list is open) with a dark rounded popup. Applied to the Manage ▸ Environment
+  Variables scope picker too, the only other drop-down in the app. On a single-drive PC the picker is
+  hidden and the help text drops the parts that only apply to a data volume.
+
+---
+
 ## 0.24.12 - 2026-07-30
 From reviewing two real diagnostics bundles (SCALED-LT01, N3CTR0-PC) plus a round of UI requests.
 
