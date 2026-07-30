@@ -44,6 +44,21 @@ Info if you hide the tab while it's open.
 | Uptime / reboot-pending | `PerfSnapshot` + registry check | Advisory |
 | Startup load | `StartupInfo` | Advisory → Software |
 | Dell SupportAssist snapshots + VSS (Dell only) | **`DellRemediation`** (new, 0.19.0) | Snapshots advisory · VSS ✅ Cap (gated) |
+| Update source policy-managed (dead WSUS) | `WuPolicyInfo` (0.24.10) | ✅ Reset to online (gated, **unticked** by default) |
+| PowerShell execution policy loosened | `SecurityAudit.ResetExecutionPolicy` (0.24.10) | ✅ Reset to default (gated, unticked; deduction 0 — already docked by the hardening rollup) |
+| Threats in Defender history | `DefenderInfo.ThreatCount` (0.24.10) | Advisory → Security |
+| Feature-update leftovers (Windows.old / staging) | `FeatureUpdateCleanup` (0.24.10) | Advisory → Repair (removal is permanent, so never a one-click fix here) |
+| Developer Mode left on | `DevModeInfo` (0.24.14) | ✅ Turn off (gated, unticked; Warn, 3 pts) |
+
+**Coverage rule (0.24.10).** Everything the tool can *do* should surface here in some form — a fix if
+it's safe to automate, otherwise an advisory that points at the page. Two deliberate gaps, both
+because the *detection* is as expensive as the repair: **WinSxS component-store cleanup** (detectable
+only via `DISM /AnalyzeComponentStore`, minutes of CPU) and **SFC/DISM corruption** (no cheap probe —
+finding out means running the 15–40 minute repair). ProSentry/Intune are shown on the Security page
+but not scored: agent coverage is an account-level decision, not a machine health finding.
+
+**Fixes that change security posture default to unticked** (`Selected = false`) even though they're
+fixable, so "Fix Selected" never silently loosens or tightens a policy the tech didn't choose.
 
 **`DellRemediation`** (0.19.0, Dell hardware only) sizes `C:\ProgramData\Dell\SARemediation` and reads
 VSS shadow-storage limits from WMI (`Win32_ShadowStorage`, matched to C: via `Win32_Volume` DeviceID —

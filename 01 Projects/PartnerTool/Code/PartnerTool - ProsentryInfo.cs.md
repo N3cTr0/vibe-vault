@@ -29,9 +29,25 @@ public static class ProsentryInfo
     // set to these loopback addresses.
     private static readonly string[] AtakamaDns = { "127.97.116.97", "127.97.116.98" };
 
-    public static ProsentryReport Collect() => new(
-        new List<ManagedTool> { CheckAtakama(), CheckHuntress(), CheckDuo(), CheckAutoElevate() },
-        CheckIntune());
+    /// <summary>
+    /// One Win32_Service enumeration and at most one walk of the uninstall hives feed every check
+    /// below. Asking WMI for each service by name cost a separate round trip per agent, and each
+    /// InstalledNameContains re-opened every uninstall subkey on the machine.
+    /// </summary>
+    public static ProsentryReport Collect()
+    {
+        var services  = LoadServices();
+        var installed = new Lazy<List<string>>(LoadInstalledNames);
+        return new(
+            new List<ManagedTool>
+            {
+                CheckAtakama(),
+                CheckHuntress(services, installed),
+                CheckDuo(installed),
+                CheckAutoElevate(services, installed),
+            },
+            CheckIntune(services));
+    }
 
     // ── ProSentry agents ──────────────────────────────────────────────────
 
@@ -51,42 +67,42 @@ public static class ProsentryInfo
         return new("Atakama", false, "Not active (DNS not pointed at Atakama)");
     }
 
-    private static ManagedTool CheckHuntress()
+    private static ManagedTool CheckHuntress(Dictionary<string, bool> services, Lazy<List<string>> installed)
     {
         // Huntress installs the HuntressAgent service (+ HuntressUpdater, and HuntressRio for EDR).
-        var (exists, running) = ServiceState("HuntressAgent");
-        if (!exists) (exists, running) = ServiceState("HuntressRio");
-        if (exists)
-            return new("Huntress EDR", running, running ? "Agent running" : "Installed - agent not running");
-        if (InstalledNameContains("Huntress"))
-            return new("Huntress EDR", true, "Installed");
-        return new("Huntress EDR", false, "Not installed");
+        if (!services.TryGetValue("HuntressAgent", out var running) &&
+            !services.TryGetValue("HuntressRio",   out running))
+        {
+            if (InstalledNameContains(installed, "Huntress"))
+                return new("Huntress EDR", true, "Installed");
+            return new("Huntress EDR", false, "Not installed");
+        }
+        return new("Huntress EDR", running, running ? "Agent running" : "Installed - agent not running");
     }
 
-    private static ManagedTool CheckDuo()
+    private static ManagedTool CheckDuo(Lazy<List<string>> installed)
     {
         // Duo Authentication for Windows Logon is a credential provider (no long-running service).
         // Check its DuoCredProv credential-provider subkey or uninstall entry - NOT the bare
         // "SOFTWARE\Duo Security" parent, which can linger as an empty key and false-positive.
         if (RegistryKeyExists(Registry.LocalMachine, @"SOFTWARE\Duo Security\DuoCredProv") ||
-            InstalledNameContains("Duo Authentication"))
+            InstalledNameContains(installed, "Duo Authentication"))
             return new("Duo", true, "Installed");
         return new("Duo", false, "Not installed");
     }
 
-    private static ManagedTool CheckAutoElevate()
+    private static ManagedTool CheckAutoElevate(Dictionary<string, bool> services, Lazy<List<string>> installed)
     {
-        var (exists, running) = ServiceState("AutoElevateAgent");
-        if (exists)
+        if (services.TryGetValue("AutoElevateAgent", out var running))
             return new("AutoElevate", running, running ? "Agent running" : "Installed - agent not running");
-        if (InstalledNameContains("AutoElevate"))
+        if (InstalledNameContains(installed, "AutoElevate"))
             return new("AutoElevate", true, "Installed");
         return new("AutoElevate", false, "Not installed");
     }
 
     // ── Device management (not ProSentry) ─────────────────────────────────
 
-    private static ManagedTool CheckIntune()
+    private static ManagedTool CheckIntune(Dictionary<string, bool> services)
     {
         // An MDM enrollment whose ProviderID is "MS DM Server" (and a non-zero EnrollmentType) is a
         // real device enrollment - Intune uses this. The Intune Management Extension service is a
@@ -109,23 +125,29 @@ public static class ProsentryInfo
                 }
         }
         catch { }
-        if (ServiceState("IntuneManagementExtension").exists)
+        if (services.ContainsKey("IntuneManagementExtension"))
             return new("Intune (MDM)", true, "Management Extension present");
         return new("Intune (MDM)", false, "Not enrolled");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────
 
-    /// <summary>(exists, running) for a service - names are hardcoded constants, so the WMI path is safe.</summary>
-    private static (bool exists, bool running) ServiceState(string name)
+    /// <summary>Every installed service, name -> is it running. One enumeration for the whole report.</summary>
+    private static Dictionary<string, bool> LoadServices()
     {
+        var map = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            using var svc = new ManagementObject($"Win32_Service.Name='{name}'");
-            svc.Get();
-            return (true, (svc["State"] as string) == "Running");
+            using var q = new ManagementObjectSearcher("SELECT Name, State FROM Win32_Service");
+            foreach (ManagementObject o in q.Get())
+                using (o)
+                {
+                    if (o["Name"]?.ToString() is { Length: > 0 } n)
+                        map[n] = (o["State"] as string) == "Running";
+                }
         }
-        catch { return (false, false); }
+        catch { }
+        return map;
     }
 
     private static bool RegistryKeyExists(RegistryKey root, string path)
@@ -134,8 +156,10 @@ public static class ProsentryInfo
         return k != null;
     }
 
-    private static bool InstalledNameContains(string needle)
+    /// <summary>Every uninstall-entry DisplayName, read once (both registry views).</summary>
+    private static List<string> LoadInstalledNames()
     {
+        var names = new List<string>();
         string[] paths =
         {
             @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
@@ -150,14 +174,15 @@ public static class ProsentryInfo
                 foreach (var subName in k.GetSubKeyNames())
                 {
                     using var s = k.OpenSubKey(subName);
-                    if (s?.GetValue("DisplayName") as string is { } dn &&
-                        dn.Contains(needle, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                    if (s?.GetValue("DisplayName") as string is { } dn) names.Add(dn);
                 }
             }
             catch { }
         }
-        return false;
+        return names;
     }
+
+    private static bool InstalledNameContains(Lazy<List<string>> installed, string needle)
+        => installed.Value.Any(dn => dn.Contains(needle, StringComparison.OrdinalIgnoreCase));
 }
 ```

@@ -25,6 +25,36 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.14 - 2026-07-31
+
+### Added
+- **Developer Mode toggle** in Repair ▸ Quick Fixes. Windows only offers the Settings ▸ System ▸
+  For developers switch to an administrator, so flipping it on a machine with a standard user meant
+  signing in as an admin and back out again. One button that names what it will do - "Enable
+  Developer Mode" / "Disable Developer Mode" - reading the live state each time the page is shown.
+  Turning it on is tech-gated (it allows unsigned / loose-file app installs); turning it off is not.
+  It writes the same two `AppModelUnlock` values Settings does, and reports when the matching group
+  policy overrides them. Health Check flags Developer Mode left on (Warn, 3 points) with a Turn off
+  fixer, since it's usually switched on for one install and forgotten.
+
+### Changed - Security page load
+Reported as "takes about a minute" on a managed machine. Nothing here reproduces on a workgroup VM
+with BitLocker off, so this is partly structural and partly instrumentation:
+- **Cards paint as their own collector returns.** All four were behind one `Task.WhenAll`, so the
+  page stayed blank until the slowest finished. One slow WMI provider now delays one card.
+- **The BitLocker card no longer reads every recovery key just to decide whether to show itself.**
+  `GetRecoveryKeys()` costs a GetKeyProtectors + GetKeyProtectorNumericalPassword round trip per
+  volume per protector - on an encrypted machine that is the expensive call on the page, and it was
+  being made to compute a bool. It now checks ProtectionStatus; the window reads the actual keys on
+  demand as it always did.
+- **ProSentry does one service enumeration and at most one uninstall-hive walk.** It was asking WMI
+  for each agent service by name (~330 ms per round trip here, up to six of them) and re-opening
+  every uninstall subkey on the machine for each of the three name lookups.
+- **Per-collector timings go to the activity log** ("page load: audit N ms, defender N ms,
+  prosentry N ms, bitlocker N ms"), so a slow machine names the culprit in its next bundle.
+
+---
+
 ## 0.24.13 - 2026-07-30
 
 ### Fixed

@@ -293,6 +293,25 @@ public static class HealthCheck
                 }),
             });
 
+        // ── Security: Developer Mode left on ────────────────
+        // Usually switched on for one install and forgotten; it leaves loose-file/unsigned app
+        // installs allowed for everyone on the machine.
+        if (DevModeInfo.IsEnabled())
+            r.Findings.Add(new HealthFinding
+            {
+                Category = "Security", Title = "Developer Mode is on",
+                Severity = HealthSeverity.Warn, Deduction = 3,
+                Detail = "Apps can be installed from any source, including loose files. Turn it off " +
+                         "unless this machine is actively being developed on.",
+                FixLabel = "Turn off", NeedsGate = true, Selected = false,
+                Fixer = log => Task.Run(() =>
+                {
+                    var (ok, msg) = DevModeInfo.Set(false);
+                    log("  " + msg);
+                    return ok ? "Developer Mode turned off." : msg;
+                }),
+            });
+
         // ── Security: antivirus (only when Defender is the active AV) ──
         if (def.Available && def.AntivirusEnabled)
         {

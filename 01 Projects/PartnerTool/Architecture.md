@@ -31,6 +31,9 @@ tags: [partnertool]
 
 ## Collector modules (one class ≈ one concern)
 
-`SystemInfo`, `PerfSnapshot`, `SecuritySnapshot`, `SecurityAudit` (hardening scorecard + clickable fixes), `HardwareInfo` (disks/SMART, RAM, GPU, TPM, battery wear), `NetworkInfo` (primary + all adapters), `WifiInfo`, `DiagnosticsInfo` (events, device problems, dumps), `ReliabilityInfo`, `UpdateHistoryInfo`, `DisplaysInfo`, `PrintersInfo`, `AccountsInfo`, `SystemExtras` (page file, proxy, power plan), `AzureAdInfo` (dsregcmd), `PowerStatusInfo` (powercfg), `BatteryLive`, `StartupInfo`, `ServicesInfo`, `ProcessInfo`, `VendorUpdatesInfo` (Dell/Lenovo/HP), `PendingUpdatesInfo`, `OutdatedAppsInfo` (winget), `StoreUpdatesInfo` (pending Store/UWP updates, read-only), `OfficeLanguages`, `InstallerCleanup`, `TempCleaner`, `ProxyRepair`, `DiskUsageInfo`.
+`SystemInfo`, `PerfSnapshot`, `SecuritySnapshot`, `SecurityAudit` (hardening scorecard + clickable fixes), `HardwareInfo` (disks/SMART, RAM, GPU, TPM, battery wear), `NetworkInfo` (primary + all adapters), `WifiInfo`, `DiagnosticsInfo` (events, device problems, dumps), `ReliabilityInfo`, `UpdateHistoryInfo`, `DisplaysInfo`, `PrintersInfo` (list + protected-queue guard + removal),
+`SharesInfo` (`Win32_Share`, admin shares flagged by the `0x80000000` type bit), `WuPolicyInfo` (update
+source + reset-to-online), `DevModeInfo` (Developer Mode toggle), `BootPerfInfo`, `CrashInfo`,
+`RestorePointsInfo`, `ProsentryInfo` (managed security stack + Intune), `AccountsInfo`, `SystemExtras` (page file, proxy, power plan), `AzureAdInfo` (dsregcmd), `PowerStatusInfo` (powercfg), `BatteryLive`, `StartupInfo`, `ServicesInfo`, `ProcessInfo`, `VendorUpdatesInfo` (Dell/Lenovo/HP), `PendingUpdatesInfo`, `OutdatedAppsInfo` (winget), `StoreUpdatesInfo` (pending Store/UWP updates, read-only), `OfficeLanguages`, `InstallerCleanup`, `TempCleaner`, `ProxyRepair`, `DiskUsageInfo`.
 
 Full source: [[_Code Index]].

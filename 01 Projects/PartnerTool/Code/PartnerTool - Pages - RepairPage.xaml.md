@@ -55,6 +55,8 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         <Button x:Name="BtnReregStore"      Content="Re-register Store"      Style="{StaticResource MaintBtn}" Click="ReregStore_Click"/>
                         <Button x:Name="BtnClearIconCache"  Content="Clear Icon Cache"       Style="{StaticResource MaintBtn}" Click="ClearIconCache_Click"/>
                         <Button x:Name="BtnMemDiag"         Content="Memory Diagnostic"      Style="{StaticResource MaintBtn}" Click="MemDiag_Click"/>
+                        <!-- Content is set from the current state in RefreshDevMode() -->
+                        <Button x:Name="BtnDevMode"         Content="Developer Mode"         Style="{StaticResource MaintBtn}" Click="DevMode_Click"/>
                     </WrapPanel>
                     <TextBlock x:Name="TxtQuickFixStatus" FontSize="11" Margin="0,4,0,0"/>
                     <Border Style="{StaticResource SectionLog}">

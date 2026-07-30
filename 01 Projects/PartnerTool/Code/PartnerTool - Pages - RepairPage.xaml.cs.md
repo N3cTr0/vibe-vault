@@ -26,10 +26,12 @@ public partial class RepairPage : UserControl
     {
         InitializeComponent();
         TxtProxyStatus.Text = ProxyRepair.CurrentState();
+        RefreshDevMode();
         IsVisibleChanged += (_, _) =>
         {
             if (!IsVisible) return;
             TxtProxyStatus.Text = ProxyRepair.CurrentState();
+            RefreshDevMode();
             if (!_restoreLoaded) { _restoreLoaded = true; LoadRestorePoints(); }
             if (!_dellLoaded) { _dellLoaded = true; ShowDellCardIfApplicable(); }
             if (CmbChkdskDrive.ItemsSource == null) { LoadChkdskDrives(); ChkdskDrive_Changed(this, null!); }
@@ -142,6 +144,26 @@ public partial class RepairPage : UserControl
         TxtProxyStatus.Text = msg;
         TxtProxyStatus.Foreground = ok ? StatusColors.Green : StatusColors.Red;
         BtnFixWpad.IsEnabled = true;
+    }
+
+    // ── Developer Mode ────────────────────────────────────────────────────
+
+    // One button that does whatever the machine currently isn't - the label always names the action.
+    private void RefreshDevMode()
+        => BtnDevMode.Content = DevModeInfo.IsEnabled() ? "Disable Developer Mode" : "Enable Developer Mode";
+
+    private void DevMode_Click(object sender, RoutedEventArgs e)
+    {
+        bool on = !DevModeInfo.IsEnabled();
+        // Turning it ON lets unsigned / loose-file apps install, so it goes through the gate.
+        // Turning it back off is the safe direction and doesn't.
+        if (on && !TechGate.Verify(Window.GetWindow(this))) return;
+
+        ActivityLog.Action("Repair", $"Turn Developer Mode {(on ? "on" : "off")}");
+        var (ok, msg) = DevModeInfo.Set(on);
+        ActivityLog.Result("Repair", msg);
+        Set(TxtQuickFixStatus, msg, ok ? StatusColors.Green : StatusColors.Red);
+        RefreshDevMode();
     }
 
     private async void ResetWinhttp_Click(object sender, RoutedEventArgs e)
@@ -318,6 +340,7 @@ public partial class RepairPage : UserControl
         BtnCleanFeatUpd.IsEnabled    = on && _featUpdFound;
         BtnFixWpad.IsEnabled         = on;
         BtnResetWinhttp.IsEnabled    = on;
+        BtnDevMode.IsEnabled         = on;
         BtnDellRefresh.IsEnabled     = on;
         BtnDellOpenSa.IsEnabled      = on;
         // Capping shadow storage only makes sense while it's actually unbounded.

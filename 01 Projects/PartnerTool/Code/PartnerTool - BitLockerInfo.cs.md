@@ -21,6 +21,27 @@ public static class BitLockerInfo
     /// returns. Requires admin (the app runs elevated). Returns an empty list when none
     /// exist (drive unencrypted, or TPM-only with no recovery password) or on error.
     /// </summary>
+    /// <summary>
+    /// Cheap "is this card worth showing" check. <see cref="GetRecoveryKeys"/> costs a
+    /// GetKeyProtectors + GetKeyProtectorNumericalPassword round trip per volume per protector,
+    /// which is slow on an encrypted machine - too slow to run just to decide a Visibility.
+    /// The window reads the actual keys on demand and says so when there are none.
+    /// </summary>
+    public static bool AnyProtectedVolume()
+    {
+        try
+        {
+            using var q = new ManagementObjectSearcher(
+                @"root\cimv2\Security\MicrosoftVolumeEncryption",
+                "SELECT ProtectionStatus FROM Win32_EncryptableVolume");
+            foreach (ManagementObject v in q.Get())
+                using (v)
+                    if (Convert.ToInt32(v["ProtectionStatus"]) == 1) return true;
+        }
+        catch { }
+        return false;
+    }
+
     public static List<BitLockerKey> GetRecoveryKeys()
     {
         var keys = new List<BitLockerKey>();

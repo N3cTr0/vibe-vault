@@ -13,6 +13,6 @@ Card order (0.17.66): **Reliability → Crash History → Health History → Dev
 - **Crash history:** minidump count/latest + MEMORY.DMP presence; BSOD bugchecks and application crashes from the event log; boot performance (last boot time + top contributors).
 - **Recent errors:** Critical/Error events from System+Application (last 10 days), "More…" opens the full list.
 - **Power & restart history**.
-- **Live processes:** top by usage; **End Process** is tech-gated + confirmed, blocks the BSOD-critical set **and svchost** (see [[Conventions & Security Model]]).
+- **Top processes:** top by usage, with **User, Disk, Threads, Handles and Description** alongside CPU/memory (0.24.5), a **last-updated timestamp** beside the card title, and a **Live Processes** button next to Refresh that opens the full Task-Manager-style list in the [[System Info|Performance]] window (0.24.8 — was a hyperlink). **End Process** is tech-gated + confirmed, blocks the BSOD-critical set **and svchost** (see [[Conventions & Security Model]]). Only one Performance window can exist at a time (0.24.7 — System Info and Diagnostics each used to open their own).
 
 Debugging note: app's own crashes land in `C:\PCI\Logs\PartnerTool_errors.log` and this page's Application Crashes list — which is how the shutdown-telemetry bug was caught ([[WPF Single-File Quirks]]).

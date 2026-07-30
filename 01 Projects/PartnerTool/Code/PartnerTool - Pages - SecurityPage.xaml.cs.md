@@ -109,23 +109,54 @@ public partial class SecurityPage : UserControl
         }
     }
 
+    private static async Task<(T value, long ms)> Timed<T>(Func<T> work)
+    {
+        var sw = Stopwatch.StartNew();
+        var v  = await Task.Run(work);
+        return (v, sw.ElapsedMilliseconds);
+    }
+
+    // Every card paints the moment its own collector returns, rather than all four waiting on the
+    // slowest. Defender's and BitLocker's WMI providers can each take many seconds on a managed
+    // machine, and one of them shouldn't leave the whole page blank. The per-collector timings go
+    // to the activity log so a slow machine says which one it was.
     private async Task LoadAsync()
     {
-        var auditTask = Task.Run(SecurityAudit.Collect);
-        var defTask   = Task.Run(DefenderInfo.Collect);
-        var proTask   = Task.Run(ProsentryInfo.Collect);
-        // The BitLocker recovery-key card only makes sense when a key actually exists on this PC.
-        var blTask    = Task.Run(() => BitLockerInfo.GetRecoveryKeys().Count > 0);
-        await Task.WhenAll(auditTask, defTask, proTask, blTask);
+        var auditTask = Timed(SecurityAudit.Collect);
+        var defTask   = Timed(DefenderInfo.Collect);
+        var proTask   = Timed(ProsentryInfo.Collect);
+        var blTask    = Timed(BitLockerInfo.AnyProtectedVolume);
 
-        IcAudit.ItemsSource = await auditTask;
-        PaintDefender(await defTask);
+        long tAudit = 0, tDef = 0, tPro = 0, tBl = 0;
 
-        var pro = await proTask;
-        IcProsentry.ItemsSource  = pro.Tools;
-        IcManagement.ItemsSource = new[] { pro.Intune };
+        async Task PaintAudit()
+        {
+            var (items, ms) = await auditTask;
+            IcAudit.ItemsSource = items; tAudit = ms;
+        }
+        async Task PaintDef()
+        {
+            var (info, ms) = await defTask;
+            PaintDefender(info); tDef = ms;
+        }
+        async Task PaintPro()
+        {
+            var (pro, ms) = await proTask;
+            IcProsentry.ItemsSource  = pro.Tools;
+            IcManagement.ItemsSource = new[] { pro.Intune };
+            tPro = ms;
+        }
+        async Task PaintBitLocker()
+        {
+            var (any, ms) = await blTask;
+            BitLockerCard.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+            tBl = ms;
+        }
 
-        BitLockerCard.Visibility = await blTask ? Visibility.Visible : Visibility.Collapsed;
+        await Task.WhenAll(PaintAudit(), PaintDef(), PaintPro(), PaintBitLocker());
+
+        ActivityLog.Result("Security",
+            $"page load: audit {tAudit} ms, defender {tDef} ms, prosentry {tPro} ms, bitlocker {tBl} ms");
     }
 
     private void PaintDefender(DefenderInfo d)
