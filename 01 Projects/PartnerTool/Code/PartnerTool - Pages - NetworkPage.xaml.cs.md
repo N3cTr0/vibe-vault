@@ -150,6 +150,24 @@ public partial class NetworkPage : UserControl
         MessageWindow.Show("Wi-Fi Password", profile, $"Password:\n\n{pwd}", MessageKind.Info, Window.GetWindow(this));
     }
 
+    private async void ForgetWifi_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string profile }) return;
+        if (!TechGate.Verify(Window.GetWindow(this))) return;
+        if (!MessageWindow.Confirm("Wi-Fi", $"Forget “{profile}”?",
+                "The saved network and its password are deleted from this PC. Windows won't reconnect " +
+                "automatically - the key has to be entered again.\n\nOther PCs are not affected.",
+                MessageKind.Warning, Window.GetWindow(this)))
+            return;
+
+        ActivityLog.Action("Network", $"Forget saved Wi-Fi network “{profile}”");
+        var (ok, msg) = await WifiInfo.ForgetAsync(profile);
+        ActivityLog.Result("Network", ok ? $"{profile}: forgotten" : $"{profile}: {msg}");
+        MessageWindow.Show("Wi-Fi", ok ? "Network forgotten" : "Couldn't forget that network",
+            msg, ok ? MessageKind.Info : MessageKind.Error, Window.GetWindow(this));
+        await LoadWifiAsync();
+    }
+
     // ── DIAGNOSTIC TOOLS ──────────────────────────────────────────────────
 
     // Ping and Traceroute both stream their output line-by-line as it arrives (a wrong host or a

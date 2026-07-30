@@ -46,6 +46,23 @@ public static class WifiInfo
         return names.Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>
+    /// Delete a saved network profile - the SSID and its stored password go with it. Windows will not
+    /// auto-reconnect afterwards; the key has to be typed in again. Caller must gate and confirm.
+    /// </summary>
+    public static async Task<(bool Ok, string Message)> ForgetAsync(string profile)
+    {
+        if (string.IsNullOrWhiteSpace(profile)) return (false, "No network selected.");
+        // Same guard as GetPasswordAsync: strip quotes so a hostile SSID can't break out of the
+        // quoted netsh argument. ProcessRunner passes args without a shell, so there is no further
+        // metacharacter risk.
+        var safe = profile.Replace("\"", "");
+        var text = await ProcessRunner.RunCaptureAsync("netsh.exe", $"wlan delete profile name=\"{safe}\"");
+        bool ok = text.Contains("is deleted", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("deleted from interface", StringComparison.OrdinalIgnoreCase);
+        return (ok, ok ? $"“{profile}” forgotten." : text.Trim().Length > 0 ? text.Trim() : "netsh did not confirm the delete.");
+    }
+
     /// <summary>Reveal a saved network's password (key=clear). Sensitive - caller must gate this.</summary>
     public static async Task<string> GetPasswordAsync(string profile)
     {

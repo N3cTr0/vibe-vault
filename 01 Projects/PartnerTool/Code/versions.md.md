@@ -25,6 +25,48 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.12 - 2026-07-30
+From reviewing two real diagnostics bundles (SCALED-LT01, N3CTR0-PC) plus a round of UI requests.
+
+### Fixed (found in the bundles)
+- **A NUL byte in an installed-app name corrupted the report.** N3CTR0-PC had
+  `Roblox Studio for <user>\0` - some installers write DisplayName as a REG_SZ that includes the string
+  terminator, so the value comes back with an embedded NUL. That made `SystemSummary.txt` and
+  `SystemReport.html` count as *binary* to grep/diff/ticket systems and truncates the name in anything
+  doing C-style string handling. `ReportBuilder` now strips C0 control characters (keeping tab/CR/LF)
+  from the finished report, so any collector's stray control char is caught in one place.
+- **Service-account profiles were listed as user profiles.** SCALED-LT01 showed `IntelTelemetryAgent`
+  at `C:\WINDOWS\ServiceProfiles\IntelTelemetryAgent`. Only the three built-in service accounts carry
+  `Special=True`, so a third-party one looks like an ordinary user - and an unloaded one would have
+  offered a working Delete button that breaks the service. Profiles under `%windir%\ServiceProfiles`
+  are now labelled **Service account** and can't be deleted.
+
+### Changed
+- **Windows Update history collapses duplicates.** Windows logs one entry per package variant, so a
+  Store component like `9NRZT3Q9R3DL-Microsoft.WindowsAppRuntime.2` filled the list with rows that
+  looked identical and pushed real updates off the 30-row limit. Same title + same day + same result is
+  now one row with a `(xN)` count. The rows were real data, not a display bug.
+- **Network ▸ Wi-Fi: a Forget button** on each saved network - deletes the profile and its stored
+  password via `netsh wlan delete profile`. Tech-gated and confirmed; quotes are stripped from the SSID
+  as in `GetPasswordAsync`.
+- **Repair ▸ Check Disk works on any fixed volume.** A drive picker replaces the hardcoded `C:`. On the
+  Windows volume `/f /r` still has to be queued for the next restart; on a data volume it dismounts and
+  repairs immediately, so the button reads **Schedule /f /r** or **Repair /f /r now** to match.
+- **Repair: Clean is disabled until its Scan has run** - Temp files, Feature-update leftovers and
+  Windows Installer cleanup. It re-enables only when the scan actually found something.
+- **Windows Installer cleanup reordered** to Scan (1) > Clean (2) > Prevent Recurrence (3).
+- **The Windows Update source reset used a raw `MessageBox`** - the last one in the codebase, and the
+  only dialog that didn't match the app. Now `MessageWindow.Confirm`.
+- **Collect Diagnostics description cut to one line**; the section list and the ticket/BitLocker notes
+  are gone from the UI (the BitLocker exclusion is still documented in 0.24.11 and in `FullReport`).
+
+### Reviewed clean
+- No `errors.log` in either bundle. The only log noise was expected and already handled: in-use `.msi`
+  files reported as skipped by installer cleanup, winget's "version cannot be determined" chatter, and
+  one Microsoft Store app failing its own update (0x80073CF6).
+- All the 0.24.11 bundle sections populated correctly on real hardware - boot times, restore points,
+  Wi-Fi profiles, monitors, shares.
+
 ## 0.24.11 - 2026-07-30
 Coverage pass over Collect Diagnostics: seven collectors the tool has were never reaching the bundle.
 

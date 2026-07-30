@@ -32,6 +32,7 @@ public partial class RepairPage : UserControl
             TxtProxyStatus.Text = ProxyRepair.CurrentState();
             if (!_restoreLoaded) { _restoreLoaded = true; LoadRestorePoints(); }
             if (!_dellLoaded) { _dellLoaded = true; ShowDellCardIfApplicable(); }
+            if (CmbChkdskDrive.ItemsSource == null) { LoadChkdskDrives(); ChkdskDrive_Changed(this, null!); }
         };
     }
 
@@ -183,6 +184,8 @@ public partial class RepairPage : UserControl
                 ? "Nothing to clean - the temp folders are already empty."
                 : $"{result.Summary}  Click Clean to delete.";
             TxtCleanTempStatus.Foreground = StatusColors.Green;
+            // Clean stays disabled until a scan has shown what would go.
+            BtnCleanTemp.IsEnabled = result.FileCount > 0;
         }
         catch (Exception ex)
         {
@@ -551,17 +554,55 @@ public partial class RepairPage : UserControl
 
     // ── CHECK DISK (CHKDSK) - standalone ──────────────────────────────────
 
+    /// <summary>Fixed volumes for the CHKDSK picker; the Windows drive is selected by default.</summary>
+    private void LoadChkdskDrives()
+    {
+        try
+        {
+            var sys = System.IO.Path.GetPathRoot(Environment.SystemDirectory)?[..1].ToUpperInvariant() ?? "C";
+            var items = System.IO.DriveInfo.GetDrives()
+                .Where(d => d.DriveType == System.IO.DriveType.Fixed && d.IsReady)
+                .Select(d => d.Name[..1].ToUpperInvariant())
+                .Select(l => new { Letter = l, Text = l == sys ? $"{l}:  (Windows)" : $"{l}:" })
+                .ToList();
+            if (items.Count == 0) return;
+            CmbChkdskDrive.ItemsSource       = items;
+            CmbChkdskDrive.DisplayMemberPath = "Text";
+            CmbChkdskDrive.SelectedValuePath = "Letter";
+            CmbChkdskDrive.SelectedValue     = sys;
+        }
+        catch { }
+    }
+
+    private string ChkdskDrive =>
+        CmbChkdskDrive.SelectedValue as string
+        ?? (System.IO.Path.GetPathRoot(Environment.SystemDirectory)?[..1].ToUpperInvariant() ?? "C");
+
+    private bool ChkdskDriveIsSystem =>
+        string.Equals(ChkdskDrive,
+            System.IO.Path.GetPathRoot(Environment.SystemDirectory)?[..1] ?? "C",
+            StringComparison.OrdinalIgnoreCase);
+
+    // The Windows volume can't be dismounted, so /f /r there has to wait for a restart. A data volume
+    // can be dismounted and repaired on the spot - so the button says which one you're about to get.
+    private void ChkdskDrive_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (BtnSchedChkdsk == null) return;
+        BtnSchedChkdsk.Content = ChkdskDriveIsSystem ? "Schedule /f /r" : "Repair /f /r now";
+    }
+
     private async void Chkdsk_Click(object sender, RoutedEventArgs e)
     {
         // Read-only scan is free - no tech code (matches the temp/installer/feature scans). `chkdsk
-        // C: /scan` is an online, non-destructive check; scheduling the /f /r repair is gated below.
+        // <drive>: /scan` is an online, non-destructive check; the /f /r repair is gated below.
         if (!BeginServicing("Check Disk (CHKDSK scan)")) return;
+        var drive = ChkdskDrive;
         ShowCancel(BtnChkdskCancel, true);
         UseLog(ChkdskLogScroll, ChkdskLog);
         Set(TxtChkdskStatus, "Running…", StatusColors.Yellow);
         try
         {
-            var code = await RunUtil("chkdsk.exe", "C: /scan", null, "CHKDSK C: /scan (online)", TxtChkdskStatus);
+            var code = await RunUtil("chkdsk.exe", $"{drive}: /scan", null, $"CHKDSK {drive}: /scan (online)", TxtChkdskStatus);
             if (_servicingCts?.IsCancellationRequested == true)
                 Set(TxtChkdskStatus, "● Cancelled", StatusColors.Yellow);
             else
@@ -605,6 +646,7 @@ public partial class RepairPage : UserControl
             Set(TxtInstallerStatus,
                 $"● {r.Orphans.Count} orphaned file(s) using {r.OrphanGb:F1} GB can be freed  ·  {r.ReferencedCount} referenced package(s) kept. See the log below for the full list.",
                 StatusColors.Yellow);
+            BtnCleanInstaller.IsEnabled = r.Orphans.Count > 0;
         }
         catch (Exception ex) { Set(TxtInstallerStatus, "● " + ex.Message, StatusColors.Red); }
         finally { EndBusy(); }
@@ -782,6 +824,7 @@ public partial class RepairPage : UserControl
                 $"● {scan.TotalGb:F1} GB across {scan.Items.Count} location(s) can be freed. See the log below."
                 + (scan.AnyPermanent ? "  ⚠ includes Windows.old / staging (permanent)." : ""),
                 StatusColors.Yellow);
+            BtnCleanFeatUpd.IsEnabled = scan.Items.Count > 0;
         }
         catch (Exception ex) { Set(TxtFeatUpdStatus, "● " + ex.Message, StatusColors.Red); }
         finally { EndBusy(); }
@@ -863,16 +906,15 @@ Write-Output 'Windows Update components reset.'
         // Clearing the source policies changes where this PC gets updates, so confirm it separately
         // and spell out exactly which values go - a tech may be looking at a deliberately managed PC.
         bool resetSource = ChkWuSource.IsChecked == true;
-        if (resetSource && MessageBox.Show(Window.GetWindow(this),
-                "Reset the update source so this PC looks for updates at Microsoft directly?\n\n" +
-                "These policy values will be removed:\n" +
+        if (resetSource && !MessageWindow.Confirm("Windows Update",
+                "Reset the update source back to Windows Update?",
+                "These policy values are removed:\n" +
                 "    WUServer, WUStatusServer, UseWUServer  (the WSUS redirect)\n" +
                 "    DoNotConnectToWindowsUpdateInternetLocations\n" +
                 "    NoAutoUpdate, AUOptions\n\n" +
-                "Deferrals, the pinned feature version and Intune/MDM update policies are left alone.\n\n" +
+                "Deferrals, the pinned feature version and Intune/MDM policies are left alone.\n\n" +
                 "If a live domain GPO sets these, the next policy refresh will put them back.",
-                "Reset Windows Update source", MessageBoxButton.YesNo, MessageBoxImage.Warning)
-            != MessageBoxResult.Yes) return;
+                MessageKind.Warning, Window.GetWindow(this))) return;
 
         if (!BeginServicing("Windows Update Reset")) return;   // stops/clears WU services - must not overlap Update All
         UseLog(WuLogScroll, WuLog);
@@ -1067,20 +1109,38 @@ Write-Output 'Icon and thumbnail caches cleared.'
 
     private async void SchedChkdsk_Click(object sender, RoutedEventArgs e)
     {
-        if (!TechGate.Verify(Window.GetWindow(this))) return;   // machine is unusable while it runs
-        if (!MessageWindow.Confirm("Schedule CHKDSK", "Schedule a full disk check?",
-                "This schedules chkdsk C: /f /r to run at the next restart. It can take a long time " +
-                "and the PC is unusable while it runs. Continue?", MessageKind.Warning, Window.GetWindow(this)))
+        if (!TechGate.Verify(Window.GetWindow(this))) return;   // volume is unusable while it runs
+        var drive  = ChkdskDrive;
+        bool isSys = ChkdskDriveIsSystem;
+
+        if (!MessageWindow.Confirm("Check Disk",
+                isSys ? $"Schedule a full check of {drive}: at the next restart?"
+                      : $"Repair {drive}: now?",
+                isSys
+                    ? $"chkdsk {drive}: /f /r can't run while Windows is using the volume, so it is queued " +
+                      "for the next restart. It can take hours on a large or failing disk, and the PC is " +
+                      "unusable the whole time."
+                    : $"chkdsk {drive}: /f /r will dismount {drive}: and repair it now - no restart needed. " +
+                      $"Anything open on {drive}: will lose access until it finishes, and it can take hours " +
+                      "on a large or failing disk.",
+                MessageKind.Warning, Window.GetWindow(this)))
             return;
+
         if (!BeginBusy()) return;
         UseLog(ChkdskLogScroll, ChkdskLog);
-        Set(TxtChkdskStatus, "Scheduling…", StatusColors.Yellow);
+        Set(TxtChkdskStatus, isSys ? "Scheduling…" : "Repairing…", StatusColors.Yellow);
         try
         {
-            // Pipe Y to answer the "schedule at next boot?" prompt.
-            var code = await RunUtil("cmd.exe", "/c echo Y| chkdsk C: /f /r", null,
-                "Schedule CHKDSK C: /f /r at next boot", TxtChkdskStatus);
-            Set(TxtChkdskStatus, "● Scheduled - runs at next restart", StatusColors.Green);
+            // Y answers either prompt: "schedule at next boot?" on the Windows volume, or
+            // "force a dismount?" on a data volume.
+            var code = await RunUtil("cmd.exe", $"/c echo Y| chkdsk {drive}: /f /r", null,
+                isSys ? $"Schedule CHKDSK {drive}: /f /r at next boot"
+                      : $"CHKDSK {drive}: /f /r (dismount and repair now)",
+                TxtChkdskStatus);
+            Set(TxtChkdskStatus,
+                isSys ? $"● Scheduled - {drive}: is checked at the next restart"
+                      : code == 0 ? $"● {drive}: repaired" : $"● Finished with issues - see the log",
+                isSys || code == 0 ? StatusColors.Green : StatusColors.Yellow);
         }
         finally { EndBusy(); SaveLog("Chkdsk"); }
     }

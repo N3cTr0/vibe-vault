@@ -236,6 +236,10 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <DockPanel Margin="0,3">
+                                    <Button DockPanel.Dock="Right" Content="Forget" Tag="{Binding}"
+                                            Style="{StaticResource ActionButton}" Padding="10,4" FontSize="11"
+                                            Margin="8,0,0,0" Click="ForgetWifi_Click"
+                                            ToolTip="Delete this saved network and its password from this PC"/>
                                     <Button DockPanel.Dock="Right" Content="Show password" Tag="{Binding}"
                                             Style="{StaticResource ActionButton}" Padding="10,4" FontSize="11"
                                             Click="ShowWifiPassword_Click"/>

@@ -125,7 +125,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                             Style="{StaticResource ActionButton}" VerticalAlignment="Top" Click="CollectDiag_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="COLLECT DIAGNOSTICS" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Bundles everything the tool collects into a single .zip: hardware, OS, performance, power, security &amp; hardening, ProSentry, Defender, network adapters, saved Wi-Fi, network shares, monitors, printers, accounts, installed software, startup programs, services, drivers, scheduled tasks, environment variables, the hosts file, update source, pending updates, Windows Update history, crash &amp; boot history, restore points, user profiles, optional features and device problems. Great as an 'as-found' record of an old PC when setting up a new one. Includes an HTML report, a text summary, and the tool's own activity, error and per-operation logs. BitLocker recovery keys are deliberately left out, so the zip is safe to attach to a ticket."
+                        <TextBlock Text="Bundles everything the tool collects into a single .zip - an HTML report, a text summary and the tool's own logs. Great as an 'as-found' record of a PC before you rebuild or replace it."
                                    FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtCollectStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -164,17 +164,20 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                 <StackPanel>
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top">
+                            <ComboBox x:Name="CmbChkdskDrive" Width="150" Height="30"
+                                      SelectionChanged="ChkdskDrive_Changed"
+                                      ToolTip="Which volume to check"/>
                             <Button x:Name="BtnChkdsk" Content="Scan"
-                                    Style="{StaticResource ActionButton}" Click="Chkdsk_Click"/>
+                                    Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="Chkdsk_Click"/>
                             <Button x:Name="BtnChkdskCancel" Content="Cancel"
                                     Style="{StaticResource ActionButton}" Margin="0,8,0,0"
                                     Visibility="Collapsed" Click="CancelServicing_Click"/>
-                            <Button x:Name="BtnSchedChkdsk" Content="Schedule /f /r"
+                            <Button x:Name="BtnSchedChkdsk" Content="Repair /f /r"
                                     Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="SchedChkdsk_Click"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="CHECK DISK (CHKDSK)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Scan runs an online, read-only check of C: for file-system errors (chkdsk C: /scan) - safe, no reboot. If it reports problems, Schedule /f /r queues a full repair that runs at the next restart (the PC is unusable while it runs)."
+                            <TextBlock Text="Pick a volume, then Scan for a read-only online check (chkdsk /scan) - safe, no reboot. If it reports problems, Repair /f /r fixes them: on a data drive it dismounts and runs straight away, on the Windows drive it has to be queued for the next restart."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtChkdskStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
@@ -193,7 +196,8 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top">
                             <Button x:Name="BtnScanTemp"  Content="Scan"  Style="{StaticResource ActionButton}" Click="ScanTemp_Click"/>
-                            <Button x:Name="BtnCleanTemp" Content="Clean" Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="CleanTemp_Click"/>
+                            <Button x:Name="BtnCleanTemp" Content="Clean" Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="CleanTemp_Click"
+                                    IsEnabled="False" ToolTip="Run Scan first to see what would be removed"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="CLEAN TEMP FILES (ALL USERS)" Style="{StaticResource CardTitle}"/>
@@ -240,7 +244,8 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" VerticalAlignment="Top">
                             <Button x:Name="BtnScanFeatUpd"  Content="Scan"  Style="{StaticResource ActionButton}" Click="ScanFeatUpd_Click"/>
-                            <Button x:Name="BtnCleanFeatUpd" Content="Clean" Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="CleanFeatUpd_Click"/>
+                            <Button x:Name="BtnCleanFeatUpd" Content="Clean" Style="{StaticResource ActionButton}" Margin="0,8,0,0" Click="CleanFeatUpd_Click"
+                                    IsEnabled="False" ToolTip="Run Scan first to see what would be removed"/>
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="FEATURE-UPDATE LEFTOVERS" Style="{StaticResource CardTitle}"/>
@@ -339,9 +344,10 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                     <TextBlock Text="Reclaims space from C:\Windows\Installer when Adobe Acrobat/Reader (or another app) leaves orphaned patch files behind - a known bug that can bloat that hidden folder to tens or hundreds of GB. It asks Windows Installer which cached .msi/.msp files are still needed and removes ONLY files no installed product references (so repair/uninstall of installed apps is unaffected); if that list can't be read it aborts. 'Prevent recurrence' sets Adobe's PatchCleanFlag so its updater cleans up going forward. Scan is a read-only preview; cleaning is tech-gated and every file is logged."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <WrapPanel>
-                        <Button x:Name="BtnAdobePatchFix"  Content="1. Prevent Recurrence (Adobe fix)" Style="{StaticResource MaintBtn}" Click="AdobePatchFix_Click"/>
-                        <Button x:Name="BtnScanInstaller"  Content="2. Scan (preview)"                 Style="{StaticResource MaintBtn}" Click="ScanInstaller_Click"/>
-                        <Button x:Name="BtnCleanInstaller" Content="3. Clean Orphaned Files"           Style="{StaticResource MaintBtn}" Click="CleanInstaller_Click"/>
+                        <Button x:Name="BtnScanInstaller"  Content="1. Scan (preview)"                 Style="{StaticResource MaintBtn}" Click="ScanInstaller_Click"/>
+                        <Button x:Name="BtnCleanInstaller" Content="2. Clean Orphaned Files"           Style="{StaticResource MaintBtn}" Click="CleanInstaller_Click"
+                                IsEnabled="False" ToolTip="Run Scan first to see what would be removed"/>
+                        <Button x:Name="BtnAdobePatchFix"  Content="3. Prevent Recurrence (Adobe fix)" Style="{StaticResource MaintBtn}" Click="AdobePatchFix_Click"/>
                     </WrapPanel>
                     <TextBlock x:Name="TxtInstallerStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                     <Border Style="{StaticResource SectionLog}">

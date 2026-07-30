@@ -24,6 +24,22 @@ public static class ReportBuilder
     // ──────────────────────────────────────────────────────────────────────
     //  PLAIN TEXT
     // ──────────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Strip C0 control characters (keeping tab/CR/LF). Some installers write their DisplayName as a
+    /// REG_SZ that includes the string terminator, so the value comes back with an embedded NUL - seen
+    /// in the field as "Roblox Studio for &lt;user&gt;\0". That NUL makes the .txt/.html count as binary
+    /// to grep, diff and ticket systems, and truncates the name in anything doing C-style string
+    /// handling. Applied once to the finished report so any collector's stray control char is caught.
+    /// </summary>
+    private static string Scrub(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (var ch in s)
+            if (ch >= ' ' || ch == '\t' || ch == '\r' || ch == '\n') sb.Append(ch);
+        return sb.ToString();
+    }
+
     public static string BuildText(FullReportData d)
     {
         var s = d.Snap;
@@ -187,7 +203,7 @@ public static class ReportBuilder
         {
             H("WINDOWS UPDATE HISTORY (recent)");
             foreach (var u in s.Updates.Recent)
-                sb.AppendLine($"  {u.Date:MM/dd/yyyy}  [{u.Result}]  {u.Title}");
+                sb.AppendLine($"  {u.Date:MM/dd/yyyy}  [{u.Result}]  {u.Display}");
         }
 
         if (s.Diagnostics.Devices.Count > 0)
@@ -287,7 +303,7 @@ public static class ReportBuilder
                 sb.AppendLine($"  {line}");
         }
 
-        return sb.ToString();
+        return Scrub(sb.ToString());
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -502,7 +518,7 @@ public static class ReportBuilder
         }
 
         TableCard("updates", "Windows Update history", new[] { "Date", "Result", "Title" },
-            s.Updates.Recent.Select(u => new[] { u.Date.ToString(Dates.Date), u.Result, u.Title }).ToList());
+            s.Updates.Recent.Select(u => new[] { u.Date.ToString(Dates.Date), u.Result, u.Display }).ToList());
 
         TableCard("devices", "Device problems", new[] { "Device", "Problem" },
             s.Diagnostics.Devices.Select(dev => new[] { dev.Name, dev.Problem }).ToList(),
@@ -576,7 +592,7 @@ public static class ReportBuilder
             sb.Append($"<div class=\"card\" id=\"hosts\"><h2>Hosts file</h2><pre style=\"white-space:pre-wrap;font-size:12px;color:#CDD6F4;margin:0;\">{E(d.HostsFile)}</pre></div>");
 
         sb.Append("</body></html>");
-        return sb.ToString();
+        return Scrub(sb.ToString());
     }
 
     private static string YesNo(bool v) => v ? "Yes" : "No";

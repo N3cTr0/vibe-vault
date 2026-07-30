@@ -11,7 +11,11 @@ using System.Management;
 
 namespace PartnerTool;
 
-public record UpdateEntry(DateTime Date, string Title, string Result);
+public record UpdateEntry(DateTime Date, string Title, string Result, int Count = 1)
+{
+    /// <summary>"Title" or "Title  (x4)" when Windows logged the same package several times.</summary>
+    public string Display => Count > 1 ? $"{Title}   (x{Count})" : Title;
+}
 
 /// <summary>
 /// Recent Windows Update history - "when was this machine last patched?". Primary source
@@ -60,7 +64,7 @@ public class UpdateHistoryInfo
                         }
                         catch { }
                     }
-                    info.Recent = rows.OrderByDescending(r => r.Date).Take(30).ToList();
+                    info.Recent = Collapse(rows).Take(30).ToList();
                     info.LastInstalled = info.Recent.FirstOrDefault()?.Date;
                 }
             }
@@ -91,5 +95,16 @@ public class UpdateHistoryInfo
 
         return info;
     }
+
+    /// <summary>
+    /// Windows logs one history entry per package variant, so a Store component like
+    /// "9NRZT3Q9R3DL-Microsoft.WindowsAppRuntime.2" can fill the list with rows that look identical.
+    /// Group same title + same day + same result into one row with a count, so a burst of those can't
+    /// push the actual Windows updates off the end of the list.
+    /// </summary>
+    private static IEnumerable<UpdateEntry> Collapse(List<UpdateEntry> rows) =>
+        rows.GroupBy(r => (r.Title, r.Date.Date, r.Result))
+            .Select(g => new UpdateEntry(g.Max(x => x.Date), g.Key.Title, g.Key.Result, g.Count()))
+            .OrderByDescending(r => r.Date);
 }
 ```

@@ -21,13 +21,23 @@ public record UserProfileItem(string Path, DateTime? LastUsed, bool Loaded, stri
     public bool CanDelete { get; init; }   // false for the current user / loaded (in-use) profiles
     public bool IsCurrent { get; init; }
 
-    /// <summary>Every row shows a button in the same place; when it can't delete, it says why.</summary>
-    public string ActionText => CanDelete ? "Delete profile"
-                              : IsCurrent ? "Current user"
-                              : Loaded    ? "Signed in"
-                                          : "Can't delete";
+    /// <summary>
+    /// A profile Windows made for a service account, under %windir%\ServiceProfiles. Only the three
+    /// built-in ones (LocalSystem/LocalService/NetworkService) carry Special=True, so a third-party
+    /// service account - e.g. IntelTelemetryAgent - otherwise looks like an ordinary user here and
+    /// would offer a Delete button that breaks the service.
+    /// </summary>
+    public bool IsService => Path.Contains(@"\ServiceProfiles\", StringComparison.OrdinalIgnoreCase);
 
-    public string ActionTip => CanDelete ? $"Delete {Path} and its registry entry"
+    /// <summary>Every row shows a button in the same place; when it can't delete, it says why.</summary>
+    public string ActionText => IsService  ? "Service account"
+                              : CanDelete  ? "Delete profile"
+                              : IsCurrent  ? "Current user"
+                              : Loaded     ? "Signed in"
+                                           : "Can't delete";
+
+    public string ActionTip => IsService ? "A Windows service account profile, not a person - removing it breaks the service that owns it"
+                             : CanDelete ? $"Delete {Path} and its registry entry"
                              : IsCurrent ? "This is the profile you are signed in with - sign in as another admin to remove it"
                              : Loaded    ? "This profile is loaded - sign that user out, then refresh"
                                          : "Windows reports no SID for this profile, so it can't be removed from here";
@@ -140,10 +150,11 @@ public static class SystemManagement
                 var loaded = o["Loaded"] is bool b && b;
                 var sid    = o["SID"]?.ToString() ?? "";
                 bool isCurrent = sid.Length > 0 && sid == currentSid;
+                bool isService = path.Contains(@"\ServiceProfiles\", StringComparison.OrdinalIgnoreCase);
                 list.Add(new UserProfileItem(path, last, loaded, sid)
                 {
                     IsCurrent = isCurrent,
-                    CanDelete = !loaded && sid.Length > 0 && !isCurrent,
+                    CanDelete = !loaded && !isService && sid.Length > 0 && !isCurrent,
                 });
             }
         }
