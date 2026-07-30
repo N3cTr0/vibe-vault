@@ -63,45 +63,49 @@ public static class HealthCheck
     {
         void P(int pct, string msg) => progress?.Invoke(pct, msg);
         var r = new HealthReport();
+        // These stages run one after another so the progress bar can be honest, which means the
+        // times below SUM to what the tech waits for - so the log line is a direct list of what to
+        // optimise, not a set of overlapping numbers.
+        var t = new LoadTimer("Health Check");
 
-        // Sequential stages so we can report honest progress + a "what it's doing now" message.
         P(5,  "Scanning temp & cache files…");
-        var temp = await Task.Run(() => TempCleaner.Scan());
+        var temp = await t.Time("temp", () => TempCleaner.Scan());
 
         P(18, "Checking the Windows Installer cache…");
-        var inst = await Task.Run(InstallerCleanup.Scan);
+        var inst = await t.Time("installer", InstallerCleanup.Scan);
 
         P(30, "Scanning Desktop & Start Menu shortcuts…");
-        var broken = await Task.Run(ShortcutScan.Scan);
+        var broken = await t.Time("shortcuts", ShortcutScan.Scan);
 
         P(42, "Reading disk space & drive health…");
-        var hw = await Task.Run(HardwareInfo.Collect);
+        var hw = await t.Time("hardware", HardwareInfo.Collect);
 
         P(50, "Measuring feature-update leftovers…");
-        var featUpd = await Task.Run(FeatureUpdateCleanup.Scan);
+        var featUpd = await t.Time("featupd", FeatureUpdateCleanup.Scan);
 
         P(55, "Checking for Windows & app updates…");
-        int winCount = (await Task.Run(PendingUpdatesInfo.Collect)).Count;
-        int appCount = (await OutdatedAppsInfo.CollectAsync()).Count;
-        var wuPolicy = await Task.Run(WuPolicyInfo.Collect);
+        int winCount = (await t.Time("winupdates", PendingUpdatesInfo.Collect)).Count;
+        int appCount = (await t.TimeAsync("appupdates", OutdatedAppsInfo.CollectAsync)).Count;
+        var wuPolicy = await t.Time("wupolicy", WuPolicyInfo.Collect);
 
         P(72, "Checking security & antivirus…");
-        var audit = await Task.Run(SecurityAudit.Collect);
-        var def   = await Task.Run(DefenderInfo.Collect);
+        var audit = await t.Time("audit", SecurityAudit.Collect);
+        var def   = await t.Time("defender", DefenderInfo.Collect);
 
         P(85, "Checking crash history & devices…");
-        var crash = await Task.Run(CrashInfo.Collect);
-        var diag  = await Task.Run(DiagnosticsInfo.Collect);
+        var crash = await t.Time("crashes", CrashInfo.Collect);
+        var diag  = await t.Time("devices", DiagnosticsInfo.Collect);
 
         P(90, "Checking Dell SupportAssist & shadow storage…");
-        var dell = await Task.Run(DellRemediation.Collect);
+        var dell = await t.Time("dell", DellRemediation.Collect);
 
         P(94, "Checking uptime & startup programs…");
-        var perf       = await Task.Run(PerfSnapshot.Collect);
-        var startupAll = await Task.Run(StartupInfo.Collect);
-        bool rebootPending = await Task.Run(SystemHealth.IsRebootPending);
+        var perf       = await t.Time("perf", PerfSnapshot.Collect);
+        var startupAll = await t.Time("startup", StartupInfo.Collect);
+        bool rebootPending = await t.Time("reboot", SystemHealth.IsRebootPending);
 
         P(99, "Scoring…");
+        t.Done();
 
         // ── Junk: temp files ─────────────────────────────────
         double tempGb = temp.TotalBytes / 1073741824.0;

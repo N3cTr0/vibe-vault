@@ -39,6 +39,12 @@ public static class ActivityLog
     /// <summary>The outcome of an action (e.g. "Saved", "Freed 8.8 GB", an error message).</summary>
     public static void Result(string category, string message) => Append(category, "   " + message);
 
+    /// <summary>
+    /// A page-load timing line from <see cref="LoadTimer"/>. Its own category so the timings can be
+    /// filtered out of - or picked out of - the audit trail with one grep.
+    /// </summary>
+    public static void Perf(string message) => Append("perf", message);
+
     private static void Append(string category, string message)
     {
         try

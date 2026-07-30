@@ -36,4 +36,27 @@ tags: [partnertool]
 source + reset-to-online), `DevModeInfo` (Developer Mode toggle), `BootPerfInfo`, `CrashInfo`,
 `RestorePointsInfo`, `ProsentryInfo` (managed security stack + Intune), `AccountsInfo`, `SystemExtras` (page file, proxy, power plan), `AzureAdInfo` (dsregcmd), `PowerStatusInfo` (powercfg), `BatteryLive`, `StartupInfo`, `ServicesInfo`, `ProcessInfo`, `VendorUpdatesInfo` (Dell/Lenovo/HP), `PendingUpdatesInfo`, `OutdatedAppsInfo` (winget), `StoreUpdatesInfo` (pending Store/UWP updates, read-only), `OfficeLanguages`, `InstallerCleanup`, `TempCleaner`, `ProxyRepair`, `DiskUsageInfo`.
 
+## Load timings (`LoadTimer`, 0.24.15)
+
+Every page load, plus the startup snapshot and the Health Check scan, is timed. Wrap a collector
+with `t.Time("name", Collect)` — a drop-in for `Task.Run` — and call `t.Done()`; one line goes to the
+activity log under the **`perf`** category with the wall time and every part, **slowest first**:
+
+```
+[perf] Security load 126 ms  (defender 122, prosentry 72, audit 35, bitlocker 12)
+[perf] Manage load 8441 ms  (tasks 8441)
+```
+
+The parts sum to more than the wall time when they ran in parallel, and to roughly it when they ran
+one after another — which is itself worth seeing (Health Check is deliberately sequential so its
+progress bar can be honest, so its parts sum to what the tech waits for). `FirstAndSlowOnly()` is for
+loads that also run on a timer or on every page re-open — they log the first one, then only loads
+over 2 s. The diagnostics bundle already collects the activity log, so a slow machine in the field
+reports its own hot spots.
+
+**Known hot spots (dev VM, 2026-07-31):** Manage ▸ scheduled tasks 7–8 s (`schtasks /query /fo CSV /v`
+— the `/v` is the cost *and* the source of the Last Run Time / Last Result columns), Manage ▸ drivers
+1.3 s, Updates ▸ Windows 8–15 s and Store 6.6–7.2 s (both network-bound). Startup snapshot 1122 ms
+wall across 16 parallel collectors. Everything else is sub-second.
+
 Full source: [[_Code Index]].

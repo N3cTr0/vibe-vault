@@ -158,7 +158,15 @@ public partial class UpdatesPage : UserControl
 
     /// <summary>Run all scans together - they're network / subprocess bound, not CPU-heavy.</summary>
     private async Task ScanAllAsync()
-        => await Task.WhenAll(ScanWindowsAsync(), ScanAppsAsync(), ScanVendorAsync(), ScanStoreAsync());
+    {
+        var t = new LoadTimer("Updates");
+        await Task.WhenAll(
+            t.TimeAsync("windows", ScanWindowsAsync),
+            t.TimeAsync("apps",    ScanAppsAsync),
+            t.TimeAsync("vendor",  ScanVendorAsync),
+            t.TimeAsync("store",   ScanStoreAsync));
+        t.Done();
+    }
 
     private void SetStatus(TextBlock tb, string text, System.Windows.Media.Brush color)
     {

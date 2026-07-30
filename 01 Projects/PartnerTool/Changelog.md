@@ -25,6 +25,36 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.15 - 2026-07-31
+
+### Added
+- **Load timings on every page**, not just Security. New shared `LoadTimer`: wrap each collector
+  (`t.Time("name", Collect)` is a drop-in for `Task.Run`) and call `Done()`, and it writes one
+  activity-log line per load with the wall time and every part, **slowest first** - so a machine in
+  the field names the collector to optimise instead of us guessing from "that page is slow".
+  Timings go to their own `[perf]` category so they can be grepped out of, or picked out of, the
+  audit trail. Covered: the startup snapshot, System Info, Diagnostics (page + crash/boot),
+  Manage (one line per section), Network, Repair restore points, Security, Software, Updates and
+  Health Check. `FirstAndSlowOnly()` on the loads that also run on a timer or on every page re-open
+  (System Info, Diagnostics), so they log the first load and after that only ones over 2 s -
+  otherwise System Info alone would write a line every 45 seconds.
+- Deliberately not timed: the Disk Usage scan and the Processes sampler. One is dominated by how
+  big the drive is and the other repeats on a timer; neither says anything about our code.
+
+### Fixed
+- **Repair ▸ System Restore Points collected on the UI thread.** `RestorePointsInfo.Collect()` is a
+  WMI call and was being run synchronously from the page-shown handler, freezing the Repair page for
+  as long as the provider took to answer. Now awaited off the UI thread like every other collector.
+
+### First numbers off the dev VM
+Startup snapshot 1122 ms wall for 16 parallel collectors (nothing pathological), but the background
+Manage preload is dominated by **scheduled tasks at 7.3-8.4 s** - `schtasks /query /fo CSV /v`, where
+the `/v` is what costs, and it's needed for the Last Run Time / Last Result columns. Drivers 1.3 s.
+On the Updates tab the Windows Update scan is 8-15 s and the Store scan 6.6-7.2 s, both network-bound.
+Everything else on every page is under a second.
+
+---
+
 ## 0.24.14 - 2026-07-31
 
 ### Added

@@ -43,25 +43,28 @@ public class SystemSnapshot
     /// <summary>Run every collector in parallel and return the combined snapshot.</summary>
     public static async Task<SystemSnapshot> CaptureAsync()
     {
-        var info     = Task.Run(SystemInfo.Collect);
-        var perf     = Task.Run(PerfSnapshot.Collect);
-        var sec      = Task.Run(SecuritySnapshot.Collect);
-        var net      = Task.Run(NetworkInfo.GetPrimaryAdapter);
-        var hw       = Task.Run(HardwareInfo.Collect);
-        var reasons  = Task.Run(SystemHealth.PendingReasons);
-        var diag     = Task.Run(DiagnosticsInfo.Collect);
-        var rel      = Task.Run(ReliabilityInfo.CollectIndex);   // index only - records are slow, loaded on demand
-        var displays = Task.Run(DisplaysInfo.Collect);
-        var printers = Task.Run(PrintersInfo.Collect);
-        var accounts = Task.Run(AccountsInfo.Collect);
-        var updates  = Task.Run(UpdateHistoryInfo.Collect);
-        var power    = Task.Run(() => PowerEventsInfo.Collect());
-        var extras   = Task.Run(SystemExtras.Collect);
-        var aad      = AzureAdInfo.CollectAsync();   // device join - already async (dsregcmd)
-        var pwr      = PowerStatusInfo.CollectAsync();   // already async (powercfg)
+        // This is what the tech waits through before the window is usable, so it gets timed too.
+        var t = new LoadTimer("Startup snapshot");
+        var info     = t.Time("sysinfo",     SystemInfo.Collect);
+        var perf     = t.Time("perf",        PerfSnapshot.Collect);
+        var sec      = t.Time("security",    SecuritySnapshot.Collect);
+        var net      = t.Time("network",     NetworkInfo.GetPrimaryAdapter);
+        var hw       = t.Time("hardware",    HardwareInfo.Collect);
+        var reasons  = t.Time("reboot",      SystemHealth.PendingReasons);
+        var diag     = t.Time("events",      DiagnosticsInfo.Collect);
+        var rel      = t.Time("reliability", ReliabilityInfo.CollectIndex);   // index only - records are slow, loaded on demand
+        var displays = t.Time("displays",    DisplaysInfo.Collect);
+        var printers = t.Time("printers",    PrintersInfo.Collect);
+        var accounts = t.Time("accounts",    AccountsInfo.Collect);
+        var updates  = t.Time("updates",     UpdateHistoryInfo.Collect);
+        var power    = t.Time("power",       () => PowerEventsInfo.Collect());
+        var extras   = t.Time("extras",      SystemExtras.Collect);
+        var aad      = t.TimeAsync("azuread", AzureAdInfo.CollectAsync);       // already async (dsregcmd)
+        var pwr      = t.TimeAsync("powercfg", PowerStatusInfo.CollectAsync);  // already async (powercfg)
 
         await Task.WhenAll(info, perf, sec, net, hw, reasons, diag, rel,
                            displays, printers, accounts, updates, power, extras, aad, pwr);
+        t.Done();
 
         var pendingReasons = await reasons;
         return new SystemSnapshot

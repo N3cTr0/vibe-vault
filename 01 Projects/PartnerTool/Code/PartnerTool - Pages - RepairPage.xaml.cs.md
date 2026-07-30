@@ -27,12 +27,12 @@ public partial class RepairPage : UserControl
         InitializeComponent();
         TxtProxyStatus.Text = ProxyRepair.CurrentState();
         RefreshDevMode();
-        IsVisibleChanged += (_, _) =>
+        IsVisibleChanged += async (_, _) =>
         {
             if (!IsVisible) return;
             TxtProxyStatus.Text = ProxyRepair.CurrentState();
             RefreshDevMode();
-            if (!_restoreLoaded) { _restoreLoaded = true; LoadRestorePoints(); }
+            if (!_restoreLoaded) { _restoreLoaded = true; await LoadRestorePoints(); }
             if (!_dellLoaded) { _dellLoaded = true; ShowDellCardIfApplicable(); }
             if (CmbChkdskDrive.ItemsSource == null) { LoadChkdskDrives(); ChkdskDrive_Changed(this, null!); }
         };
@@ -1057,7 +1057,7 @@ Write-Output 'Print queue cleared and spooler restarted.'
             var code = await RunPowerShell("pci_restore.ps1", RestoreScript, "Create restore point", TxtRestoreStatus);
             Set(TxtRestoreStatus, code == 0 ? "● Restore point created" : "● Done (check log)",
                 code == 0 ? StatusColors.Green : StatusColors.Yellow);
-            LoadRestorePoints();
+            await LoadRestorePoints();
         }
         finally { EndBusy(); SaveLog("RestorePoint"); }
     }
@@ -1235,14 +1235,18 @@ Write-Output 'Icon and thumbnail caches cleared.'
 
     // ── SYSTEM RESTORE POINTS ─────────────────────────────────────────────
 
-    private void LoadRestorePoints()
+    // Collect() is a WMI call; it used to run on the UI thread, which freezes the page for as long
+    // as the provider takes to answer.
+    private async Task LoadRestorePoints()
     {
-        var points = RestorePointsInfo.Collect();
+        var t = new LoadTimer("Repair restore points");
+        var points = await t.Time("restorepoints", RestorePointsInfo.Collect);
         IcRestorePoints.ItemsSource = points;
         TxtNoRestore.Visibility = points.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        t.Done();
     }
 
-    private void RefreshRestore_Click(object sender, RoutedEventArgs e) => LoadRestorePoints();
+    private async void RefreshRestore_Click(object sender, RoutedEventArgs e) => await LoadRestorePoints();
 
     private void OpenRestore_Click(object sender, RoutedEventArgs e)
     {

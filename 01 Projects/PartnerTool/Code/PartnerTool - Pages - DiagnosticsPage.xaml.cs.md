@@ -37,11 +37,13 @@ public partial class DiagnosticsPage : UserControl
 
     private async Task LoadCrashBootAsync()
     {
-        var crashTask = Task.Run(CrashInfo.Collect);
-        var bootTask  = Task.Run(BootPerfInfo.Collect);
+        var t = new LoadTimer("Diagnostics crash/boot");
+        var crashTask = t.Time("crashes", CrashInfo.Collect);
+        var bootTask  = t.Time("boot",    BootPerfInfo.Collect);
         await Task.WhenAll(crashTask, bootTask);
         PaintCrash(await crashTask);
         PaintBoot(await bootTask);
+        t.Done();
     }
 
     private void PaintCrash(CrashInfo c)
@@ -84,13 +86,15 @@ public partial class DiagnosticsPage : UserControl
         try
         {
             TxtRefreshed.Text = "Loading…";
-            var diagTask  = Task.Run(DiagnosticsInfo.Collect);
-            var relTask   = Task.Run(ReliabilityInfo.CollectIndex);   // index only; records are on-demand
-            var updTask   = Task.Run(UpdateHistoryInfo.Collect);
-            var powerTask = Task.Run(() => PowerEventsInfo.Collect());
+            var t = new LoadTimer("Diagnostics").FirstAndSlowOnly();   // re-runs on every page re-open
+            var diagTask  = t.Time("events",      DiagnosticsInfo.Collect);
+            var relTask   = t.Time("reliability", ReliabilityInfo.CollectIndex);   // index only; records are on-demand
+            var updTask   = t.Time("updates",     UpdateHistoryInfo.Collect);
+            var powerTask = t.Time("power",       () => PowerEventsInfo.Collect());
             await Task.WhenAll(diagTask, relTask, updTask, powerTask);
             Paint(await diagTask, await relTask, await updTask, await powerTask, DateTime.Now);
-            await LoadProcessesAsync();
+            await t.TimeAsync("processes", LoadProcessesAsync);
+            t.Done();
         }
         catch (Exception ex)
         {

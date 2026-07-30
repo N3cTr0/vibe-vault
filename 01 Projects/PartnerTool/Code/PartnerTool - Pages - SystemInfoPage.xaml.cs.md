@@ -320,22 +320,24 @@ public partial class SystemInfoPage : UserControl
         {
             TxtRefreshed.Text = "Refreshing…";
 
-            var infoTask  = Task.Run(SystemInfo.Collect);
-            var perfTask  = Task.Run(PerfSnapshot.Collect);
-            var secTask   = Task.Run(SecuritySnapshot.Collect);
-            var netTask   = Task.Run(NetworkInfo.GetPrimaryAdapter);
-            var hwTask    = Task.Run(HardwareInfo.Collect);
-            var dispTask  = Task.Run(DisplaysInfo.Collect);
-            var printTask = Task.Run(PrintersInfo.Collect);
-            var acctTask  = Task.Run(AccountsInfo.Collect);
-            var extraTask = Task.Run(SystemExtras.Collect);
-            var aadTask   = AzureAdInfo.CollectAsync();
-            var pwrTask   = PowerStatusInfo.CollectAsync();
+            var t = new LoadTimer("System Info").FirstAndSlowOnly();   // also the 45s refresh path
+            var infoTask  = t.Time("sysinfo",  SystemInfo.Collect);
+            var perfTask  = t.Time("perf",     PerfSnapshot.Collect);
+            var secTask   = t.Time("security", SecuritySnapshot.Collect);
+            var netTask   = t.Time("network",  NetworkInfo.GetPrimaryAdapter);
+            var hwTask    = t.Time("hardware", HardwareInfo.Collect);
+            var dispTask  = t.Time("displays", DisplaysInfo.Collect);
+            var printTask = t.Time("printers", PrintersInfo.Collect);
+            var acctTask  = t.Time("accounts", AccountsInfo.Collect);
+            var extraTask = t.Time("extras",   SystemExtras.Collect);
+            var aadTask   = t.TimeAsync("azuread", AzureAdInfo.CollectAsync);
+            var pwrTask   = t.TimeAsync("power",   PowerStatusInfo.CollectAsync);
             await Task.WhenAll(infoTask, perfTask, secTask, netTask, hwTask,
                                dispTask, printTask, acctTask, extraTask, aadTask, pwrTask);
 
             Paint(await infoTask, await perfTask, await secTask, await netTask, await hwTask,
                   await dispTask, await printTask, await acctTask, await extraTask, await aadTask, await pwrTask, DateTime.Now);
+            t.Done();
         }
         catch (Exception ex)
         {

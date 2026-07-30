@@ -39,7 +39,14 @@ public partial class NetworkPage : UserControl
     private async void ConnRefresh_Click(object sender, RoutedEventArgs e) => await LoadConnectionsAsync();
 
     private async Task LoadNetInfoAsync()
-        => await Task.WhenAll(LoadWifiAsync(), LoadConnectionsAsync(), LoadSharesAsync());
+    {
+        var t = new LoadTimer("Network");
+        await Task.WhenAll(
+            t.TimeAsync("wifi",        LoadWifiAsync),
+            t.TimeAsync("connections", LoadConnectionsAsync),
+            t.TimeAsync("shares",      LoadSharesAsync));
+        t.Done();
+    }
 
     private async void SharesRefresh_Click(object sender, RoutedEventArgs e) => await LoadSharesAsync();
 

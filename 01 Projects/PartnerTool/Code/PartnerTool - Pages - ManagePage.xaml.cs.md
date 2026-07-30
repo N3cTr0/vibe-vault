@@ -69,17 +69,24 @@ public partial class ManagePage : UserControl
     private async Task EnsureLoaded(string tag)
     {
         if (!_loaded.Add(tag)) return;   // HashSet.Add is false if already loaded
-        switch (tag)
+
+        // One line per section, so the startup preload shows which of the eight is the slow one.
+        var t = new LoadTimer("Manage");
+        await t.TimeAsync(tag.ToLowerInvariant(), async () =>
         {
-            case "Services": await LoadServices(); break;
-            case "Tasks":    await LoadTasks(); break;
-            case "Drivers":  await LoadDrivers(); break;
-            case "Printers": await LoadPrinters(); break;
-            case "Hosts":    HostsReload_Click(this, new RoutedEventArgs()); break;
-            case "Env":      LstEnv.ItemsSource = await Task.Run(SystemManagement.EnvVars); break;
-            case "Features": LstFeatures.ItemsSource = await Task.Run(SystemManagement.OptionalFeatures); break;
-            case "Profiles": await LoadProfiles(); break;
-        }
+            switch (tag)
+            {
+                case "Services": await LoadServices(); break;
+                case "Tasks":    await LoadTasks(); break;
+                case "Drivers":  await LoadDrivers(); break;
+                case "Printers": await LoadPrinters(); break;
+                case "Hosts":    HostsReload_Click(this, new RoutedEventArgs()); break;
+                case "Env":      LstEnv.ItemsSource = await Task.Run(SystemManagement.EnvVars); break;
+                case "Features": LstFeatures.ItemsSource = await Task.Run(SystemManagement.OptionalFeatures); break;
+                case "Profiles": await LoadProfiles(); break;
+            }
+        });
+        t.Done();
     }
 
     // ── Services ─────────────────────────────────────────────

@@ -211,8 +211,10 @@ public partial class SoftwarePage : UserControl
     private async Task LoadAsync()
     {
         TxtCount.Text = "Loading…";
-        _all = await Task.Run(GetInstalledApps);
+        var t = new LoadTimer("Software");
+        _all = await t.Time("installed", GetInstalledApps);
         ApplyFilter(SearchBox.Text);
+        t.Done();
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e)
