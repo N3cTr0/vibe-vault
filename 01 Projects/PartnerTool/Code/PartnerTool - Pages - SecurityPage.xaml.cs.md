@@ -28,8 +28,11 @@ public partial class SecurityPage : UserControl
         };
     }
 
+    // Not destructive, but these keys unlock the drive - the gate is as much about stopping an
+    // end-user putting them on screen as it is about the tech.
     private void BitLocker_Click(object sender, RoutedEventArgs e)
     {
+        if (!TechGate.Verify(Window.GetWindow(this))) return;
         ActivityLog.Action("Security", "Open BitLocker recovery key viewer");
         new BitLockerWindow { Owner = Window.GetWindow(this) }.ShowDialog();
     }

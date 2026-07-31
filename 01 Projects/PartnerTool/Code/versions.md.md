@@ -25,6 +25,21 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.19 - 2026-07-31
+
+### Changed
+- **The BitLocker recovery key viewer is tech-gated.** It isn't a destructive action, which is why it
+  wasn't gated before, but the keys unlock the drive - the gate is as much about stopping an end-user
+  putting them on screen as it is about the tech. The reveal was already activity-logged; now the
+  attempt is gated first.
+
+### Verified
+- 0.24.18's escrow labels confirmed on SCALED-LT01: the tool independently read `BackupInfoType` and
+  rendered "Not backed up anywhere" and "Escrowed to Entra ID" for the two protectors, matching that
+  machine's own `manage-bde` output (blank vs `AAD backup`). The documented bitmask decoding is right.
+
+---
+
 ## 0.24.18 - 2026-07-31
 
 ### Added
