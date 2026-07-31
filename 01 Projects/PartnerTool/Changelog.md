@@ -25,6 +25,33 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.23 - 2026-08-01
+
+### Fixed
+- **Dialogs could stack, leaving two dead windows behind the top one.** `ShowDialog()` only disables
+  its own owner, so opening a second dialog while the first was up disabled *both* the main window
+  and the first dialog - found by driving the UI during a test pass, which left About sitting on top
+  of a disabled Settings on top of a disabled main window. New `Dialog.Show()` guard: if a content
+  dialog is already open it's brought to the front instead of a second one opening. Routed About,
+  Settings, the BitLocker key viewer, SMART, power plans and the four list popups through it.
+- **Prompts are owned by whatever is on screen, not always the main window.** `MessageWindow` and the
+  tech gate deliberately bypass the one-at-a-time guard - a message raised from inside a dialog has
+  to be able to appear - but they were owned by the main window, so they could open *behind* the
+  dialog that raised them. They now take the open dialog as owner when there is one.
+
+### Bug hunt - checked and clean
+- Every page visited in sequence: no errors logged, `errors.log` holds only the two startup
+  breadcrumbs.
+- **Every XAML binding path cross-checked against the C#** - no dead bindings (WPF fails those
+  silently, so they show as a blank cell rather than an error). The six flagged were framework
+  properties and record positional parameters.
+- Swept every page's rendered text for values that mean "a collector came back empty", and chased
+  each one to its source: the Diagnostics dash is a list-row placeholder (the reliability index
+  itself reads 9.3/10 correctly), the Network dash is the deliberate "no state" for UDP rows, and
+  Defender's "Never / unknown" is right - `FullScanAge` is 4294967295, meaning no full scan has run.
+
+---
+
 ## 0.24.22 - 2026-08-01
 
 ### Changed

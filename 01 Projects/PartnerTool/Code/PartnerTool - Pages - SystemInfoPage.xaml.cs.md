@@ -186,7 +186,7 @@ public partial class SystemInfoPage : UserControl
 
     private void ChangePowerPlan_Click(object sender, RoutedEventArgs e)
     {
-        new PowerPlanWindow { Owner = Window.GetWindow(this) }.ShowDialog();
+        Dialog.Show(new PowerPlanWindow(), Window.GetWindow(this));
         // Reflect whatever's now active without a full page refresh.
         try { TxtPwrMode.Text = PowerMode.ActiveName(); ActivityLog.Action("Power", $"Power mode now: {PowerMode.ActiveName()}"); } catch { }
     }
@@ -256,7 +256,7 @@ public partial class SystemInfoPage : UserControl
         try
         {
             var drives = await Task.Run(SmartAttributes.Collect);
-            new SmartWindow(drives) { Owner = Window.GetWindow(this) }.ShowDialog();
+            Dialog.Show(new SmartWindow(drives), Window.GetWindow(this));
         }
         catch (Exception ex)
         {

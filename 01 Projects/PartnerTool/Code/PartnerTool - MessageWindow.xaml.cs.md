@@ -58,11 +58,18 @@ public partial class MessageWindow : Window
                                        MessageKind kind, bool yesNo, Window? owner)
     {
         var w = new MessageWindow(title, heading, body, kind, yesNo);
-        if (owner != null)
+        // Owned by whatever is actually on screen: a message raised from inside a dialog has to
+        // land on top of that dialog, not behind it. Setting Owner throws if the target hasn't
+        // been shown yet (startup), so a failure just leaves the message unowned.
+        try
         {
-            w.Owner = owner;
-            w.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            if (Dialog.OwnerFor(owner) is { } o && !ReferenceEquals(o, w))
+            {
+                w.Owner = o;
+                w.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
         }
+        catch { }
         return w;
     }
 }

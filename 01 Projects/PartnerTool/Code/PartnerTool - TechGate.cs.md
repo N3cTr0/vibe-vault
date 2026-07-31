@@ -67,7 +67,10 @@ public static class TechGate
         if (IsUnlocked) { Slide(); return true; }
 
         var expired = _verifiedUntil != DateTime.MinValue;   // unlocked earlier, then timed out
-        var w = new TechGateWindow(expired) { Owner = owner };
+        // The gate can be raised from inside a dialog (the BitLocker viewer, for one), so it takes
+        // whatever is on screen as its owner rather than always the main window.
+        var w = new TechGateWindow(expired);
+        try { w.Owner = Dialog.OwnerFor(owner); } catch { }
         if (w.ShowDialog() != true) return false;
 
         Slide();

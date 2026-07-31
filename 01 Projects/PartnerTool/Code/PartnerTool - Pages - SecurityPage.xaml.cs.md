@@ -34,7 +34,7 @@ public partial class SecurityPage : UserControl
     {
         if (!TechGate.Verify(Window.GetWindow(this))) return;
         ActivityLog.Action("Security", "Open BitLocker recovery key viewer");
-        new BitLockerWindow { Owner = Window.GetWindow(this) }.ShowDialog();
+        Dialog.Show(new BitLockerWindow(), Window.GetWindow(this));
     }
 
     // Jump to the Windows setting/applet that changes this audit item - or, for the special

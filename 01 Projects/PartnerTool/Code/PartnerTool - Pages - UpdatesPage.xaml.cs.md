@@ -80,7 +80,7 @@ public partial class UpdatesPage : UserControl
     private void MoreHistory_Click(object sender, RoutedEventArgs e)
     {
         var rows = _allHistory.Select(u => new ListRow(u.Title, u.Date.ToString(Dates.Date), u.Result));
-        new ListWindow("Windows Update History", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+        Dialog.Show(new ListWindow("Windows Update History", rows), Window.GetWindow(this));
     }
 
     private async System.Threading.Tasks.Task LoadMfrToolAsync()

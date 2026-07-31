@@ -74,7 +74,7 @@ public partial class DiagnosticsPage : UserControl
             ev.Message,
             $"{ev.Time:MM/dd/yyyy HH:mm}  ·  {ev.Source}  (ID {ev.Id})",
             ev.Level));
-        new ListWindow("Recent Errors - last 10 days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+        Dialog.Show(new ListWindow("Recent Errors - last 10 days", rows), Window.GetWindow(this));
     }
 
     private bool _loading;   // page re-opens trigger a refresh - don't stack them
@@ -193,7 +193,7 @@ public partial class DiagnosticsPage : UserControl
                 r.Message,
                 $"{r.Time:MM/dd/yyyy HH:mm}  ·  {r.Source}",
                 "")).ToList();
-            new ListWindow("Reliability History (detailed)", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+            Dialog.Show(new ListWindow("Reliability History (detailed)", rows), Window.GetWindow(this));
         }
         finally { _relRecordsLoading = false; BtnLoadReliability.IsEnabled = true; BtnLoadReliability.Content = label; }
     }
@@ -207,7 +207,7 @@ public partial class DiagnosticsPage : UserControl
               + (h.BatteryWearPct is { } w ? $"   ·   Batt wear {w}%" : "")
               + (h.StabilityIndex is { } s ? $"   ·   Stability {s:F1}/10" : ""),
             "")).ToList();
-        new ListWindow("Health History - all recorded days", rows) { Owner = Window.GetWindow(this) }.ShowDialog();
+        Dialog.Show(new ListWindow("Health History - all recorded days", rows), Window.GetWindow(this));
     }
 
     // ── Live processes ───────────────────────────────────────

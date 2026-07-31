@@ -208,10 +208,10 @@ public partial class MainWindow : Window
     }
 
     private void About_Click(object sender, RoutedEventArgs e)
-        => new AboutWindow { Owner = this }.ShowDialog();
+        => Dialog.Show(new AboutWindow(), this);
 
     private void Settings_Click(object sender, RoutedEventArgs e)
-        => new SettingsWindow { Owner = this }.ShowDialog();
+        => Dialog.Show(new SettingsWindow(), this);
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll")]
     private static extern IntPtr GetCurrentProcess();
