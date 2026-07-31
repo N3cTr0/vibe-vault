@@ -47,9 +47,14 @@ public static class BitLockerInfo
         var keys = new List<BitLockerKey>();
         try
         {
+            // SELECT * on purpose. A projection comes back as a partial instance with an empty
+            // __PATH, and InvokeMethod on one throws "Operation is not valid due to the current
+            // state of the object" - which the per-volume catch below swallowed, so this returned
+            // an empty list on every machine and the window said no key was stored. Same trap as
+            // Win32_Printer.Delete().
             using var searcher = new ManagementObjectSearcher(
                 @"root\cimv2\Security\MicrosoftVolumeEncryption",
-                "SELECT DriveLetter FROM Win32_EncryptableVolume");
+                "SELECT * FROM Win32_EncryptableVolume");
 
             foreach (ManagementObject vol in searcher.Get())
             {
@@ -76,13 +81,13 @@ public static class BitLockerInfo
                                     id.Trim('{', '}'),
                                     pwd));
                         }
-                        catch { }
+                        catch (Exception ex) { ActivityLog.Result("BitLocker", $"key read failed on {drive}: {ex.Message}"); }
                     }
                 }
-                catch { }
+                catch (Exception ex) { ActivityLog.Result("BitLocker", $"protector read failed on {drive}: {ex.Message}"); }
             }
         }
-        catch { }
+        catch (Exception ex) { ActivityLog.Result("BitLocker", $"volume enumeration failed: {ex.Message}"); }
         return keys;
     }
 }

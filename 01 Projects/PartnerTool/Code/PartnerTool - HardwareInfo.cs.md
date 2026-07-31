@@ -79,8 +79,11 @@ public class HardwareInfo
         // ── Physical disks (modern Storage namespace gives SSD/HDD + health) ──
         try
         {
+            // SELECT * on purpose: GetRelated below needs the instance's object path, and a
+            // projection comes back with an empty __PATH - it threw every time, so temperature,
+            // wear, power-on hours and error counts never populated.
             using var q = new ManagementObjectSearcher(@"root\Microsoft\Windows\Storage",
-                "SELECT FriendlyName, MediaType, BusType, HealthStatus, Size FROM MSFT_PhysicalDisk");
+                "SELECT * FROM MSFT_PhysicalDisk");
             foreach (ManagementObject o in q.Get())
             {
                 string media = Convert.ToInt32(o["MediaType"] ?? 0) switch

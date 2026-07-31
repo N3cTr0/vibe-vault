@@ -17,7 +17,7 @@ source-path: PartnerTool\PartnerTool.csproj
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.24.16</Version>
+    <Version>0.24.17</Version>
     <!-- The exe techs get is the single-file publish (publish-singlefile.bat /
          build-installer.bat: PublishSingleFile + IncludeNativeLibrariesForSelfExtract),
          which the MSI installs to C:\PCI\PartnerTool as one file. -->
@@ -27,7 +27,7 @@ source-path: PartnerTool\PartnerTool.csproj
   <ItemGroup>
     <!-- No RID-specific / native packages: everything left is managed, so plain
          `dotnet build` works with no RuntimeIdentifier and the single-file publish
-         sets -r win-x64 itself. (LibreHardwareMonitorLib was removed in 0.23.0 —
+         sets -r win-x64 itself. (LibreHardwareMonitorLib was removed in 0.23.0 -
          its ring-0 sensor driver never returned values on our fleet and tripped
          memory-integrity/ASR on locked-down machines.) -->
     <PackageReference Include="System.Management" Version="10.0.2" />

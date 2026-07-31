@@ -68,24 +68,36 @@ public partial class ManagePage : UserControl
     /// <summary>Collect a section's data once (used by both on-demand navigation and the startup preload).</summary>
     private async Task EnsureLoaded(string tag)
     {
-        if (!_loaded.Add(tag)) return;   // HashSet.Add is false if already loaded
+        if (!_loaded.Add(tag)) return;   // HashSet.Add is false if already loaded (or loading)
 
         // One line per section, so the startup preload shows which of the eight is the slow one.
         var t = new LoadTimer("Manage");
-        await t.TimeAsync(tag.ToLowerInvariant(), async () =>
+        try
         {
-            switch (tag)
+            await t.TimeAsync(tag.ToLowerInvariant(), async () =>
             {
-                case "Services": await LoadServices(); break;
-                case "Tasks":    await LoadTasks(); break;
-                case "Drivers":  await LoadDrivers(); break;
-                case "Printers": await LoadPrinters(); break;
-                case "Hosts":    HostsReload_Click(this, new RoutedEventArgs()); break;
-                case "Env":      LstEnv.ItemsSource = await Task.Run(SystemManagement.EnvVars); break;
-                case "Features": LstFeatures.ItemsSource = await Task.Run(SystemManagement.OptionalFeatures); break;
-                case "Profiles": await LoadProfiles(); break;
-            }
-        });
+                switch (tag)
+                {
+                    case "Services": await LoadServices(); break;
+                    case "Tasks":    await LoadTasks(); break;
+                    case "Drivers":  await LoadDrivers(); break;
+                    case "Printers": await LoadPrinters(); break;
+                    case "Hosts":    HostsReload_Click(this, new RoutedEventArgs()); break;
+                    case "Env":      LstEnv.ItemsSource = await Task.Run(SystemManagement.EnvVars); break;
+                    case "Features": LstFeatures.ItemsSource = await Task.Run(SystemManagement.OptionalFeatures); break;
+                    case "Profiles": await LoadProfiles(); break;
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            // Un-mark it so the section can be retried - it was marked before the load to stop two
+            // clicks racing, and leaving the mark on would blank that section for the whole session.
+            // ShowSection is async void, so without this catch the failure also reached the global
+            // "Something went wrong" dialog.
+            _loaded.Remove(tag);
+            ActivityLog.Result("Manage", $"{tag} failed to load: {ex.Message}");
+        }
         t.Done();
     }
 

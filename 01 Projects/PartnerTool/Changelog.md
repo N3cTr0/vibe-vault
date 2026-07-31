@@ -25,6 +25,45 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.17 - 2026-07-31
+Full-codebase bug sweep, prompted by the NUL byte found in 0.24.16. Two of the three real findings
+are the **same root cause as the 0.24.8 printer bug**: a WMI query with a column list returns a
+*partial instance* with an empty `__PATH`, and anything needing that path - `Delete()`,
+`InvokeMethod()`, `GetRelated()` - throws "Operation is not valid due to the current state of the
+object". Every one was inside a `catch { }`, so all three failed silently and showed a plausible
+wrong answer instead of an error.
+
+### Fixed
+- **BitLocker recovery keys never appeared - since the initial commit.** `GetRecoveryKeys()` queried
+  `SELECT DriveLetter`, then called `GetKeyProtectors` on the partial instance. It threw on every
+  volume, the per-volume `catch` swallowed it, and the window reported *"No BitLocker recovery key is
+  stored on this PC"* on machines that had one - the worst possible wrong answer, since a tech could
+  reasonably act on it. Now `SELECT *`, and the three catch blocks log instead of swallowing.
+- **Drive temperature, wear, power-on hours and error counts never appeared.** `HardwareInfo` queried
+  `SELECT FriendlyName, MediaType, ...` from `MSFT_PhysicalDisk` and then called `GetRelated` for the
+  reliability counter - same empty-path throw. Now `SELECT *`; the dev VM's NVMe reports 30°C, which
+  had never displayed.
+- **A failed Manage section stayed blank for the whole session.** `EnsureLoaded` marked the section
+  loaded *before* loading it (as a double-click guard), so a collector that threw left the tag marked
+  and no retry was possible. It now un-marks on failure and logs. `ShowSection` is `async void`, so
+  the same throw also reached the global "Something went wrong" dialog; it's caught now.
+- One em dash in `PartnerTool.csproj`.
+
+### Swept and clean
+NUL bytes and control characters across all 127 source files (only the csproj dash), `.NET` analyzers
+at `AnalysisMode=All` (the six flagged were deliberate: fallback `TryParse`s, a post-exit drain
+window, a `PowerSetActiveOverlayScheme` whose result the UI re-reads anyway), `.Result`/`.Wait()`
+deadlock risk (both uses are post-`WhenAll`), `async void` outside event handlers (all five are
+guarded), `Thread.Sleep` on the UI thread (all three are inside `Task.Run`), index and LINQ-aggregate
+hazards (all guarded), division by zero (all guarded, including battery wear), and every remaining
+`InvokeMethod`/`GetRelated`/`Delete` call site - `ServicesInfo` binds by full path with name
+validation, `AccountsInfo` and `SystemManagement` already use `SELECT *`.
+
+Not changed, noted only: six date formats in `ReportBuilder` use the literal `MM/dd/yyyy` rather than
+the `Dates` const. Output is identical and correct.
+
+---
+
 ## 0.24.16 - 2026-07-31
 
 ### Added
