@@ -53,8 +53,22 @@ source-path: PartnerTool\BitLockerWindow.xaml
                                                      TextWrapping="Wrap"/>
                                         </Border>
                                     </DockPanel>
+                                    <TextBlock x:Name="Backup" Text="{Binding Backup}" FontSize="11"
+                                               Foreground="#6C7086" Margin="0,7,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
+                            <DataTemplate.Triggers>
+                                <!-- A key held only on this disk is the one worth noticing: nobody can
+                                     retrieve it remotely, so it reads as a warning, not a footnote. -->
+                                <DataTrigger Binding="{Binding NotEscrowed}" Value="True">
+                                    <Setter TargetName="Backup" Property="Foreground" Value="#F9E2AF"/>
+                                    <Setter TargetName="Backup" Property="Text"
+                                            Value="⚠ Not backed up anywhere - this key exists only on this disk"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Backup}" Value="">
+                                    <Setter TargetName="Backup" Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

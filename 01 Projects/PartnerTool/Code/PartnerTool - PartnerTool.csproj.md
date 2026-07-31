@@ -17,7 +17,7 @@ source-path: PartnerTool\PartnerTool.csproj
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.24.17</Version>
+    <Version>0.24.18</Version>
     <!-- The exe techs get is the single-file publish (publish-singlefile.bat /
          build-installer.bat: PublishSingleFile + IncludeNativeLibrariesForSelfExtract),
          which the MSI installs to C:\PCI\PartnerTool as one file. -->

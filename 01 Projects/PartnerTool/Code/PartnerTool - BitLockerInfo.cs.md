@@ -11,7 +11,11 @@ using System.Management;
 
 namespace PartnerTool;
 
-public record BitLockerKey(string Drive, string Identifier, string RecoveryPassword);
+public record BitLockerKey(string Drive, string Identifier, string RecoveryPassword, string Backup)
+{
+    /// <summary>True when this key exists nowhere but the disk - nobody can retrieve it remotely.</summary>
+    public bool NotEscrowed => Backup == BitLockerInfo.NotBackedUp;
+}
 
 public static class BitLockerInfo
 {
@@ -21,6 +25,42 @@ public static class BitLockerInfo
     /// returns. Requires admin (the app runs elevated). Returns an empty list when none
     /// exist (drive unencrypted, or TPM-only with no recovery password) or on error.
     /// </summary>
+    public const string NotBackedUp = "Not backed up anywhere";
+
+    /// <summary>
+    /// Where a recovery password has been escrowed, from GetNumericalPasswordBackupType - the same
+    /// thing manage-bde prints as "Backup type". Worth showing per key: a machine often carries a
+    /// pre-enrolment protector that was never escrowed alongside the one Intune backed up, and only
+    /// the escrowed one can be retrieved by anyone not standing at the machine.
+    ///
+    /// Read through WMI rather than parsing manage-bde on purpose - ProcessRunner audit-logs command
+    /// output, and manage-bde prints the passwords themselves, which would put them in the activity
+    /// log and therefore in every diagnostics bundle.
+    /// </summary>
+    private static string BackupOf(ManagementObject vol, string id)
+    {
+        try
+        {
+            var inP = vol.GetMethodParameters("GetNumericalPasswordBackupType");
+            inP["VolumeKeyProtectorID"] = id;
+            var outP = vol.InvokeMethod("GetNumericalPasswordBackupType", inP, null);
+            if (outP is null || Convert.ToUInt32(outP["ReturnValue"]) != 0) return "";
+
+            uint t = Convert.ToUInt32(outP["BackupInfoType"]);
+            if (t == 0) return NotBackedUp;
+
+            var where = new List<string>();
+            if ((t & 1) != 0) where.Add("Active Directory");
+            if ((t & 2) != 0) where.Add("Microsoft account");
+            if ((t & 4) != 0) where.Add("Entra ID");
+            // Anything outside the three documented flags: say it's escrowed, but don't invent a
+            // name for it - a wrong label here is worse than an unspecific one.
+            if (where.Count == 0 || (t & ~7u) != 0) where.Add($"type {t}");
+            return "Escrowed to " + string.Join(", ", where);
+        }
+        catch { return ""; }
+    }
+
     /// <summary>
     /// Cheap "is this card worth showing" check. <see cref="GetRecoveryKeys"/> costs a
     /// GetKeyProtectors + GetKeyProtectorNumericalPassword round trip per volume per protector,
@@ -79,7 +119,8 @@ public static class BitLockerInfo
                                 keys.Add(new BitLockerKey(
                                     string.IsNullOrEmpty(drive) ? "-" : drive,
                                     id.Trim('{', '}'),
-                                    pwd));
+                                    pwd,
+                                    BackupOf(vol, id)));
                         }
                         catch (Exception ex) { ActivityLog.Result("BitLocker", $"key read failed on {drive}: {ex.Message}"); }
                     }

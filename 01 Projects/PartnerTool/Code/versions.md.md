@@ -25,6 +25,27 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.18 - 2026-07-31
+
+### Added
+- **Each BitLocker recovery key now says where it's escrowed.** SCALED-LT01 turned out to carry two
+  recovery passwords on C:, and `manage-bde` showed only one of them had a `Backup type` - the other
+  existed nowhere but that disk. Knowing which is which is the whole point of the screen: only the
+  escrowed key can be retrieved by anyone who isn't standing at the machine. Each row now reads
+  *"Escrowed to Entra ID"* / *"Active Directory"* / *"Microsoft account"*, or, in amber,
+  **"⚠ Not backed up anywhere - this key exists only on this disk"**.
+
+  Read via `Win32_EncryptableVolume.GetNumericalPasswordBackupType`, **not** by parsing `manage-bde`:
+  `ProcessRunner` audit-logs command output, and `manage-bde -protectors -get` prints the passwords
+  themselves, which would have put every recovery key into the activity log and therefore into every
+  diagnostics bundle - undoing the deliberate choice to keep them out.
+
+  `BackupInfoType` is a bitmask (1 = AD, 2 = Microsoft account, 4 = Entra ID). Anything outside those
+  three documented flags reports as "Escrowed to type N" rather than guessing a name - a wrong label
+  is worse than an unspecific one. A failed lookup hides the line instead of claiming anything.
+
+---
+
 ## 0.24.17 - 2026-07-31
 Full-codebase bug sweep, prompted by the NUL byte found in 0.24.16. Two of the three real findings
 are the **same root cause as the 0.24.8 printer bug**: a WMI query with a column list returns a
