@@ -11,7 +11,7 @@ source-path: PartnerTool\BitLockerWindow.xaml
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BitLocker Recovery Key"
-        Width="560" SizeToContent="Height" MaxHeight="640"
+        Width="600" SizeToContent="Height" MaxHeight="640"
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         Background="#1E1E2E" Icon="Resources/logo.ico">
 
@@ -43,14 +43,19 @@ source-path: PartnerTool\BitLockerWindow.xaml
                                                    Text="{Binding Identifier, StringFormat='ID {0}'}"/>
                                     </DockPanel>
                                     <DockPanel Margin="0,8,0,0">
+                                        <!-- Compact: the key needs the width more than the button does. -->
                                         <Button DockPanel.Dock="Right" Content="Copy" Margin="8,0,0,0"
                                                 Style="{StaticResource ActionButton}"
+                                                Padding="12,5" FontSize="11" VerticalAlignment="Center"
                                                 Tag="{Binding RecoveryPassword}" Click="Copy_Click"/>
                                         <Border Background="#11111B" CornerRadius="6" Padding="10,8">
+                                            <!-- NoWrap: a 48-digit key split over two lines is hard to read
+                                                 back to someone on the phone, which is what it's for. The
+                                                 window is sized to fit one line at this font. -->
                                             <TextBox Text="{Binding RecoveryPassword}" IsReadOnly="True"
                                                      BorderThickness="0" Background="Transparent"
                                                      Foreground="#A6E3A1" FontFamily="Consolas" FontSize="13"
-                                                     TextWrapping="Wrap"/>
+                                                     TextWrapping="NoWrap"/>
                                         </Border>
                                     </DockPanel>
                                     <TextBlock x:Name="Backup" Text="{Binding Backup}" FontSize="11"

@@ -25,6 +25,17 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.20 - 2026-08-01
+
+### Changed
+- **The BitLocker key window fits a recovery key on one line.** 560 px left the 48-digit key about
+  30 px short, so it wrapped - awkward to read back to someone on the phone, which is what the screen
+  is for. Window is 600 px, the Copy button is compact (51 px, was ~63), and the key box is
+  `NoWrap`. Measured rather than eyeballed: the key renders 393 px at Consolas 13 and the box now
+  gets 433 px, so it still fits with a scrollbar present.
+
+---
+
 ## 0.24.19 - 2026-07-31
 
 ### Changed
