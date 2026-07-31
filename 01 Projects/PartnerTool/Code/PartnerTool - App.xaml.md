@@ -146,6 +146,58 @@ source-path: PartnerTool\App.xaml
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <!-- ── Check box (dark theme) ──
+             Keyed so an explicitly-styled check box can pick it up with BasedOn, plus an implicit
+             style below so every other one in the app gets it without touching the call site.
+             A Grid (not a StackPanel) so wrapping content still wraps. -->
+        <Style x:Key="ThemedCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="box" Grid.Column="0" Width="16" Height="16" CornerRadius="4"
+                                    Background="#45475A" BorderBrush="#585B70" BorderThickness="1"
+                                    VerticalAlignment="Center" SnapsToDevicePixels="True">
+                                <Path x:Name="tick" Data="M 0,3.5 L 2.8,6.4 L 7.5,0.8"
+                                      Stroke="#1E1E2E" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" Visibility="Collapsed"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Margin="8,0,0,0" RecognizesAccessKey="True"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="box"  Property="Background"  Value="#CBA6F7"/>
+                                <Setter TargetName="box"  Property="BorderBrush" Value="#CBA6F7"/>
+                                <Setter TargetName="tick" Property="Visibility"  Value="Visible"/>
+                            </Trigger>
+                            <!-- Indeterminate: filled but unticked, so it reads as "not simply off" -->
+                            <Trigger Property="IsChecked" Value="{x:Null}">
+                                <Setter TargetName="box" Property="Background" Value="#585B70"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="box" Property="BorderBrush" Value="#CBA6F7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="CheckBox" BasedOn="{StaticResource ThemedCheck}"/>
+
         <!-- ── Drop-down (dark theme) ── -->
         <Style x:Key="ComboItem" TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="#CDD6F4"/>

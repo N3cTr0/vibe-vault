@@ -18,7 +18,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,12,0,4"/>
         </Style>
-        <Style x:Key="AppCheck" TargetType="CheckBox">
+        <Style x:Key="AppCheck" TargetType="CheckBox" BasedOn="{StaticResource ThemedCheck}">
             <Setter Property="Foreground" Value="#CDD6F4"/>
             <Setter Property="Width" Value="210"/>
             <Setter Property="Margin" Value="0,3"/>

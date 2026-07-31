@@ -25,6 +25,19 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.21 - 2026-08-01
+
+### Changed
+- **Themed check box.** The default Windows control was the last stock chrome left in the app - a
+  white box on a dark card. New `ThemedCheck`: a rounded `#45475A` box that fills mauve with a dark
+  tick when checked, mauve border on hover, 40% opacity when disabled. Defined once and applied
+  through an **implicit style**, so all ~50 check boxes across Software, Repair, Manage, Health
+  Check, Network, Disk Usage and Updates pick it up without touching a single call site;
+  `SoftwarePage`'s keyed `AppCheck` now inherits it with `BasedOn`. Built on a Grid rather than a
+  StackPanel so wrapping content still wraps.
+
+---
+
 ## 0.24.20 - 2026-08-01
 
 ### Changed
