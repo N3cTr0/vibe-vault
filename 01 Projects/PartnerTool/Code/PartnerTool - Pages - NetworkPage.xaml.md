@@ -283,7 +283,7 @@ source-path: PartnerTool\Pages\NetworkPage.xaml
                                 Style="{StaticResource ActionButton}" Click="SharesRefresh_Click"/>
                         <Button x:Name="BtnSharesOpen" DockPanel.Dock="Right" Content="Shared Folders"
                                 Style="{StaticResource ActionButton}" Margin="0,0,8,0" Click="OpenShares_Click"
-                                ToolTip="Open Shared Folders (fsmgmt.msc) - the Shares snap-in from Computer Management"/>
+                                ToolTip="Shared Folders (fsmgmt.msc) - the Shares snap-in."/>
                         <TextBlock Text="NETWORK SHARES" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBlock x:Name="TxtSharesStatus" Foreground="#6C7086" FontSize="11" Margin="0,2,0,6" TextWrapping="Wrap"/>

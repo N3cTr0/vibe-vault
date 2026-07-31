@@ -212,7 +212,7 @@ source-path: PartnerTool\Pages\SoftwarePage.xaml
                     <DockPanel Margin="0,0,0,8">
                         <Button x:Name="BtnSoftwareRefresh" DockPanel.Dock="Right" Content="Refresh"
                                 Style="{StaticResource ActionButton}" Click="SoftwareRefresh_Click"
-                                ToolTip="Re-read the installed-software list (e.g. after an uninstall)."/>
+                                ToolTip="Re-read the list after an uninstall."/>
                         <TextBlock x:Name="TxtCount" DockPanel.Dock="Right"
                                    Foreground="#6C7086" FontSize="11" VerticalAlignment="Center"
                                    Margin="0,0,10,0"/>

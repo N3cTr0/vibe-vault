@@ -146,6 +146,36 @@ source-path: PartnerTool\App.xaml
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <!-- ── Tooltip (dark theme) ──
+             Implicit, so it covers every ToolTip="..." in the app: WPF wraps a plain string in a
+             ToolTip control, which this then styles. TextWrapping on the presenter matters - the
+             stock tooltip is single-line, and several of ours are long enough to run off screen. -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="MaxWidth" Value="380"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="#181825" BorderBrush="#585B70" BorderThickness="1"
+                                CornerRadius="6" Padding="10,6" SnapsToDevicePixels="True">
+                            <ContentPresenter TextBlock.TextAlignment="Left"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <!-- Applies to the string case, which is nearly all of them. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ── Check box (dark theme) ──
              Keyed so an explicitly-styled check box can pick it up with BasedOn, plus an implicit
              style below so every other one in the app gets it without touching the call site.

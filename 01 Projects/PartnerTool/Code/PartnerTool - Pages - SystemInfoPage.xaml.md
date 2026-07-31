@@ -209,11 +209,11 @@ source-path: PartnerTool\Pages\SystemInfoPage.xaml
                             </TextBlock>
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Fast startup"  Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis">
-                                <Run x:Name="TxtPwrFast"/><Run Text="   "/><Hyperlink Click="ChangeStartupSettings_Click" Foreground="#89B4FA" ToolTip="Open 'Choose what the power buttons do' - fast startup + hibernation live here">(change)</Hyperlink>
+                                <Run x:Name="TxtPwrFast"/><Run Text="   "/><Hyperlink Click="ChangeStartupSettings_Click" Foreground="#89B4FA" ToolTip="Where fast startup and hibernation live.">(change)</Hyperlink>
                             </TextBlock>
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Hibernation"   Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2">
-                                <Run x:Name="TxtPwrHib"/><Run Text="   "/><Hyperlink Click="HibToggle_Click" Foreground="#89B4FA" ToolTip="Toggle hibernation directly (powercfg /hibernate). Turning it off also disables fast startup."><Run x:Name="LnkHibToggle" Text="(toggle)"/></Hyperlink>
+                                <Run x:Name="TxtPwrHib"/><Run Text="   "/><Hyperlink Click="HibToggle_Click" Foreground="#89B4FA" ToolTip="powercfg /hibernate. Turning it off also disables fast startup."><Run x:Name="LnkHibToggle" Text="(toggle)"/></Hyperlink>
                             </TextBlock>
                             <TextBlock Grid.Row="4" Grid.Column="0" Text="Sleep after"   Foreground="#6C7086" FontSize="11" Margin="0,2"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" Foreground="#CDD6F4" FontSize="11" Margin="0,2" TextTrimming="CharacterEllipsis">

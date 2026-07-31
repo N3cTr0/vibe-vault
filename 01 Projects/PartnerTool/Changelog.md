@@ -25,6 +25,19 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.22 - 2026-08-01
+
+### Changed
+- **Themed tooltips.** Implicit style, so every `ToolTip="..."` in the app gets it - WPF wraps a
+  plain string in a ToolTip control, which this styles. Dark rounded panel on `#181825` with the
+  same border as the drop-down popup, and **wrapping**, which the stock tooltip never did: several
+  of ours were long enough to run off the edge of the screen as one line.
+- **Every tooltip shortened**, keeping what it's for. The Device Manager one was 190 characters
+  explaining elevation twice; it's now 74. 30 rewritten across System Shortcuts (23 of them),
+  Manage, Network, Repair, Software and System Info. Longest is now ~90 characters, was ~190.
+
+---
+
 ## 0.24.21 - 2026-08-01
 
 ### Changed

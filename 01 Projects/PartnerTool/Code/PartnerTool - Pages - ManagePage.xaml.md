@@ -138,7 +138,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                     <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <Button x:Name="BtnOpenTaskSched" DockPanel.Dock="Right" Content="Task Scheduler"
                             Style="{StaticResource ActionButton}" Margin="8,0,0,0" Click="OpenTaskScheduler_Click"
-                            ToolTip="Open Windows Task Scheduler (taskschd.msc) - to edit, create or delete a task"/>
+                            ToolTip="Task Scheduler (taskschd.msc) - to edit or delete a task."/>
                     <Border Background="#45475A" CornerRadius="6" Padding="10,0">
                         <TextBox x:Name="TxtTaskSearch" Foreground="#CDD6F4" FontSize="12"
                                  BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="TaskSearch_TextChanged">

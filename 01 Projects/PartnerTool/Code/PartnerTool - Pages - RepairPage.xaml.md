@@ -376,7 +376,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                  Updates tab's UPDATE SOURCE card for what is currently set. -->
                             <CheckBox x:Name="ChkWuSource" Margin="0,8,0,0" Foreground="#CDD6F4" FontSize="11"
                                       Content="Also reset the update source back to Windows Update (online)"
-                                      ToolTip="Clears WUServer / UseWUServer, DoNotConnectToWindowsUpdateInternetLocations and NoAutoUpdate / AUOptions"/>
+                                      ToolTip="Clears the WSUS redirect and the update-blocking policy values."/>
                             <TextBlock Text="Use when UPDATE SOURCE points at a dead WSUS server - the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM is untouched, and a live domain GPO will put it back at the next refresh."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="24,3,0,0"/>
                             <TextBlock x:Name="TxtWuStatus" FontSize="11" Margin="0,4,0,0"/>
