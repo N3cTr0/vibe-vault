@@ -25,6 +25,33 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.16 - 2026-07-31
+
+### Added
+- **Task Scheduler button** on Manage ▸ Scheduled Tasks, beside the search box. The tool lists tasks
+  read-only, so editing, creating and deleting go to Windows' own console. `taskschd.msc` is pinned
+  to System32 by absolute path, as with the other `.msc` launches.
+
+### Changed
+- **User Profiles lists only what's in the profiles folder.** `Win32_UserProfile` also returns
+  service-account profiles under `%windir%\ServiceProfiles` (SCALED-LT01's `IntelTelemetryAgent` in
+  0.24.12) - only the three built-in ones carry `Special=True`, so third-party ones looked like
+  people. Now filtered to the profiles directory, read from `ProfileList\ProfilesDirectory` rather
+  than hardcoding `C:\Users`, since it can be relocated. The delete guard stays as it is.
+- **Every card description shortened.** They had grown into documentation - the Windows Installer
+  cleanup one ran to 90 words. Cut to what a tech needs at a glance, keeping every warning intact
+  (Windows.old is PERMANENT, the network reset drops the remote session, capping VSS discards
+  restore points, removing a built-in printer breaks printing for everyone). 26 descriptions across
+  Repair, Network, Manage, Updates, Health Check, Processes, Disk Usage, Security, SMART and Settings.
+
+### Fixed
+- **A NUL byte in `SystemManagement.cs`.** Left by earlier byte-level editing, inside the string
+  literal on the signed-in-SID delete guard, where it was harmless at runtime (`?? "\0"` instead of
+  `?? ""`). But it made the source file register as *binary* to grep and diff - the same class of bug
+  the tool caught in a customer's report in 0.24.12, this time in our own tree.
+
+---
+
 ## 0.24.15 - 2026-07-31
 
 ### Added

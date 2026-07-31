@@ -24,7 +24,7 @@ source-path: PartnerTool\SmartWindow.xaml
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="SMART DETAILS" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-            <TextBlock Text="Full self-monitoring attribute table for SATA/ATA drives (CrystalDiskInfo-style). NVMe drives don't expose this table - their temperature, wear and power-on hours are on the System Info page."
+            <TextBlock Text="The full SMART attribute table for SATA/ATA drives. NVMe drives don't expose it - their health is on the System Info page."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 
@@ -91,7 +91,7 @@ source-path: PartnerTool\SmartWindow.xaml
                 </ItemsControl>
 
                 <TextBlock x:Name="TxtEmpty" Foreground="#9399B2" FontSize="12" TextWrapping="Wrap" Visibility="Collapsed"
-                           Text="No SATA/ATA SMART tables are available on this machine. NVMe drives don't expose the classic attribute table - their temperature, wear and power-on hours are shown on the System Info page under Storage."/>
+                           Text="No SATA/ATA SMART tables on this machine. NVMe drives don't expose one - their health is on the System Info page under Storage."/>
             </StackPanel>
         </ScrollViewer>
 

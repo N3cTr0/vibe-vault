@@ -135,7 +135,11 @@ source-path: PartnerTool\Pages\ManagePage.xaml
             <!-- SCHEDULED TASKS -->
             <Border x:Name="SecTasks" Style="{StaticResource Card}" Visibility="Collapsed">
                 <DockPanel>
-                    <Border DockPanel.Dock="Top" Background="#45475A" CornerRadius="6" Padding="10,0" Margin="0,0,0,8">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Button x:Name="BtnOpenTaskSched" DockPanel.Dock="Right" Content="Task Scheduler"
+                            Style="{StaticResource ActionButton}" Margin="8,0,0,0" Click="OpenTaskScheduler_Click"
+                            ToolTip="Open Windows Task Scheduler (taskschd.msc) - to edit, create or delete a task"/>
+                    <Border Background="#45475A" CornerRadius="6" Padding="10,0">
                         <TextBox x:Name="TxtTaskSearch" Foreground="#CDD6F4" FontSize="12"
                                  BorderThickness="0" Height="30" VerticalContentAlignment="Center" TextChanged="TaskSearch_TextChanged">
                             <TextBox.Style>
@@ -161,6 +165,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                             </TextBox.Style>
                         </TextBox>
                     </Border>
+                    </DockPanel>
                     <TextBlock DockPanel.Dock="Top" x:Name="TxtTasksStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
                     <ListBox x:Name="LstTasks" Style="{StaticResource PlainList}">
                         <ListBox.ItemTemplate>
@@ -258,7 +263,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                         <TextBlock Text="PRINTERS" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBlock DockPanel.Dock="Top" Foreground="#6C7086" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"
-                               Text="Tick the printers to remove, then use Remove Selected. Windows' own Print to PDF, XPS Document Writer and Fax have no tick box - deleting those breaks printing for every user and they only come back through Optional Features."/>
+                               Text="Tick the printers to remove, then Remove Selected. Windows' own Print to PDF, XPS and Fax have no tick box - removing those breaks printing for everyone."/>
                     <TextBlock DockPanel.Dock="Top" x:Name="TxtPrintersStatus" Foreground="#6C7086" FontSize="11" Margin="0,0,0,6"/>
                     <ListBox x:Name="LstPrinters" Style="{StaticResource PlainList}">
                         <ListBox.ItemTemplate>
@@ -345,7 +350,7 @@ source-path: PartnerTool\Pages\ManagePage.xaml
                                     Padding="16,4" Click="EnvAdd_Click"/>
                         </Grid>
                         <TextBlock x:Name="TxtEnvStatus" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                        <TextBlock Text="System scope applies to all users and needs the change to be re-read by new processes (already-open apps keep the old value)."
+                        <TextBlock Text="System scope applies to all users. Already-open apps keep the old value until restarted."
                                    FontSize="10" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <Rectangle Style="{StaticResource RowDivider}" Margin="0,10,0,0"/>
                     </StackPanel>

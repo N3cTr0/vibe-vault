@@ -76,7 +76,7 @@ source-path: PartnerTool\Pages\HealthCheckPage.xaml
         <StackPanel Margin="20,16,20,16">
 
             <TextBlock Text="HEALTH CHECK" Style="{StaticResource CardTitle}"/>
-            <TextBlock Text="One scan of everything the tool already checks - junk, disk, updates, security, stability - with a score and one-click fixes for the safe items. No registry cleaning or fake tune-ups."
+            <TextBlock Text="One scan of everything the tool checks - junk, disk, updates, security, stability - scored, with one-click fixes for the safe items."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,12"/>
 
             <!-- Score ring (click to scan / rescan) -->

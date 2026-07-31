@@ -22,7 +22,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#1E1E2E">
         <StackPanel Margin="20,16,20,16">
 
-            <TextBlock Text="Each source below is scanned automatically when this tab opens (can take a minute). Its status and its “Open” button live together - use Update All to run everything at once."
+            <TextBlock Text="Every source is scanned when this tab opens (can take a minute). Update All runs them in sequence."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="2,0,2,12"/>
 
             <!-- WINDOWS UPDATE: where this PC gets updates, the policies steering it, then what is
@@ -177,7 +177,7 @@ source-path: PartnerTool\Pages\UpdatesPage.xaml
                                 Visibility="Collapsed" Click="CancelUpdate_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="UPDATE ALL" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Sequentially runs: Windows Defender signatures, Windows Update, manufacturer drivers (Dell/Lenovo/HP), all apps via winget, Microsoft Store apps, then launches the Microsoft Office updater (which opens its own progress window)."
+                            <TextBlock Text="Runs in order: Defender signatures, Windows Update, manufacturer drivers, winget apps, Store apps, then the Office updater (its own window)."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtUpdateAllSummary" FontSize="11" Foreground="#F9E2AF"
                                        TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed"/>

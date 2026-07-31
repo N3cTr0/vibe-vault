@@ -44,7 +44,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="QUICK FIXES" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="One-click fixes and quick housekeeping. Empty the recycle bin, fix the print spooler, or restart Explorer/Audio. For temp files, use Clean Temp Files (All Users) below - it has a Scan preview. No reboot unless noted."
+                    <TextBlock Text="One-click fixes. No reboot unless noted."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,0,10"/>
                     <WrapPanel>
                         <Button x:Name="BtnEmptyBin"        Content="Empty Recycle Bin"     Style="{StaticResource MaintBtn}" Click="EmptyBin_Click"/>
@@ -127,7 +127,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                             Style="{StaticResource ActionButton}" VerticalAlignment="Top" Click="CollectDiag_Click"/>
                     <StackPanel Margin="0,0,16,0">
                         <TextBlock Text="COLLECT DIAGNOSTICS" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Bundles everything the tool collects into a single .zip - an HTML report, a text summary and the tool's own logs. Great as an 'as-found' record of a PC before you rebuild or replace it."
+                        <TextBlock Text="Everything the tool collects in one .zip - HTML report, text summary and the tool's logs."
                                    FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtCollectStatus" FontSize="11" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -148,7 +148,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 Visibility="Collapsed" Click="CancelServicing_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="ADVANCED CLEANUP (WinSxS + WMI)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Analyzes and shrinks the component store (DISM StartComponentCleanup) and verifies / salvages the WMI repository. Frees disk space and repairs the WMI store that powers system queries. No reboot required."
+                            <TextBlock Text="Shrinks the component store (DISM StartComponentCleanup) and verifies the WMI repository. Frees space, no reboot."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtCleanupStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
@@ -204,7 +204,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="CLEAN TEMP FILES (ALL USERS)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Scan first to see how much space these folders are using, then Clean to delete them. Covers the temp/cache folders for every user profile plus the system temp: AppData\Local\Temp, CrashDumps, Windows Error Reporting, INetCache, D3DSCache, the RDP client cache, and C:\Windows\Temp. Keeps the folders, skips files in use, and won't follow junctions. Does NOT touch browser caches, the Office document cache, or any documents."
+                            <TextBlock Text="Temp and cache folders for every profile plus the system temp. Scan first. Skips files in use; leaves browser caches, the Office cache and documents alone."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtCleanTempStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
@@ -228,7 +228,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="DELL SUPPORTASSIST (SYSTEM REPAIR)" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Dell's OS Recovery keeps repair snapshots in C:\ProgramData\Dell\SARemediation - 15 GB reserved by default, but a known purge bug can grow it past 100 GB. Dell's guidance is NOT to delete that folder by hand (it breaks OS Recovery): turn System Repair off in SupportAssist and it purges itself on the next reboot. Separately, Dell KB 000129138: VSS ships with no size limit, so shadow copies can silently eat the drive. Capping shadow storage is Dell's own fix - ⚠ it discards existing System Restore points."
+                            <TextBlock Text="Dell OS Recovery snapshots can grow past 100 GB (known purge bug). Don't delete the folder by hand - turn System Repair off in SupportAssist and it purges on the next reboot. Capping VSS shadow storage is Dell's own fix (KB 000129138) - ⚠ it discards existing System Restore points."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtDellStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -252,7 +252,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                         </StackPanel>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="FEATURE-UPDATE LEFTOVERS" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Reclaims the big space Windows Disk Cleanup targets that the temp cleaner doesn't: the previous-Windows rollback image and upgrade staging (Windows.old, $Windows.~BT, $Windows.~WS, $GetCurrent) plus the Delivery Optimization peer cache. Often 15-30 GB after a feature update. Scan first to see what's present. ⚠ Removing Windows.old and the staging folders is PERMANENT and ends the ~10-day 'go back to the previous Windows' option."
+                            <TextBlock Text="Windows.old, upgrade staging and the Delivery Optimization cache - often 15-30 GB after a feature update. Scan first. ⚠ Removal is PERMANENT and ends the ~10-day 'go back to the previous Windows' option."
                                        FontSize="11" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtFeatUpdStatus" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -273,7 +273,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 Style="{StaticResource ActionButton}" VerticalAlignment="Top" Click="RemoveOfficeLangs_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="OFFICE LANGUAGE PACKS" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Removes every non-English Microsoft 365 / Office (Click-to-Run) language pack and keeps English (all en-* variants). Scans the installed languages, lists exactly what it will remove for confirmation, then uninstalls each one silently using its own Office uninstaller. Office apps are closed during removal. No reboot required."
+                            <TextBlock Text="Removes every non-English Office (Click-to-Run) language pack, keeping all en-* variants. Lists what it will remove first. Office apps close during removal; no reboot."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <TextBlock x:Name="TxtOfficeLangStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>
@@ -290,7 +290,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="PROXY / AUTO-DETECT (WPAD)" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Fixes Office/Outlook connectivity when a firewall (e.g. SonicWall) clears Internet Options ▸ LAN ▸ &quot;Automatically detect settings&quot;. Toggling it off→on re-runs WPAD auto-discovery; resetting the WinHTTP proxy clears a stale system proxy that can also break Outlook/Teams. Applies to the signed-in user."
+                    <TextBlock Text="Fixes Outlook/Office connectivity after a firewall clears Internet Options ▸ LAN ▸ &quot;Automatically detect settings&quot;. Reset WinHTTP clears a stale system proxy. Signed-in user only."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <WrapPanel>
                         <Button x:Name="BtnFixWpad" Content="Re-enable Auto-Detect (WPAD)" Style="{StaticResource MaintBtn}" Click="FixWpad_Click"/>
@@ -312,7 +312,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 Visibility="Collapsed" Click="CancelServicing_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="SYSTEM FILE &amp; IMAGE REPAIR" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Runs the standard no-reboot repair sequence: DISM CheckHealth → ScanHealth → RestoreHealth, then SFC /scannow. DISM runs first on purpose - SFC repairs system files from the component store that DISM restores. This can take 15-40 minutes; each step shows live progress and elapsed time."
+                            <TextBlock Text="DISM CheckHealth → ScanHealth → RestoreHealth, then SFC /scannow - DISM first, so SFC repairs from a good component store. 15-40 minutes, with live progress. No reboot."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                         </StackPanel>
                     </DockPanel>
@@ -344,7 +344,7 @@ source-path: PartnerTool\Pages\RepairPage.xaml
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="WINDOWS INSTALLER CLEANUP (ADOBE)" Style="{StaticResource CardTitle}"/>
-                    <TextBlock Text="Reclaims space from C:\Windows\Installer when Adobe Acrobat/Reader (or another app) leaves orphaned patch files behind - a known bug that can bloat that hidden folder to tens or hundreds of GB. It asks Windows Installer which cached .msi/.msp files are still needed and removes ONLY files no installed product references (so repair/uninstall of installed apps is unaffected); if that list can't be read it aborts. 'Prevent recurrence' sets Adobe's PatchCleanFlag so its updater cleans up going forward. Scan is a read-only preview; cleaning is tech-gated and every file is logged."
+                    <TextBlock Text="Reclaims C:\Windows\Installer space when Adobe (or another app) orphans patch files - that hidden folder can reach hundreds of GB. Removes only files no installed product references, and aborts if it can't read that list. Prevent Recurrence sets Adobe's PatchCleanFlag. Scan is read-only."
                                FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,8"/>
                     <WrapPanel>
                         <Button x:Name="BtnScanInstaller"  Content="1. Scan (preview)"                 Style="{StaticResource MaintBtn}" Click="ScanInstaller_Click"/>
@@ -370,14 +370,14 @@ source-path: PartnerTool\Pages\RepairPage.xaml
                                 Click="WuReset_Click"/>
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock Text="WINDOWS UPDATE RESET" Style="{StaticResource CardTitle}"/>
-                            <TextBlock Text="Stops the update services and clears the SoftwareDistribution and catroot2 caches, then restarts them. Fixes stuck Windows Update / Microsoft Store downloads. No reboot required."
+                            <TextBlock Text="Clears the SoftwareDistribution and catroot2 caches and restarts the update services. Fixes stuck Windows Update / Store downloads. No reboot."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                             <!-- Opt-in: clears the WSUS redirect / update-blocking policies. See the
                                  Updates tab's UPDATE SOURCE card for what is currently set. -->
                             <CheckBox x:Name="ChkWuSource" Margin="0,8,0,0" Foreground="#CDD6F4" FontSize="11"
                                       Content="Also reset the update source back to Windows Update (online)"
                                       ToolTip="Clears WUServer / UseWUServer, DoNotConnectToWindowsUpdateInternetLocations and NoAutoUpdate / AUOptions"/>
-                            <TextBlock Text="Use when UPDATE SOURCE on the Updates tab points at a WSUS server that is dead or no longer used - the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM policies are not touched, and if a live domain GPO sets these, the next policy refresh will put them back."
+                            <TextBlock Text="Use when UPDATE SOURCE points at a dead WSUS server - the usual cause of &quot;we couldn't connect to the update service&quot;. Intune/MDM is untouched, and a live domain GPO will put it back at the next refresh."
                                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="24,3,0,0"/>
                             <TextBlock x:Name="TxtWuStatus" FontSize="11" Margin="0,4,0,0"/>
                         </StackPanel>

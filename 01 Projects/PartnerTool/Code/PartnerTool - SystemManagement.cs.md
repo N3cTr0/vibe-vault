@@ -127,9 +127,29 @@ public static class SystemManagement
     }
 
     // ── User profiles ─────────────────────────────────────────
+    /// <summary>
+    /// Where real user profiles live - C:\Users on a normal machine, but it can be relocated, so
+    /// read it rather than hardcoding. Service-account profiles (%windir%\ServiceProfiles) and any
+    /// other Win32_UserProfile entry pointing outside this folder are not a tech's user profiles.
+    /// </summary>
+    private static string ProfilesRoot()
+    {
+        try
+        {
+            using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList");
+            if (k?.GetValue("ProfilesDirectory") as string is { Length: > 0 } raw)
+                return Environment.ExpandEnvironmentVariables(raw).TrimEnd('\\');
+        }
+        catch { }
+        return System.IO.Path.Combine(
+            System.IO.Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\", "Users").TrimEnd('\\');
+    }
+
     public static List<UserProfileItem> UserProfiles()
     {
         var list = new List<UserProfileItem>();
+        var root = ProfilesRoot() + "\\";
 
         // The account running this tool - never offer to delete its own profile.
         string currentSid = "";
@@ -144,6 +164,7 @@ public static class SystemManagement
             {
                 var path = o["LocalPath"]?.ToString();
                 if (string.IsNullOrEmpty(path)) continue;
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
                 DateTime? last = null;
                 try { if (o["LastUseTime"] != null) last = ManagementDateTimeConverter.ToDateTime(o["LastUseTime"].ToString()); }
                 catch { }
@@ -179,7 +200,7 @@ public static class SystemManagement
         // inference; this is explicit, and deleting the running user's profile is unrecoverable.
         try
         {
-            if (sid == (System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? " "))
+            if (sid == (System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value ?? ""))
                 return (false, "That's the profile you're signed in with - refused.");
         }
         catch { }

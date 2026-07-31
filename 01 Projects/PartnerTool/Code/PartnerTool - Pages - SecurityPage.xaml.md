@@ -183,7 +183,7 @@ source-path: PartnerTool\Pages\SecurityPage.xaml
                                     Click="BitLocker_Click"/>
                             <StackPanel>
                                 <TextBlock Text="BITLOCKER RECOVERY KEY" Style="{StaticResource CardTitle}"/>
-                                <TextBlock Text="Reveal the 48-digit BitLocker recovery key(s) for this machine's drives - for unlocking a drive after a TPM/hardware change. Keys are read on demand and only shown when you click."
+                                <TextBlock Text="The 48-digit recovery key(s) for this machine's drives - for unlocking after a TPM or hardware change. Read on demand, only when you click."
                                            FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,0,12,0"/>
                             </StackPanel>
                         </DockPanel>

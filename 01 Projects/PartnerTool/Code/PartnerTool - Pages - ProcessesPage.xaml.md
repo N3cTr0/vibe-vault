@@ -52,7 +52,7 @@ source-path: PartnerTool\Pages\ProcessesPage.xaml
                                FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <StackPanel>
                         <TextBlock Text="PROCESSES" Style="{StaticResource CardTitle}"/>
-                        <TextBlock Text="Live view of every running process - refreshes every 2 seconds. CPU is across all cores; Disk is that process's read+write rate. (Per-process network needs Windows' ETW tracing, so Task Manager's Network column isn't shown.)"
+                        <TextBlock Text="Every running process, refreshed every 2 seconds. CPU is across all cores; Disk is read+write rate. No network column - that needs ETW tracing."
                                    FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </StackPanel>
                 </DockPanel>

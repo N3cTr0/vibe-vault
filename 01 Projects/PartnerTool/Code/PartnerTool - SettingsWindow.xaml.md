@@ -41,7 +41,7 @@ source-path: PartnerTool\SettingsWindow.xaml
                 <TextBlock Text="Delete logs in C:\PCI\Logs older than (days)" Foreground="#CDD6F4"
                            FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
             </DockPanel>
-            <TextBlock Text="Runs at every startup. 1-365 days; default 30. The activity log survives as long as the tool is in regular use."
+            <TextBlock Text="Runs at every startup. 1-365 days, default 30. The activity log is kept."
                        Foreground="#6C7086" FontSize="10" TextWrapping="Wrap"/>
             <DockPanel Margin="0,10,0,0">
                 <Button DockPanel.Dock="Right" x:Name="BtnPurgeLogs" Content="Purge Now"

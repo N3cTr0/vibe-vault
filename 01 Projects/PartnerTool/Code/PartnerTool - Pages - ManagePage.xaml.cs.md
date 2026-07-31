@@ -307,6 +307,25 @@ public partial class ManagePage : UserControl
             : $"{shown.Count} of {_allDrivers.Count} drivers{suffix}";
     }
 
+    // The tool lists tasks read-only; editing, creating and deleting stay in Windows' own console.
+    // Pinned to System32 so a planted taskschd.msc in a writable working dir can't be opened instead.
+    private void OpenTaskScheduler_Click(object sender, RoutedEventArgs e)
+    {
+        var console = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "taskschd.msc");
+        try
+        {
+            ActivityLog.Action("Manage", "Open Task Scheduler (taskschd.msc)");
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(console) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show("Task Scheduler", "Couldn't open Task Scheduler",
+                ex.Message, MessageKind.Warning, Window.GetWindow(this));
+        }
+    }
+
     // ── Hosts ────────────────────────────────────────────────
     private void HostsReload_Click(object sender, RoutedEventArgs e)
     {
