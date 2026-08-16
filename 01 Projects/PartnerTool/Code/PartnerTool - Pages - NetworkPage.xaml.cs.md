@@ -280,9 +280,11 @@ public partial class NetworkPage : UserControl
         TxtWifiScanStatus.Text = "Scanning for nearby Wi-Fi networks…";
         try
         {
-            var nets = await NetTools.WifiScanAsync();
-            IcWifiScan.ItemsSource = nets;
-            TxtWifiScanStatus.Text = nets.Count > 0 ? $"{nets.Count} network(s) found:" : "No networks found (Wi-Fi adapter off?).";
+            var scan = await NetTools.WifiScanAsync();
+            IcWifiScan.ItemsSource = scan.Networks;
+            TxtWifiScanStatus.Text = scan.Networks.Count > 0
+                ? $"{scan.Networks.Count} network(s) found:"
+                : scan.Note;
         }
         catch (Exception ex) { TxtWifiScanStatus.Text = ex.Message; }
         finally { _netBusy = false; BtnWifiScan.IsEnabled = true; }

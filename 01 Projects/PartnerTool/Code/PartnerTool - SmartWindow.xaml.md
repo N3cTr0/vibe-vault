@@ -24,7 +24,7 @@ source-path: PartnerTool\SmartWindow.xaml
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="SMART DETAILS" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-            <TextBlock Text="The full SMART attribute table for SATA/ATA drives. NVMe drives don't expose it - their health is on the System Info page."
+            <TextBlock Text="The full SMART attribute table for SATA/ATA drives. Current, Worst and Thresh are normalised scores where HIGHER is healthier and they start at 100 - a column of 100s is a healthy drive, not a placeholder. Raw is the real measurement (hours, counts, °C). NVMe drives don't expose this table; their health is on the System Info page."
                        FontSize="11" Foreground="#6C7086" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 

@@ -467,10 +467,10 @@ public partial class SystemInfoPage : UserControl
                          : $"● {fwOff} profile(s) disabled";
         TxtFw.Foreground = fwOff == 0 ? StatusColors.Green : StatusColors.Red;
 
+        // Yellow, not red, for "Not encrypted" - matching the hardening scorecard, which grades it
+        // Warn. The two screens disagreeing on the same fact is worse than either colour choice.
         TxtBl.Text       = $"● {sec.BitLocker}";
-        TxtBl.Foreground = sec.BitLocker == "Encrypted" ? StatusColors.Green
-                         : sec.BitLocker == "Requires admin" ? StatusColors.Yellow
-                         : StatusColors.Red;
+        TxtBl.Foreground = sec.BitLocker == "Encrypted" ? StatusColors.Green : StatusColors.Yellow;
 
         TxtAct.Text       = sec.Activated == true  ? "● Activated"
                           : sec.Activated == false ? "● Not activated"

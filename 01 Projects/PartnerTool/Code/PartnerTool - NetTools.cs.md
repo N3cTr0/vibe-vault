@@ -16,6 +16,9 @@ namespace PartnerTool;
 
 public record WifiNetwork(string Ssid, string Signal, string Radio, string Channel, string Auth);
 
+/// <summary>Nearby networks plus, when there are none, the actual reason.</summary>
+public record WifiScanResult(List<WifiNetwork> Networks, string Note);
+
 /// <summary>
 /// On-demand network diagnostic helpers: traceroute, DNS lookup, TCP port check, nearby
 /// Wi-Fi scan and a quick download speed test. All best-effort and self-contained.
@@ -122,25 +125,53 @@ public static class NetTools
 
     private static bool ValidPort(string s, out int port) => int.TryParse(s, out port) && port is >= 1 and <= 65535;
 
-    public static async Task<List<WifiNetwork>> WifiScanAsync()
+    /// <summary>
+    /// Nearby networks, plus why the list is empty when it is. "No networks found (adapter off?)"
+    /// was a guess, and usually the wrong one: since Windows 11, netsh reports **zero** visible
+    /// networks when Location is turned off, even on a PC that is connected to Wi-Fi right then.
+    /// </summary>
+    public static async Task<WifiScanResult> WifiScanAsync()
     {
         var list = new List<WifiNetwork>();
+        string text;
+        try { text = await ProcessRunner.RunCaptureAsync("netsh.exe", "wlan show networks mode=bssid", 15000); }
+        catch (Exception ex) { return new(list, "Scan failed: " + ex.Message); }
+
+        // Each SSID block: "SSID 1 : Name" then Authentication, then "Signal", "Radio type", "Channel".
+        var blocks = Regex.Split(text, @"\r?\nSSID \d+ : ");
+        foreach (var block in blocks.Skip(1))
+        {
+            var ssid = block.Split('\n')[0].Trim();
+            string F(string key) => Regex.Match(block, $@"{Regex.Escape(key)}\s*:\s*(.+)", RegexOptions.IgnoreCase)
+                is { Success: true } m ? m.Groups[1].Value.Trim() : "";
+            list.Add(new WifiNetwork(ssid.Length > 0 ? ssid : "(hidden)",
+                F("Signal"), F("Radio type"), F("Channel"), F("Authentication")));
+        }
+        if (list.Count > 0) return new(list, "");
+
+        if (text.Contains("wireless interface", StringComparison.OrdinalIgnoreCase) &&
+            text.Contains("not", StringComparison.OrdinalIgnoreCase))
+            return new(list, "No wireless adapter is available on this PC.");
+        if (text.Contains("service is not running", StringComparison.OrdinalIgnoreCase))
+            return new(list, "The WLAN AutoConfig service (wlansvc) isn't running - start it and scan again.");
+        if (!LocationAllowed())
+            return new(list, "Windows returned no networks because Location is off. Wi-Fi scanning needs it " +
+                             "(Settings ▸ Privacy & security ▸ Location) - with it off netsh reports zero " +
+                             "networks even while connected.");
+        return new(list, "Windows reported no visible networks.");
+    }
+
+    /// <summary>Machine-wide Location consent - the usual reason a Wi-Fi scan comes back empty.</summary>
+    private static bool LocationAllowed()
+    {
         try
         {
-            var text = await ProcessRunner.RunCaptureAsync("netsh.exe", "wlan show networks mode=bssid", 15000);
-            // Each SSID block: "SSID 1 : Name" then Authentication, then "Signal", "Radio type", "Channel".
-            var blocks = Regex.Split(text, @"\r?\nSSID \d+ : ");
-            foreach (var block in blocks.Skip(1))
-            {
-                var ssid = block.Split('\n')[0].Trim();
-                string F(string key) => Regex.Match(block, $@"{Regex.Escape(key)}\s*:\s*(.+)", RegexOptions.IgnoreCase)
-                    is { Success: true } m ? m.Groups[1].Value.Trim() : "";
-                list.Add(new WifiNetwork(ssid.Length > 0 ? ssid : "(hidden)",
-                    F("Signal"), F("Radio type"), F("Channel"), F("Authentication")));
-            }
+            using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location");
+            return k?.GetValue("Value") as string is not { } v ||
+                   v.Equals("Allow", StringComparison.OrdinalIgnoreCase);
         }
-        catch { }
-        return list;
+        catch { return true; }   // can't tell - don't claim it's the cause
     }
 
     /// <summary>Rough download speed (Mbps) by pulling a sized payload from Cloudflare.</summary>

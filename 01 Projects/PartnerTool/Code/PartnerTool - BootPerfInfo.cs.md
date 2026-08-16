@@ -13,7 +13,7 @@ using System.Xml.Linq;
 namespace PartnerTool;
 
 public record BootTime(DateTime When, double Seconds);
-public record BootContributor(string Kind, string Name, double Seconds);
+public record BootContributor(string Kind, string Name, double Seconds, DateTime When);
 
 /// <summary>
 /// Boot-performance data from the Microsoft-Windows-Diagnostics-Performance/Operational
@@ -63,12 +63,25 @@ public class BootPerfInfo
                         double.TryParse(D("TotalTime"), out var t);
                         if (t == 0) double.TryParse(D("Time"), out t);
                         if (!string.IsNullOrWhiteSpace(name))
-                            info.Contributors.Add(new BootContributor(kind, name.Trim(), Math.Round(t / 1000.0, 1)));
+                            info.Contributors.Add(new BootContributor(
+                                kind, name.Trim(), Math.Round(t / 1000.0, 1), rec.TimeCreated ?? DateTime.MinValue));
                     }
 
                     if (info.BootTimes.Count >= 10 && info.Contributors.Count >= 25) break;
                 }
 
+            // Keep only the items Windows logged for the boot shown in the header. The log holds
+            // degradation events for every boot it has kept, so listing them all put a 119.7 s
+            // contributor under a 108.5 s boot - from a different day. Windows writes 101/102/103
+            // right after that boot's event 100, so a short window either side of it isolates them.
+            if (info.BootTimes.Count > 0)
+            {
+                var latest = info.BootTimes[0].When;
+                var window = TimeSpan.FromMinutes(15);
+                var sameBoot = info.Contributors
+                    .Where(c => (c.When - latest).Duration() <= window).ToList();
+                info.Contributors = sameBoot;
+            }
             info.Contributors = info.Contributors.OrderByDescending(c => c.Seconds).Take(20).ToList();
         }
         catch { /* log disabled or inaccessible */ }

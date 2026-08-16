@@ -10,6 +10,7 @@ source-path: PartnerTool\App.xaml
 <Application x:Class="PartnerTool.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pt="clr-namespace:PartnerTool"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
 
@@ -144,6 +145,13 @@ source-path: PartnerTool\App.xaml
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="Margin" Value="0,0,8,8"/>
             <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Wheel chaining everywhere: a WPF ScrollViewer eats the wheel even when it can't move,
+             so a list inside a page froze the page as soon as the pointer was over it. Implicit, so
+             it covers every scroller in the app including the popup windows. -->
+        <Style TargetType="ScrollViewer">
+            <Setter Property="pt:ScrollChaining.Enabled" Value="True"/>
         </Style>
 
         <!-- ── Tooltip (dark theme) ──

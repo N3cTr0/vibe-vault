@@ -25,6 +25,44 @@ together). Keep this file newest-first.
 
 ---
 
+## 0.24.24 - 2026-08-03
+From a tech's first pass over the tool on QUINTON_HEROLDT. Four of the seven were real defects.
+
+### Fixed
+- **Live Stats disk sat at 100%.** It read `PercentDiskTime` from the `_Total` instance, which
+  **sums across every physical disk** - a two-disk machine returns 150%+ and the clamp pinned it to
+  a permanent 100%, which is why it disagreed with Top Processes showing ~0 MB/s. Now the busiest
+  single disk, the same "active time" Task Manager shows per drive. (The two numbers still measure
+  different things - busy time vs throughput - so a disk *can* legitimately be at 100% with almost
+  no MB/s when the queue is full of small I/O.)
+- **Boot contributors came from other boots.** The header showed 108.5 s while the top contributor
+  read 119.7 s, because contributors were collected from every boot still in the event log, not the
+  one in the header. Windows writes the 101/102/103 degradation events right after that boot's
+  event 100, so they're now filtered to a window around the boot being displayed.
+- **Wheel scrolling died over any inner list.** `ScrollChaining` existed but was only wired up on 5
+  of 12 pages and none of the popup windows, so a list under the pointer swallowed the wheel and
+  froze the page. It's now an implicit style in `App.xaml`, covering every scroller in the app.
+- **BitLocker "Not encrypted" was red on the dashboard and yellow on the hardening scorecard.**
+  Both now yellow, matching the scorecard's Warn grade - the two screens disagreeing about one fact
+  is worse than either colour.
+
+### Changed
+- **A Wi-Fi scan that finds nothing now says why.** "No networks found (Wi-Fi adapter off?)" was a
+  guess and usually the wrong one: since Windows 11, `netsh wlan show networks` reports **zero**
+  networks when Location is off, even on a PC connected to Wi-Fi at the time. The scan now reports
+  the real reason - no adapter, wlansvc stopped, or Location off with where to turn it on.
+- **The SMART table says what its numbers mean.** Current/Worst/Thresh are *normalised* scores that
+  start at 100 and where higher is healthier, so a column of ~100s is a healthy drive rather than a
+  placeholder; Raw is the actual reading (hours, counts, °C).
+
+### Not changed
+- **Intune's grey dot for "Not enrolled".** ProSentry uses green = agent active, grey = not present;
+  the hardening scorecard uses green = good, yellow/red = a problem. Not being Intune-enrolled isn't
+  good or bad, so grey is deliberate. Worth revisiting only if the two colour languages confuse
+  people more than a wrong grade would.
+
+---
+
 ## 0.24.23 - 2026-08-01
 
 ### Fixed

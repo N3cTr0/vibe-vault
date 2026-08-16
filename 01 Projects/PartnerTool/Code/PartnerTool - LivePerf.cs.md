@@ -80,13 +80,19 @@ public sealed class LivePerf
     {
         try
         {
+            // NOT _Total: that instance SUMS PercentDiskTime across every physical disk, so a
+            // two-disk machine reads 150% and clamps to a permanent 100%. Take the busiest single
+            // disk instead - the same "active time" figure Task Manager shows per drive.
             using var q = new System.Management.ManagementObjectSearcher(
-                "SELECT PercentDiskTime FROM Win32_PerfFormattedData_PerfDisk_PhysicalDisk WHERE Name='_Total'");
+                "SELECT Name, PercentDiskTime FROM Win32_PerfFormattedData_PerfDisk_PhysicalDisk");
+            double busiest = 0;
             foreach (System.Management.ManagementObject o in q.Get())
-            {
-                var v = Convert.ToDouble(o["PercentDiskTime"] ?? 0);
-                return Math.Clamp(v, 0, 100);
-            }
+                using (o)
+                {
+                    if (o["Name"]?.ToString() is not { } n || n == "_Total") continue;
+                    busiest = Math.Max(busiest, Convert.ToDouble(o["PercentDiskTime"] ?? 0));
+                }
+            return Math.Clamp(busiest, 0, 100);
         }
         catch { }
         return 0;
