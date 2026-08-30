@@ -91,6 +91,65 @@ Two other things a real GPU changes immediately:
 
 **There is still no git repository.** The vault snapshot has been the only off-machine copy of the source for this whole project, and a machine move is exactly the moment that matters. It has been deliberately deferred, and the deferral has held up fine — but on the new machine, `git init` and a first commit costs a minute and removes the single largest structural risk here.
 
+## What actually happened on arrival — 08/30/2026
+
+The repo and the vault both copied across intact: `check-vault.ps1` reported **VAULT OK,
+82/82 notes restoring byte-for-byte**, which is as good a verification of the copy as
+exists. The new box is `N3CTR0-PC`, account `N3cTr0`, **16 logical cores and 32 GB** against
+the VM's two or three. Project and vault paths are unchanged; only `%APPDATA%` moved.
+
+**Installed:** .NET SDK **10.0.400** and Ollama **0.33.2** with `llama3.2:3b`, both via
+winget. PowerShell **7.6.5** and the WebView2 runtime were already present — and PowerShell
+is machine-wide at `C:\Program Files\PowerShell\7`, so the MSIX/AppData-virtualisation trap
+that bit us on the VM does not apply here. Claude Code also runs **elevated** here, which
+reverses the per-user-installs-only constraint the old dev-VM note describes.
+
+**Two things this note did not predict:**
+
+1. **The first build failed completely** — `NU1100` for every package, including the Windows
+   SDK reference pack. The user-level NuGet config on this machine has an empty
+   `<packageSources>` and Octavia had no repo-level config, so there was no source to
+   restore from. Fixed by adding `nuget.config`, the same fix PartnerTool already carries.
+   `sync-vault.ps1` did not collect `*.config`, so that file would have been absent from
+   Restore From Snapshot — the one file that makes a fresh machine build, missing from
+   exactly the scenario it exists for. Both are fixed and the snapshot is now 83 notes.
+2. **The execution policy blocks the unsigned repo scripts here.** `check-vault.ps1` and
+   `sync-vault.ps1` fail with `SecurityError: not digitally signed`. Run them as
+   `pwsh -NoProfile -ExecutionPolicy Bypass -File <script>` — a per-process flag. The
+   machine-wide policy was deliberately left alone.
+
+**Verified working:** `dotnet build` succeeds (one pre-existing `CA2024` warning in
+`LocalBrain.cs`), `EarsTest` reports **ALL CHECKS PASSED**, and the local brain answers —
+*"Hello, I'm Octavia, nice to meet you."*
+
+**The one real risk is closed.** `git init` is done, identity set to match the vault repo,
+and there are two commits: v0.10.0 exactly as it arrived, then the NuGet fix. Local only —
+no remote yet.
+
+### Still outstanding after the move
+
+- **`%APPDATA%\Octavia` did not come across.** Whisper models and Piper voices re-download
+  themselves, but **the `.vrm` avatar does not** — and it is the subject of the top
+  outstanding bug, so the texture work is blocked until it is re-supplied. She falls back
+  to the plaster bust meanwhile, which is the shipped default.
+- **The API key needs pasting into Settings** — expected, and it is why `apikey.dat` was
+  left behind.
+- The old VM is on **`H:` → `\\10.1.1.40\c`**, but a mapped drive does not cross the
+  elevation boundary, so an elevated Claude session cannot see it and the share prompts for
+  credentials. Copy from an ordinary non-elevated session instead.
+
+### Two of the three "it was the VM" hopes need revising
+
+- **Music should still be re-tested and probably will improve** — there is a real Realtek
+  sound card here, so the crest-factor problem should be gone. Not yet re-run.
+- **The camera cannot be re-verified: there is no webcam attached to this machine.**
+- **The photoreal stage is still blocked, and the shopping list is not met.** The GPU is a
+  **GeForce GT 730** — Kepler, on the legacy 30.0.14.7514 driver, with `nvidia-smi` failing
+  at `Failed to initialize NVML`. CUDA 12 dropped Kepler, so **Whisper CUDA, TensorRT 10.13
+  and Unreal 5.7 are all out of reach on this card**. The genuine win here is the 16 CPU
+  cores, not the GPU. [[The Photoreal Decision]] stays blocked on hardware, and the
+  roadmap's "if the new machine has an NVIDIA card" check should be read as answered *no*.
+
 ## Where the work stands
 
 v0.10.0 is a **partial Stage 10**: all six approved design decisions are built, the console is rebuilt, and the bust's face is fixed. Three things are outstanding and they are listed in [[Roadmap]] under "Still to do" — the VRM's textures failing to load (which is the real reason her features are faint, not the lighting), the local-first profile change, and the documentation catch-up.

@@ -62,6 +62,7 @@ function Get-Lang($ext) {
     '.xaml'     { 'xml' }
     '.csproj'   { 'xml' }
     '.manifest' { 'xml' }
+    '.config'   { 'xml' }
     '.js'       { 'javascript' }
     '.css'      { 'css' }
     '.html'     { 'html' }
@@ -75,7 +76,7 @@ function Get-Lang($ext) {
 # --- collect source files ---
 # wwwroot\lib is vendored third-party code (three.js, GLTFLoader, three-vrm) — not our
 # source, and 3 MB of it. Excluded so the vault holds what we wrote and nothing else.
-$files = Get-ChildItem $repo -Recurse -File -Include *.cs,*.xaml,*.csproj,*.manifest,*.js,*.css,*.html,*.ps1 |
+$files = Get-ChildItem $repo -Recurse -File -Include *.cs,*.xaml,*.csproj,*.manifest,*.js,*.css,*.html,*.ps1,*.config |
   Where-Object {
     $_.FullName -notmatch '\\obj\\' -and
     $_.FullName -notmatch '\\bin\\' -and
