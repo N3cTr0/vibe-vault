@@ -16,7 +16,7 @@ These are load-bearing. Breaking one is a design smell, not a shortcut.
 
 ## Security model
 
-- **The API key** is DPAPI-sealed (`DataProtectionScope.CurrentUser`) to one Windows account on one machine, at `%APPDATA%\Octavia\apikey.dat`. `ANTHROPIC_API_KEY` takes precedence when set. It is written *in* from the face and never sent back out — the `hello` message carries a boolean, never the value.
+- **The API key** is DPAPI-sealed (`DataProtectionScope.CurrentUser`) to one Windows account on one machine, at `<data>\apikey.dat`. `ANTHROPIC_API_KEY` takes precedence when set. It is written *in* from the face and never sent back out — the `hello` message carries a boolean, never the value.
 - **It does not travel.** Copying `apikey.dat` to another machine yields an undecryptable blob. This is intended. She degrades gracefully: the read fails, is logged, and she asks for a key as though new.
 - **The face is sandboxed by CSP**: `default-src 'none'; script-src 'self'; style-src 'self'` — and `connect-src` names only the loopback face socket and the read-only `https://octavia.avatar` origin the host maps to her avatars folder. It cannot reach the wider network even if something in it wanted to, and it cannot read a character file the host did not offer it.
 - **A face may ask for a diagnostics bundle but never says where it goes.** The host raises its own file dialog. A face that could name the destination would be a face that could write the log — transcripts and all — anywhere on the machine.

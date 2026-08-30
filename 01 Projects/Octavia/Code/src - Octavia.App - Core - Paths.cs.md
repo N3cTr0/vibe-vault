@@ -11,8 +11,24 @@ namespace Octavia.Core;
 
 internal static class Paths
 {
-    public static string DataDir { get; } = Directory.CreateDirectory(
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Octavia")).FullName;
+    public static string DataDir { get; } = Directory.CreateDirectory(Resolve()).FullName;
+
+    /// Run from the repo and everything she owns lives in the repo, so one folder is the
+    /// whole of her and a machine move cannot separate her from her models. An installed
+    /// copy falls back to %APPDATA%, which is the only writable choice under Program Files.
+    /// OCTAVIA_DATA overrides both.
+    private static string Resolve()
+    {
+        if (Environment.GetEnvironmentVariable("OCTAVIA_DATA") is { Length: > 0 } custom)
+            return custom;
+
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "Octavia.slnx")))
+                return Path.Combine(dir.FullName, "data");
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Octavia");
+    }
 
     /// OCTAVIA_CONFIG points her at a different settings file, so the test harness
     /// can exercise loading and saving without touching the real one.

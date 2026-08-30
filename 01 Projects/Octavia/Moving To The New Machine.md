@@ -19,6 +19,13 @@ The vault alone is enough to rebuild, but it is the slow path. Copying all three
 | **The vault** | `C:\Obsidian Vaults\Vibe Projects` | Same path on the new machine. The notes, and the fallback snapshot |
 | **Her data** | `%APPDATA%\Octavia` | ~710 MB of Whisper models, Piper voices and the avatar. Saves a long first run |
 
+> **Superseded 08/30/2026 — there are now two folders, not three.** Her data moved into
+> `<repo>\data`, so copying the repo copies her models, voice and avatars with it. The
+> third row applies only to a machine still on the old layout. See
+> [[Profiles & Configuration]] for the resolution rule. This change was made *because* of
+> what went wrong on this move: her data folder lived somewhere the repo copy did not
+> reach, and its contents were lost.
+
 `bin`, `obj` and `dist` inside the repo are build output — skip them if you are being tidy, keep them if it is easier. They are rebuilt by `dotnet build`.
 
 **Leave `apikey.dat` behind.** It is DPAPI-sealed to one Windows account on one machine, so the copy would be an undecryptable blob. She handles this properly: the read fails, it is logged, and she asks for a key as though new. Paste it in again — Settings → API key. See [[Conventions & Security Model]].

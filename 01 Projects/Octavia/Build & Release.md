@@ -84,8 +84,8 @@ Drop `--self-contained true` and the two `PublishSingleFile` switches if the tar
 Copy `Octavia.exe` and `wwwroot`. Then the three things that do not travel:
 
 - **The API key.** DPAPI-sealed to one account on one machine — see [[Conventions & Security Model]]. Paste it in again; do not copy `apikey.dat`.
-- **Config.** Lives in `%APPDATA%\Octavia\config.json`, not beside the exe. Copy it by hand to carry a tuned profile across.
-- **Whisper models.** Re-downloaded on first listen into `%APPDATA%\Octavia\models`.
+- **Config.** Lives in `<data>\config.json`, not beside the exe. Copy it by hand to carry a tuned profile across.
+- **Whisper models.** Re-downloaded on first listen into `<data>\models`.
 
 The target also needs the **WebView2 runtime** (present on Windows 11 by default; she names it in a message if missing) and, for the `dev` profile, a running local model server.
 

@@ -5,7 +5,7 @@ tags: [octavia, feature]
 
 # Profiles & Configuration
 
-*Stage 2, v0.3.0; command-line selection and the flattening fix in v0.4.1; the persistence fix in v0.6.1.* `%APPDATA%\Octavia\config.json`, read at startup.
+*Stage 2, v0.3.0; command-line selection and the flattening fix in v0.4.1; the persistence fix in v0.6.1.* `<data>\config.json`, read at startup.
 
 ## The problem profiles solve
 
@@ -83,15 +83,31 @@ So `Save()` now keeps a second snapshot: **the merged settings as they stood at 
 
 ## Data locations
 
+`<data>` is one folder holding everything she owns, resolved by `Core\Paths.cs` at startup:
+
+1. `OCTAVIA_DATA`, if set.
+2. **`<repo>\data`** whenever she runs from a build inside the repo — `Paths` walks up from
+   the executable looking for `Octavia.slnx`, so `dotnet run`, a Debug shortcut and
+   `dist\Octavia.exe` all resolve to the same place.
+3. `%APPDATA%\Octavia` otherwise: the installed case, and the only writable choice if she
+   ever lives under Program Files.
+
+*Changed 08/30/2026.* It was `%APPDATA%\Octavia` unconditionally until then. Keeping it in
+the repo means copying the project copies her models, voice and avatars with it — after a
+machine move in which her whole data folder was lost. `data\` is git-ignored: hundreds of
+megabytes of downloaded artefacts, none of it source. Note this is a **deliberate
+qualification** of the rule in [[The Avatar Interface]] that avatars live outside the
+install — that reasoning still holds for an installed copy, which is why case 3 remains.
+
 | Path | What |
 |---|---|
-| `%APPDATA%\Octavia\config.json` | This file |
-| `%APPDATA%\Octavia\apikey.dat` | DPAPI-sealed key — does not travel between machines |
-| `%APPDATA%\Octavia\octavia.log` | Startup, profile resolution, errors, and anything the face throws |
-| `%APPDATA%\Octavia\models\` | Downloaded Whisper models |
-| `%APPDATA%\Octavia\WebView2\` | Browser user data |
-| `%APPDATA%\Octavia\avatars\` | VRM characters — see [[The Avatar Interface]] |
-| `%APPDATA%\Octavia\voices\` | The neural speech engine and its models — see [[The Voice]] |
+| `<data>\config.json` | This file |
+| `<data>\apikey.dat` | DPAPI-sealed key — does not travel between machines |
+| `<data>\octavia.log` | Startup, profile resolution, errors, and anything the face throws |
+| `<data>\models\` | Downloaded Whisper models |
+| `<data>\WebView2\` | Browser user data |
+| `<data>\avatars\` | VRM characters — see [[The Avatar Interface]] |
+| `<data>\voices\` | The neural speech engine and its models — see [[The Voice]] |
 
 `OCTAVIA_CONFIG` points her at a different settings file entirely. It exists so the test harness can exercise loading and saving without touching the real one.
 

@@ -26,7 +26,7 @@ Same reasoning as [[The Brain]]'s local model: a second ONNX runtime inside this
 
 So Piper is a **long-lived child process** — sentences written to its standard input, raw PCM read from its standard output, played through NAudio. Long-lived because the 60 MB model would otherwise reload for every sentence: cold start is ~2.5 s, warm is under half a second.
 
-The engine and voices are fetched on first use into `%APPDATA%\Octavia\voices`, like the Whisper models. **One difference worth stating: this downloads an executable**, not a model file. It happens only when the neural voice is asked for, it lands in her data folder rather than anywhere on the PATH, and the URL is in `PiperStore.cs` where it can be read.
+The engine and voices are fetched on first use into `<data>\voices`, like the Whisper models. **One difference worth stating: this downloads an executable**, not a model file. It happens only when the neural voice is asked for, it lands in her data folder rather than anywhere on the PATH, and the URL is in `PiperStore.cs` where it can be read.
 
 `VoiceRate` maps to Piper's `--length_scale`, which is how long each phoneme is held — so the scale runs backwards from the one a person would expect.
 

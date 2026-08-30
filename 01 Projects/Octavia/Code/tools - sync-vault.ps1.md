@@ -81,6 +81,7 @@ $files = Get-ChildItem $repo -Recurse -File -Include *.cs,*.xaml,*.csproj,*.mani
     $_.FullName -notmatch '\\obj\\' -and
     $_.FullName -notmatch '\\bin\\' -and
     $_.FullName -notmatch '\\dist\\' -and
+    $_.FullName -notmatch '\\data\\' -and
     $_.FullName -notmatch '\\wwwroot\\lib\\'
   }
 foreach ($doc in 'versions.md','README.md','ROADMAP.md','PROTOCOL.md') {

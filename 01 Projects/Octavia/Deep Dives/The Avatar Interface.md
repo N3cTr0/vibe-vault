@@ -62,7 +62,7 @@ The mood is sent **only when it changes** — an expression is a movement toward
 
 ## Loading a character
 
-A `.vrm` goes in `%APPDATA%\Octavia\avatars`, named in `AvatarFile`. The host maps that one folder to a read-only `https://octavia.avatar` origin and puts the URL in `hello` — the face never reads an arbitrary path, and the CSP names that origin explicitly.
+A `.vrm` goes in `<data>\avatars`, named in `AvatarFile`. The host maps that one folder to a read-only `https://octavia.avatar` origin and puts the URL in `hello` — the face never reads an arbitrary path, and the CSP names that origin explicitly.
 
 The face loads it **once** (a VRM is megabytes; every later `hello` would refetch it) and falls back to the bust on any failure, reporting through `faceError` so it reaches the log. "She looks wrong" is otherwise the entire bug report; the self-test also has an **Avatar** check that turns it into a filename. See [[Diagnostics]].
 

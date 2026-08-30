@@ -21,7 +21,7 @@ The prototype's Web Speech API was not doing recognition in the browser — it s
 
 Turbo is the default not because the GPU cannot run large-v3 — it easily can — but because that same GPU will later render her face and run Audio2Face. Turbo leaves headroom. Roughly 10 GB VRAM for large-v3 against 6 GB for turbo in common implementations.
 
-Models download once to `%APPDATA%\Octavia\models`, written to a `.partial` file and renamed on completion so an interrupted download never leaves a corrupt model behind. Progress is reported to her face; the first listen can take a while and must never block the message loop, so the whole open-ears path is async.
+Models download once to `<data>\models`, written to a `.partial` file and renamed on completion so an interrupted download never leaves a corrupt model behind. Progress is reported to her face; the first listen can take a while and must never block the message loop, so the whole open-ears path is async.
 
 ## Two API traps
 

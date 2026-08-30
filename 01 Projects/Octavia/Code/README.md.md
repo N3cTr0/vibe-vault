@@ -46,7 +46,7 @@ dotnet run --project src/Octavia.App
 
 On first launch there is no API key. The console at the bottom of the window shows an
 API key field — paste an `sk-ant-...` key and press Store. It is sealed with DPAPI to
-your Windows account under `%APPDATA%\Octavia\apikey.dat` and is never sent back to the
+your Windows account under `<data>\apikey.dat` and is never sent back to the
 page. `ANTHROPIC_API_KEY` is used instead when it is set.
 
 - **Microphone button**, `Space`, or the tray menu toggles listening.
@@ -82,7 +82,7 @@ types by reflection, and trimming removes them.
 machine, so `apikey.dat` is unreadable anywhere else. Do not copy it — leave it behind
 and paste the key in again on the new machine. She handles this gracefully: the read
 fails, and she asks for a key as though she were new. Config, log and downloaded models
-live in `%APPDATA%\Octavia` too, and are regenerated with defaults.
+live in her data folder too, and are regenerated with defaults.
 
 The target also needs the **WebView2 runtime** (present on Windows 11 by default; she
 shows a message naming it if it is missing). For the Windows recognizer fallback it also
@@ -133,9 +133,27 @@ editing the `Profiles` block.
 She is single-instance: launching a second copy surfaces the first rather than starting
 a new one, so `--profile` cannot switch a running Octavia. Quit her from the tray first.
 
+## Where her data lives
+
+Everything she owns — config, key, log, Whisper models, Piper voices, avatars and the
+WebView2 profile — sits in one folder, resolved at startup in this order:
+
+1. `OCTAVIA_DATA`, if set.
+2. **`<repo>\data`**, whenever she is launched from a build inside the repo. `Paths`
+   walks up from the executable looking for `Octavia.slnx`, so `dotnet run`, a Debug
+   shortcut and `dist\Octavia.exe` all agree.
+3. `%APPDATA%\Octavia` otherwise — the installed case, and the only writable choice if
+   she ever lives under Program Files.
+
+Keeping it in the repo means one folder is the whole of her: copying the project copies
+her models, her voice and her avatars with it. `data\` is git-ignored — it is hundreds of
+megabytes of downloaded artefacts, none of it source.
+
+`<data>` below means whichever of those three applies.
+
 ## Configuration
 
-`%APPDATA%\Octavia\config.json`, re-read at startup:
+`<data>\config.json`, re-read at startup:
 
 | Key | Default | Notes |
 |---|---|---|
@@ -158,7 +176,7 @@ a new one, so `--profile` cannot switch a running Octavia. Quit her from the tra
 | `MinUtteranceChars` | `2` | Shorter transcripts are treated as noise |
 | `ListenOnStart` | `false` | See the cost note below |
 | `StartMinimised` | `false` | Start hidden in the tray |
-| `AvatarFile` | *(empty)* | A `.vrm` in `%APPDATA%\Octavia\avatars`; empty means the bust. Settings → Appearance |
+| `AvatarFile` | *(empty)* | A `.vrm` in `<data>\avatars`; empty means the bust. Settings → Appearance |
 | `RoomHour` | `-1` | Pin the room's lighting to an hour 0–23; negative follows the clock |
 | `Music` | `true` | Whether she hears what the machine plays. Off closes the device |
 | `Gate` | `local` | `local` judges what she overhears; `off` answers everything |
@@ -181,7 +199,7 @@ Everything she can be driven to do goes through one small avatar interface —
 bust implements it and so does a VRM character. `face.js` owns the *performance* (blink
 schedules, saccades, head carriage, mood); the avatar owns how a jaw actually moves.
 
-**To give her a character:** put a `.vrm` file in `%APPDATA%\Octavia\avatars`, then pick
+**To give her a character:** put a `.vrm` file in `<data>\avatars`, then pick
 it under **Settings → Appearance**. The menu lists whatever is in the folder, plus the
 plaster bust; the choice applies immediately and is saved.
 
@@ -220,7 +238,7 @@ The neural engine runs **out of process** — sentences on its standard input, r
 on its standard output — for the same reason the local brain does: a second ONNX runtime
 inside this process would sit beside Whisper's CUDA-linked one, and native dependency
 collisions are not worth the milliseconds. It is downloaded on first use, into
-`%APPDATA%\Octavia\voices`, from the Piper project's own GitHub release. That is an
+`<data>\voices`, from the Piper project's own GitHub release. That is an
 executable rather than a model file, so it happens only when you ask for the neural
 voice, and the URL is in `PiperStore.cs` where you can read it.
 
@@ -417,7 +435,7 @@ timer-based guess the browser prototype used. The recognizer is muted while she 
 she does not transcribe herself. The key is out of the page.
 
 **Ears.** Whisper runs locally by default (`Recognizer: "whisper"`, model
-`large-v3-turbo`, downloaded to `%APPDATA%\Octavia\models` on first listen — 1.6 GB,
+`large-v3-turbo`, downloaded to `<data>\models` on first listen — 1.6 GB,
 once). Silero VAD gates it so silence and room noise never reach the model, and bracketed
 non-speech tags are filtered. On a machine with an NVIDIA GPU the CUDA runtime is picked
 up automatically; otherwise it runs on CPU (choose a smaller model there — `small.en` is

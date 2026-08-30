@@ -18,6 +18,38 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.11.0 — 2026-08-30
+
+**She keeps her things where she lives.** MINOR: every path she writes to moved.
+
+Her data folder was `%APPDATA%\Octavia` unconditionally. On the move to the physical PC
+that folder was left behind by a copy that took the repo and the vault, and its contents —
+Whisper models, Piper voices, and **the only `.vrm` avatar** — were lost. The avatar was
+unrecoverable: no note in the repo or the vault had ever recorded which model it was.
+
+`Core\Paths.cs` now resolves the data folder in three steps: `OCTAVIA_DATA` if set;
+otherwise `<repo>\data` whenever she is launched from a build inside the repo, found by
+walking up from the executable for `Octavia.slnx`; otherwise `%APPDATA%\Octavia`. So
+`dotnet run`, a Debug shortcut and `dist\Octavia.exe` all agree, copying the project now
+copies her models and her face with it, and an installed copy under Program Files still
+writes somewhere it is allowed to.
+
+Everything routes through `Paths`, so this was one file and 38 call sites needed no
+change — the seam was already there.
+
+- `data\` is git-ignored and excluded from the vault snapshot: hundreds of megabytes of
+  downloaded artefacts, none of it source.
+- Existing data moved from `%APPDATA%\Octavia` into `<repo>\data`; the old folder is
+  parked as `Octavia.old` rather than deleted.
+- Two replacement avatars added — `AvatarSample_A.vrm` (VRoid, VRM 0.x) and
+  `VRM1_Constraint_Twist_Sample.vrm` (pixiv, VRM 1.0). Neither uses KTX2, so neither
+  reproduces the texture fault; see ROADMAP.md.
+- Docs follow: `<data>` is defined once in README.md and in the vault's
+  [[Profiles & Configuration]], and the literal paths elsewhere now point at it. The
+  historical record in this file and the Changelog is left as it was written.
+
+---
+
 ## 0.10.0 — 2026-08-30
 
 **Stage 10 — the console rebuilt, and her face made legible.** MINOR: the whole control
