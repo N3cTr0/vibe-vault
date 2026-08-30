@@ -73,15 +73,40 @@ The loopback hears **everything** the machine plays, which could be a call as ea
 - **No audio crosses the protocol.** There is no message that carries sound, and the diagnostics bundle contains none.
 - **Settings → Hears what you play** turns it off, and off *closes the device* rather than ignoring it — a switch that left the capture running would be a worse promise than no switch.
 
-## The limitation, which is the machine's
+## The limitation that was ours all along
 
-> **This should disappear on the physical PC.** Everything below is a description of Remote Desktop's audio endpoint, not of her. Re-run `EarsTest -- music demo` early on the new machine and narrow the caveat to "over Remote Desktop" if the tempo settles. See [[Moving To The New Machine]].
+> **Resolved 08/31/2026 in v0.12.0. It was never the machine.** The section below is kept
+> because the reasoning is instructive and the conclusion was confidently wrong three
+> times over.
 
-**Remote Desktop's "Remote Audio" endpoint normalises everything to full scale** — crest factor 1.7, essentially a square wave — at any playback volume. A beat cannot be found in audio with no dynamics left in it.
+**What was believed:** Remote Desktop's "Remote Audio" endpoint normalises everything to
+full scale — crest factor 1.7, essentially a square wave — so no beat could be found. That
+survived a debugging round: delivery was 99.8% complete with one discontinuity, playing at
+a *quarter* of the level returned byte-identical statistics, and the analyser locked to
+within 0.3 bpm offline at every tempo. Every symptom pointed away from the analyser, and
+the endpoint was the obvious remaining suspect.
 
-This cost a debugging round and was worth the trouble to pin down, because every symptom pointed at the analyser. What settled it: delivery was 99.8% complete with one discontinuity, and playing at a *quarter* of the level returned byte-identical statistics. The analyser locks to within 0.3 bpm offline at every tempo and both common sample rates.
+**What was actually true:** `LoopbackListener` was decoding the wrong bytes. A shared-mode
+mix format is `WAVE_FORMAT_EXTENSIBLE`, not `IeeeFloat`, so the float test failed and the
+decoder fell through to `ToInt16` — reading **the low two bytes of each 32-bit sample**.
+Those bits are uniform noise. Uniform noise has an RMS of 0.577 and a crest factor of
+1.73, and that is what was measured, to three decimal places, on *every* device.
 
-`EarsTest -- music` now prints the crest factor and says plainly when the path is limiting, so the next person is told rather than left doubting the arithmetic. See [[Lessons Learned]].
+**The tell was there the whole time and nobody looked at it.** The same 1.7 came back over
+Remote Desktop on the VM, through a virtual streaming endpoint, through a Jabra headset and
+through a Realtek card. Four unrelated devices do not share a defect; a decoder does. The
+constant should have been read as evidence about our code rather than as three separate
+confirmations of a theory.
+
+**The other half of the mistake** was judging a captured crest factor against an absolute
+threshold. The number means nothing without the crest factor of what was *played*. The
+demo track's own is 7.7; after the fix the capture reads 7.7, with peak 0.793 and RMS 0.103
+matching the source exactly, and the tempo settles at **131.8 bpm against a played 132 at
+confidence 1.00** — where it used to wander between 75 and 184. `EarsTest music demo` now
+prints both numbers and says "CAPTURE IS FAITHFUL" rather than accusing the machine.
+
+Decoding now lives in `AudioSamples`, shared with the diagnostics, so a check cannot
+disagree with the capture it is checking. See [[Lessons Learned]].
 
 ## Testing
 

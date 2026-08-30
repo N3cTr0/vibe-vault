@@ -15,9 +15,15 @@ using Octavia.Senses;
 
 if (args.Length > 0 && args[0] == "mic") { MicProbe.Run(); return; }
 if (args.Length > 0 && args[0] == "mouth") { MouthProbe.Run(args.Length > 1 ? args[1] : null); return; }
-if (args.Length > 0 && args[0] == "music") { await MusicProbe.RunAsync(args.Length > 1 && args[1] == "demo"); return; }
+if (args.Length > 0 && args[0] == "music") { await MusicProbe.RunAsync(args.Length > 1 && args[1] == "demo", args.Length > 2 ? args[2] : null); return; }
 if (args.Length > 0 && args[0] == "beats") { Environment.Exit(MusicChecks.Run()); }
 if (args.Length > 0 && args[0] == "gate") { await GateProbe.RunAsync(); return; }
+if (args.Length > 0 && args[0] == "compute")
+{
+    await ComputeProbe.RunAsync(args.Length > 1 ? args[1] : "auto", args.Length > 2 ? args[2] : "tiny.en",
+        args.Length > 3 && int.TryParse(args[3], out var t) ? t : 0);
+    return;
+}
 
 var model = args.Length > 0 ? args[0] : "tiny.en";
 var phrase = "Hello Octavia, can you hear me clearly today?";

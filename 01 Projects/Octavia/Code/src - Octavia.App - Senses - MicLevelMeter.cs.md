@@ -20,6 +20,10 @@ internal sealed class MicLevelMeter : IDisposable
     private WaveIn? _capture;
     private float _level;
 
+    /// Which capture device to meter. Empty follows the Windows default. Set before
+    /// Start; it is read each time the capture opens.
+    public string? Device { get; set; }
+
     public event Action<float>? LevelChanged;
 
     public float Level => _level;
@@ -36,6 +40,12 @@ internal sealed class MicLevelMeter : IDisposable
                 WaveFormat = new WaveFormat(16000, 16, 1),
                 BufferMilliseconds = 50
             };
+
+            // The same device the ears use, or the meter would animate to one
+            // microphone while she transcribed another.
+            var index = AudioDevices.WaveInIndex(Device);
+            if (index >= 0) _capture.DeviceNumber = index;
+
             _capture.DataAvailable += OnData;
             _capture.StartRecording();
         }

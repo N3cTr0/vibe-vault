@@ -148,6 +148,40 @@ internal sealed class OctaviaConfig
     /// Recognition confidence below this is discarded instead of sent to the model.
     public float MinConfidence { get; set; } = 0.35f;
 
+    /// Which processor Whisper runs on: "auto", "cpu" or "gpu".
+    ///
+    /// **"auto" is not neutral — it means GPU.** Whisper.net's own default library
+    /// order is [Cuda, Cuda12, Vulkan, CoreML, OpenVino, Cpu, CpuNoAvx], so referencing
+    /// the CUDA runtime at all makes any CUDA-capable card win, however slow it is.
+    /// A weak card therefore beats a strong CPU purely by being a card. Measure before
+    /// believing "auto" chose well — `EarsTest compute` does exactly that.
+    public string WhisperCompute { get; set; } = "auto";
+
+    /// Threads Whisper transcribes with. 0 picks half the logical processors, which is
+    /// physical-core count on an SMT machine.
+    ///
+    /// That default is safe rather than optimal. Measured on a Ryzen 7 3700X (8 cores,
+    /// 16 threads) with `small.en`: 4 threads 5.55s, 8 threads 4.12s, **16 threads
+    /// 3.66s** — so SMT was worth 11% here, against the usual advice that whisper.cpp
+    /// gains nothing from it. One machine is not a rule, which is why this is a knob
+    /// and not a new default. `EarsTest compute cpu small.en 16` measures your own.
+    public int WhisperThreads { get; set; }
+
+    /// Capture device she listens through. Empty follows the Windows default.
+    /// Match on the device name as Windows reports it; a substring is enough, so
+    /// "Jabra" finds "Headset Microphone (Jabra EVOLVE 20 MS)".
+    public string MicrophoneDevice { get; set; } = "";
+
+    /// Render device she listens *to* for music, via loopback. Empty follows the
+    /// Windows default — which on a machine with streaming software installed is
+    /// often a virtual endpoint that normalises everything to full scale and leaves
+    /// no beat to find. Matched like MicrophoneDevice.
+    public string OutputDevice { get; set; } = "";
+
+    /// Camera she takes a still from. Empty uses the browser's default. Matched by
+    /// substring against the device label.
+    public string CameraDevice { get; set; } = "";
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,

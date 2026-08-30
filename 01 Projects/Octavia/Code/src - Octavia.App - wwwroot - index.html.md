@@ -13,7 +13,7 @@ source-path: src\Octavia.App\wwwroot\index.html
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://octavia.avatar; media-src 'self' blob:; connect-src 'self' ws://127.0.0.1:* ws://localhost:* https://octavia.avatar">
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://octavia.avatar; media-src 'self' blob:; connect-src 'self' blob: ws://127.0.0.1:* ws://localhost:* https://octavia.avatar">
 <title>Octavia</title>
 <link rel="stylesheet" href="face.css">
 </head>
@@ -120,10 +120,32 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint" id="voiceHint">Windows speech voices installed on this machine.</span>
       </label>
 
+      <label class="field-row" for="microphone">
+        <span class="label">Microphone</span>
+        <select id="microphone"></select>
+        <span class="hint">Which device she listens through. Changing this reopens her ears.</span>
+      </label>
+
       <label class="field-row check" for="music">
         <span class="label">Hears what you play</span>
         <input id="music" type="checkbox">
         <span class="hint" id="musicHint">Nothing is recorded: what survives is a tempo and a loudness.</span>
+      </label>
+
+      <label class="field-row" for="output">
+        <span class="label">Output she listens to</span>
+        <select id="output"></select>
+        <span class="hint">Pick the real sound card. A virtual endpoint &mdash; streaming software, remote audio &mdash; flattens the sound to full scale and leaves no beat to find.</span>
+      </label>
+
+      <label class="field-row" for="whisperCompute">
+        <span class="label">Speech recognition runs on</span>
+        <select id="whisperCompute">
+          <option value="auto">Whichever Whisper picks</option>
+          <option value="cpu">The processor</option>
+          <option value="gpu">The graphics card</option>
+        </select>
+        <span class="hint">&ldquo;Whichever&rdquo; means the graphics card wherever one will load, which is slower than a good processor on a weak card. Takes effect when she restarts.</span>
       </label>
 
       <label class="field-row" for="roomHour">

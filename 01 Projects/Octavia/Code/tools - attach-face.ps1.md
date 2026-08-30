@@ -54,8 +54,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$log = Join-Path $env:APPDATA 'Octavia\octavia.log'
-if (-not (Test-Path -LiteralPath $log)) { throw "No log at $log - is she running?" }
+# Her data folder moved into the repo in v0.11.0, so the log is looked for the same way
+# Core\Paths.cs resolves it: OCTAVIA_DATA, then <repo>\data, then %APPDATA%. An older
+# install still keeps it in the last of those, which is why all three are tried.
+$candidates = @(
+  $(if ($env:OCTAVIA_DATA) { Join-Path $env:OCTAVIA_DATA 'octavia.log' })
+  (Join-Path (Split-Path $PSScriptRoot -Parent) 'data\octavia.log')
+  (Join-Path $env:APPDATA 'Octavia\octavia.log')
+) | Where-Object { $_ }
+
+$log = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $log) { throw "No log found in any of:`n  $($candidates -join "`n  ")`nIs she running?" }
 
 $line = Select-String -Path $log -Pattern 'face socket listening on (ws://\S+)' |
   Select-Object -Last 1
@@ -185,7 +194,16 @@ while ($socket.State -eq 'Open' -and -not $session.IsCancellationRequested) {
   switch ($msg.type) {
     'level'   { Write-Host -NoNewline '.' }
     'viseme'  { Write-Host -NoNewline '~' }
-    'hello'   { Write-Host "hello    protocol $($msg.protocol), brain $($msg.model), profile $($msg.profile), ears $($msg.ears)" }
+    'hello'   {
+      Write-Host "hello    protocol $($msg.protocol), brain $($msg.model), profile $($msg.profile), ears $($msg.ears)"
+      # The devices she is actually using, which is the question whenever she cannot
+      # hear you or cannot hear the music. An empty value means the Windows default.
+      $mic = if ($msg.microphone) { $msg.microphone } else { 'Windows default' }
+      $out = if ($msg.output) { $msg.output } else { 'Windows default' }
+      Write-Host "         mic: $mic  |  output: $out  |  whisper on: $($msg.whisperCompute)"
+      Write-Host "         mics available: $(($msg.microphones | ForEach-Object { $_.label }) -join '; ')"
+      Write-Host "         outputs available: $(($msg.outputs | ForEach-Object { $_.label }) -join '; ')"
+    }
     'state'   { Write-Host "state    $($msg.value)" }
     'caption' { Write-Host "caption  [$($msg.who)] $($msg.text)" }
     'turn'    { Write-Host "turn     [$($msg.who)] $($msg.text)" }

@@ -483,6 +483,15 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
    whether she is textured at all"**. If she is, the fault was the old model and the
    loader gap is a latent bug worth closing anyway. If she still is not, the cause is in
    our own loader setup and KTX2 was a red herring.
+
+   **RESOLVED 08/31/2026 — it was the CSP, and KTX2 was a red herring.** `img-src` did not
+   list `blob:`, and neither did `connect-src`. glTF carries its textures inside the
+   binary; three.js decodes them to a `Blob` and loads them from a `blob:` URL, so *every*
+   texture in *every* model was blocked regardless of format. That is why she had never
+   once rendered with a face. Adding `blob:` to both lists fixed it: 20 of 28 materials
+   textured, zero errors, verified in the browser and in WebView2. The missing
+   `setKTX2Loader` is still a genuine latent gap for a model that needs it — but it was
+   not this, and neither was the lighting.
 2. **Local-first profiles.** Agreed but not built: she should run mainly on the local
    model, with Claude added later for specific things. Concretely — base `Brain` default
    becomes `local`; the shipped profiles become `home` (local brain, good Whisper — the
@@ -495,6 +504,60 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
 4. **Re-take the Stage 10 exit test** on the new machine, from an actual sofa.
 
 ---
+
+## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
+
+Three pieces of polish that the textured face made visible, because until v0.12.0 nobody
+could see her well enough to notice.
+
+- **The headphones do not sit right.** They are attached to the head bone and sized from
+  `headPoint.y * 0.115`, which is a guess at head *width* derived from character *height*.
+  A VRM does not standardise head size, so the guess is wrong per model. Take the head
+  bone's actual bounding box instead, and offset along its local axes rather than the
+  world's. See [[The Avatar Interface]].
+- **The background is static.** It is a flat gallery wall with a day-cycle tint. Give it
+  depth: a parallax layer or two behind her, subtle drift, and an audio-reactive mode fed
+  by the `music` message that already exists. Cheap on GPU, and this machine's GPU is the
+  weak half — so measure, and keep it switchable.
+- **The console is sized for typing, and she is for talking.** The text field dominates
+  the bottom of a full-screen window when most turns will never use it. Collapse it behind
+  a button, and stack the status line bottom-left rather than spreading it across the
+  full width. This is a 10-foot interface first and a form second.
+
+## Stage 12 — Hands: Home Assistant, UniFi, and an integration seam
+
+The point of the whole project. She should run the house, and that means talking to
+things that are not her.
+
+**Design it as one seam, not N integrations.** The argument for MCP here is strong: it is
+a published protocol with a tool-definition shape both Claude and local models can be
+handed, it keeps each integration out-of-process behind a boundary, and it means a new
+capability is a new server rather than a new branch inside `OctaviaSession`. That matches
+the constraint the project already holds — the host owns capability, the face stays dumb.
+
+Sketch:
+
+- `IToolProvider` beside `IBrain`, so tools are discovered rather than compiled in.
+- An **MCP client** in the host, speaking stdio to local servers and HTTP to LAN ones.
+- Servers, each independently useful and independently broken-able: **Home Assistant**
+  (its REST and WebSocket APIs are well documented and token-authenticated), **UniFi**
+  (network health, who is home by device presence), and later whatever else.
+- **The gate becomes load-bearing.** A model that can turn the lights off must be much
+  more certain it was addressed than one that can only talk. Expect the confirmation
+  rules to need a second look before anything can act.
+- **Nothing destructive without confirmation**, and a written allow-list of what she may
+  do unattended. This is the stage where a mistake stops being a wrong answer and starts
+  being a dark house.
+
+## Stage 13 — Away: a phone that asks the house how it is
+
+"How is everything at home?" from somewhere else. This is a **second face over the Stage 3
+protocol**, which is exactly what that protocol was built for — an Android client is a
+renderer plus a microphone, not a second Octavia.
+
+The honest problem is not the app, it is exposure: the face socket is loopback-only with a
+per-run token, deliberately. Reaching it from a phone means Tailscale or Wireguard back to
+the house — not a port forward. Decide that before writing any Kotlin.
 
 ## Standing constraints
 

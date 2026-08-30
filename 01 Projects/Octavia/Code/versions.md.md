@@ -18,6 +18,91 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.12.0 — 2026-08-31
+
+**Four things were broken, and three of them had been blamed on something else.** MINOR:
+her face, her ears' placement and her hearing of music all change behaviour.
+
+### Her textures never loaded, and it was the CSP
+
+`img-src` allowed `'self' data: https://octavia.avatar`, and **`blob:` was not among
+them**. glTF keeps its textures inside the binary; three.js decodes them into a `Blob` and
+loads them from a `blob:` URL — which that policy blocked, for every texture, in every
+model, of every format. `connect-src` lacked it too, so the ImageBitmap route failed the
+same way. Proven in the browser before changing anything: `IMG BLOCKED`, `FETCH BLOCKED`,
+`BITMAP BLOCKED`, then all three passing after adding `blob:` to both lists.
+
+She has 20 textured materials of 28 now, at up to 2048×2048, with zero texture errors —
+against `hasMap: false` and eight failures before.
+
+**The KTX2 theory in ROADMAP.md was wrong**, and so was the lighting explanation that
+preceded it. `vrm-avatar.js` still never calls `setKTX2Loader`, which remains a real
+latent gap for a model that needs it, but it was not this.
+
+### The microphone check called a working headset silent
+
+It read `AudioMeterInformation.MasterPeakValue`, on the reasoning that Windows' own meter
+shows signal without opening a capture. **That meter reports zero unless something already
+holds the device open**, so an idle machine always measured exactly 0.000. It opens a real
+WASAPI capture now and reads the Jabra's true noise floor of 0.004, and reports three
+states rather than two — speech, room noise, and genuine digital silence, which is the
+only one that is a fault.
+
+### The music path was decoding the wrong bytes
+
+A crest factor of 1.7 had been read over Remote Desktop, through a virtual streaming
+endpoint and through two different real sound cards, and blamed on each in turn. It was
+none of them.
+
+A shared-mode mix format is `WAVE_FORMAT_EXTENSIBLE`, not `IeeeFloat`, so the float test
+failed and the decoder fell through to `ToInt16` — **taking the low two bytes of each
+32-bit sample**. Those bits are uniform noise, whose RMS is 0.577 and whose crest factor
+is 1.73. That is exactly what was measured, to three decimals, on every device.
+
+Fixed by testing the sub-format GUID and decoding 8/16/24/32-bit properly, in a shared
+`AudioSamples` so the diagnostics cannot drift from the capture. Against a played 132 bpm
+track: crest **1.7 → 7.7**, peak 0.793 and RMS 0.103 matching the source exactly, and the
+tempo **131.8 bpm at confidence 1.00** where it used to wander between 75 and 184.
+
+`EarsTest music demo` now compares what it captured against the crest factor of the track
+it played, instead of against an absolute threshold that assumed the signal was fine.
+
+### She was thinking on a 2014 graphics card
+
+`ollama ps` said `4%/96% CPU/GPU`: 28 of 29 layers offloaded to a **GeForce GT 730 over
+Vulkan**. Ollama does not need CUDA, so being Kepler did not save it. Every attention-gate
+call took ~3.9 s against an 8 s timeout, and the gate probe's median was **8009 ms** —
+pegged at the timeout, failing open on all eighteen lines. She was answering the
+television, and the only symptom anyone could see was that she felt slow.
+
+The OpenAI-compatible endpoint ignores `options.num_gpu`, so placement is pinned with a
+Modelfile instead — `PARAMETER num_gpu 0`, created as `llama3.2:3b-cpu`. Gate median
+**8009 ms → 640 ms**; the corpus 144.2 s → 16.5 s.
+
+- **New `Gate speed` self-test** times a warm call and names this cause, because nothing
+  in the config was wrong and no amount of reading it would have found this.
+
+### Settings that stop this happening silently again
+
+- **`MicrophoneDevice`, `OutputDevice`, `CameraDevice`** — pick a device instead of
+  inheriting the Windows default. Matched by substring, which is required: `WaveIn`
+  truncates names to 31 characters, so the same headset is two different strings.
+  Dropdowns in Settings, populated by the host over `hello`.
+- **`WhisperCompute`** (`auto`/`cpu`/`gpu`) and **`WhisperThreads`**. Note that
+  Whisper.net's own default order is CUDA-first, so "auto" is not neutral. On this
+  machine CUDA never loaded at all — the GT 730 is below CUDA 12's floor — so Whisper was
+  always on the CPU. Measured with `small.en`: 4 threads 5.55 s, 8 threads 4.12 s,
+  16 threads 3.66 s.
+- `EarsTest compute <auto|cpu|gpu> [model] [threads]` measures it rather than assuming.
+
+### Also
+
+- `attach-face.ps1` read the log from `%APPDATA%`, which v0.11.0 moved. It now resolves
+  the data folder the same three ways `Paths.cs` does.
+- `hello` reports the devices and the compute choice; `attach-face` prints them.
+
+---
+
 ## 0.11.0 — 2026-08-30
 
 **She keeps her things where she lives.** MINOR: every path she writes to moved.

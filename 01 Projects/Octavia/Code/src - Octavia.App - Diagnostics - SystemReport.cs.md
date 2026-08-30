@@ -142,21 +142,54 @@ internal static class SystemReport
         return facts;
     }
 
-    /// Windows' own meter rather than our capture stream, so the answer separates
-    /// "no audio is arriving" from "our capture is misconfigured".
+    /// The loudest sample arriving on a device over a window.
+    ///
+    /// This used to read `AudioMeterInformation.MasterPeakValue` on the endpoint, on
+    /// the reasoning that Windows' own meter separates "no audio is arriving" from
+    /// "our capture is misconfigured". It does not: **the endpoint meter reports zero
+    /// unless something already holds a stream open on that device**, so an idle
+    /// machine always measured 0.000 and the microphone check called a working
+    /// headset silent. It is a WASAPI capture of our own now — still independent of
+    /// the WaveIn path she listens through, so the two can still disagree usefully.
     public static float Peak(MMDevice device, TimeSpan window)
     {
         var highest = 0f;
-        var until = DateTime.UtcNow + window;
-        while (DateTime.UtcNow < until)
+
+        try
         {
-            var peak = device.AudioMeterInformation.MasterPeakValue;
-            if (peak > highest) highest = peak;
-            Thread.Sleep(50);
+            using var capture = new WasapiCapture(device);
+            var format = capture.WaveFormat;
+
+            capture.DataAvailable += (_, e) =>
+            {
+                var peak = PeakOf(e.Buffer, e.BytesRecorded, format);
+                if (peak > highest) highest = peak;
+            };
+
+            using var stopped = new ManualResetEventSlim(false);
+            capture.RecordingStopped += (_, _) => stopped.Set();
+
+            capture.StartRecording();
+            Thread.Sleep(window);
+            capture.StopRecording();
+            stopped.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (Exception ex)
+        {
+            // An exclusive-mode holder or a device disappearing mid-check. Reported as
+            // silence rather than thrown, because every caller is a diagnostic.
+            Log.Warn($"could not measure '{device.FriendlyName}': {ex.Message}");
         }
 
         return highest;
     }
+
+    /// Decoding lives in AudioSamples, which knows that a mix format is usually
+    /// `Extensible` rather than `IeeeFloat`. Testing the encoding directly here would
+    /// have reproduced the loopback's own bug in the diagnostics that are supposed to
+    /// catch it.
+    private static float PeakOf(byte[] buffer, int count, NAudio.Wave.WaveFormat format) =>
+        AudioSamples.PeakOf(buffer, count, format);
 }
 
 /// What only the running session knows, handed to the report so nothing has to reach

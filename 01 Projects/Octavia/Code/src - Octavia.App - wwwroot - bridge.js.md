@@ -33,6 +33,13 @@ const entries = el('entries');
 const voiceSel = el('voice');
 const avatarSel = el('avatar');
 const engineSel = el('voiceEngine');
+const micSel = el('microphone');
+const outSel = el('output');
+const computeSel = el('whisperCompute');
+
+/// Which camera she should open. Held here rather than in camera.js because that
+/// module is imported lazily, and the setting arrives long before the first look.
+let wantedCamera = '';
 const hourSel = el('roomHour');
 const musicChk = el('music');
 const keyIn = el('key');
@@ -269,6 +276,26 @@ function applyHello(msg) {
       .concat((msg.avatars || []).map(file => ({ value: file, label: prettyAvatar(file) }))),
     msg.avatarFile ?? '');
 
+  /* Devices. "Follow the Windows default" is an option rather than an absence, so the
+     menu can say which one that currently is instead of leaving it blank. */
+  if (msg.microphones) {
+    fill(micSel,
+      [{ value: '', label: 'Windows default' }]
+        .concat(msg.microphones.map(d => ({ value: d.value, label: d.label }))),
+      msg.microphone ?? '');
+  }
+
+  if (msg.outputs) {
+    fill(outSel,
+      [{ value: '', label: 'Windows default' }]
+        .concat(msg.outputs.map(d => ({ value: d.value, label: d.label }))),
+      msg.output ?? '');
+  }
+
+  if (msg.whisperCompute) computeSel.value = msg.whisperCompute;
+
+  if (msg.cameraDevice !== undefined) wantedCamera = msg.cameraDevice;
+
   if (msg.music !== undefined) {
     musicChk.checked = !!msg.music;
     el('musicHint').textContent = !msg.music
@@ -378,7 +405,8 @@ watchBtn.addEventListener('click', () => { toggleWatch(); });
    look never loads any camera code at all. */
 async function look() {
   try {
-    const { takeStill } = await import('./camera.js');
+    const { takeStill, useCamera } = await import('./camera.js');
+    useCamera(wantedCamera);
     const image = await takeStill(live => document.body.classList.toggle('looking', live));
     send({ type: 'sight', image });
 
@@ -429,6 +457,9 @@ keyPill.addEventListener('click', () => {
 voiceSel.addEventListener('change', () => send({ type: 'setVoice', value: voiceSel.value }));
 avatarSel.addEventListener('change', () => send({ type: 'setAvatar', value: avatarSel.value }));
 engineSel.addEventListener('change', () => send({ type: 'setVoiceEngine', value: engineSel.value }));
+micSel.addEventListener('change', () => send({ type: 'setMicrophone', value: micSel.value }));
+outSel.addEventListener('change', () => send({ type: 'setOutput', value: outSel.value }));
+computeSel.addEventListener('change', () => send({ type: 'setWhisperCompute', value: computeSel.value }));
 musicChk.addEventListener('change', () => send({ type: 'setMusic', value: musicChk.checked }));
 hourSel.addEventListener('change', () => {
   const hour = Number(hourSel.value);

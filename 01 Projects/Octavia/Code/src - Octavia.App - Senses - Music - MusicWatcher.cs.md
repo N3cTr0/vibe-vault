@@ -38,12 +38,18 @@ internal sealed class MusicWatcher : IDisposable
     public bool IsRunning => _listener.IsRunning;
     public MusicState State => _last;
     public string DeviceName => _listener.DeviceName;
+
+    /// Which render endpoint to tap. Empty follows the Windows default.
+    public string? Device { get => _listener.Device; set => _listener.Device = value; }
     public int SampleRate => _listener.SampleRate;
 
     /// How completely, and how faithfully, the audio path is delivering — see
     /// `LoopbackListener.FramesSeen` and `Crest`.
     public (long Frames, long Gaps, long Silent, double Crest) Delivery =>
         (_listener.FramesSeen, _listener.Gaps, _listener.SilentBuffers, _listener.Crest);
+
+    /// Peak and RMS behind the crest factor, for when the ratio alone is ambiguous.
+    public (double Peak, double Rms) Levels => (_listener.Peak, _listener.Rms);
 
     public async Task<bool> StartAsync()
     {

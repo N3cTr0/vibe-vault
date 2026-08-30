@@ -45,20 +45,21 @@ internal static class MicProbe
         Console.WriteLine();
         Console.WriteLine($"listening to '{standard.FriendlyName}' for {seconds}s — make some noise:");
 
+        // This used to read AudioMeterInformation.MasterPeakValue, on the reasoning
+        // that Windows' own meter shows signal without opening a capture. It does not:
+        // that meter is zero unless something already holds the device open, so it
+        // reported a working microphone as silent. Peak opens a real capture now.
         var peakSeen = 0f;
-        for (var i = 0; i < seconds * 4; i++)
+        for (var i = 0; i < seconds; i++)
         {
-            // Windows' own meter: shows signal without opening a capture stream,
-            // so it separates "no audio arriving" from "our capture is misconfigured".
-            var peak = standard.AudioMeterInformation.MasterPeakValue;
+            var peak = Octavia.Diagnostics.SystemReport.Peak(standard, TimeSpan.FromSeconds(1));
             if (peak > peakSeen) peakSeen = peak;
-            Thread.Sleep(250);
-            if (i % 4 == 3) Console.WriteLine($"  {i / 4 + 1}s  peak so far {peakSeen:0.000}");
+            Console.WriteLine($"  {i + 1}s  peak so far {peakSeen:0.000}");
         }
 
         Console.WriteLine(peakSeen > 0.01f
             ? $"  SIGNAL PRESENT (peak {peakSeen:0.000}) — audio reaches Windows"
-            : "  SILENT — Windows sees no audio on the default capture device");
+            : "  SILENT — nothing arrived on that device while the capture was open");
 
         foreach (var device in endpoints) device.Dispose();
         standard.Dispose();

@@ -34,6 +34,9 @@ internal sealed class LoopbackListener : IDisposable
     public event Action? Stopped;
 
     public int SampleRate { get; private set; }
+
+    /// Which render endpoint to tap. Empty follows the Windows default.
+    public string? Device { get; set; }
     public string DeviceName { get; private set; } = "none";
     public bool IsRunning => _recorder is not null;
 
@@ -49,9 +52,14 @@ internal sealed class LoopbackListener : IDisposable
     ///
     /// Music runs about 4 to 10. A path that is limiting or compressing pins it near 1.5,
     /// because everything arrives at full scale, and a beat cannot be found in audio with
-    /// no dynamics left in it. Remote Desktop's "Remote Audio" endpoint does exactly this
-    /// whatever volume is played into it, which is worth being able to say out loud
-    /// rather than concluding the tempo detection is broken.
+    /// no dynamics left in it.
+    ///
+    /// **A reading near 1.73 with an RMS near 0.577 is not a limiter — it is this class
+    /// misreading the samples.** Those are uniform noise's figures, and they were what
+    /// `Sample` produced for years by taking the low two bytes of a 32-bit endpoint. The
+    /// blame went to Remote Desktop, then to a virtual streaming endpoint, then to a
+    /// headset, before anyone compared the number against the track being played. Compare
+    /// against the source before concluding anything: `EarsTest music demo` now does.
     public double Crest
     {
         get
@@ -60,6 +68,12 @@ internal sealed class LoopbackListener : IDisposable
             return rms > 1e-9 ? _peak / rms : 0;
         }
     }
+
+    /// The two halves of Crest, separately. A crest factor alone cannot distinguish
+    /// "the peaks were squashed" from "the whole signal arrived far too quiet", and
+    /// those need very different answers.
+    public double Peak => _peak;
+    public double Rms => _frames > 0 ? Math.Sqrt(_energySum / _frames) : 0;
 
     private double _peak, _energySum;
     private long _frames;
@@ -90,10 +104,16 @@ internal sealed class LoopbackListener : IDisposable
 
         try
         {
-            using var enumerator = new MMDeviceEnumerator();
-            if (!enumerator.TryGetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia, out var device))
+            // Choosing the endpoint matters more here than anywhere else she listens:
+            // the Windows default on a machine with streaming software is often a
+            // virtual device that normalises to full scale, and a beat cannot be found
+            // in audio with no dynamics left in it.
+            var device = AudioDevices.Resolve(DataFlow.Render, Device);
+            if (device is null)
             {
-                Log.Warn("music: no audio output device to listen to");
+                Log.Warn(string.IsNullOrWhiteSpace(Device)
+                    ? "music: no audio output device to listen to"
+                    : $"music: no output device matching '{Device}'");
                 return false;
             }
 
@@ -119,7 +139,8 @@ internal sealed class LoopbackListener : IDisposable
                 recorder.StartRecording();
                 _recorder = recorder;
 
-                Log.Write($"loopback open: {DeviceName} at {SampleRate} Hz, {recorder.WaveFormat.Channels} ch");
+                Log.Write($"loopback open: {DeviceName} at {SampleRate} Hz, {recorder.WaveFormat.Channels} ch, " +
+                          $"{recorder.WaveFormat.BitsPerSample}-bit {recorder.WaveFormat.Encoding}");
                 return true;
             }
         }
@@ -185,7 +206,7 @@ internal sealed class LoopbackListener : IDisposable
             return;
         }
 
-        var isFloat = format.Encoding == WaveFormatEncoding.IeeeFloat;
+        var isFloat = AudioSamples.IsFloat(format);
 
         for (var frame = 0; frame < frames; frame++)
         {
@@ -193,9 +214,7 @@ internal sealed class LoopbackListener : IDisposable
             for (var channel = 0; channel < channels; channel++)
             {
                 var at = (frame * channels + channel) * bytesPerSample;
-                sum += isFloat
-                    ? BitConverter.ToSingle(buffer[at..])
-                    : BitConverter.ToInt16(buffer[at..]) / 32768f;
+                sum += AudioSamples.Read(buffer, at, bytesPerSample, isFloat);
             }
 
             // Downmixed rather than one channel taken: a track mixed hard to one side

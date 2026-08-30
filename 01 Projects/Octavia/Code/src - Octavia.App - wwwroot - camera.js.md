@@ -30,6 +30,41 @@ const EDGE = 768;
 
 let busy = false;
 
+/* Which camera to open. Empty means whichever one the browser would pick, which is
+   right until a machine has two of them. Matched by label rather than deviceId: an id
+   is regenerated per origin and per permission grant, so it cannot be stored in a
+   config file and still mean anything tomorrow. */
+let wanted = '';
+
+export function useCamera(label) { wanted = label || ''; }
+
+/** Labels of the cameras attached, for the settings menu. Empty until permission has
+    been granted once — the browser withholds labels from an unpermitted page. */
+export async function cameras() {
+  try {
+    const devices = await navigator.mediaDevices?.enumerateDevices?.() ?? [];
+    return devices.filter(d => d.kind === 'videoinput' && d.label).map(d => d.label);
+  } catch {
+    return [];
+  }
+}
+
+async function constraints() {
+  const video = { width: { ideal: 1280 }, height: { ideal: 720 } };
+  if (!wanted) return { video, audio: false };
+
+  // Resolve the stored label back to an id at the moment of use.
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const match = devices.find(d => d.kind === 'videoinput' && d.label &&
+      (d.label.toLowerCase().includes(wanted.toLowerCase()) ||
+       wanted.toLowerCase().includes(d.label.toLowerCase())));
+    if (match) video.deviceId = { exact: match.deviceId };
+  } catch { /* fall through to the default camera */ }
+
+  return { video, audio: false };
+}
+
 export async function takeStill(onLive) {
   if (busy) throw new Error('already looking');
   busy = true;
@@ -38,10 +73,7 @@ export async function takeStill(onLive) {
   try {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('this renderer has no camera API');
 
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    });
+    stream = await navigator.mediaDevices.getUserMedia(await constraints());
 
     onLive(true);
 

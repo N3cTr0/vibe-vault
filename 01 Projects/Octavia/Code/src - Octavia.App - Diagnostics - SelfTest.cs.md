@@ -7,6 +7,7 @@ source-path: src\Octavia.App\Diagnostics\SelfTest.cs
 # src\Octavia.App\Diagnostics\SelfTest.cs
 
 ```csharp
+using System.Net.Http.Json;
 using System.Globalization;
 using NAudio.CoreAudioApi;
 using Octavia.Core;
@@ -35,10 +36,14 @@ internal static class SelfTest
         // line for those in a bundle taken while she is stopped would only mislead.
         if (host.Running) checks.AddRange([Transport(host), Renderer(host)]);
 
-        checks.AddRange([Microphone(), SpeechModel(config), Voice(config, host), Avatar(config),
+        checks.AddRange([Microphone(config), SpeechModel(config), Voice(config, host), Avatar(config),
                          Music(config, host), Camera(config), Gate(config)]);
 
         checks.Add(await BrainAsync(config, host, cancel));
+
+        // Only meaningful for a local brain; a cloud brain has no placement to get wrong.
+        if (string.Equals(config.Brain, "local", StringComparison.OrdinalIgnoreCase))
+            checks.Add(await GateSpeedAsync(config, cancel));
         return checks;
     }
 
@@ -94,37 +99,45 @@ internal static class SelfTest
 
     /// The failure this one is really for: a capture device that opens successfully and
     /// delivers pure digital silence, which looks identical to her ignoring you.
-    private static Check Microphone()
+    private static Check Microphone(OctaviaConfig config)
     {
         try
         {
-            using var enumerator = new MMDeviceEnumerator();
-            var endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
+            var endpoints = AudioDevices.Capture();
+            if (endpoints.Count == 0)
+                return new Check("Microphone", false, "no active capture device",
+                    "Windows sees no microphone at all. Check it is plugged in and enabled " +
+                    "in Sound settings.");
 
-            try
-            {
-                if (endpoints.Count == 0)
-                    return new Check("Microphone", false, "no active capture device",
-                        "Windows sees no microphone at all. Check it is plugged in and enabled " +
-                        "in Sound settings.");
-
-                using var standard = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
-                var peak = SystemReport.Peak(standard, TimeSpan.FromSeconds(1.2));
-
-                if (peak > 0.005f)
-                    return new Check("Microphone", true, $"'{standard.FriendlyName}' carrying signal (peak {peak.ToString("0.000", CultureInfo.InvariantCulture)})");
-
+            // The device she would actually open, not whichever one Windows calls
+            // default — those differ the moment MicrophoneDevice is set, and a check
+            // that measures the wrong device is worse than no check.
+            using var device = AudioDevices.Resolve(DataFlow.Capture, config.MicrophoneDevice);
+            if (device is null)
                 return new Check("Microphone", false,
-                    $"'{standard.FriendlyName}' is silent (peak {peak.ToString("0.000", CultureInfo.InvariantCulture)})",
-                    "Windows itself sees no audio, so this is upstream of Octavia. Speak while " +
-                    "running the test; if it stays at 0.000 over Remote Desktop, the client's " +
-                    "Local Resources > Remote audio > 'Record from this computer' is off and can " +
-                    "only be changed before connecting.");
-            }
-            finally
-            {
-                foreach (var device in endpoints) device.Dispose();
-            }
+                    $"no capture device matching '{config.MicrophoneDevice}'",
+                    "Clear MicrophoneDevice to follow the Windows default, or pick one of: " +
+                    string.Join(", ", endpoints.Select(d => d.Name)));
+
+            var peak = SystemReport.Peak(device, TimeSpan.FromSeconds(1.5));
+            var reading = peak.ToString("0.000", CultureInfo.InvariantCulture);
+
+            // Three outcomes, not two. The failure worth catching is a device that
+            // opens and delivers *digital* silence — which is a different thing from a
+            // quiet room, and reporting the two the same way is what made this check
+            // call a working headset dead. Any noise floor at all proves the path.
+            if (peak > 0.02f)
+                return new Check("Microphone", true, $"'{device.FriendlyName}' hearing speech (peak {reading})");
+
+            if (peak > 0.0005f)
+                return new Check("Microphone", true,
+                    $"'{device.FriendlyName}' open, room noise only (peak {reading}) — say something to see it rise");
+
+            return new Check("Microphone", false,
+                $"'{device.FriendlyName}' is digitally silent (peak {reading})",
+                "The device opened but delivered no signal whatsoever — not even a noise " +
+                "floor, which a working microphone always has. Check it is not muted and " +
+                "that its level is up in Sound settings.");
         }
         catch (Exception ex)
         {
@@ -197,6 +210,66 @@ internal static class SelfTest
                 "\"GateModel\" to match \"LocalModel\".");
 
         return new Check("Attention gate", true, $"{config.GateModel}, {config.GateFollowUpSeconds}s follow-up window");
+    }
+
+    /// How long the local model actually takes, which no amount of reading config can
+    /// tell you.
+    ///
+    /// This exists because of a failure that was invisible for weeks: Ollama offloaded
+    /// the model onto a **GeForce GT 730 over Vulkan** — 28 of 29 layers — so every gate
+    /// call took about 3.9 s against 0.63 s on the CPU beside it, and with an 8 s
+    /// timeout in front the gate simply failed open on everything. She answered the
+    /// television, and the only visible symptom was that she felt slow. Nothing in the
+    /// config was wrong; the placement was. See ROADMAP.md.
+    private static async Task<Check> GateSpeedAsync(OctaviaConfig config, CancellationToken cancel)
+    {
+        if (string.Equals(config.Gate, "off", StringComparison.OrdinalIgnoreCase))
+            return new Check("Gate speed", true, "gate is off");
+
+        try
+        {
+            using var http = new HttpClient
+            {
+                BaseAddress = new Uri(config.LocalEndpoint.TrimEnd('/') + "/"),
+                Timeout = TimeSpan.FromSeconds(30)
+            };
+
+            var request = new
+            {
+                model = config.GateModel,
+                messages = new object[] { new { role = "user", content = "Reply with the single word OK." } },
+                stream = false,
+                temperature = 0,
+                max_tokens = 8
+            };
+
+            // Twice: the first call may load the model, which is not what an utterance pays.
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            using (await http.PostAsJsonAsync("chat/completions", request, cancel)) { }
+            stopwatch.Restart();
+            using var second = await http.PostAsJsonAsync("chat/completions", request, cancel);
+            stopwatch.Stop();
+
+            if (!second.IsSuccessStatusCode)
+                return new Check("Gate speed", false, $"the local server returned {(int)second.StatusCode}",
+                    $"Is '{config.GateModel}' pulled? Try: ollama pull {config.GateModel}");
+
+            var ms = stopwatch.ElapsedMilliseconds;
+            if (ms < 1500)
+                return new Check("Gate speed", true, $"{ms} ms warm");
+
+            return new Check("Gate speed", false, $"{ms} ms warm — slow enough to time out",
+                "The model is probably running on a weak GPU rather than the processor. " +
+                "Check with 'ollama ps': anything other than 100% CPU on a machine whose " +
+                "processor is the stronger half is costing you. Pin it to the CPU with a " +
+                "Modelfile containing 'PARAMETER num_gpu 0', create it as a new name, and " +
+                "point LocalModel and GateModel at that.");
+        }
+        catch (Exception ex)
+        {
+            return new Check("Gate speed", false, ex.Message,
+                "The local model server did not answer. Is it running?");
+        }
     }
 
     /// "She never dances" has three quite different causes — switched off, no output

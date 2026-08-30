@@ -27,6 +27,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     private readonly SileroVad _vad;
     private readonly WhisperTranscriber _whisper;
     private readonly string _modelName;
+    private readonly string? _device;
 
     private WaveIn? _capture;
     private readonly float[] _frame = new float[SileroVad.FrameSamples];
@@ -57,11 +58,12 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     public string EngineName => $"Whisper {_modelName} (local)";
     public bool IsListening => _wantListening && !_muted;
 
-    public WhisperRecognizer(string modelPath, string modelName, string language)
+    public WhisperRecognizer(string modelPath, string modelName, string language, string? compute = null, int threads = 0, string? device = null)
     {
         _modelName = modelName;
+        _device = device;
         _vad = new SileroVad(WhisperModelStore.SileroPath);
-        _whisper = new WhisperTranscriber(modelPath, language);
+        _whisper = new WhisperTranscriber(modelPath, language, compute, threads);
     }
 
     public void Start()
@@ -77,6 +79,14 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
             WaveFormat = new WaveFormat(SileroVad.SampleRate, 16, 1),
             BufferMilliseconds = 32
         };
+
+        var index = AudioDevices.WaveInIndex(_device);
+        if (index >= 0)
+        {
+            _capture.DeviceNumber = index;
+            Log.Write($"listening on '{WaveIn.GetCapabilities(index).ProductName}'");
+        }
+
         _capture.DataAvailable += OnAudio;
         _capture.RecordingStopped += (_, e) =>
         {

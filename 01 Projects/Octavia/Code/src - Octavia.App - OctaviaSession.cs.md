@@ -47,6 +47,8 @@ internal sealed class OctaviaSession : IDisposable
         _config = config;
         _face = face;
         _gate = new AttentionGate(config);
+        _meter.Device = config.MicrophoneDevice;
+        _music.Device = config.OutputDevice;
         _brain = string.Equals(config.Brain, "local", StringComparison.OrdinalIgnoreCase)
             ? new LocalBrain(config)
             : new ClaudeBrain(config);
@@ -110,6 +112,67 @@ internal sealed class OctaviaSession : IDisposable
 
         if (on) StartMusic().Forget("starting to listen for music");
         else { _music.Stop(); Announce(); }
+    }
+
+    // ---- which devices she uses -------------------------------
+
+    private static string Named(string? device) =>
+        string.IsNullOrWhiteSpace(device) ? "the Windows default" : $"'{device}'";
+
+    /// Changing the microphone reopens the ears, because a capture device is chosen
+    /// when the stream opens and not afterwards. She keeps listening across the swap
+    /// if she was listening before it.
+    private void SelectMicrophone(string device)
+    {
+        _config.MicrophoneDevice = device;
+        _config.Save();
+        Log.Write($"microphone: {Named(device)}");
+
+        _meter.Device = device;
+        if (_meter.IsRunning) { _meter.Stop(); _meter.Start(); }
+
+        if (_ears is not null)
+        {
+            var wasListening = _wantsToListen;
+            StopListening();
+            _ears.Dispose();
+            _ears = null;
+            if (wasListening) StartListening();
+        }
+
+        Announce();
+    }
+
+    /// The loopback capture is pinned to one endpoint, so this restarts it rather than
+    /// letting it follow anything.
+    private void SelectOutput(string device)
+    {
+        _config.OutputDevice = device;
+        _config.Save();
+        Log.Write($"output: {Named(device)}");
+
+        _music.Device = device;
+        if (_config.Music)
+        {
+            _music.Stop();
+            StartMusic().Forget("restarting music after an output change");
+        }
+        else Announce();
+    }
+
+    /// Whisper.net binds its native library once per process, so this cannot take
+    /// effect until she is restarted — and saying so is better than appearing to
+    /// change something that has not changed.
+    private void SelectWhisperCompute(string compute)
+    {
+        var wanted = compute.Trim().ToLowerInvariant();
+        if (wanted is not ("auto" or "cpu" or "gpu")) return;
+
+        _config.WhisperCompute = wanted;
+        _config.Save();
+        Log.Write($"whisper compute set to {wanted}; takes effect on restart");
+        Notice($"Whisper will use {wanted} the next time she starts.");
+        Announce();
     }
 
     private void Listen(IVoice voice)
@@ -268,6 +331,25 @@ internal sealed class OctaviaSession : IDisposable
                 SelectMusic(!message.TryGetProperty("value", out var m) || m.ValueKind != JsonValueKind.False);
                 break;
 
+            case "setMicrophone":
+                SelectMicrophone(Text(message, "value") ?? "");
+                break;
+
+            case "setOutput":
+                SelectOutput(Text(message, "value") ?? "");
+                break;
+
+            case "setCameraDevice":
+                _config.CameraDevice = Text(message, "value") ?? "";
+                _config.Save();
+                Log.Write($"camera device: {Named(_config.CameraDevice)}");
+                Announce();
+                break;
+
+            case "setWhisperCompute":
+                SelectWhisperCompute(Text(message, "value") ?? "auto");
+                break;
+
             case "setRoomHour":
                 SelectRoomHour(message.TryGetProperty("value", out var h) && h.TryGetInt32(out var hour) ? hour : -1);
                 break;
@@ -326,8 +408,23 @@ internal sealed class OctaviaSession : IDisposable
         music = _config.Music,
         musicAvailable = _music.IsRunning,
         camera = _config.Camera,
+
+        // Devices, so the drawer can offer a choice rather than inheriting whatever
+        // Windows calls default — which on a machine with streaming software installed
+        // is often a virtual endpoint that suits nothing. An empty value means "follow
+        // the default", and is always the first option.
+        microphones = AudioDevices.Capture().Select(d => new { value = d.Name, label = Label(d) }),
+        microphone = _config.MicrophoneDevice ?? "",
+        outputs = AudioDevices.Render().Select(d => new { value = d.Name, label = Label(d) }),
+        output = _config.OutputDevice ?? "",
+        cameraDevice = _config.CameraDevice ?? "",
+        whisperCompute = _config.WhisperCompute ?? "auto",
+
         dev = _config.DevPanel ?? string.Equals(_config.Profile, "dev", StringComparison.OrdinalIgnoreCase)
     });
+
+    private static string Label(AudioDevice device) =>
+        device.IsDefault ? $"{device.Name} (Windows default)" : device.Name;
 
     /// The character file, on the read-only origin the host maps to her avatars folder.
     /// Null means the bust, which is the answer whenever anything is missing.
@@ -572,7 +669,9 @@ internal sealed class OctaviaSession : IDisposable
         try
         {
             var modelPath = await WhisperModelStore.EnsureAsync(_config.WhisperModel, Notice);
-            return new WhisperRecognizer(modelPath, _config.WhisperModel, _config.WhisperLanguage);
+            return new WhisperRecognizer(
+                modelPath, _config.WhisperModel, _config.WhisperLanguage,
+                _config.WhisperCompute, _config.WhisperThreads, _config.MicrophoneDevice);
         }
         catch (Exception ex)
         {

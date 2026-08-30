@@ -21,13 +21,20 @@ internal sealed class WhisperTranscriber : IDisposable
     private readonly WhisperProcessor _processor;
     private readonly SemaphoreSlim _oneAtATime = new(1, 1);
 
-    public WhisperTranscriber(string modelPath, string language)
+    public WhisperTranscriber(string modelPath, string language, string? compute = null, int threads = 0)
     {
-        _factory = WhisperFactory.FromPath(modelPath);
+        WhisperCompute.Apply(compute);
+        _factory = WhisperFactory.FromPath(
+            modelPath, new WhisperFactoryOptions { UseGpu = WhisperCompute.UseGpu });
+
+        // Half the logical processors is physical-core count on every SMT machine, and
+        // whisper.cpp gains nothing from the second thread on a core.
+        var chosen = threads > 0 ? threads : Math.Max(2, Environment.ProcessorCount / 2);
+        Log.Write($"whisper running on {WhisperCompute.Loaded ?? "an unreported library"}, {chosen} threads");
 
         var builder = _factory.CreateBuilder()
             .WithProbabilities()
-            .WithThreads(Math.Max(2, Environment.ProcessorCount / 2));
+            .WithThreads(chosen);
 
         _processor = (language == "auto"
             ? builder.WithLanguageDetection()
