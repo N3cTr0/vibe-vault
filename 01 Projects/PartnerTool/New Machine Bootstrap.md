@@ -85,8 +85,12 @@ Handover state at **v0.24.24**, the point the project left the VM for a physical
 
 **Do these two first on the new PC:**
 
-1. **Rotate the GitHub PAT.** It expires **2026-08-17** and covers both repos - after that, every
-   push fails. Easiest to replace it before cloning rather than debug a rejected push later.
+1. **Check the GitHub PAT.** One fine-grained PAT covers both repos, so when it lapses the code push
+   and the vault backup stop together - which reads like the sync breaking rather than an auth
+   problem. A date of 2026-08-17 was once recorded, but pushes still worked on 2026-08-30, so treat
+   any expiry date as unverified and just confirm a push works early. Note a single failure can be
+   transient: one push was rejected with "Invalid username or token" and an immediate retry
+   succeeded.
 2. **Re-point Claude at the vault** using the paste in section 1 - a fresh session on a new machine
    knows nothing about this project until you do.
 
