@@ -140,9 +140,18 @@ no remote yet.
 
 ### Two of the three "it was the VM" hopes need revising
 
-- **Music should still be re-tested and probably will improve** — there is a real Realtek
-  sound card here, so the crest-factor problem should be gone. Not yet re-run.
-- **The camera cannot be re-verified: there is no webcam attached to this machine.**
+- **Music was re-run, and the crest factor is still exactly 1.7** — the same number the VM
+  gave. That looks at first like the diagnosis was wrong, but it is not: the probe reports
+  `default output: Speakers (Steam Streaming Speakers)`, and that is a **virtual endpoint**
+  from the Steam/Sunshine streaming stack doing precisely what Remote Audio did. The real
+  lesson is broader than the note claimed — **it was never Remote Desktop specifically, it
+  is any virtual render endpoint**, and this machine boots with one as default. There is a
+  Realtek card and a Jabra EVOLVE 20 MS headset attached; set one of those as the default
+  playback device and re-run `dotnet run --project tools\EarsTest -- music demo` before
+  drawing any conclusion about beat detection. Tempo still wandered here (75–184 bpm around
+  a played 132), which is the expected consequence of a crest factor that low.
+- **The camera cannot be re-verified: there is no webcam attached to this machine.** The
+  Jabra headset does mean there is a real microphone, so the mic path can be tested.
 - **The photoreal stage is still blocked, and the shopping list is not met.** The GPU is a
   **GeForce GT 730** — Kepler, on the legacy 30.0.14.7514 driver, with `nvidia-smi` failing
   at `Failed to initialize NVML`. CUDA 12 dropped Kepler, so **Whisper CUDA, TensorRT 10.13
