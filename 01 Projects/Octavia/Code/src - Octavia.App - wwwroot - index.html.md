@@ -17,7 +17,24 @@ source-path: src\Octavia.App\wwwroot\index.html
 <title>Octavia</title>
 <link rel="stylesheet" href="face.css">
 </head>
-<body data-state="idle">
+<body data-state="idle" class="loading">
+
+<!-- Held until the scene has built *and* the host has said hello. Before this existed she
+     showed a finished-looking console while the renderer, the socket and the voice were
+     all still coming up, and the gap between looking ready and being ready is where every
+     "she ignored me" report started. It names what it is waiting for rather than
+     spinning: a splash that cannot say why it is still there is just a delay. -->
+<div id="splash" role="status" aria-live="polite">
+  <div class="splash-inner">
+    <span class="mark">Octavia<em>.</em></span>
+    <ul id="splashSteps">
+      <li data-step="renderer">Building the room</li>
+      <li data-step="host">Reaching the host</li>
+      <li data-step="voice">Finding her voice</li>
+    </ul>
+    <p id="splashNote"></p>
+  </div>
+</div>
 
 <div id="app">
   <header>
@@ -32,7 +49,7 @@ source-path: src\Octavia.App\wwwroot\index.html
 
   <div id="placard">
     <span id="speaker">&nbsp;</span>
-    <p id="caption" class="muted">Press the microphone, or type below.</p>
+    <p id="caption" class="muted">Press the microphone, or say her name.</p>
   </div>
 
   <div id="console">
@@ -49,18 +66,31 @@ source-path: src\Octavia.App\wwwroot\index.html
         </svg>
       </button>
 
-      <div class="field">
+      <!-- Typing is the exception, so it costs a click rather than the width of the
+           window. Most turns are spoken; a field sized for the full width of a
+           full-screen console was announcing the opposite. -->
+      <button id="typeBtn" title="Type instead" aria-label="Type instead" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 9.5h.01M9.5 9.5h.01M13 9.5h.01M16.5 9.5h.01M8 14h8"/>
+        </svg>
+      </button>
+
+      <!-- Hush lives out here now: it has to be reachable while she is speaking, and
+           she can be speaking with the field shut. -->
+      <button id="hush" title="Stop her (Esc)" aria-label="Stop her mid-sentence" hidden>
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+      </button>
+
+      <div class="field" hidden>
         <input id="text" type="text" autocomplete="off" placeholder="Type instead...">
-        <!-- Shown only while there is something to stop. Esc does the same thing. -->
-        <button id="hush" title="Stop her (Esc)" aria-label="Stop her mid-sentence" hidden>
-          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
-        </button>
         <button id="send" aria-label="Send message">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 12h15M13 6l6 6-6 6"/>
           </svg>
         </button>
       </div>
+
+      <span class="grow"></span>
 
       <button id="drawerBtn" title="Transcript, settings and health" aria-label="Open the drawer" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">

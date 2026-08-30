@@ -63,6 +63,7 @@ avatar.setLightScale(lightScale);
    from its own head bone, so a tall character and a short one look the same size. */
 const BUST_FRAME = { target: new THREE.Vector3(0, -0.35, 0), distance: 6.4, height: 0.10, offset: 0.55 };
 let frame = BUST_FRAME;
+const cameraHome = new THREE.Vector3();
 
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
@@ -78,6 +79,9 @@ function resize() {
     frame.target.z + frame.distance * fit);
   camera.updateProjectionMatrix();
   camera.lookAt(frame.target);
+  // Where the drift in the render loop sways *around*. Taken after framing, so a
+  // resize or an avatar swap re-homes it rather than accumulating an offset.
+  cameraHome.copy(camera.position);
   environment.setAspect(Math.max(camera.aspect, 0.6));
 }
 new ResizeObserver(resize).observe(stage);
@@ -191,6 +195,19 @@ function tick() {
   const span = THREE.MathUtils.clamp(
     rig.state === 'listening' ? 0.22 + rig.level * 1.9 : 0.62, 0.12, 2.6);
   avatar.setActivity(busy, spin, span);
+
+  /* A very slow camera drift.
+     The room has parallax layers and dust, but parallax is a *relative* motion: with a
+     bolted-down camera the layers slide and the scene still reads flat, because nothing
+     moves against anything. A few centimetres of lateral sway, on a period long enough
+     that nobody catches it moving, is what turns those layers into depth. It is
+     deliberately not tied to her state — a room does not stop having volume when she is
+     idle. */
+  const sway = Math.sin(t * 0.043) * 0.085;
+  const rise = Math.sin(t * 0.031 + 1.3) * 0.030;
+  camera.position.x = cameraHome.x + sway;
+  camera.position.y = cameraHome.y + rise;
+  camera.lookAt(frame.target);
 
   environment.setMusic(rig.music ? rig.energy : 0, rig.beat);
   environment.update(dt, t);

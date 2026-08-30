@@ -147,6 +147,9 @@ function receive(msg) {
       break;
 
     case 'notice':
+      // While the splash is up it is the only surface there is, and a notice during
+      // startup is almost always the long thing: a voice or a speech model downloading.
+      if (document.body.classList.contains('loading')) splashNote.textContent = msg.text;
       notify(msg.text);
       break;
 
@@ -251,6 +254,10 @@ function pill(id, health, text) {
 }
 
 function applyHello(msg) {
+  // The host answering *is* the second splash step; the voice is the third.
+  splashStep('host', true);
+  splashStep('voice', !!msg.voice);
+
   pill('pillBrain', msg.hasKey ? 'ok' : 'warn', msg.model || '—');
   pill('pillEars', msg.ears && msg.ears !== 'not started' ? 'ok' : 'dead', msg.ears || 'not started');
   pill('pillProfile', 'ok', msg.profile || '—');
@@ -430,10 +437,30 @@ function submitTyped() {
   const value = textIn.value.trim();
   textIn.value = '';
   if (value) send({ type: 'say', text: value });
+  // Sent, so the field has done its job and the room comes back.
+  if (value) showField(false);
 }
 
 el('send').addEventListener('click', submitTyped);
-textIn.addEventListener('keydown', e => { if (e.key === 'Enter') submitTyped(); });
+/* Typing is opt-in. Opening focuses the field, because someone who clicked the keyboard
+   wants to type, not to look at a box. */
+const typeBtn = el('typeBtn');
+const fieldWrap = document.querySelector('.field');
+
+function showField(on) {
+  fieldWrap.hidden = !on;
+  typeBtn.setAttribute('aria-expanded', String(on));
+  if (on) textIn.focus();
+  else textIn.value = '';
+}
+
+typeBtn.addEventListener('click', () => showField(fieldWrap.hidden));
+
+textIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitTyped();
+  // Esc closes the field; if she is talking, the global handler stops her instead.
+  if (e.key === 'Escape' && !document.body.classList.contains('busy')) showField(false);
+});
 
 el('talk').addEventListener('click', () => send({ type: 'listen' }));
 hushBtn.addEventListener('click', () => send({ type: 'hush' }));
@@ -706,10 +733,57 @@ window.addEventListener('unhandledrejection', e => {
   send({ type: 'faceError', text: String(e.reason) });
 });
 
+/* ── splash ──────────────────────────────────────────────────
+   Held until the scene has built and the host has answered. It reports which step it is
+   on because a splash that cannot say why it is still there is indistinguishable from a
+   hang — and the step that usually takes the time, fetching a voice or a speech model,
+   is exactly the one worth naming. */
+const splashSteps = el('splashSteps');
+const splashNote = el('splashNote');
+const splashDone = new Set();
+
+function splashStep(name, done) {
+  if (done) splashDone.add(name);
+
+  const order = ['renderer', 'host', 'voice'];
+  let waiting = null;
+
+  for (const step of order) {
+    const li = splashSteps.querySelector(`[data-step="${step}"]`);
+    if (!li) continue;
+
+    if (splashDone.has(step)) { li.classList.add('done'); li.classList.remove('now'); }
+    else if (!waiting) { waiting = step; li.classList.add('now'); }
+  }
+
+  // The voice arrives late on a first run and is not worth holding the room hostage
+  // for; the renderer and the host are.
+  if (splashDone.has('renderer') && splashDone.has('host')) finishSplash();
+}
+
+let splashClosed = false;
+function finishSplash() {
+  if (splashClosed) return;
+  splashClosed = true;
+  // A beat, so the last step is legibly ticked rather than flashing past.
+  setTimeout(() => document.body.classList.remove('loading'), 420);
+}
+
+// Never leave someone looking at a splash because a step we were waiting on never
+// arrived. Whatever is wrong is better seen through the console than behind it.
+setTimeout(() => {
+  if (!splashClosed) {
+    splashNote.textContent = 'Taking longer than expected — opening anyway.';
+    setTimeout(finishSplash, 1200);
+  }
+}, 15000);
+
 /* `ready` must reach the host however the transport settled, so it waits for the socket
    to resolve one way or the other rather than firing into a connecting socket. */
 function announceReady() {
-  send({ type: 'ready', faceBuilt: typeof window.Face === 'object' });
+  const built = typeof window.Face === 'object';
+  splashStep('renderer', built);
+  send({ type: 'ready', faceBuilt: built });
 }
 
 if (socket) {

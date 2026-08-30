@@ -181,7 +181,26 @@ body[data-state="listening"] #talk::after{animation:halo 1.4s infinite}
 #watch svg{width:17px;height:17px}
 #watch[aria-pressed="true"]{background:var(--alert);border-color:var(--alert);color:#fff;opacity:1}
 
-.field{flex:1 1 auto;position:relative;display:flex;align-items:center}
+/* The field is opened by #typeBtn and takes the room it needs only then. `.grow`
+   holds the space open when it is shut, so the drawer button stays where it was and
+   the row does not jump as the field appears. */
+.grow{flex:1 1 auto}
+.field[hidden]{display:none}
+.field{flex:1 1 auto;position:relative;display:flex;align-items:center;max-width:560px}
+
+#typeBtn,#hush{
+  flex:0 0 auto;width:42px;height:42px;border-radius:50%;
+  border:1px solid var(--room-line);background:transparent;color:var(--room-ink);opacity:.75;
+  cursor:pointer;display:grid;place-items:center;
+  transition:background .18s,color .18s,border-color .18s,opacity .18s,transform .12s;
+}
+/* `display:grid` above beats the `hidden` attribute's own `display:none`, which is how
+   Hush ended up permanently visible the moment it moved out of the field. */
+#typeBtn[hidden],#hush[hidden],#watch[hidden]{display:none}
+#typeBtn:hover,#hush:hover{opacity:1}
+#typeBtn:active,#hush:active{transform:scale(.96)}
+#typeBtn svg{width:18px;height:18px}
+#typeBtn[aria-expanded="true"]{border-color:var(--cobalt);color:var(--cobalt);opacity:1}
 #text{
   width:100%;font-family:var(--body);font-size:var(--t-input);color:var(--ink);
   background:var(--sunk);border:1px solid var(--rule);border-radius:var(--radius);
@@ -191,14 +210,13 @@ body[data-state="listening"] #talk::after{animation:halo 1.4s infinite}
 body.busy #text{padding-right:98px}
 #text::placeholder{color:var(--ink-faint)}
 #text:focus{border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
-#send,#hush{
-  position:absolute;width:40px;height:38px;border:0;background:transparent;
+#send{
+  position:absolute;right:6px;width:40px;height:38px;border:0;background:transparent;
   color:var(--ink-soft);cursor:pointer;border-radius:var(--radius);display:grid;place-items:center;
 }
-#send{right:6px}
 #send:hover{color:var(--cobalt);background:var(--cobalt-soft)}
 #send svg{width:17px;height:17px}
-#hush{right:50px;color:var(--alert)}
+#hush{border-color:var(--alert);color:var(--alert);opacity:1}
 #hush:hover{background:rgba(196,54,47,.12)}
 #hush svg{width:15px;height:15px}
 
@@ -212,9 +230,14 @@ body.busy #text{padding-right:98px}
 #drawerBtn svg{width:17px;height:17px}
 
 /* ── status: a readout, with health ─────────────────────── */
+/* Stacked at the left rather than spread across the window. Five readings on one line
+   read as a sentence you have to parse; five short lines read as a list you can scan,
+   and from a sofa scanning is all that happens. */
 .meta{
-  max-width:860px;margin:var(--s2) auto 0;display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap;
+  max-width:860px;margin:var(--s2) auto 0;
+  display:flex;flex-direction:column;align-items:flex-start;gap:5px;
 }
+.pill.act{align-self:flex-start;margin-top:3px}
 .pill{
   display:flex;gap:7px;align-items:center;
   font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.1em;text-transform:uppercase;
@@ -234,6 +257,40 @@ body.busy #text{padding-right:98px}
 }
 .pill.act .d{background:var(--warn)}
 .pill.act:hover{background:rgba(184,121,31,.12)}
+
+/* ── splash ─────────────────────────────────────────────── */
+#splash{
+  position:fixed;inset:0;z-index:40;display:grid;place-items:center;
+  background:linear-gradient(160deg,var(--wall-hi),var(--wall-lo));
+  transition:opacity .5s ease,visibility .5s;
+}
+body:not(.loading) #splash{opacity:0;visibility:hidden;pointer-events:none}
+
+.splash-inner{display:flex;flex-direction:column;align-items:center;gap:var(--s4);text-align:center}
+.splash-inner .mark{font-size:30px}
+
+#splashSteps{list-style:none;display:flex;flex-direction:column;gap:9px;align-items:flex-start}
+#splashSteps li{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);opacity:.4;transition:opacity .3s;
+}
+#splashSteps li::before{
+  content:"";width:7px;height:7px;border-radius:50%;
+  border:1px solid var(--ink-faint);background:transparent;transition:background .3s,border-color .3s;
+}
+/* The step being waited on pulses; the ones behind it are simply filled. Anonymous
+   spinners are what this screen exists to replace. */
+#splashSteps li.now{opacity:.95}
+#splashSteps li.now::before{background:var(--cobalt);border-color:var(--cobalt);animation:pulse 1.1s ease-in-out infinite}
+#splashSteps li.done{opacity:.62}
+#splashSteps li.done::before{background:var(--ok);border-color:var(--ok)}
+@keyframes pulse{0%,100%{transform:scale(.8);opacity:.55}50%{transform:scale(1.15);opacity:1}}
+
+#splashNote{
+  font-family:var(--body);font-size:12.5px;color:var(--ink-soft);
+  max-width:340px;line-height:1.5;min-height:1.2em;
+}
 
 :focus-visible{outline:2px solid var(--cobalt);outline-offset:2px}
 

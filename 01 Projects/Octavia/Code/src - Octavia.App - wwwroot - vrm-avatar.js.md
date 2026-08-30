@@ -73,13 +73,29 @@ export async function loadVrmAvatar(url) {
   const headPoint = new THREE.Vector3(0, 1.4, 0);
   if (head) head.getWorldPosition(headPoint);
 
-  /* Headphones ride on the head bone, so they follow every nod and turn for free. The
-     size is taken from the character rather than assumed: VRM does not standardise how
-     big a head is, and a fixed radius fits one model and swallows the next. */
-  const headSize = headPoint.y > 0 ? headPoint.y * 0.115 : 0.16;
-  const headphones = createHeadphones(headSize);
+  /* Headphones ride on the head bone, so they follow every nod and turn for free.
+
+     Sizing them from the character's *height* — which is what `headPoint.y * 0.115` did
+     — is a guess about head width made from an unrelated measurement, and it is wrong by
+     a different amount for every model. It is measured now: the head bone's world height
+     against the top of the model's own bounding box gives the part of the character that
+     is actually head, and everything else is a proportion of that.
+
+     They also have to be *positioned*. A head bone sits at the base of the skull, so a
+     band added at the bone's origin hangs around the neck; it needs lifting by most of
+     the head's height and easing back, because ears are behind the centre of a face. */
+  const bounds = new THREE.Box3().setFromObject(vrm.scene);
+  const headTop = bounds.max.y;
+  const headHeight = head && headTop > headPoint.y ? headTop - headPoint.y : 0.22;
+
+  const headphones = createHeadphones(headHeight * 0.62);
+  headphones.object.position.set(0, headHeight * 0.40, -headHeight * 0.06);
+
   if (head) head.add(headphones.object);
-  else root.add(headphones.object);
+  else {
+    headphones.object.position.y += headPoint.y;
+    root.add(headphones.object);
+  }
 
   /* Making her face legible.
 

@@ -30,6 +30,7 @@ internal sealed class OctaviaSession : IDisposable
     private readonly MicLevelMeter _meter = new();
     private readonly MusicWatcher _music = new();
     private readonly AttentionGate _gate;
+    private readonly Brain.Tools.ToolRegistry _tools;
 
     private ISpeechRecognizer? _ears;
     private bool _earsOpening;
@@ -47,8 +48,14 @@ internal sealed class OctaviaSession : IDisposable
         _config = config;
         _face = face;
         _gate = new AttentionGate(config);
+        _tools = new Brain.Tools.ToolRegistry(config);
         _meter.Device = config.MicrophoneDevice;
         _music.Device = config.OutputDevice;
+
+        // Started in the background: an MCP server that is slow to come up must not
+        // delay her being able to talk, and one that never comes up must not stop it.
+        if (config.McpServers.Count > 0)
+            StartTools().Forget("starting the tool servers");
         _brain = string.Equals(config.Brain, "local", StringComparison.OrdinalIgnoreCase)
             ? new LocalBrain(config)
             : new ClaudeBrain(config);
@@ -112,6 +119,34 @@ internal sealed class OctaviaSession : IDisposable
 
         if (on) StartMusic().Forget("starting to listen for music");
         else { _music.Stop(); Announce(); }
+    }
+
+    // ---- her hands --------------------------------------------
+
+    /// Connects the configured MCP servers and reports what they offer.
+    ///
+    /// **She cannot yet call these.** The seam, the client, the risk policy and the
+    /// confirmation rule are done and tested; the brain-side tool loop is not, and it is
+    /// not written blind — it changes the main conversation path and there is no API key
+    /// on this machine to verify it against. What this gives today is a configured,
+    /// visible, reachable integration, which is what the next step needs to exist.
+    /// See ROADMAP.md stage 12.
+    private async Task StartTools()
+    {
+        try
+        {
+            await _tools.StartAsync();
+            var offered = await _tools.ListAsync();
+
+            if (offered.Count > 0)
+                Log.Write($"tools available: {string.Join(", ", offered.Select(t => t.Name))}");
+
+            Announce();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("the tool servers would not start", ex);
+        }
     }
 
     // ---- which devices she uses -------------------------------
@@ -419,6 +454,11 @@ internal sealed class OctaviaSession : IDisposable
         output = _config.OutputDevice ?? "",
         cameraDevice = _config.CameraDevice ?? "",
         whisperCompute = _config.WhisperCompute ?? "auto",
+
+        // What she has been given hands for. Reported even though she cannot call them
+        // yet, because "is the integration actually connected" is the first question
+        // anyone will ask and it should not need a log to answer.
+        toolServers = _tools.Providers.Select(p => new { name = p.Name, ready = p.IsReady }),
 
         dev = _config.DevPanel ?? string.Equals(_config.Profile, "dev", StringComparison.OrdinalIgnoreCase)
     });
@@ -923,6 +963,12 @@ internal sealed class OctaviaSession : IDisposable
         _gate.Dispose();
         _voice.Dispose();
         _brain.Dispose();
+
+        // Each provider owns a child process, so this is a real shutdown rather than
+        // bookkeeping: skipping it leaves an MCP server running after she closes.
+        // Blocking here is deliberate — Dispose has no async form to hand this to, and
+        // an orphaned process is worse than a two-second wait on the way out.
+        _tools.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }
 ```

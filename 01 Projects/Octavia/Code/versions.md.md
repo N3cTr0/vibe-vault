@@ -18,6 +18,64 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.13.0 — 2026-08-31
+
+**A splash, a room with air in it, and the beginnings of hands.** MINOR: a new subsystem
+and a changed console.
+
+### Stage 11 — the interface
+
+- **A loading splash**, held until the scene has built *and* the host has answered. She
+  used to show a finished-looking console while the renderer, the socket and the voice
+  were all still coming up, and the gap between looking ready and being ready is where
+  every "she ignored me" report starts. It names the step it is on, shows a startup notice
+  in place — a voice or a speech model downloading is the thing that actually takes the
+  time — and opens anyway after fifteen seconds rather than stranding anyone behind it.
+- **Typing costs a click.** The text field was the width of the window in a console where
+  most turns are spoken. It is behind a keyboard button now, opens focused, closes on send
+  or Escape. Hush moved out of the field, because she can be speaking while it is shut.
+- **The status strip stacks bottom-left.** Five readings on one line read as a sentence to
+  parse; five short lines read as a list to scan, and scanning is all that happens from a
+  sofa.
+- **The headphones are placed rather than guessed.** They were sized from the character's
+  *height* (`headPoint.y * 0.115`) — an assumption about head width taken from an unrelated
+  measurement, wrong by a different amount for every model — and added at the head bone's
+  origin, which is the base of the skull, so the band hung at the neck. Both are measured
+  now: the head bone against the top of the model's own bounding box.
+- **The room has air.** 260 additive motes drifting in the key light, their opacity
+  following the key so they vanish at night rather than reading as fog; the near parallax
+  slab leans on the beat; and the camera sways a few centimetres on a very long period.
+  That last one is what makes the rest work — parallax is relative motion, and against a
+  bolted-down camera the layers slide while the scene still reads flat.
+
+### Stage 12 — the tool seam
+
+**The seam is built and tested; she cannot call a tool yet.** Both halves of that are
+deliberate. See ROADMAP.md.
+
+- `ITool` / `IToolProvider` / `ToolRegistry`, and `McpClient` speaking **MCP over stdio** —
+  handshake, `tools/list`, `tools/call`, newline framing, per-request timeouts, and a read
+  loop that fails pending calls when a server dies instead of hanging a turn.
+- **`ToolRisk`, and the rule that dangerous tools do not run unasked.** MCP carries no risk
+  annotation, so it is inferred and biased towards asking.
+- `McpServers` in config; tokens belong in `Env`, not in arguments.
+- `tools\mock-mcp.ps1`, a three-tool server, so the seam is testable with no house
+  attached. 11 new checks drive the real client against a real child process.
+
+The brain-side tool loop is **not** written: it changes the working conversation path and
+there is no API key here to verify it against. Writing it blind and calling it done would
+repeat precisely the mistake v0.12.0 spent its length undoing.
+
+### Stage 13 — away
+
+Designed, not built, and the design says the app is the last step rather than the first.
+The prerequisites — a transport that may leave the machine, an auth secret that survives a
+restart, the Tailscale-or-Wireguard decision, and a protocol subset a phone would want —
+all live in this repo. The client itself is a separate project needing an Android SDK and
+a device.
+
+---
+
 ## 0.12.0 — 2026-08-31
 
 **Four things were broken, and three of them had been blamed on something else.** MINOR:

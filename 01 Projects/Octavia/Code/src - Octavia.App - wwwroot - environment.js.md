@@ -145,8 +145,48 @@ export function createEnvironment(scene, options = {}) {
     mesh.position.set(i === 0 ? -4.6 : 5.4, 0, z);
     mesh.renderOrder = -1;
     scene.add(mesh);
-    return { mesh, home: mesh.position.x, rate: 0.031 + i * 0.019, reach: 0.55 + i * 0.75 };
+    return { mesh, home: mesh.position.x, z, rate: 0.031 + i * 0.019, reach: 0.55 + i * 0.75 };
   });
+
+  /* Dust in the key light.
+     Two slabs drifting behind her give depth only when something moves *across* them,
+     and until there is a reason for the camera to move there is nothing to parallax
+     against. A few hundred motes between her and the lens supply that reason: they are
+     nearer than she is, so they slide further per frame, and the eye reads the gap as
+     room. One Points draw of additive dots, which matters on a GT 730.
+
+     They drift on a sine rather than being simulated. Nothing here is physics — it is a
+     suggestion of moving air, and a suggestion costs one multiply per axis. */
+  const MOTES = 260;
+  const motePositions = new Float32Array(MOTES * 3);
+  const motePhase = new Float32Array(MOTES * 3);
+
+  for (let i = 0; i < MOTES; i++) {
+    motePositions[i * 3] = (Math.random() - 0.5) * 9;
+    motePositions[i * 3 + 1] = (Math.random() - 0.5) * 6.4;
+    motePositions[i * 3 + 2] = -1.4 + Math.random() * 3.4;
+    motePhase[i * 3] = Math.random() * Math.PI * 2;
+    motePhase[i * 3 + 1] = Math.random() * Math.PI * 2;
+    motePhase[i * 3 + 2] = 0.12 + Math.random() * 0.5;   // this mote's own rate
+  }
+
+  const moteGeometry = new THREE.BufferGeometry();
+  moteGeometry.setAttribute('position', new THREE.BufferAttribute(motePositions, 3));
+
+  const moteMaterial = new THREE.PointsMaterial({
+    color: 0xFFF3DE,
+    size: 0.028,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.0,          // raised by applyDay; dust is only visible in a lit room
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  const motes = new THREE.Points(moteGeometry, moteMaterial);
+  motes.frustumCulled = false;
+  motes.renderOrder = 2;
+  scene.add(motes);
 
   const key = new THREE.DirectionalLight(0xFFF4E2, 2.05);
   key.position.set(-2.6, 3.6, 3.2);
@@ -200,6 +240,11 @@ export function createEnvironment(scene, options = {}) {
     rim.intensity = a.rimLevel + (b.rimLevel - a.rimLevel) * t;
     hemi.intensity = a.ambient + (b.ambient - a.ambient) * t;
     floor.material.opacity = 0.12 + (key.intensity / 2.2) * 0.20;
+
+    // Dust is only visible where there is light to catch, so it follows the key rather
+    // than sitting at a fixed strength. At night it all but disappears, which is right:
+    // a dark room with motes in it reads as fog.
+    moteMaterial.opacity = 0.05 + (key.intensity / 2.2) * 0.16;
 
     // The window's share of the same hour. Handed out rather than applied here: this
     // module owns a room, and the page is not part of it.
@@ -262,7 +307,22 @@ export function createEnvironment(scene, options = {}) {
 
       slabs.forEach(s => {
         s.mesh.position.x = s.home + Math.sin(elapsed * s.rate) * s.reach;
+        // The nearer slab leans on the beat, so the depth belongs to the music too
+        // rather than only the wall behind it changing colour.
+        s.mesh.position.z = s.z + uniforms.uBeat.value * 0.22;
       });
+
+      /* The motes drift, and lift very slightly, and wrap when they leave the top. The
+         positions buffer is rewritten in place — allocating 780 floats a frame on a
+         weak GPU is exactly the kind of thing that shows up as stutter later. */
+      const drift = moteGeometry.attributes.position;
+      for (let i = 0; i < MOTES; i++) {
+        const rate = motePhase[i * 3 + 2];
+        drift.array[i * 3] += Math.sin(elapsed * rate + motePhase[i * 3]) * dt * 0.06;
+        drift.array[i * 3 + 1] += dt * rate * 0.045;
+        if (drift.array[i * 3 + 1] > 3.2) drift.array[i * 3 + 1] = -3.2;
+      }
+      drift.needsUpdate = true;
 
       // Re-reading the clock every frame would be waste; every ten seconds is plenty
       // for something that takes an hour to change.

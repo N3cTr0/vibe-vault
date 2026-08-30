@@ -120,6 +120,10 @@ Console.WriteLine("face protocol:");
 failures += await FaceProtocolChecks.RunAsync();
 
 Console.WriteLine();
+Console.WriteLine("tools:");
+failures += await ToolChecks.RunAsync();
+
+Console.WriteLine();
 Console.WriteLine("local brain probe:");
 failures += await LocalBrainProbe.RunAsync();
 Console.WriteLine();

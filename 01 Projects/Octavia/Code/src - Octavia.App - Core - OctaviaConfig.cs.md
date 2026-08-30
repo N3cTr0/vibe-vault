@@ -182,6 +182,18 @@ internal sealed class OctaviaConfig
     /// substring against the device label.
     public string CameraDevice { get; set; } = "";
 
+    /// The MCP servers that give her hands, keyed by the name their tools are prefixed
+    /// with. Empty — the default — means she can talk and nothing else, which is the
+    /// right state for a machine that has not been told what it is allowed to touch.
+    ///
+    /// Each entry is a command she runs and speaks JSON-RPC to over stdio. Home
+    /// Assistant, UniFi and anything else are all this shape, which is the point: a new
+    /// capability is a new entry here rather than new code in the session.
+    ///
+    /// **Tokens belong in `Env`, not in a URL**, so they stay out of logs and out of the
+    /// diagnostics bundle's redaction problem. See ROADMAP.md stage 12.
+    public Dictionary<string, McpServer> McpServers { get; set; } = [];
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,

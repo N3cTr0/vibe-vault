@@ -507,8 +507,15 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
 
 ## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
 
-Three pieces of polish that the textured face made visible, because until v0.12.0 nobody
+Four pieces of polish that the textured face made visible, because until v0.12.0 nobody
 could see her well enough to notice.
+
+- **A loading splash.** She currently shows a finished-looking console the instant the
+  window opens, while the WebView2 environment, the face socket, the scene, the voice and
+  possibly a model download are all still coming up. The gap between "looks ready" and
+  "is ready" is where every "she ignored me" report starts. Hold a splash until the
+  renderer says `ready`, and let it name what it is waiting for rather than spinning
+  anonymously — the same argument as the diagnostics stage, one screen earlier.
 
 - **The headphones do not sit right.** They are attached to the head bone and sized from
   `headPoint.y * 0.115`, which is a guess at head *width* derived from character *height*.
@@ -549,6 +556,43 @@ Sketch:
   do unattended. This is the stage where a mistake stops being a wrong answer and starts
   being a dark house.
 
+### Where this got to, 08/31/2026
+
+**The seam is built and tested. She cannot call a tool yet.** That split is deliberate and
+worth stating plainly rather than leaving someone to discover it.
+
+Done, and proven against a real child process speaking real JSON-RPC:
+
+- `ITool` / `IToolProvider` / `ToolRegistry` — the seam. A brain is handed a registry and
+  never learns how many servers there are or which one answered.
+- `McpClient` — MCP over stdio: `initialize`, the `notifications/initialized` the spec
+  requires, `tools/list`, `tools/call`, newline framing, a 30-second per-request timeout,
+  and a read loop that fails every pending call when a server dies rather than hanging.
+- **`ToolRisk`, and the rule that dangerous tools do not run unasked.** MCP carries no
+  risk annotation, so it is inferred from name and description and deliberately biased
+  towards asking: a read misjudged as dangerous costs one question, an unlock misjudged
+  as safe costs rather more.
+- `McpServers` in config — command, args, env, enabled. **Tokens go in `Env`**, because an
+  argument is visible in the process list to every account on the machine.
+- `tools\mock-mcp.ps1` — a three-tool server (a read, an act, an unlock) so the seam is
+  testable on a machine with no house attached. `EarsTest` drives the real client against
+  it: 11 checks, including that the unlock is refused unconfirmed and runs when confirmed.
+- The session starts servers in the background, logs what they offer, and reports them in
+  `hello`, so "is the integration actually connected" does not need a log to answer.
+
+**Not done: the brain-side tool loop.** Collecting `tool_use` blocks out of a streaming
+response, running them, appending `tool_result` and re-requesting. It was left rather than
+written blind for two reasons — it changes the main conversation path that currently works,
+and there is no API key on this machine to verify it against. Writing it untested and
+calling it done would repeat exactly the mistake this version spent its time undoing.
+
+**When it is written**, the safe shape is: build the request identically when the registry
+is empty, so a machine with no servers configured is byte-for-byte unaffected.
+
+**Then Home Assistant and UniFi are configuration, not code.** HA ships an MCP server of
+its own; UniFi has community ones, and failing that a small server is a day's work against
+its API. That is the whole return on doing the seam first.
+
 ## Stage 13 — Away: a phone that asks the house how it is
 
 "How is everything at home?" from somewhere else. This is a **second face over the Stage 3
@@ -558,6 +602,35 @@ renderer plus a microphone, not a second Octavia.
 The honest problem is not the app, it is exposure: the face socket is loopback-only with a
 per-run token, deliberately. Reaching it from a phone means Tailscale or Wireguard back to
 the house — not a port forward. Decide that before writing any Kotlin.
+
+### What this stage actually needs, in order
+
+**None of it is the app.** An Android client is a WebSocket, a microphone and a renderer;
+the work that makes it possible lives in this repo and in the network, and doing it in the
+wrong order produces a phone app that can only be used on the sofa it was built on.
+
+1. **A transport that can leave the machine.** `WebSocketFaceServer` binds `127.0.0.1`
+   deliberately (see Stage 3 — it avoided needing a urlacl and elevation). A second
+   binding on the LAN address is small, but it turns a private socket into a listening
+   service and everything below follows from that.
+2. **Authentication that survives a restart.** The per-run token is regenerated every
+   start, which is correct for a page the host itself loads and useless for a phone in a
+   pocket. A paired-device secret, stored per device and revocable, is the minimum.
+3. **The network decision, made once and written down.** Tailscale or Wireguard, so the
+   socket is never reachable from the internet at all. **Not a port forward** — a
+   microphone and a house controller behind a forwarded port is the worst version of this
+   project.
+4. **A protocol subset for a phone.** A phone does not want visemes at 60 Hz. `hello`
+   already carries capabilities; the client should be able to say what it wants and be
+   sent only that. This is a protocol change and belongs in PROTOCOL.md before any client
+   depends on it.
+5. **Then the app**, which at that point is genuinely small: connect, hold a mic button,
+   stream the reply, and show the house's state from Stage 12's tools.
+
+Worth saying: **step 5 is a separate project and a separate repository.** It needs the
+Android SDK and a device to test on, neither of which is what this repo is. The value of
+listing 1–4 is that they are all doable here, and they are what makes the app a week
+rather than a month.
 
 ## Standing constraints
 
