@@ -458,6 +458,31 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
    times on load. Strong suspicion: the sample model carries **KTX2 / Basis-compressed
    textures** and no `KTX2Loader` is registered on the `GLTFLoader` in `vrm-avatar.js`.
    Register one and confirm before tuning anything else about her face.
+
+   **Update 08/30/2026 — the model is gone, and the theory is now untestable.** The
+   `.vrm` did not survive the move: `%APPDATA%\Octavia` was recreated from scratch on the
+   VM at 18:32 that day, and there is no `.vrm` anywhere on either machine. **No note in
+   this repo or the vault ever recorded which model it was**, so it cannot be re-fetched.
+   Worth knowing: the v0.6.1 screenshot shows her *already* untextured, so this was never
+   a regression — she has not once rendered with textures.
+
+   Half the theory is confirmed: `vrm-avatar.js` builds a bare `new GLTFLoader()` and
+   registers only `VRMLoaderPlugin`, so **`setKTX2Loader` is never called** and the
+   vendored `GLTFLoader`'s `ktx2Loader` stays null. A KTX2 model *would* fail exactly as
+   observed. Whether the lost model actually used KTX2 can no longer be established.
+
+   Two replacement models are now in `%APPDATA%\Octavia\avatars`, and **neither uses
+   KTX2** — both carry plain PNG, so they should render as-is and will not reproduce the
+   fault:
+   - `AvatarSample_A.vrm` — the VRoid sample, **VRM 0.x** (`extensionsUsed:
+     ["KHR_materials_unlit","VRM"]`), free for any use without credit.
+   - `VRM1_Constraint_Twist_Sample.vrm` — pixiv's own three-vrm sample, **VRM 1.0** with
+     MToon and 19 PNG textures; the closer match to the expression vocabulary we target.
+
+   So the next step is no longer "register a KTX2Loader" but **"load one of these and see
+   whether she is textured at all"**. If she is, the fault was the old model and the
+   loader gap is a latent bug worth closing anyway. If she still is not, the cause is in
+   our own loader setup and KTX2 was a red herring.
 2. **Local-first profiles.** Agreed but not built: she should run mainly on the local
    model, with Claude added later for specific things. Concretely — base `Brain` default
    becomes `local`; the shipped profiles become `home` (local brain, good Whisper — the
