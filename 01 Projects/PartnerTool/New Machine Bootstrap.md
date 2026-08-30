@@ -54,9 +54,12 @@ $git  = "C:\Program Files\Git\cmd\git.exe"
 
 - **NuGet:** a bare VM has an empty NuGet config, so `dotnet build/publish` fails with **NU1101**
   (can't find LibreHardwareMonitorLib / the runtime packs). The repo now ships a `nuget.config`
-  pinning nuget.org, so restore just works — no manual `dotnet nuget add source` needed.
+  pinning nuget.org, so restore just works. Note this covers builds *inside* the repo only - a bare
+  user-level NuGet config still breaks `dotnet tool install --global` (see the section below).
 - **GitHub PAT (check this first):** the credential is a fine-grained PAT covering **both** `PartnerTool` and `vibe-vault`
-  (the vault backup), **expiring 2026-08-17** — rotate it before then or all pushes stop.
+  (the vault backup), so when it lapses the code push and the vault backup stop together. The
+  2026-08-17 expiry recorded here was never confirmed - pushes still worked on 2026-08-30, so treat
+  any date as unverified and just confirm a push early (see the section below).
 - **`gh` CLI** (optional): not installed by default — `winget install GitHub.CLI` + `gh auth login`
   only if you need to create repos from the VM.
 
@@ -99,6 +102,35 @@ Handover state at **v0.24.24**, the point the project left the VM for a physical
 exactly that to `Product.wxs`, which had been BOM-less for its whole history. Nothing broke - MSBuild
 and WiX both accept it - but write those two files with `[IO.File]::WriteAllText` and a
 `UTF8Encoding($false)`, or a byte-level diff against the vault snapshot will show phantom changes.
+
+## What the move actually took (verified 08/30/2026)
+
+The vault and both repos came across intact - repo clean at v0.24.24 matching `origin/main`, the
+`Code\` snapshot already current, and the PAT still authenticating to both repos. Four things still
+needed doing on the bare PC, in this order:
+
+1. **Everything copied off the VM carried Mark of the Web.** All 174 repo files (and 76 vault notes)
+   had a `Zone.Identifier` stream, so Windows treated them as "came from another computer".
+   `dotnet build` tolerated it, but **`dotnet tool restore` refused to read
+   `.config\dotnet-tools.json`** - which breaks `build-installer.bat` at step 1. Fix:
+   `Get-ChildItem -Recurse -File -Force | Unblock-File` over both trees. It strips only the alternate
+   data stream, so file content is untouched and git stays clean.
+2. **The user-level NuGet config had an empty `<packageSources>`.** `%APPDATA%\NuGet\nuget.config`
+   did not travel with the home directory. Project builds still worked, because the repo's own
+   `nuget.config` uses `<clear/>` + nuget.org - but anything run *outside* the repo, including
+   `dotnet tool install --global`, failed with "No NuGet sources are defined or enabled". Fix:
+   `dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org`.
+3. **WiX was not installed** - no global tool, and the local manifest could not restore until (1) and
+   (2) were fixed. `dotnet tool restore` now pulls the pinned 5.0.2. It suggests upgrading to 7.0.0 on
+   every restore; **ignore that** - v6+ carries the Open Source Maintenance Fee.
+4. **Do not assume the Claude session is elevated.** It ran with a *filtered* token here
+   (Administrators filtered out, `IsInRole(Administrator)` = False), so `tools\ui-drive.ps1` and
+   launching the `requireAdministrator` exe both need an explicitly elevated session. Check rather
+   than assume - this has differed between sessions on this machine.
+
+Verified working afterwards: `dotnet build -c Release` clean, `build-installer.bat` end to end
+(single-file exe + MSI, both stamped 0.24.24), `tools\sync-vault.ps1` (133 code notes), and
+fetch/push auth against both `N3cTr0/PartnerTool` and `N3cTr0/vibe-vault`.
 ## What transfers vs. what rebuilds
 
 | Thing | Transfers in the vault backup? |
