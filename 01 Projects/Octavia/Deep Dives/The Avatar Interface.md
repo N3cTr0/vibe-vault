@@ -66,6 +66,23 @@ A `.vrm` goes in `<data>\avatars`, named in `AvatarFile`. The host maps that one
 
 The face loads it **once** (a VRM is megabytes; every later `hello` would refetch it) and falls back to the bust on any failure, reporting through `faceError` so it reaches the log. "She looks wrong" is otherwise the entire bug report; the self-test also has an **Avatar** check that turns it into a filename. See [[Diagnostics]].
 
+### Which characters are here, and where they came from
+
+**Record this for every model you add.** A `.vrm` is the one asset in the project that
+cannot be re-downloaded from a note — on 08/30/2026 the original was lost with the old data
+folder and nothing anywhere said what it had been, so it was gone for good. See
+[[Restore From Snapshot]].
+
+| File | Source | Format | Licence |
+|---|---|---|---|
+| `AvatarSample_A.vrm` | [madjin/vrm-samples](https://github.com/madjin/vrm-samples) `vroid/stable/` — the VRoid sample | VRM 0.x (`extensionsUsed: ["KHR_materials_unlit","VRM"]`) | VRoid sample terms: any use, commercial included, no credit required |
+| `VRM1_Constraint_Twist_Sample.vrm` | [pixiv/three-vrm](https://github.com/pixiv/three-vrm) `packages/three-vrm/examples/models/` | VRM 1.0, MToon, 19 PNG textures | Part of three-vrm's own examples |
+
+Both were added 08/30/2026 as replacements. **Neither uses KTX2/Basis textures**, which
+matters: the outstanding texture fault was suspected to be a missing `KTX2Loader`, and
+these models cannot reproduce it either way. `vrm-avatar.js` does build a bare
+`new GLTFLoader()` and never calls `setKTX2Loader`, so that gap is real regardless.
+
 Two things every VRM needs on arrival:
 
 - **A pose.** The format defines a rest position — a T-pose — not an idle. Arms come down on load.

@@ -98,6 +98,8 @@ Two other things a real GPU changes immediately:
 
 **There is still no git repository.** The vault snapshot has been the only off-machine copy of the source for this whole project, and a machine move is exactly the moment that matters. It has been deliberately deferred, and the deferral has held up fine — but on the new machine, `git init` and a first commit costs a minute and removes the single largest structural risk here.
 
+> **Closed 08/30/2026.** Done on arrival, and the warning turned out to be well aimed: the one thing this project owned that git was *not* tracking — her `%APPDATA%` data folder, holding the only `.vrm` — is precisely what the move lost. The repo now has history and a private remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia), and her data was moved inside the repo in v0.11.0 so it travels with it.
+
 ## What actually happened on arrival — 08/30/2026
 
 The repo and the vault both copied across intact: `check-vault.ps1` reported **VAULT OK,
@@ -130,8 +132,9 @@ reverses the per-user-installs-only constraint the old dev-VM note describes.
 *"Hello, I'm Octavia, nice to meet you."*
 
 **The one real risk is closed.** `git init` is done, identity set to match the vault repo,
-and there are two commits: v0.10.0 exactly as it arrived, then the NuGet fix. Local only —
-no remote yet.
+starting with v0.10.0 exactly as it arrived and the NuGet fix on top. Pushed the same day to
+a **private** GitHub remote, [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) — 91
+tracked files, with `data\` and `dist\` correctly excluded.
 
 ### Still outstanding after the move
 

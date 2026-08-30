@@ -5,13 +5,15 @@ tags: [octavia, recovery]
 
 # Restore From Snapshot
 
-**Octavia is not on GitHub yet (as of 08/30/2026).** Until she is, the `Code\` folder in this vault is the *only* off-machine copy of her source. This note is the recovery procedure, and it has been round-trip tested.
+**Octavia has been on GitHub since 08/30/2026** — [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia), private. **`git clone` is now the first thing to try**, and it gives you a complete tree including `wwwroot\lib`, which this snapshot deliberately does not.
+
+The `Code\` folder in this vault is the second copy, and this note is the procedure for when it is all that survived. It remains worth keeping current: it is human-readable, it round-trips byte-for-byte on every sync, and it does not depend on GitHub or on a credential still being valid.
 
 > **Moving to a new machine?** Read [[Moving To The New Machine]] first. If you copied `C:\Projects\Octavia` across, you do not need this note at all — it is the fallback for when the vault is all that survived, and its one real gap is `wwwroot\lib`, covered below.
 
 ## What the snapshot contains
 
-82 notes covering every source file: C#, XAML, the `.csproj`, the app manifest, the face's HTML/CSS/JS, the scripts in `tools\`, plus `README.md`, `ROADMAP.md`, `PROTOCOL.md` and `versions.md`.
+83 notes covering every source file: C#, XAML, the `.csproj`, the app manifest, the face's HTML/CSS/JS, the scripts in `tools\`, plus `README.md`, `ROADMAP.md`, `PROTOCOL.md` and `versions.md`.
 
 Each note carries a `source-path:` frontmatter field holding the repo-relative path, and exactly one fenced code block containing the file verbatim. That pair is all a restore needs.
 
@@ -21,13 +23,15 @@ Each note carries a `source-path:` frontmatter field holding the repo-relative p
 |---|---|---|
 | `wwwroot\lib\` | 3 MB of three.js and three-vrm; somebody else's code, not our source | `npm`/unpkg — the versions are named in [[The Face]] |
 | `Assets\models\silero_vad.onnx` | Vendored model | Re-download; see [[Silero VAD Context Window]] |
-| `%APPDATA%\Octavia\models\` | Whisper models, 539 MB here (`small.en` 465, `tiny.en` 74) | Re-downloaded on first listen |
-| `%APPDATA%\Octavia\voices\` | Piper and its voices, 158 MB here (two medium voices at 60 MB each) | She fetches them on first use — see [[The Voice]] |
-| `%APPDATA%\Octavia\avatars\` | VRM characters, ~10 MB each | Yours to keep; back them up separately |
-| `%APPDATA%\Octavia\config.json` | Her settings, including the profiles | Recreated with defaults; copy it to keep a tuned rig |
+| `data\models\` | Whisper models | Re-downloaded on first listen |
+| `data\voices\` | Piper and its voices | She fetches them on first use — see [[The Voice]] |
+| `data\avatars\` | VRM characters, ~10–15 MB each | **Not re-downloadable. See the warning below.** |
+| `data\config.json` | Her settings, including the profiles | Recreated with defaults; copy it to keep a tuned rig |
 | `bin`, `obj`, `dist` | Build output | Rebuild |
 
-Copying `%APPDATA%\Octavia` wholesale saves about **710 MB** of downloading on a new machine. Leave `apikey.dat` out of it — DPAPI makes the copy useless.
+Since v0.11.0 her data lives at `<repo>\data`, so **copying the repo copies her models, voice and avatars with it** — there is no longer a second folder to remember. `data\` is git-ignored, so a `git clone` gets none of it; that is intended, but it means a clone is not a complete restore of *her*, only of her source. Leave `apikey.dat` behind either way — DPAPI makes the copy useless.
+
+> **The avatars row is the one that has already bitten.** Every other line here re-downloads itself; a `.vrm` does not. On 08/30/2026 the only avatar was lost with the old data folder, and **no note anywhere had recorded which model it was**, so it could not be re-fetched. If you add a character, write down what it is and where it came from — in [[The Avatar Interface]] — not just the file.
 
 **Also not in the snapshot: `Screenshots\`.** Those are a record of what was verified, not source — see [[Screenshots]].
 
@@ -76,7 +80,7 @@ The round trip is **tested, not assumed** — a lesson taken from PartnerTool, w
 
 The check extracts each note's fenced body exactly as the restore does and compares it byte-for-byte with the source file (both normalised to LF, source trailing whitespace trimmed the way the sync writes it), and separately scans for mojibake markers.
 
-Last run 08/30/2026 at v0.10.0, immediately before the move off the VM: **82 clean, 0 mismatched, 0 with mojibake.**
+Last run 08/30/2026 at v0.11.0, on the new machine: **83 clean, 0 mismatched, 0 with mojibake.** (The run before it was v0.10.0 at 82, immediately before the move off the VM.)
 
 That run earned its keep: it caught mojibake in `README.md` where an earlier `perl -pi` edit had mangled multi-byte UTF-8 down to lone `0xE2` bytes. The vault was faithfully copying a corrupted *source* file — the snapshot was fine, the repo was not. Verify after every sync that follows a bulk text edit.
 

@@ -111,7 +111,7 @@ pwsh -File tools\check-vault.ps1                # is it current, and does it sti
 
 Remember the hand-written half — `Features\`, `Deep Dives\`, [[Lessons Learned]], [[Roadmap]] — does not sync itself and rots silently.
 
-**Currently manual** — there is no git repo yet, so no post-commit hook. When git arrives, wire it the way PartnerTool does (`core.hooksPath .githooks`, set per-clone).
+**Currently manual.** Git arrived on 08/30/2026 but the post-commit hook has not been wired yet — do it the way PartnerTool does (`core.hooksPath .githooks`, set per-clone).
 
 `wwwroot\lib\` is excluded as vendored third-party code — three.js and three-vrm would otherwise add 3 MB of somebody else's source to the vault on every sync. `Screenshots\` is excluded too: it is evidence, not source — see [[Screenshots]].
 
@@ -121,5 +121,5 @@ Run it with `-PruneOrphans` after renaming or deleting a source file; the plain 
 
 ## Not yet
 
-- No git repo and no remote. **The vault snapshot is currently the only off-repo copy of the source.**
+- ~~No git repo and no remote.~~ **Resolved 08/30/2026:** git history plus a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia). The vault snapshot is now the second copy rather than the only one — still worth keeping current, since it is the readable one and it is what [[Restore From Snapshot]] is written against.
 - No installer. The single exe is the distribution.
