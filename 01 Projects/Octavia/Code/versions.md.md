@@ -1,0 +1,494 @@
+---
+project: Octavia
+tags: [octavia, code]
+source-path: versions.md
+---
+
+# versions.md
+
+```markdown
+# Octavia — Version History
+
+Pre-release `0.x` scheme. **PATCH by default** (`0.x.y`) for fixes, tweaks and copy
+changes; MINOR (`0.x.0`) only for a new subsystem or a notable behaviour change.
+Roadmap stages are substantial by definition, so each completed stage takes a MINOR.
+
+Headers use ISO `YYYY-MM-DD` — an internal doc convention, separate from displayed
+dates, which are `MM/DD/YYYY`.
+
+---
+
+## 0.10.0 — 2026-08-30
+
+**Stage 10 — the console rebuilt, and her face made legible.** MINOR: the whole control
+surface changed shape.
+
+**Partially delivered, deliberately versioned anyway.** The work was interrupted before
+its follow-up items, and a snapshot whose `<Version>` said 0.9.2 while carrying an
+entirely different interface would be worse than one that describes itself. ROADMAP.md
+carries the full landed / outstanding split; the short version is that all six approved
+design decisions are in, and the VRM texture loading, the local-first profiles and the
+documentation are not.
+
+- **Tokens.** `face.css` opens with a `:root` set — colour, type scale, spacing, radii —
+  and every value in the file comes from it.
+- **One drawer, four tabs** (Transcript, Settings, Health, Dev) replacing three
+  hand-written drawers, each of which had its own header, close button and slide.
+- **The API key lives in Settings**, not the status strip. A missing key lights an amber
+  pill that opens Settings with the field focused — a guided empty state rather than a
+  mystery.
+- **Hush is transient**, inside the field, present only while there is something to stop.
+- **The chrome sits in her light.** The day-cycle keyframes now carry the page's share of
+  the hour, handed out through `onPalette` as `--room-tint`, `--room-ink` and
+  `--room-line`. The window no longer floats in fixed grey above a room that moves.
+- **The caption reaches distance size** (~34px from 25px), per the 10-foot-interface
+  floor of about 28px at 1080p.
+- **Status pills carry health dots** and the strip holds no controls.
+- **"Listening Post" is now "In residence."**
+- **The bust has a mouth, and eyes that are visible.** Both were buried inside the head —
+  the mouth aperture closed to 1.6% of its height 0.076 behind the face surface, the iris
+  reached 0.839 against a surface at 0.871. Lips are now deep forms whose front caps
+  emerge and taper with the skull's curvature.
+- **`setLightScale` joins the avatar interface.** A VRM is authored for roughly unit
+  lighting; this room runs its key to 2.2 and clipped her to a white oval. Her material
+  response is scaled instead of the room being dimmed, so the wall and the bust keep the
+  light they were built for.
+
+**Fixed:** a temporal-dead-zone error — the palette callback fires during
+`createEnvironment`, before `avatar` exists — which stopped the scene building entirely.
+Surfaced by `ready { faceBuilt: false }`.
+
+## 0.9.2 — 2026-08-30
+
+**She looks at you.** A camera button beside the microphone, wearing the same contract:
+a person presses it, a marker stays visible the whole time it is on, pressing it again
+ends it.
+
+- While it is lit, her gaze follows movement — a **motion centroid over a 64×36 grid**,
+  computed inside the renderer at ~8 Hz. Deliberately not a face detector: thirty lines
+  a person can read, no vendored model, and it fails the way a person does — when
+  nothing moves she keeps looking where she last saw you.
+- **Nothing crosses the protocol.** No frame, no coordinate, no flag; the host cannot
+  start it, stop it, or know it is happening. The only protocol change is `camera` in
+  `hello`, so the face hides a button that could only fail.
+- Two markers, two severities: the momentary red **bar** for a still, and a standing red
+  **camera pill** beside the state pill for watching — the two facts a person needs at a
+  glance share one corner.
+- Verified live against the redirected webcam: button on → permission granted → pill up →
+  head visibly turning with movement in the room; button off → device closed, pill gone.
+
+## 0.9.1 — 2026-08-30
+
+**The camera, against real hardware for the first time.** A webcam was redirected into the
+VM, and everything 0.9.0 could only reason about became testable. Three things came out of
+it, and none of them would have been found any other way.
+
+- **The host now answers WebView2's permission requests.** There was no
+  `PermissionRequested` handler at all, so the runtime decided — which made `"Camera":
+  false` a suggestion rather than a boundary. The host now denies every permission except
+  a camera request from her own origin with the setting on, and denies microphone,
+  geolocation, notifications and the rest outright. Nothing is saved in the browser
+  profile, so turning the camera off takes effect immediately.
+- **`Glance` describes a captured frame without keeping it** — size, brightness and
+  spread, logged on every `sight`. This is the silent microphone of Stage 4 all over
+  again: a camera can open, report no error, and hand over a black rectangle, and from
+  the outside that is indistinguishable from her being wrong about what she saw. A lens
+  cap, a privacy shutter and an unlit room all look like success without it.
+- **The capture waited two animation frames before grabbing.** Enough against a synthetic
+  device, far too few against a real sensor that has auto-exposure to finish. Now 450 ms.
+  Measured before and after on the same scene: brightness 0.15 → 0.18 — a real but modest
+  improvement, and honestly the room is simply dark.
+- The dev panel gains **Take a still**, which runs the whole camera path without needing a
+  question that earns one. It is the only way to exercise the permission grant at all.
+
+**Verified end to end:** device redirected → host granted the permission → `getUserMedia`
+inside WebView2 → 768×432 frame with genuine detail (spread 0.126, well clear of the 0.02
+blank threshold) → `sight` back to the host. The eyes are no longer half-verified.
+
+## 0.9.0 — 2026-08-30
+
+**Stage 9 — the attention gate, and eyes.**
+
+MINOR: the gate is a new subsystem and it changes her behaviour in the most visible way
+possible — she can now decline to answer.
+
+### The gate
+
+- **`AttentionGate`** decides whether something she overheard was addressed to her. Two
+  layers, cheapest first: rules settle her name, the follow-up window and fragments for
+  nothing; only ambiguous lines reach the small local model. **No paid model is ever used
+  to decide whether to use a paid model.**
+- **Fails open.** A companion who goes silent because a helper model died is broken; one
+  who occasionally answers the television is annoying. The log says which happened.
+- **Never silent.** A declined line is logged and sent to the face as `overheard` with
+  the reason, and shown faintly in the transcript. "She ignored me" has to be answerable.
+- **Typed input is never gated.** If you took the trouble to type it, you meant it.
+- Measured over 18 labelled lines: 14 agreed, 1 ignored-you, 3 answered-noise, median
+  1.2 s. `EarsTest -- gate` prints the table; `EarsTest` asserts the rules and the parser.
+- Two findings that changed the design: the gate model must be the **same** model as the
+  brain — a separate one is evicted and reloaded per utterance, 24 s against 0.7 s warm —
+  and a **reasoning model is useless as a gate**, spending its whole budget deliberating
+  and returning nothing. No portable switch turns that off.
+
+### Eyes
+
+- **`Situation`** replaces the loose `context` parameter on `IBrain.RespondAsync`, and
+  now carries a still as well. It rides with the current question only, never the history.
+- **The face owns the camera; the host owns the decision.** `look` asks for one frame,
+  `sight` answers with it or with a reason. The device is released in the same breath and
+  an unmissable marker shows while it is live.
+- **Off by default — the only sense that is.** A microphone in a room is expected; a
+  camera is not. Three cheap, auditable gates before it opens: the setting, the words, and
+  whether the brain has eyes at all. None consults a model.
+- `Sight.WantsEyes` is a word list rather than a classifier *on purpose*: a person must be
+  able to read it and know exactly what makes her look.
+- **Honestly half-verified.** The intent rules, the no-camera path, the refusal path and
+  the marker are all tested. No frame has ever been captured here — this VM has no camera —
+  so the picture reaching Claude is built and unproven.
+
+### Also
+
+- Self-test gains **Camera** and **Attention gate** checks; the latter fails loudly when
+  the gate and brain models differ, because that misconfiguration is invisible and costs
+  24 seconds an utterance.
+- `Speech.WithoutThinking` for one-shot replies, alongside the streaming `ThinkFilter`.
+
+**Not built:** the wake word (openWakeWord has no "Octavia", and the free layer already
+matches her name for nothing), and presence detection, which needs the camera. Home
+Assistant stays deferred by choice.
+
+## 0.8.2 — 2026-08-30
+
+**Stage 8's decision, and the contract that makes it possible.**
+
+PATCH rather than MINOR on purpose: the stage is *decided*, not completed. Rendering waits
+on a machine with a real GPU, and calling this a finished stage would misreport it.
+
+- **`tools\attach-face.ps1 -Conformance`** drives a running host through a turn, a
+  self-test and a forget, and reports which host-to-face messages arrived and whether each
+  carried the fields `PROTOCOL.md` promises. Stage 8's premise — that photorealism is a
+  renderer swap — was an assumption until something checked it.
+- **It found a real gap on its first run.** A face attaching to a session already in
+  progress was never told her current expression: `emotion` is only sent when her mood
+  *changes*, and a mood can sit unchanged for many minutes. An external renderer would
+  have shown the wrong face indefinitely. `hello` now carries `state`, `emotion` and
+  `emotionWeight`, and the built-in face applies them on connect.
+- **`PROTOCOL.md` gains "What a renderer must implement"** — what a face must handle, what
+  it may ignore and what that costs, and the rates it has to survive. The checklist an
+  Unreal face gets built against.
+- The reconnection section now says what *is* replayed, rather than only what is not.
+
+## 0.8.1 — 2026-08-30
+
+**A dev panel: every performance she can give, on a button.**
+
+Anything rare in the face — a mood, a viseme, the headphones — was awkward to look at,
+because the only way to see one was to *cause* it. This is a fourth drawer that drives
+`window.Face` directly, so a shape can be held still and judged.
+
+- **State, mood, mouth, eyes, level, music, props and room**, each a row of buttons or a
+  slider. `Say a line` runs a viseme sequence, because a single held shape says nothing
+  about whether a mouth reads as talking.
+- **`Hold the face`** stops host messages that would *move* her — `state`, `level`,
+  `viseme`, `emotion`, `music` — from reaching the renderer, so a mood set by hand is not
+  wiped by the next thing she says. Captions, the transcript and settings still arrive.
+- **A Senses row that deliberately does leave the renderer**: listening, hush and the
+  music sense are devices, and the face does not own one.
+- **Offered on the `dev` profile, and whenever there is no host** — a face served on its
+  own is being worked on by definition. `DevPanel` in config overrides both. The module
+  is imported only when the panel is opened, so a published face never loads it.
+- Three additions to the avatar-facing side of `window.Face` for things the face
+  schedules for itself and could not otherwise be asked for: `blink()`, `look(x, y)` and
+  `setProp('headphones', on)` — the last taking `null` to hand the prop back to the music.
+
+## 0.8.0 — 2026-08-30
+
+**Stage 7 — music: headphones on, dance.**
+
+- **She hears what the machine plays.** WASAPI loopback taps the render endpoint, so she
+  hears the output mix without a cable or a virtual device. This is the capability that
+  stopped her being a browser page in the first place.
+- **Beat detection with no model and no network.** A spectral-flux onset envelope,
+  autocorrelated for a tempo, matched against a pulse train for the phase — the same
+  arithmetic shape as the mouth in 0.7.0. `MusicAnalyzer` is device-free and pure, so it
+  is tested against generated tracks at known tempi rather than by playing something and
+  watching her.
+- **Music, not speech.** Three things must agree: loud enough to be something, continuous
+  enough not to be talking, and periodic at a steady rate. Speech fails the last two.
+- **She keeps time while she talks.** Her own voice reaches the loopback like anything
+  else, so the analysis is held while she speaks and the tempo already found keeps
+  running — she stays in step with a track she is talking over, and cannot mistake
+  herself for music.
+- **The face responds**: headphones descend onto her head on sustained music, a nod on
+  the beat, a sway across the bar, and the room's halo answers energy with a ring that
+  leaves on each beat. `setHeadphones` joins the avatar interface; the bust and a VRM
+  both implement it.
+- **The brain is told there is music**, on the current question only — never in the
+  system prompt, which would void the cache breakpoint, and never in the history, which
+  would leave it claiming there is music an hour after it stopped. `IBrain.RespondAsync`
+  grows an optional `context`.
+- **`music` and `setMusic`** join the protocol as additive version-1 messages. No audio
+  crosses it and none is kept: what survives analysis is a tempo and a loudness.
+- **Settings**: a switch for whether she listens at all, off closing the device rather
+  than ignoring it. The tempo appears in the status strip, because "she is not dancing"
+  and "there is nothing to dance to" otherwise look identical.
+- **Diagnostics**: a Music check naming the output device, and `Default output` in the
+  report — "she never dances" is usually that line saying NONE.
+- **`tools\serve-face.ps1`** serves `wwwroot` over loopback so the renderer can be
+  developed in an ordinary browser with devtools, instead of a rebuild and a screenshot
+  per change.
+- Fixed on the way in: a `long.MinValue` sentinel that overflowed and stopped the tempo
+  search ever running, and a beat clock that truncated fractional hops to zero so it
+  never advanced while she spoke.
+
+**Known limitation, and it is the machine's.** Remote Desktop's "Remote Audio" endpoint
+normalises everything to full scale — crest factor 1.7, near square — at any volume. The
+tempo cannot be found in audio with no dynamics left in it. `EarsTest -- music` measures
+the crest factor and says so plainly rather than leaving it a mystery.
+
+## 0.7.0 — 2026-08-30
+
+**Stage 6 — a voice worth the face.**
+
+- **`IVoice`**, alongside `IBrain` and `ISpeechRecognizer`. `VoiceBox` becomes
+  `SapiVoice`; `NeuralVoice` joins it. `OctaviaSession` never learns which one it has,
+  and the engine can be swapped under a running session.
+- **Piper, out of process.** A long-lived child process: sentences on stdin, raw PCM on
+  stdout, played through NAudio. Same reasoning as the local brain — a second ONNX
+  runtime in this process would sit beside Whisper's CUDA-linked one. The 60 MB model
+  loads once rather than once per sentence.
+- The engine (22 MB) and the voice (~60 MB) are fetched on first use, into her data
+  folder, with progress on her face. **This downloads an executable**, which is a
+  different thing from downloading a model, so it happens only when the neural voice is
+  asked for and the URL is in `PiperStore` where it can be read.
+- **Lip sync is read out of the audio**, not from the engine. Piper reports no phoneme
+  timings — and neither will most of its replacements. `VisemeReader` takes loudness for
+  the jaw and the balance of three formant-ish bands for the lips. It is analysed at the
+  moment each buffer reaches the sound card, so the mouth is in step with what is heard
+  rather than with what has been generated.
+  - Both its references adapt: loudness against a decaying peak, and the front/back axis
+    against a running centre. Fixed thresholds tuned on one voice made every other voice
+    mumble in a single shape.
+  - `EarsTest -- mouth <file.wav>` prints the shape timeline, which is how the boundaries
+    were set — a deliberately distributional choice, not a phonetic one.
+- Settings → Speech chooses the engine; Settings → Voice lists that engine's voices and
+  fetches one that has not been downloaded yet. `VoiceRate` maps to Piper's phoneme
+  length, so speaking speed still works.
+- She starts on the Windows voice and upgrades herself once the neural engine is ready,
+  so a first run talks immediately instead of sitting mute through an 80 MB download.
+- A small FFT in `Audio\Fft.cs`, written rather than taken from a package: thirty lines,
+  no native dependency to collide with Whisper's, and Stage 7's beat detection wants the
+  same thing.
+- Protocol (still version 1): `setVoiceEngine` in; `hello` gained `voiceEngine`, and
+  `voices[]` became `{value, label}` pairs because only the host knows how to tidy a
+  Piper file name.
+- Fixed: the end-of-utterance watchdog fired *during* synthesis, when the buffer was
+  legitimately empty because nothing had been produced yet — she reached "idle" and then
+  started talking. Nothing is over until it has begun.
+- Fixed: a sound card is fed continuously and an empty buffer comes back as silence, so
+  she sent a viseme twelve times a second forever, every one saying "mouth shut".
+- Twelve voice checks added, and 15 face/expression checks moved to `SapiVoice`.
+
+## 0.6.1 — 2026-08-30
+
+**A settings menu, and the persistence bug it uncovered.**
+
+- **Settings drawer** in the face: appearance (the bust or any `.vrm` in her avatars
+  folder), voice, and the room's lighting hour. Changes apply instantly and are saved.
+  Voice moved here from the console row, which now shows it as a label.
+- The host lists what is actually in the avatars folder, so choosing a character is a
+  dropdown rather than a filename typed into a config file. A name that is not there is
+  refused rather than saved.
+- `RoomHour` in config.json pins the room's lighting; negative follows the clock.
+- Protocol (still version 1): `setAvatar` and `setRoomHour` in; `hello` gained
+  `avatars[]`, `avatarFile` and `roomHour`.
+- **Fixed: settings did not persist.** v0.4.1 stopped `Save()` flattening the profile
+  overlay into the file by carrying back a *hand-kept list* of runtime-changeable
+  properties — which was wrong the moment a new setting existed. `AvatarFile` and
+  `RoomHour` reached the host, changed the face, logged, and were silently dropped on
+  save. `Save()` now writes back every key that differs from the settings as they stood
+  at load, which is the same guarantee without a list to keep in step.
+- Fixed: a face that cannot reach the avatar origin retried on every `hello`, refetching
+  megabytes and logging an error each time. A URL that failed is not retried.
+- Fixed: switching avatars only ever loaded; it never switched back to the bust.
+- Five config checks added, covering a new setting persisting, two saves in a row, and
+  the overlay still not leaking.
+
+## 0.6.0 — 2026-08-30
+
+**Stage 5 — the real face: VRM avatar and a room to stand in.**
+
+- **three.js r180, as ES modules.** The vendored 2021 UMD build could not host
+  `@pixiv/three-vrm` (r158+), and writing the new scene against the old API would have
+  meant writing it twice. `three`, `GLTFLoader`, `BufferGeometryUtils` and `three-vrm`
+  are vendored under `wwwroot\lib` with their bare specifiers rewritten, so no import map
+  is needed and the CSP stays `script-src 'self'`.
+- **One avatar interface** — `setViseme`, `setExpression`, `setGaze`, `setBlink`,
+  `setPose`, `update`. The plaster bust implements it; so does a VRM. The face owns blink
+  schedules, saccades, head carriage and mood; the avatar owns how a jaw actually moves.
+- **VRM characters.** Drop a `.vrm` in `%APPDATA%\Octavia\avatars` and name it in
+  `AvatarFile`. The host maps that folder to a read-only `https://octavia.avatar` origin
+  and offers the URL in `hello`; the face loads it once and falls back to the bust —
+  loudly, into the log — if anything goes wrong. Arms are posed out of the format's
+  T-pose on load, since VRM supplies a rest position rather than an idle.
+- **The expression vocabulary is VRM 1.0's**, deliberately: `happy / angry / sad /
+  relaxed / surprised / neutral`, and visemes `aa / ih / ou / ee / oh`. Protocol to
+  character is an identity mapping with nothing in between to get wrong.
+- **Visemes carry a shape.** SAPI's 21 identifiers were collapsed to one openness number;
+  they now also map to a mouth shape. "aa" and "ou" are the same jaw drop with different
+  mouths, and that difference is most of what makes speech look like speech.
+- **`emotion` message.** Her expression is read from the text of each sentence as she
+  speaks it — locally, free, no model call, per the standing rule that reflex-speed things
+  stay local. The message exists so a model can override it later.
+- **A room, not a backdrop.** The flat wall became a shader environment: a full-day
+  lighting cycle (the wall's temperature and the key, rim and ambient lights move
+  together), two drifting depth slabs for parallax, a vignette, grain, and a halo behind
+  her that answers the microphone. `Face.setHour(21)` pins the clock to look at it.
+- Self-test gained an **Avatar** check; "she looks wrong" becomes a filename.
+- Fixed: the backdrop's vignette used `smoothstep` with its edges reversed, which is
+  undefined in GLSL and rendered as no vignette at all.
+- 15 face-and-expression checks added to `tools\EarsTest`, covering the viseme map's
+  coverage and the mood reader's vocabulary.
+
+## 0.5.0 — 2026-08-30
+
+**Stage 4 — diagnostics: make her debuggable in someone else's hands.**
+
+- **Structured logging.** `octavia.log` gains levels (`debug`/`info`/`warn`/`error`),
+  rolls at 1 MB keeping three predecessors, and remembers its recent lines in memory so
+  the face can show them without touching the disk. `LogLevel` in config.json;
+  `OCTAVIA_LOG` writes it elsewhere.
+- **Real crash handling.** The UI thread's unhandled exceptions were logged and swallowed;
+  they are now logged with a stack trace *and shown on her face*. Background-thread and
+  unobserved-task exceptions are caught too.
+- **Self-test**, in-app and on demand: settings, transports, renderer, microphone signal,
+  speech model, voice and brain. Every failing check carries the sentence that says what
+  to do about it. Deliberately free — the local brain is pinged, Claude is never called.
+- **"Save diagnostics"** — a file dialog and one zip: `README.txt`, `report.txt`,
+  `config.json` with anything key-shaped removed, and `logs/`. Reachable from the face and
+  from the tray, because the moment you most need it is when the face is what broke.
+- **Privacy, stated up front.** The log contains transcripts of things said in the room.
+  README.txt says so, names the file to read first, and confirms the API key is not in the
+  bundle — it stays DPAPI-sealed outside it.
+- **`--diagnostics <path>`** writes a bundle with no window and no session, so a machine
+  where she will not start at all can still produce one. It runs before the single-instance
+  check on purpose.
+- A **Health panel** in the face: the checks, this machine's facts, and the recent log.
+- Fixed: the save dialog was constructed on a socket thread, so it threw into a discarded
+  task and did nothing whatsoever. Every fire-and-forget task now logs its own failure
+  instead of waiting for the garbage collector to notice.
+- Fixed: the headless bundle blocked the dispatcher thread on a task whose continuations
+  were posted back to it, and hung forever.
+- Fixed: the config redactor matched substrings, so it blanked `Hotkey` and `MaxTokens` —
+  two of the most useful lines in a fault report. It now matches whole words of the
+  setting's name and only ever redacts a *string*, since a secret is never a number.
+- Protocol (still version 1): `selfTest`, `saveDiagnostics`, `openDataFolder` in;
+  `diagnostics`, `diagnosticsSaved` out. A face may ask for a bundle but never names the
+  path — the host owns the dialog.
+- `tools\attach-face.ps1 -Send '<json>'` sends arbitrary protocol messages, and prints
+  self-test results.
+- 27 diagnostics checks added to `tools\EarsTest`, covering levels, rotation, the check
+  set, and every guarantee the bundle makes about its own contents.
+
+## 0.4.1 — 2026-08-30
+
+**Profiles you can pin to a launcher.**
+
+- `--profile <name>` (also `--profile=<name>` and `-p`) on the command line, outranking
+  `OCTAVIA_PROFILE` and the `Profile` key in turn. A desktop shortcut can pass an
+  argument but cannot set an environment variable, so without this a launcher had no
+  way to say which rig it wanted.
+- The desktop shortcut now passes `--profile dev`, so it always starts on the local
+  model regardless of what the config file happens to say.
+- The startup log records where the profile came from — `profile 'dev' (command line)`
+  — and the tray tooltip reads `Octavia — dev (local)`.
+- Fixed: saving a setting while a profile was applied wrote the *merged* values back,
+  flattening the overlay into the base settings permanently. Changing her voice on the
+  dev profile therefore rewrote the file's base brain to `local`, and every later run
+  inherited it. Runtime changes now go back to the un-overlaid original.
+- Launching a second instance while she is running ignores `--profile`; it now says so
+  in the log instead of silently surfacing an Octavia on the other profile.
+- `OCTAVIA_CONFIG` points her at a different settings file, so the harness can exercise
+  loading and saving without touching the real one.
+- Twelve config checks added to `tools\EarsTest` covering the precedence order and the
+  flattening regression.
+
+## 0.4.0 — 2026-08-30
+
+**Stage 3 — cut the cord: the face protocol.**
+
+- `PROTOCOL.md` — the host/face contract written down, with a `protocol` version carried
+  in `hello`. Faces must ignore unknown types and fields; removing or repurposing one is
+  a version bump.
+- `WebSocketFaceServer` — a loopback listener (raw `TcpListener` + `WebSocket.CreateFromStream`,
+  so no urlacl reservation and no elevation). Binds `127.0.0.1` only and requires a
+  per-run token, compared in fixed time. Bad or missing token is refused at the handshake
+  with 401 and never becomes a WebSocket.
+- `FaceHub` — fans one message out to every attached face and merges what comes back.
+  The session no longer knows how many renderers are listening or which transport each
+  chose.
+- The built-in page now prefers the socket too, so it is no longer a special case; it
+  falls back to postMessage only if the port could not bind. Confirmed that a page on a
+  virtual `https` origin *can* reach `ws://127.0.0.1` — loopback counts as potentially
+  trustworthy, so mixed-content blocking does not apply.
+- `tools\attach-face.ps1` — attach to a running Octavia as an external face and drive her,
+  proving the protocol rather than the WebView2 page is the interface.
+- Eight protocol checks added to `tools\EarsTest`, including both token-refusal cases and
+  fan-out to two simultaneous faces.
+- Fixed: the server abandoned the socket on a close frame instead of completing the
+  handshake, so a face that disconnected politely saw an EOF error on its way out.
+- Config: `FacePort` (default 8848; 0 picks any free port).
+
+## 0.3.0 — 2026-08-29
+
+**Stage 2 — a local brain, and dev profiles.**
+
+- `IBrain` interface; the old `Brain` becomes `ClaudeBrain`, joined by `LocalBrain`.
+- `LocalBrain` streams from any OpenAI-compatible server (Ollama, LM Studio,
+  `llama-server`) over SSE, so swapping models is a config edit, not a rebuild.
+  Kept out-of-process on purpose — a second CUDA-linked native runtime in this
+  process would collide with Whisper, and later with Audio2Face.
+- Shared `Conversation` and `Speech` helpers: sentence draining, a markdown
+  flattener, and a streaming `<think>` filter so a reasoning model's scratchpad is
+  never spoken aloud.
+- Named config **profiles** merged over the base settings in memory; `OCTAVIA_PROFILE`
+  overrides the file. `dev` = local brain + `small.en`; `live` = Claude +
+  `large-v3-turbo`.
+- Ollama installed and benchmarked on the dev VM; `llama3.2:3b` chosen as the dev
+  default on wall-clock and persona adherence, not tokens/sec.
+- Silence watchdog: a microphone that opens but delivers digital silence now says so
+  on her face after 10 seconds instead of failing invisibly.
+- `tools/EarsTest` gained 16 brain checks, a live local-brain probe, and a
+  `-- mic` device diagnostic.
+- Fixed: the `<think>` filter held a fixed lookahead margin, so replies shorter than
+  the tag were never counted as spoken and `LocalBrain` threw "returned nothing".
+
+## 0.2.0 — 2026-08-29
+
+**Stage 1 — ears: VAD + Whisper.**
+
+- `WhisperRecognizer` behind the existing `ISpeechRecognizer`: microphone →
+  Silero VAD → Whisper, entirely local.
+- Silero VAD (vendored ONNX) gates every utterance with pre-roll, hangover and a
+  minimum voiced duration, so Whisper never sees silence and cannot hallucinate
+  text out of it. Bracketed non-speech tags are filtered as a second line.
+- Whisper models download once to `%APPDATA%\Octavia\models`, with progress on her
+  face. CPU and CUDA runtimes both referenced; CUDA is picked up automatically.
+- The Windows desktop recognizer stays as an automatic fallback.
+- `tools/EarsTest` added: synthesizes speech, runs the whole pipeline headlessly,
+  and asserts that silence transcribes to nothing.
+
+## 0.1.0 — 2026-08-29
+
+**Initial build.** Grew out of a single-file HTML prototype (`talking-avatar.html`).
+
+- WPF / .NET 10 host with the face in a WebView2, served from a virtual
+  `https://octavia.face` origin so the page is a secure context.
+- Three.js plaster bust ported out of the prototype into `wwwroot`, driven entirely
+  by host messages behind `IFaceTransport`.
+- Claude via the Anthropic SDK, streamed and cut at sentence boundaries so she starts
+  speaking before the reply is finished.
+- API key sealed with DPAPI to the current Windows account — it never reaches the page.
+- SAPI speech synthesis with real viseme events driving the jaw.
+- Tray icon, configurable global hotkey, single-instance with window surfacing.
+```

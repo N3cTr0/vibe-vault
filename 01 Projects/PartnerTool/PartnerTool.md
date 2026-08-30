@@ -8,9 +8,9 @@ tags: [partnertool, moc]
 > Progressive Computing's elevated Windows 11 support tool for techs: system info, diagnostics, repair actions, software install, disk usage, and more. WPF / .NET 10, distributed as a single self-contained exe. **This note is the reference point for everything PartnerTool.**
 
 - **Repo:** `C:\Projects\PartnerTool` on the [[Claude Dev VM]] (the **sole dev environment** since 2026-07-18) — under **git**, pushed to **private GitHub `N3cTr0/PartnerTool`** (`main`; `git clone https://github.com/N3cTr0/PartnerTool.git`). GitHub is the primary source-of-truth for code; `bin/obj/dist/release/.vs` are git-ignored.
-- **Current version:** 0.19.14 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.24.24 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
 - **Distribution:** single-file exe in `dist\` (see [[Build & Release]])
-- **Disaster recovery:** primary = `git clone` from GitHub; offline fallback = [[Restore From Snapshot]] (the vault's `Code\` snapshot reconstructs the source — round-trip re-tested 18 Jul 2026 at v0.19.14, all files content-clean; auto-syncs on every commit)
+- **Disaster recovery:** primary = `git clone` from GitHub; offline fallback = [[Restore From Snapshot]] (the vault's `Code\` snapshot reconstructs the source — round-trip re-verified at **v0.24.24** - all 133 files restore content-identical; auto-syncs on every commit)
 - **New PC / fresh install:** [[New Machine Bootstrap]] — prerequisites + the one paragraph to paste into a fresh Claude session
 
 ## Core notes

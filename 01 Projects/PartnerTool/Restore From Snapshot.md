@@ -10,7 +10,17 @@ tags: [partnertool, disaster-recovery]
 > This vault snapshot is the **offline fallback** for when GitHub isn't reachable, and doubles as the
 > in-Obsidian searchable source browser.
 
-If the repo is ever lost, the vault can rebuild it. **This procedure was round-trip-tested 18 Jul 2026 at v0.19.14** — every source file restored content-identical to the live repo (diff clean, line-endings normalized). The snapshot now regenerates **automatically on every commit** (see *Regenerating the snapshot* below); `_Code Index` shows the live file count.
+If the repo is ever lost, the vault can rebuild it. **Round-trip re-verified at v0.24.24**, before the move off the dev VM — all 133 source files restore content-identical to the live repo.
+
+Two things the restore does **not** reproduce byte-for-byte, both harmless - neither the compiler nor
+WiX cares:
+
+- **Line endings** - restored files are CRLF, the working tree is LF. Git normalises on commit anyway.
+- **No trailing newline** - the restore writes the fenced block verbatim, so the file ends without the
+  final newline the live one has.
+
+Diff a restored tree only after stripping `\r` and normalising the final newline, or it reads as
+"every file differs" when nothing meaningful does. The snapshot now regenerates **automatically on every commit** (see *Regenerating the snapshot* below); `_Code Index` shows the live file count.
 
 ## What the vault holds
 

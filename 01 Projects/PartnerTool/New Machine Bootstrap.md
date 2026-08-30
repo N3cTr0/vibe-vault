@@ -55,7 +55,7 @@ $git  = "C:\Program Files\Git\cmd\git.exe"
 - **NuGet:** a bare VM has an empty NuGet config, so `dotnet build/publish` fails with **NU1101**
   (can't find LibreHardwareMonitorLib / the runtime packs). The repo now ships a `nuget.config`
   pinning nuget.org, so restore just works — no manual `dotnet nuget add source` needed.
-- **GitHub PAT:** the credential is a fine-grained PAT covering **both** `PartnerTool` and `vibe-vault`
+- **GitHub PAT (check this first):** the credential is a fine-grained PAT covering **both** `PartnerTool` and `vibe-vault`
   (the vault backup), **expiring 2026-08-17** — rotate it before then or all pushes stop.
 - **`gh` CLI** (optional): not installed by default — `winget install GitHub.CLI` + `gh auth login`
   only if you need to create repos from the VM.
@@ -73,6 +73,28 @@ files content-clean), and `Code\_Assets\` has the binary logo files. Then build 
 - Defender/ASR may block the freshly built exe (new hash, zero prevalence) — see the confirmed
   ASR caveat in [[Build & Release]].
 
+## Moving off the dev VM (Aug 2026)
+
+Handover state at **v0.24.24**, the point the project left the VM for a physical PC:
+
+- Both repos are pushed and clean - `N3cTr0/PartnerTool` and `N3cTr0/vibe-vault`, branch `main`.
+- The vault `Code\` snapshot is current at v0.24.24 and round-trip verified ([[Restore From Snapshot]]).
+- Nothing else on the VM is needed: `dist\` rebuilds, and `C:\PCI\` is recreated by the app on
+  first run. The old machine's `C:\PCI\Logs` audit trail is the only thing that does not travel -
+  copy it off separately if any of it still matters.
+
+**Do these two first on the new PC:**
+
+1. **Rotate the GitHub PAT.** It expires **2026-08-17** and covers both repos - after that, every
+   push fails. Easiest to replace it before cloning rather than debug a rejected push later.
+2. **Re-point Claude at the vault** using the paste in section 1 - a fresh session on a new machine
+   knows nothing about this project until you do.
+
+**Version-bump pitfall carried over from the VM:** bumping the version in `PartnerTool.csproj` and
+`installer/Product.wxs` with PowerShell `Set-Content -Encoding utf8` writes a **UTF-8 BOM**. It did
+exactly that to `Product.wxs`, which had been BOM-less for its whole history. Nothing broke - MSBuild
+and WiX both accept it - but write those two files with `[IO.File]::WriteAllText` and a
+`UTF8Encoding($false)`, or a byte-level diff against the vault snapshot will show phantom changes.
 ## What transfers vs. what rebuilds
 
 | Thing | Transfers in the vault backup? |

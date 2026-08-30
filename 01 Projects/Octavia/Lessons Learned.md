@@ -1,0 +1,119 @@
+---
+project: Octavia
+tags: [octavia, lessons]
+---
+
+# Lessons Learned
+
+The expensive ones, so we never pay twice. (VAD specifics live in [[Silero VAD Context Window]]; model choice in [[Choosing a Local Model]].)
+
+## Machine learning runtimes
+
+- **Silero VAD returns a flat 0.0 for everything unless each 512-sample frame is prefixed with the previous frame's last 64 samples.** No error, no warning — just confident silence on obvious speech. The official Python wrapper does this invisibly, so every port that reads only the ONNX signature gets it wrong. Cost an hour; found by probing the raw model with and without context side by side. See [[Silero VAD Context Window]].
+- **Whisper.net reports `Probability` as 0.00 unless the processor is built with `.WithProbabilities()`.** A confidence gate silently rejecting everything looks exactly like a broken recognizer.
+- **Whisper hallucinates fluent text out of silence.** Three seconds of digital silence produced `[BLANK_AUDIO]`; noise produces "Thank you." or subtitle credits. A VAD in front is not an optimisation, it is the thing that makes Whisper usable. Filter bracketed non-speech tags as a second line of defence.
+- **whisper.cpp's native teardown corrupts the process exit code.** A test harness that returned normally reported exit -1 with every check passing. `Environment.Exit(n)` instead of `return n`.
+
+## Streaming text
+
+- **A lookahead filter must not hold back a fixed margin.** The `<think>` filter held 6 characters (the length of the tag minus one) so it could detect a tag split across chunks — which meant any reply *shorter than the tag* was held entirely, never counted as spoken, and `LocalBrain` threw "returned nothing". Only reproduced on short replies, which is exactly what her persona asks for. Hold back only a genuine **prefix of the tag**, and count whatever the filter flushes as real output.
+- **Small reasoning models narrate their scratchpad inline.** Without filtering, `<think>…</think>` gets read aloud. The tags arrive split across SSE chunks (`<thi` then `nk>`), so the filter has to be a state machine, not a regex.
+- **Sentence splitting must know that `3.50` is not two sentences.** Otherwise she says "It costs three point" and then "fifty today."
+
+## Audio and devices
+
+- **A capture device can open successfully and deliver pure digital silence.** Over RDP the microphone appears as "Remote Audio", is correctly the Windows default, and NAudio opens it without error — while the client forwards nothing because *"Record from this computer"* is off by default and only negotiated at connection time. Windows' own `AudioMeterInformation.MasterPeakValue` reads 0.000, which is what separates "no audio arriving" from "our capture is misconfigured". **Diagnose upstream of your own code first.**
+- **Silence must be reported, not just handled.** She sat looking like she was listening and never answered — the worst possible failure mode. There is now a watchdog: mic open, zero signal for 10 seconds, say so on her face. Distinguish digital silence (exactly 0.0) from a quiet room (always has a noise floor) or it cries wolf.
+- **NAudio 3.x renamed `WaveInEvent` to `WaveIn`** — but the event args type is still `WaveInEventArgs`. A blind rename breaks the build in a confusing way.
+
+## Choosing models
+
+- **Tokens per second is the wrong metric for a talking avatar.** `qwen3:1.7b` ran 2.5× faster per token than `llama3.2:3b` and was still **slower to finish**, because it ignored "two or three short sentences" and emitted 145 tokens against llama's 38. Wall clock is what the user feels. Judge on **tokens emitted**, and measure on the actual target machine.
+- **A 4B model will not hold a persona.** Expect markdown, rambling and stage directions no matter how firm the system prompt. It is a test of the *pipeline*, not of her character — say so up front or the dev build reads as a regression.
+
+## Platform
+
+- **The `net10.0-windows` TFM alone rejects `SupportedOSPlatformVersion`.** Put the version in the TFM itself: `net10.0-windows10.0.19041.0`.
+- **The WindowsDesktop implicit-using set omits `System.IO` and `System.Net.Http`**, unlike the plain SDK. Add them as `<Using>` items rather than sprinkling usings.
+- **`System.Text.Json` escapes `+` to `+` by default**, which makes a hand-editable config file look corrupted (`"Ctrl+Alt+O"`). `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` for anything a human will read. **This bit twice** — the second time in the diagnostics bundle's redacted config copy, written with a fresh options object that did not carry the encoder. The rule is not "set it once"; it is *every* serializer whose output a person opens.
+- **`Ctrl+Alt+Space` is commonly owned by an IME** and `RegisterHotKey` fails with 1409. Make the hotkey configurable and log the actual Win32 error, or it looks like your code is broken.
+- **Killing a process and immediately relaunching races the single-instance mutex.** The second instance saw the mutex still held and exited — which read as a bad build. Wait for teardown before concluding anything.
+- **A second instance should surface the first, not exit silently.** Double-clicking the exe while she sits in the tray appeared to do nothing at all.
+
+## Asynchrony and threads
+
+- **A discarded task swallows its exception until the garbage collector notices.** `_ = SomeAsync()` is how a subsystem stops working without saying anything: the "Save diagnostics" button threw on every press and produced no dialog, no error, no log line. Every fire-and-forget now goes through a `Forget(what)` helper that logs the fault where it happens.
+- **A file dialog must be *constructed* on the UI thread, not merely shown there.** Building `SaveFileDialog` on a socket thread and then marshalling `ShowDialog()` throws on the constructor. Marshal the whole operation, not the last line of it.
+- **`.GetAwaiter().GetResult()` on the dispatcher thread deadlocks** any task whose continuations post back to that thread. The headless `--diagnostics` command hung forever with no window and no output — worse than failing. `Task.Run(...)` first to escape the synchronisation context.
+- **The pattern behind all three:** the bug was invisible, and each was found by testing the *user-facing path* rather than the unit. The harness proved the bundle writer; only pressing the button proved the button.
+
+## Configuration
+
+- **A fix built on a hand-kept list is a bug with a delay on it.** The v0.4.1 flattening fix carried *named* properties (`VoiceName`, `VoiceRate`) back to the un-overlaid settings. Two versions later a settings menu added `AvatarFile` and `RoomHour`, which reached the host, changed the face, wrote a log line — and were silently dropped on save. The list had no way to know. Comparing against **the settings as they stood at load** gives the same guarantee and cannot fall behind, because "what changed while running" is computed, not remembered.
+- **Test that a setting persists, not that it applies.** Everything about the settings menu looked right: the dropdown, the log line, the face changing. Only reading `config.json` afterwards showed nothing had been saved.
+- **A config object that is loaded merged must not be saved merged.** Profile overlays were applied in memory and the design said `Save()` would never write them back — but `Save()` simply serialised `this`, and `this` *was* the merged copy. One voice change on the `dev` profile baked `Brain: local` into the base settings, and from then on the profiles were decoration. The invariant was documented in a comment and never tested, which is the whole failure. Keep a reference to the un-overlaid original and write **that**.
+- **A Windows shortcut can pass an argument but cannot set an environment variable.** Selecting a profile by env var and config key only meant a launcher had no way to state its own intent — so which brain the desktop icon opened depended on a mutable file the app itself rewrites. Anything a launcher must pin needs a command-line form.
+- **Say where a setting came from, not just what it is.** `profile 'dev'` in the log cannot distinguish "the shortcut asked for this" from "the file happened to say so", which is precisely the question when the wrong brain starts. `profile 'dev' (command line)` answers it in one line.
+- **Make the current profile visible where the app is.** Tray tooltip and status panel, not only the log — the person who notices the wrong model is looking at her face, not at `%APPDATA%`.
+
+## Audio and DSP
+
+- **Do not build on a capability the next engine will not have.** The plan for the neural voice assumed phoneme timings from the engine. Piper hands over a waveform and nothing else, and so will most of its replacements. Deriving the mouth from the *audio* instead is less precise and completely portable — and it is the same DSP the music stage needs.
+- **Speech tilts downward at ~6 dB/octave, so raw band energies always favour the low band.** Before compensating, 63% of voiced frames read as the same rounded vowel. Weight the bins by frequency before comparing bands.
+- **A threshold tuned on one voice is a threshold that only works on one voice.** Fixed cut-points calibrated on Piper made SAPI mumble in a single shape. Track a running centre and express the boundaries as multiples of it; both engines then use their whole range.
+- **Analyse at playback, not at generation.** Synthesis runs ahead of the sound card once warm, so a mouth driven from the generator finishes the sentence a second before it is heard. Tap the stream between the buffer and the output device.
+- **"Nothing has arrived" and "nothing is coming" look identical.** An end-of-utterance watchdog that only checks for quiet fires *during* synthesis, before the first sample exists — she went idle and then started talking. Wait for the beginning before you are allowed to detect the end.
+- **A sound card is fed continuously; an empty buffer comes back as silence.** Analysing that produced a viseme twelve times a second forever, each one saying "mouth shut". Send on change, not on tick.
+- **Judge lip sync with a probe, not an assertion.** `EarsTest -- mouth <wav>` prints the shape timeline and the distribution behind it. Assertions can only pin the properties; whether it looks like talking is a thing you have to be able to *look at*.
+- **Measure how good the audio is before doubting the arithmetic.** The tempo would not settle live while locking to 0.3 bpm offline, and every symptom pointed at the analyser. It was the *path*: Remote Desktop's audio endpoint normalises everything to full scale — **crest factor 1.7**, near square — and a beat cannot be found in audio with no dynamics left in it. What settled it was two numbers: delivery was 99.8% complete, and playing at a **quarter** of the volume returned byte-identical statistics. A signal-quality measure belongs beside the frame count in any capture diagnostic; "we received everything" and "what we received is usable" are different claims.
+- **Integer-lag autocorrelation is biased, and unevenly.** A tempo is rarely a whole number of analysis hops — 150 bpm is exactly 37.5 — so correlating at the nearest integer understates that peak while a bar line landing on a whole number scores in full. The result was a track reading at exactly half speed. Interpolate the peak parabolically.
+- **A test signal can be wrong in a way that looks like a bug.** The first synthetic kick drum was a pure 55 Hz sine, which occupies about one FFT bin and barely registers in spectral flux — so only the backbeat was visible and a 150 bpm track genuinely *was* 75 bpm of onsets. Real kicks have a beater click. When a detector fails on synthetic material, ask whether the material is real before changing the detector.
+- **Set a threshold from a measured distribution, and check it has a sign.** The octave-preference cut-off sits at 0.45 because doubling-is-right scores 0.63–0.67 and doubling-is-wrong scores about −0.03. Two clusters that far apart, on opposite sides of zero, make a single constant defensible; a number chosen because it made the test pass would not have been.
+- **She hears herself.** Anything she says comes out of the speakers and back through the loopback. The instinct is to stop analysing while she speaks, but that loses the beat of a track she is talking over — *hold the decision and keep the clock running* instead. Any machine that both listens and speaks has this problem.
+
+## Rendering
+
+- **`smoothstep` with its edges reversed is undefined in GLSL**, and the symptom is not an error — it is the effect silently not happening. `smoothstep(1.05, 0.18, d)` for an inverted ramp compiled and ran and drew no vignette at all. Write `1.0 - smoothstep(0.18, 1.05, d)`.
+- **A backdrop plane always finds a window shape where its edges show.** Sizing it "generously" only moves the problem: too large and the gradient and vignette happen off-screen, which looks exactly like having neither. A fullscreen quad drawn before the scene has no edges, needs no aspect guessing, and is cheaper.
+- **three.js ships as more than one file since r160-ish.** `three.module.js` imports `three.core.js`; vendoring only the first gives a 404 that surfaces as "the scene did not build". Check the module's own imports after downloading, not just its name.
+- **three has no UMD build any more.** Moving to r158+ for `@pixiv/three-vrm` means module scripts, which changes execution order: classic scripts run at parse, modules run deferred and in document order. A classic `bridge.js` reading `window.Face` from a module `face.js` sees `undefined` and reports the renderer as broken.
+- **Every VRM is authored in a T-pose.** The format defines a rest position, not an idle, so a freshly loaded character stands with her arms straight out. Posing the upper arms down on load is not a nicety; it is the difference between a character and a mannequin.
+- **Frame the camera to the character, not the character to the camera.** Scaling a person to fit a bust's framing distorts them; reading the head bone's world position and placing the camera relative to *that* makes a tall character and a short one the same size on screen.
+- **Pick your vocabulary from the thing you are going to integrate with.** Naming the expression set after VRM 1.0's presets (`happy/angry/sad/relaxed/surprised/neutral`, visemes `aa/ih/ou/ee/oh`) meant the protocol mapped onto a real character by identity. A vocabulary invented first would have needed a translation table, and translation tables are where this kind of thing rots.
+
+## Sockets and protocols
+
+- **Loopback is "potentially trustworthy", so `ws://127.0.0.1` is reachable from an `https` page.** Mixed-content blocking does not apply. Worth knowing before designing around a limit that is not there — it let the built-in face and external faces share one transport instead of two.
+- **Cancelling a `ReceiveAsync` ABORTS a WebSocket**, it does not time out. A per-read timeout in a polling loop kills the connection on the first quiet moment, and the socket can then no longer be closed politely. Use one long-lived token for the session.
+- **Answer a close frame.** A server that just drops the socket leaves a client that disconnected politely staring at "closed without completing the close handshake". Found by the protocol test, not by the app.
+- **`HttpListener` needs a urlacl reservation** outside the default namespace — meaning elevation or a setup step. `TcpListener` + `WebSocket.CreateFromStream` avoids that entirely and still lets the framework do the framing.
+
+## Environment and tooling
+
+- **The Store/MSIX PowerShell 7 has a virtualized view of AppData.** `winget install Microsoft.PowerShell` as an unelevated user installs the MSIX package, whose `pwsh.exe` genuinely **cannot see** `%APPDATA%\Octavia\octavia.log` — `Test-Path` returns false for a file that plainly exists. It fails silently and looks like a bug in your script. Use the plain ZIP release extracted to `%LOCALAPPDATA%\Programs\PowerShell7` instead; no installer, no elevation.
+- **An admin account running unelevated has a *filtered* token.** `IsInRole(Administrator)` is false **and** the token's group list omits Administrators — those are one fact, not two. Never report "not in the admin group" from a token check; read `net localgroup Administrators` for actual membership. Conflating them produced a confidently wrong statement.
+- **Quoting does not survive nesting.** Backtick escapes passed through Bash into `pwsh -Command`, and `$`-escapes through 5.1, both corrupt the script silently — twice producing a literal `n` where a newline belonged, and once turning a heredoc's apostrophes into a parse error. Use `-File <script>` or the editor tools. This has now cost time in three separate sessions; treat any nested-quoting attempt as the wrong approach rather than one to get right.
+- **An obsolete API's replacement will tell you its own rules, one at a time.** `WasapiLoopbackCapture` is deprecated in favour of `WasapiRecorderBuilder`, which then refused three configurations in a row — routing needs `BuildAsync`, routing cannot combine with `WithDevice`, routing follows the *capture* device and cannot combine with loopback at all. Every message was accurate and actionable. Read them and adjust rather than reverting to the deprecated call; the end state was better than the one first attempted, and the constraint learned last is now a comment in the file.
+- **`requestAnimationFrame` does not run in a hidden tab.** Measuring an animation through an automated browser whose pane is not displayed returns **zero frames per second**, so every value driven by the render loop reads as its initial state and the code looks broken. Screenshots still work, because capture forces a paint — which is what makes it convincing. Check `document.hidden` before believing a timing measurement.
+
+## Text encoding
+
+- **`perl -pi` without an encoding layer destroys UTF-8, worse than PS 5.1 does.** PS 5.1's cmdlets double-encode (recoverable); perl emitted a "Wide character in print" warning and wrote **lone `0xE2` bytes** — the first byte of each multi-byte sequence, the rest dropped. `—` and `├──` became invalid UTF-8 that no mechanical reversal can fix, and `sed` cannot even pattern-match it because the bytes are not valid characters. The file had to be rewritten by hand. Use the editor tools for text containing dashes, arrows or box-drawing.
+- **The vault snapshot faithfully copies a corrupted source.** The round-trip check flagged mojibake in `README.md` and the instinct was to blame the sync script — but the *repo* file was the damaged one. Verify after any bulk text edit, and read the failure carefully before fixing the wrong end.
+
+## Process
+
+- **Write the diagnostic, not the guess.** `EarsTest -- mic` (enumerate devices, mark the Windows default, read Windows' own meter) turned "can she hear me?" into a two-minute answer. Every subsystem here got a headless harness before it got trusted, and each one found a real bug on its first run.
+- **A red line that does not say what to try is barely better than no line.** Every failing self-test check carries a `fix` sentence, and the microphone one names the RDP client setting by its full menu path. The value is not in detecting the fault; it is in the reader knowing what to do next.
+- **A redactor that matches substrings redacts the wrong things.** `Hotkey` contains "key" and `MaxTokens` contains "token", so the first version of the bundle's config copy blanked two of the most useful lines in a fault report — including the setting behind a bug already in this file. Match whole words of the name, and only ever redact a **string**: a secret is never a number or a boolean. Over-redaction is not the safe default; it quietly destroys the thing you built the bundle to carry.
+- **"Sent only when it changes" leaves a late arrival with nothing.** `emotion` is sent on change, which is right — repeating it would restart the movement towards it every sentence. But it means a face attaching mid-session is never told what she is currently wearing, and a mood can sit unchanged for many minutes. Any message with change-only semantics needs its current value in the handshake. Found by a conformance check, not by looking.
+- **Write the harness before the thing it tests, when the thing is expensive.** The photoreal renderer needs a GPU that does not exist yet, but the *contract* it must be built against could be checked today — and checking it found a fault that would have looked like a bug in the renderer. The cheapest time to find a protocol gap is before anything depends on it.
+- **A smaller helper model can be far slower than a bigger resident one.** A 1.7B gate beside a 3B brain looked obviously right and was the opposite: the server can only hold one, so it evicted and reloaded on *every* utterance — 24 seconds against 0.7 for a warm call. Count what is resident, not what is small.
+- **A reasoning model cannot be used as a gate.** Asked a yes-or-no question with a 24-token budget, `qwen3:1.7b` spent all of it thinking and returned an empty answer. `think`, `/no_think` and `chat_template_kwargs.enable_thinking` were each ignored by the OpenAI-compatible endpoint; only the vendor's own API honoured it. Pick a non-reasoning model rather than trying to switch the reasoning off.
+- **The word you choose in a prompt is a design decision.** Asking whether a line was "addressed to an assistant" made the model read *addressed* as *named*, and it discarded "tell me a short joke". Asking whether it was "a question or a request an assistant should answer" fixed it. Same intent, opposite behaviour — and prompts get reviewed far less carefully than the code around them.
+- **Halving a prompt halved the latency.** Every token in a system prompt is processed on every call, and on a modest machine prompt processing dominates. Brevity in an instruction is a performance decision, not only a stylistic one.
+- **A permission nobody answers is answered by somebody else.** WebView2 raises `PermissionRequested`, and with no handler the *runtime* decides — so a config switch reading `"Camera": false` was a suggestion the page could go around. Any embedded browser needs its host to answer permissions explicitly, and to deny by default: the handler is four lines and its absence is invisible.
+- **"It opened and returned no error" is not "it worked" — for a camera either.** A lens cap, a privacy shutter and an unlit room are all indistinguishable from success. The fix is the same one the microphone got in Stage 4: measure what came back and say so. Describing the frame's brightness and spread cost twenty lines and immediately found a real bug.
+- **Timings tuned against a synthetic device will be wrong against a real one.** Two animation frames before grabbing a still was plenty for a virtual camera and far too little for a sensor with auto-exposure to finish. Hardware has settling time that emulation does not, and no amount of reasoning would have produced the number — only a measurement did.
+- **`SetForegroundWindow` fails silently from a background process,** and the click then lands on whatever window *is* in front. This wasted a debugging round looking for a bug in the app while the clicks were going into a chat window. Attach to the foreground thread's input queue first, and then **verify** the window actually came forward before clicking anything.
+- **A self-test that spends money is a bad self-test.** The brain check pings a local endpoint and, for Claude, verifies only that a key is stored — it never makes a call. Anything a worried user might press repeatedly has to be free.
