@@ -15,7 +15,11 @@ Runs from `src\Octavia.App\bin\Debug\net10.0-windows10.0.19041.0\Octavia.exe`. S
 
 ## The desktop shortcut
 
-`C:\Users\Claude\Desktop\Octavia.lnk` → that same **Debug** exe, with arguments `--profile dev`.
+`<Desktop>\Octavia.lnk` → that same **Debug** exe, with arguments `--profile dev`.
+
+*Recreated 08/30/2026 on the new PC.* Note the Desktop is OneDrive-redirected there, so it
+is `C:\Users\N3cTr0\OneDrive\Desktop`, not `C:\Users\N3cTr0\Desktop` — that path does not
+exist. Take it from `[Environment]::GetFolderPath('Desktop')` rather than assuming.
 
 Two deliberate choices:
 
