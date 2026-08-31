@@ -74,7 +74,7 @@ than failing. Removing or repurposing anything is a version bump.
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. |
+| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. The four `audio*` fields describe her voice as a stream: `audioAvailable` is false on the Windows voice, which cannot be teed, and a face is told so rather than left waiting for frames that were never coming. `audioRate` comes from the live voice model, so it **changes when the voice does** — re-read it on every `hello` rather than caching it once. |
 | `state` | `value`: `idle` \| `listening` \| `thinking` \| `speaking` | Her overall state. Drives posture, expression and the status pill. |
 | `level` | `value`: 0.0–1.0 | Microphone amplitude, ~20 Hz while listening. This is what makes the face react while you are still talking. |
 | `viseme` | `value`: 0.0–1.0, `shape?` | Mouth openness from real phoneme events during synthesis, and which mouth shape to make. Sent at phoneme rate. |
@@ -106,6 +106,52 @@ Both are otherwise sent only when they change, so a face attaching to a session 
 progress had no way to learn either — and an expression can sit unchanged for many minutes,
 so a renderer that assumed `neutral` was simply wrong until she next felt something. Apply
 them on connect, then follow the `state` and `emotion` messages.
+
+## Audio — her voice, on another face
+
+**A binary WebSocket frame is audio and nothing else.** No per-frame header, no type tag.
+If a second binary stream is ever wanted that is a version decision, not a field added
+quietly. Every JSON message above travels as a text frame; a face can therefore tell the
+two apart by frame type alone.
+
+Raw PCM, in the format the four `audio*` fields of `hello` advertise — typically 22050 Hz,
+16-bit, mono, but **read it, never assume it**: the rate belongs to the voice model and
+changes when the voice does. Base64 inside JSON was rejected: a third more bytes and a
+great deal of garbage at ~44 KB/s.
+
+### Asking for it, and why this one is opt-in
+
+```json
+{ "type": "subscribe", "skip": ["viseme", "level"], "want": ["audio"] }
+```
+
+**No face receives audio until it asks.** That is the opposite of the rule `skip` follows,
+and deliberately so: `skip` declines a *rendering hint*, where defaulting to "send it" is
+right. Audio is a **physical output**. If it were opt-out, the built-in page and every
+browser face on this machine would start playing her voice on top of the speakers she is
+already using — not a bandwidth problem but her talking over herself in the same room. A
+face that draws her mouth has not thereby claimed the right to make noise.
+
+The host never streams to the built-in page for the same reason.
+
+### Stopping
+
+**A face must throw away buffered audio on any `state` that is not `speaking`.** There is
+no separate stop message and there does not need to be one: she has stopped, so anything
+still held is a tail she has already finished, and playing it means she carries on talking
+on the phone after going quiet in the room. The host drops its own queued frames at the
+same moment, so the two halves agree.
+
+### Back-pressure
+
+A face that cannot keep up **loses the oldest frames**, not the newest, and control
+messages are never dropped. Old audio is worthless: a slow face should hear a gap and catch
+up rather than fall further behind for the rest of the utterance. A face that stops reading
+entirely is eventually dropped.
+
+*No codec. Raw PCM is what a LAN behind Wireguard can afford and it costs nothing to
+implement. Opus is the obvious later optimisation — roughly a tenth the bytes — and it
+belongs between the tee and the queue.*
 
 ### The `music` message
 
@@ -183,7 +229,7 @@ if the stream stops, rather than freezing the last value.
 | Type | Fields | Meaning |
 |---|---|---|
 | `ready` | `faceBuilt`: bool | The face has loaded. `faceBuilt` is false if the renderer failed to construct — the host logs this. Triggers `hello`. |
-| `subscribe` | `skip`: string[] | Message types this face does not want. Answered by the socket server itself and never relayed to the host, because it describes one connection rather than the session. **Opt-out, not opt-in**: a face that never sends it keeps receiving everything, so no existing renderer changes behaviour and a new message type reaches old clients rather than being silently withheld. A phone would send `{"skip":["viseme","level"]}` — sixty visemes a second is a battery, not a feature. |
+| `subscribe` | `skip`: string[], `want`: string[] | Message types this face does not want, and streams it does. See *Audio* below for `want`. Answered by the socket server itself and never relayed to the host, because it describes one connection rather than the session. **Opt-out, not opt-in**: a face that never sends it keeps receiving everything, so no existing renderer changes behaviour and a new message type reaches old clients rather than being silently withheld. A phone would send `{"skip":["viseme","level"]}` — sixty visemes a second is a battery, not a feature. `want` is the counterpart and is **opt-in**; the two are independent, and being sent audio is not a reason to start receiving visemes again. |
 | `say` | `text` | The user typed something. |
 | `listen` | — | Toggle listening. |
 | `hush` | — | Stop speaking and abandon the current reply. |

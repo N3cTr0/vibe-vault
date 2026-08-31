@@ -14,6 +14,7 @@ using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using Octavia.Core;
 
 namespace Octavia.Face;
@@ -36,13 +37,25 @@ internal sealed class WebSocketFaceServer : IDisposable
     private const string CookieName = "octavia_token";
     private const string KeyCookieName = "octavia_key";
 
-    /// One attached face, and what it has asked not to be sent.
+    /// One thing to write, and what kind of frame it is. A binary frame is audio and
+    /// nothing else — no per-frame header, no type tag. A second binary stream would be a
+    /// protocol version decision, not a header field added quietly.
+    private readonly record struct Outbound(byte[] Bytes, WebSocketMessageType Kind);
+
+    /// How many audio frames may wait for one face before the oldest are dropped.
     ///
-    /// A renderer wants visemes sixty times a second; a phone in a pocket wants a
-    /// caption and the state of the house. Sending the first to the second is not merely
-    /// wasteful, it is the difference between a usable mobile client and one that eats a
-    /// battery over a mobile connection. `hello` already describes what the *host* can
-    /// do; `subscribe` is the other half of that conversation.
+    /// Shallow on purpose. At the rate the voice produces them this is a fraction of a
+    /// second, and a face that cannot keep up should hear a gap and catch up rather than
+    /// fall further behind for the rest of the utterance. Old audio is worthless.
+    private const int AudioQueueDepth = 16;
+
+    /// One attached face, what it has asked not to be sent, and what it has asked *for*.
+    ///
+    /// A renderer wants visemes sixty times a second; a phone in a pocket wants a caption
+    /// and the state of the house. Sending the first to the second is not merely wasteful,
+    /// it is the difference between a usable mobile client and one that eats a battery over
+    /// a mobile connection. `hello` already describes what the *host* can do; `subscribe` is
+    /// the other half of that conversation.
     private sealed class Face(FaceId id, WebSocket socket)
     {
         /// Carried on the connection so the receive loop can say who a message came from.
@@ -50,6 +63,32 @@ internal sealed class WebSocketFaceServer : IDisposable
         public FaceId Id { get; } = id;
 
         public WebSocket Socket { get; } = socket;
+
+        /* One writer per face, fed by two queues, because sends used to be fired
+           un-awaited — `_ = SendAsync(...)` — once per face per message.
+
+           That is not the race it looks like: .NET serialises concurrent sends on one
+           socket behind a lock rather than rejecting them, measured at 320 overlapping
+           sends with nothing thrown. The real fault is what happens when a face stops
+           reading. Its socket buffer fills, every queued send stops completing, and they
+           pile up without bound holding their buffers alive — a slow phone becomes the
+           host's memory leak. Ordering across un-awaited calls is not guaranteed either.
+
+           A queue fixes all of it and makes back-pressure expressible, which is what
+           audio needs. */
+
+        /// Everything that is not audio. **Never dropped**: losing a `state` or a `caption`
+        /// leaves a face permanently wrong about her rather than briefly behind.
+        public Channel<Outbound> Control { get; } =
+            Channel.CreateUnbounded<Outbound>(new UnboundedChannelOptions { SingleReader = true });
+
+        /// Audio, bounded, oldest discarded first.
+        public Channel<Outbound> Audio { get; } =
+            Channel.CreateBounded<Outbound>(new BoundedChannelOptions(AudioQueueDepth)
+            {
+                SingleReader = true,
+                FullMode = BoundedChannelFullMode.DropOldest
+            });
 
         /// Replaced wholesale rather than mutated. `subscribe` arrives on this
         /// connection's receive thread while `Broadcast` reads this from whichever
@@ -62,6 +101,23 @@ internal sealed class WebSocketFaceServer : IDisposable
         {
             get => _skip;
             set => _skip = value;
+        }
+
+        /// The counterpart to `Skip`, and **opt-in** rather than opt-out.
+        ///
+        /// `skip` declines a rendering hint, so defaulting to "send it" is right: a new
+        /// message type should reach an old face rather than be silently withheld. Audio is
+        /// not a rendering hint, it is a *physical output* — and if it followed the same
+        /// rule every browser face on this machine would start playing her voice on top of
+        /// the speakers she is already using. That is not bandwidth, it is her talking over
+        /// herself in the same room. A face that draws her mouth has not thereby claimed the
+        /// right to make noise.
+        private volatile IReadOnlySet<string> _want = new HashSet<string>();
+
+        public IReadOnlySet<string> Want
+        {
+            get => _want;
+            set => _want = value;
         }
     }
 
@@ -80,6 +136,13 @@ internal sealed class WebSocketFaceServer : IDisposable
     /// Whether a face on another machine may connect at all. Off means loopback only,
     /// which is what she has always been and remains the default.
     public bool Remote { get; private set; }
+
+    /// Names this server in the log. The test harness starts a **real** server of this class
+    /// on an ephemeral port with its own token, into the same log file — so "the last
+    /// `face socket listening` line" used to hand back a dead test token for a port that no
+    /// longer exists, and the failure presented as the *client* being broken. Reported from
+    /// the Android side, where it cost real time. Anything but the app should say so.
+    public string Label { get; init; } = "face socket";
 
     /// Returns false when the port could not be bound; the host then runs on the
     /// WebView2 channel alone rather than refusing to start.
@@ -103,13 +166,13 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Write($"face socket could not bind port {port}: {ex.Message}");
+            Log.Write($"{Label} could not bind port {port}: {ex.Message}");
             _listener = null;
             return false;
         }
 
         _ = Task.Run(AcceptLoop);
-        Log.Write($"face socket listening on ws://127.0.0.1:{Port}/?token={Token}");
+        Log.Write($"{Label} listening on ws://127.0.0.1:{Port}/?token={Token}");
 
         if (remote)
             Log.Warn($"face socket is ALSO listening on every interface, port {Port}. " +
@@ -197,7 +260,14 @@ internal sealed class WebSocketFaceServer : IDisposable
             _faces[id] = face;
             Log.Write($"face {id} connected over socket ({_faces.Count} attached)");
 
+            // One writer per connection, for as long as the connection lasts.
+            var pump = PumpAsync(face);
+
             await ReceiveLoopAsync(face);
+
+            face.Control.Writer.TryComplete();
+            face.Audio.Writer.TryComplete();
+            await pump.WaitAsync(TimeSpan.FromSeconds(2)).ContinueWith(_ => { });
         }
         catch (Exception ex)
         {
@@ -287,8 +357,28 @@ internal sealed class WebSocketFaceServer : IDisposable
             if (type is not null && face.Skip.Contains(type)) continue;
 
             bytes ??= Encoding.UTF8.GetBytes(json);
-            _ = SendAsync(id, face.Socket, bytes);
+            Enqueue(face, new Outbound(bytes, WebSocketMessageType.Text));
         }
+
+        /* Anything but `speaking` means she has stopped, and buffered audio for a face is
+           then a tail she has already finished — she would carry on talking on the phone
+           after going quiet in the room. Dropping it here as well as in the face is the
+           difference between a prompt stop and a nearly prompt one. */
+        if (type == "state" && !json.Contains("\"speaking\"", StringComparison.Ordinal))
+            foreach (var face in _faces.Values) DrainAudio(face);
+    }
+
+    /// Queue rather than send. Ordering is then guaranteed and a slow face cannot make the
+    /// host hold buffers it will never manage to write.
+    private static void Enqueue(Face face, Outbound item)
+    {
+        var queue = item.Kind == WebSocketMessageType.Binary ? face.Audio : face.Control;
+        queue.Writer.TryWrite(item);
+    }
+
+    private static void DrainAudio(Face face)
+    {
+        while (face.Audio.Reader.TryRead(out _)) { }
     }
 
     /// One recipient, same rules. A face that asked to skip this type still skips it:
@@ -301,20 +391,72 @@ internal sealed class WebSocketFaceServer : IDisposable
         if (face.Socket.State != WebSocketState.Open) return;
         if (type is not null && face.Skip.Contains(type)) return;
 
-        _ = SendAsync(id, face.Socket, Encoding.UTF8.GetBytes(json));
+        Enqueue(face, new Outbound(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text));
     }
 
-    private async Task SendAsync(FaceId id, WebSocket socket, byte[] bytes)
+    /// Raw PCM to every face that asked for it, in the format `hello` advertised.
+    ///
+    /// **Opt-in, unlike everything else here.** See `Face.Want`: a face that has not asked
+    /// receives nothing, because audio is a physical output rather than a rendering hint.
+    public void BroadcastAudio(ReadOnlyMemory<byte> pcm)
+    {
+        if (_faces.IsEmpty) return;
+
+        byte[]? bytes = null;
+        foreach (var face in _faces.Values)
+        {
+            if (face.Socket.State != WebSocketState.Open) continue;
+            if (!face.Want.Contains("audio")) continue;
+
+            // Copied once, and only if somebody actually wants it — the caller's buffer is
+            // pooled and goes back the moment this returns.
+            bytes ??= pcm.ToArray();
+            Enqueue(face, new Outbound(bytes, WebSocketMessageType.Binary));
+        }
+    }
+
+    /// One writer per face, draining its queues in order. Control is always emptied before
+    /// audio: it is rare, small, and being briefly behind on her voice is better than being
+    /// wrong about her state.
+    private async Task PumpAsync(Face face)
     {
         try
         {
-            await socket.SendAsync(bytes, WebSocketMessageType.Text, true, _stopping.Token);
+            while (!_stopping.IsCancellationRequested && face.Socket.State == WebSocketState.Open)
+            {
+                while (face.Control.Reader.TryRead(out var control))
+                    await face.Socket.SendAsync(control.Bytes, control.Kind, true, _stopping.Token);
+
+                if (face.Audio.Reader.TryRead(out var audio))
+                {
+                    await face.Socket.SendAsync(audio.Bytes, audio.Kind, true, _stopping.Token);
+                    continue;
+                }
+
+                var control_ = face.Control.Reader.WaitToReadAsync(_stopping.Token).AsTask();
+                var audio_ = face.Audio.Reader.WaitToReadAsync(_stopping.Token).AsTask();
+                await Task.WhenAny(control_, audio_);
+            }
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            // A face that went away mid-send is not an error worth logging every frame;
-            // viseme messages would flood the log.
-            _faces.TryRemove(id, out _);
+            // She is shutting down. Not a fault.
+        }
+        catch (Exception ex) when (ex is WebSocketException or ObjectDisposedException)
+        {
+            // A face that went away mid-send is routine and stays quiet — this is the case
+            // the original catch-all was written for, and it was right about it.
+        }
+        catch (Exception ex)
+        {
+            // Anything else is a real fault, and it used to vanish. The catch-all removed
+            // the face without a word, so a live renderer could be dropped and the only
+            // symptom was that she went quiet, with nothing in the log to say why.
+            Log.Error($"face {face.Id} send failed", ex);
+        }
+        finally
+        {
+                _faces.TryRemove(face.Id, out _);
         }
     }
 
@@ -334,6 +476,21 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
 
         face.Skip = wanted;
+
+        /* `want` is the other half, and it is opt-**in**. Absent means absent: no face
+           receives audio until it asks. See Face.Want for why this one stream cannot
+           follow the opt-out rule the rest of `subscribe` uses. */
+        var asked = new HashSet<string>();
+
+        if (message.TryGetProperty("want", out var want) && want.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var entry in want.EnumerateArray())
+                if (entry.GetString() is { Length: > 0 } name) asked.Add(name);
+        }
+
+        face.Want = asked;
+
+        if (asked.Count > 0) Log.Write($"face {face.Id} asked for: {string.Join(", ", asked)}");
 
         Log.Write(face.Skip.Count == 0
             ? "face subscribed to everything"

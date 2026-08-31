@@ -104,6 +104,37 @@ And read back what actually landed rather than trusting the taps — a debuggabl
 adb shell run-as com.n3ctr0.octavia cat /data/data/com.n3ctr0.octavia/shared_prefs/octavia.xml
 ```
 
+### Do not grep the *last* `face socket listening` line
+
+`tools\EarsTest` starts its **own** `WebSocketFaceServer` for the face-protocol checks, on an ephemeral port, and it logs into the same `octavia.log`:
+
+```
+face socket listening on ws://127.0.0.1:26172/?token=f2f3e1a4...
+```
+
+So "take the last listening line" hands you a **test server's token on a port that no longer exists**, and the phone then fails to pair for reasons that look like the client's fault. Both handsets were paired that way once before it was noticed.
+
+Take the listening line that follows the last `Octavia starting`, and sanity-check the port against `FacePort` in her config:
+
+```powershell
+$log = Get-Content 'C:\Projects\Octavia\data\octavia.log'
+$i = ($log | Select-String 'Octavia starting' | Select-Object -Last 1).LineNumber
+$log[($i-1)..($i+12)] | Select-String 'face socket listening'
+```
+
+And check she is actually up — `Get-Process Octavia` — before blaming anything on the phone.
+
+### Two devices at once
+
+Every `adb` call needs `-s <serial>`, and **the reverse tunnel is per device**:
+
+```
+adb -s 52006d2ceedb84a9 reverse tcp:8848 tcp:8848    # J7 Pro
+adb -s 1d1bdadb         reverse tcp:8848 tcp:8848    # 11T Pro
+```
+
+`shared_prefs/` does not exist until the app has run once, so on a fresh install launch it, force-stop it, *then* copy the preferences in.
+
 ### Her token changes on every restart
 
 The per-run token is regenerated each time she starts, so restarting her un-pairs the phone. That is what the durable **remote key** is for — but `data\remote.key` is created *lazily*, on first use, so it does not exist until something asks for it. During a session where she restarts often, expect to re-pair, and watch her log for `face socket refused a connection with a bad or missing token`.

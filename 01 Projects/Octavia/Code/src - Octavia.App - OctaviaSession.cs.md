@@ -226,6 +226,10 @@ internal sealed class OctaviaSession : IDisposable
         voice.Started += () => SetState(AgentState.Speaking);
         voice.Finished += OnVoiceFinished;
         voice.Trouble += Notice;
+
+        // Her voice, to any face that asked for it. Opt-in, so this costs nothing at all
+        // until somebody wants to hear her in another room — see `Face.Want`.
+        voice.Audio += pcm => _face.SendAudio(pcm);
     }
 
     // ---- her voice -------------------------------------------
@@ -499,6 +503,15 @@ internal sealed class OctaviaSession : IDisposable
         musicAvailable = _music.IsRunning,
         camera = _config.Camera,
         stats = _config.ShowStats,
+
+        // What a face has to know to play her voice, announced rather than assumed. The
+        // rate comes from the live voice's own model config, so it changes with the voice
+        // — and `hello` is re-sent on every settings change, which carries the new rate
+        // with it. A face must re-read this each time rather than caching it once.
+        audioAvailable = _voice.AudioFormat is not null,
+        audioRate = _voice.AudioFormat?.Rate ?? 0,
+        audioBits = _voice.AudioFormat?.Bits ?? 0,
+        audioChannels = _voice.AudioFormat?.Channels ?? 0,
 
         // Devices, so the drawer can offer a choice rather than inheriting whatever
         // Windows calls default — which on a machine with streaming software installed

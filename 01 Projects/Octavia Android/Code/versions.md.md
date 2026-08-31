@@ -18,6 +18,31 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.4.1 — 2026-08-31
+
+**The 11T Pro is on the bench, and it is newer than the roadmap assumed.** No code change —
+measured facts replacing guesses, and two of them change design decisions.
+
+`2107113SG` / `vili`: **Android 14 (API 34)**, `arm64-v8a`, `lahaina` (Snapdragon 888),
+Adreno 660 at **GL ES 3.2**, 7.4 GB RAM, 1080×2400 at density 440, and a per-app heap of
+**256 MB — 512 MB with `largeHeap`**. The roadmap had it as "Android 11 or later".
+
+- **GL ES 3.2 means WebGL2 is genuinely available**, so the VRM should render here. That is
+  the question the J7 Pro was never able to answer.
+- **`largeHeap` will be wanted for Stage 2** — a VRM with 2048×2048 textures against a
+  256 MB default is tight.
+- **API 34 means `POST_NOTIFICATIONS` at runtime** for the foreground service that audio will
+  eventually need.
+
+The app installs and runs on it. Pairing is not yet confirmed, for a reason worth recording:
+
+**`EarsTest` logs `face socket listening` into her main log, from its own ephemeral server.**
+The face-protocol checks start a real `WebSocketFaceServer` on a random port with its own
+token, so "grep the last listening line" hands back a token for a port that no longer exists.
+Both handsets were paired that way before it was spotted, and the failure presents as the
+client's fault. Take the line following the last `Octavia starting` instead — written up in
+[[Build & Release]].
+
 ## 0.4.0 — 2026-08-31
 
 **Stage 1 hardened against the things a phone actually does.** MINOR: the connection's

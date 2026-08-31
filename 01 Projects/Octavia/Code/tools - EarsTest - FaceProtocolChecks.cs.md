@@ -26,7 +26,10 @@ internal static class FaceProtocolChecks
             if (!ok) failures++;
         }
 
-        using var server = new WebSocketFaceServer();
+        // Labelled, because this is a *real* server writing to her real log. An unlabelled
+        // line here is indistinguishable from the app's, and handing someone a dead test
+        // token for a vanished port presents as the client being broken.
+        using var server = new WebSocketFaceServer { Label = "TEST face socket" };
 
         // Port 0 asks the OS for a free one, so the test never fights the running app.
         if (!server.Start(0)) { Console.WriteLine("  FAIL could not start server"); return 1; }
@@ -65,7 +68,17 @@ internal static class FaceProtocolChecks
         using var faceB = new ClientWebSocket();
         await faceA.ConnectAsync(FaceUri(server.Port, server.Token), Cancel());
         await faceB.ConnectAsync(FaceUri(server.Port, server.Token), Cancel());
-        Check("two faces attached", server.FaceCount == 2, $"{server.FaceCount} attached");
+
+        /* Waited for, not asserted outright. `ConnectAsync` returns when the *client* has
+           the 101 response, which is strictly before the server has finished building the
+           face and putting it in the table — so reading the count on the next line was
+           always a race the test happened to win.
+
+           It started losing every time when the face gained its send queues: two channel
+           allocations between writing the handshake and the insert was enough. The
+           widened window exposed the flake rather than creating it. */
+        Check("two faces attached", await Wait(() => server.FaceCount == 2),
+            $"{server.FaceCount} attached");
 
         // --- host to face, fanned out ----------------------------------------------
         server.Broadcast("""{"type":"state","value":"listening"}""");
@@ -121,6 +134,55 @@ internal static class FaceProtocolChecks
             Check("the other face hears nothing", reachedA is null, reachedA ?? "");
         }
 
+        /* --- a burst must not drop a healthy face -----------------------------------
+           Broadcast used to fire `_ = SendAsync(...)` per face, un-awaited.
+
+           **Not** for the reason first suspected: .NET serialises concurrent sends on one
+           socket behind a lock rather than throwing — measured directly at 320 overlapping
+           sends with nothing thrown and the socket still open. The real fault is a face
+           that stops reading: its buffer fills, the queued sends stop completing, and they
+           accumulate without bound holding their buffers alive.
+
+           This check guards the fan-out under pressure. Criterion 7 — a face that never
+           reads at all — is the memory half and is not cheap to assert here. */
+        var before = server.FaceCount;
+        var payload = new string('x', 32000);
+
+        // Neither client is reading, so the socket buffers fill and a send stops completing
+        // instantly — which is the only condition under which the un-awaited calls overlap.
+        // Fired from several threads as well, because that is the real shape: visemes come
+        // off the audio path while captions come off the turn.
+        Parallel.For(0, 8, _ =>
+        {
+            for (var i = 0; i < 60; i++)
+                server.Broadcast($$"""{"type":"caption","text":"{{payload}}"}""");
+        });
+
+        await Task.Delay(1500);
+        Check("a burst of sends does not drop a healthy face",
+            server.FaceCount == before, $"{before} before, {server.FaceCount} after");
+
+        /* --- audio is opt-IN, and this is the check that matters most ----------------
+           Acceptance criterion 1 of Stage 14 item 3. If audio followed the opt-*out* rule
+           the rest of `subscribe` uses, every browser face on this machine would start
+           playing her voice on top of the speakers she is already using — her talking over
+           herself in the same room. A face that draws her mouth has not claimed the right
+           to make noise. */
+        await SendAsync(faceB, """{"type":"subscribe","want":["audio"]}""");
+        await Task.Delay(300);
+
+        var pcm = new byte[640];
+        for (var i = 0; i < pcm.Length; i++) pcm[i] = (byte)i;
+        server.BroadcastAudio(pcm);
+
+        var audioB = await ReadBinaryAsync(faceB, TimeSpan.FromSeconds(2));
+        Check("a face that asked for audio receives it",
+            audioB == pcm.Length, $"got {audioB?.ToString() ?? "nothing"} bytes");
+
+        var audioA = await ReadBinaryAsync(faceA, TimeSpan.FromSeconds(1));
+        Check("a face that did NOT ask receives no audio at all",
+            audioA is null, $"it received {audioA} bytes");
+
         // --- a face that leaves is dropped ------------------------------------------
         await faceB.CloseAsync(WebSocketCloseStatus.NormalClosure, null, Cancel());
         var dropped = await Wait(() => server.FaceCount == 1);
@@ -165,6 +227,30 @@ internal static class FaceProtocolChecks
 
         var result = await reading;
         return Encoding.UTF8.GetString(buffer, 0, result.Count);
+    }
+
+    /// Byte count of the next **binary** frame, or null if nothing arrived in time.
+    ///
+    /// Text frames are skipped rather than counted: a caption arriving first must not be
+    /// mistaken for audio, and — more to the point — must not be mistaken for its absence.
+    /// Raced against a delay, never cancelled; cancelling a receive aborts the socket.
+    private static async Task<int?> ReadBinaryAsync(ClientWebSocket socket, TimeSpan within)
+    {
+        var deadline = DateTime.UtcNow + within;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var buffer = new byte[16 * 1024];
+            var reading = socket.ReceiveAsync(buffer, CancellationToken.None);
+
+            if (await Task.WhenAny(reading, Task.Delay(deadline - DateTime.UtcNow)) != reading)
+                return null;
+
+            var result = await reading;
+            if (result.MessageType == WebSocketMessageType.Binary) return result.Count;
+        }
+
+        return null;
     }
 
     private static async Task<bool> Wait(Func<bool> until, int millis = 3000)

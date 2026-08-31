@@ -45,6 +45,9 @@ internal sealed class WebViewFaceTransport : IFaceTransport
         };
     }
 
+    /// The built-in page is on the machine already making the sound. Nothing to send.
+    public void SendAudio(ReadOnlyMemory<byte> pcm) { }
+
     public FaceId? BuiltInFace => Id;
 
     public FaceStatus Status => new(Page: true, SocketBound: false, Port: 0, SocketFaces: 0);

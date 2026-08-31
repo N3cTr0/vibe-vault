@@ -40,6 +40,10 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
         if (_sockets is not null) _sockets.MessageReceived += Relay;
     }
 
+    /// Only socket faces can receive audio. The built-in page shares this machine's speakers,
+    /// so streaming to it would be her talking over herself in the same room.
+    public void SendAudio(ReadOnlyMemory<byte> pcm) => _sockets?.BroadcastAudio(pcm);
+
     public FaceId? BuiltInFace => _page?.Id;
 
     public FaceStatus Status => new(

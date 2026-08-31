@@ -37,6 +37,21 @@ internal sealed class SapiVoice : IVoice
     public event Action? Started;
     public event Action? Finished;
 
+    /// Never raised. `SetOutputToDefaultAudioDevice` hands the PCM straight to the sound
+    /// card and there is no seam to tee; getting at it means `SetOutputToAudioStream` and a
+    /// rework, which is deliberately out of scope. See ROADMAP.md stage 14 item 3.
+    ///
+    /// The warning is suppressed rather than worked around, because "declared and never
+    /// raised" is exactly the truth here and the alternative is a fake raise site. Paired
+    /// with `AudioFormat` returning null, which is how a face learns not to wait for it.
+#pragma warning disable CS0067
+    public event Action<ReadOnlyMemory<byte>>? Audio;
+#pragma warning restore CS0067
+
+    /// Null, and that is the point: a face is *told* this voice cannot be streamed instead
+    /// of waiting in silence for frames that were never coming.
+    public AudioFormat? AudioFormat => null;
+
     public bool IsSpeaking => _queued > 0;
 
     public SapiVoice(OctaviaConfig config)

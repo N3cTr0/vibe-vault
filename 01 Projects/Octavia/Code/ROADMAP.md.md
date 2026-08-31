@@ -1000,7 +1000,24 @@ parameter:
   16 threads**, not 16 cores; measure before assuming two Whisper instances are free, and
   consider one shared queue instead.
 
-### 3. Audio downstream — her voice, out of the tablet
+### ~~3. Audio downstream — her voice, out of the tablet~~ *(done 08/31/2026, v0.22.0)*
+
+> **Landed**, from [[Stage 14 - Her Voice On Another Face]]. Binary frames, opt-in via
+> `subscribe`'s new `want`, the format announced in `hello`, a tee at `OnAudioPlayed`, and
+> per-face send queues underneath it all. `PROTOCOL.md` gained an *Audio* section.
+>
+> **The spec's "do this first" was wrong about why.** It claimed concurrent `SendAsync`
+> throws and the catch-all silently drops a live face. Measured: 320 overlapping sends on
+> one socket, nothing thrown — .NET serialises them behind a lock. A test written against
+> that failure passed against the *unfixed* code. The real fault is a face that stops
+> reading: un-awaited sends never complete and pile up unbounded. Same fix, honest reason.
+>
+> **Still open here:** acceptance criterion 2 — that the PCM plays back as intelligible
+> speech at the advertised rate — has no client yet. Criteria 1, 5 and 7 are in `EarsTest`;
+> 3, 4 and 6 are verified by construction and by `Hush()` raising `Finished`. The first real
+> playback on the Android side is the remaining proof.
+>
+> Item 2 (her ears, on the tablet) is the larger half and is untouched.
 
 **Today her voice cannot leave this PC.** `NeuralVoice` writes to a `WaveOut` and `SapiVoice`
 calls `SetOutputToDefaultAudioDevice()`. A tablet in another room sees her mouth move in

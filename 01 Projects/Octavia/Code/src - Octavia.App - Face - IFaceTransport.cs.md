@@ -18,6 +18,10 @@ internal interface IFaceTransport
 {
     event Action<FaceMessage>? MessageReceived;
 
+    /// Raw PCM to every face that asked for her voice. Opt-in: see `subscribe`/`want` in
+    /// PROTOCOL.md. The memory is pooled by the caller and must not be held past the call.
+    void SendAudio(ReadOnlyMemory<byte> pcm);
+
     /// `to` is optional and null keeps the original meaning: **everyone**.
     ///
     /// That default is the reason this change stayed small — nearly every send site is

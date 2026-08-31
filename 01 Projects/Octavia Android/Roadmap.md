@@ -141,13 +141,27 @@ Route (B) avoids it entirely for the page, though the WebSocket still needs it.
 
 ## The test devices *(decided 08/31/2026)*
 
-| | Galaxy J7 Pro (SM-J730) | Xiaomi 11T Pro |
+Both measured on the devices themselves (08/31/2026), not assumed.
+
+| | Galaxy J7 Pro (SM-J730F) | Xiaomi 11T Pro (2107113SG, `vili`) |
 |---|---|---|
 | Role | The tester, first | The destination |
-| Android | **9 (API 28)** | 11 or later |
-| SoC | Exynos 7870 — 8× Cortex-A53, **no big cores** | Snapdragon 888 |
-| GPU | **Mali-T830, single core** | Adreno 660 |
-| RAM | 3 GB | 8 GB+ |
+| Android | **9 (API 28)** | **14 (API 34)** |
+| ABI | **`armeabi-v7a` only** — 32-bit userspace on ARMv8 | `arm64-v8a` (+ v7a) |
+| SoC | Exynos 7870 — 8× Cortex-A53, **no big cores** | `lahaina` — Snapdragon 888 |
+| GPU | Mali-T830, single core | Adreno 660, **GL ES 3.2** |
+| Per-app heap | **192 MB** | 256 MB, **512 MB with `largeHeap`** |
+| RAM | 2.87 GB | 7.4 GB |
+| Screen | 1080×1920, density 420 | 1080×2400, density 440 |
+
+Three consequences of the 11T Pro being newer than assumed:
+
+- **GL ES 3.2 means WebGL2 is genuinely available**, so the VRM should render. That is the
+  test the J7 could never perform.
+- **`largeHeap` will be wanted for Stage 2.** A VRM with 2048×2048 textures against a 256 MB
+  default is tight; 512 MB is not.
+- **API 34 means a foreground service needs `POST_NOTIFICATIONS`** (runtime, since API 33).
+  That lands the moment audio arrives and she needs to be heard with the screen off.
 
 **`minSdk 28`.** It is the floor of the oldest device we actually test on, there is no reason
 to claim support below what is exercised, and it removes a great deal of compatibility

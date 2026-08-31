@@ -50,6 +50,11 @@ internal sealed class NeuralVoice : IVoice
     public event Action<double, string?>? Viseme;
     public event Action? Started;
     public event Action? Finished;
+    public event Action<ReadOnlyMemory<byte>>? Audio;
+
+    /// Read from the voice model's own config, so it follows the voice rather than being
+    /// a constant. A face must re-read it on every `hello`.
+    public AudioFormat? AudioFormat => new(_sampleRate, 16, 1);
     public event Action<string>? Trouble;
 
     public bool IsSpeaking => _speaking;
@@ -190,6 +195,29 @@ internal sealed class NeuralVoice : IVoice
     /// is in step with what is heard rather than with what has been generated.
     private void OnAudioPlayed(ReadOnlySpan<byte> pcm)
     {
+        /* Tee to any face that asked for her voice, before the visemes are read, so the
+           two leave from the same buffer at the same instant.
+
+           The span **must be copied**: it cannot be captured by an async send, and it is a
+           view over a buffer that is about to be reused. Rented rather than allocated,
+           because at forty frames a second the garbage would be constant, and returned
+           the moment the handlers are done — which is why the event contract says a
+           handler may not hold it. */
+        if (Audio is { } audio && pcm.Length > 0)
+        {
+            var copy = System.Buffers.ArrayPool<byte>.Shared.Rent(pcm.Length);
+
+            try
+            {
+                pcm.CopyTo(copy);
+                audio(new ReadOnlyMemory<byte>(copy, 0, pcm.Length));
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(copy);
+            }
+        }
+
         var reader = _reader;
         if (reader is null) return;
 

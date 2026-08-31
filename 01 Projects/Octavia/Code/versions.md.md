@@ -18,6 +18,71 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.22.0 — 2026-08-31
+
+**Her voice can leave this machine.** MINOR: a new stream on the wire, and every send now
+goes through a queue. Stage 14 item 3, built from [[Stage 14 - Her Voice On Another Face]].
+
+### The premise of the spec was wrong, and it matters
+
+The spec opens with a *"do this first"*: `Broadcast` fires `_ = SendAsync(...)` un-awaited
+per face, `WebSocket.SendAsync` forbids concurrent sends on one socket, so a burst throws
+`InvalidOperationException` — which the catch-all swallows, silently dropping a live face.
+
+**That does not happen on .NET 10.** Measured directly, because a bug worth this much work
+is worth reproducing first: 320 overlapping sends on one socket, from many threads, with a
+reader draining — **nothing thrown, socket still open**. `ManagedWebSocket` serialises sends
+behind a lock rather than rejecting them. A test written against the stated failure passed
+against the *unfixed* code, twice, which is what prompted checking the premise at all.
+
+**The real fault is next door, and the queue fixes it anyway.** A face that stops reading
+fills its socket buffer; every un-awaited send then stops completing and they accumulate
+without bound, holding their buffers alive. A slow phone becomes the host's memory leak.
+Proven the other way round — a probe with 40 sends and no reader blocked indefinitely.
+Ordering across un-awaited calls is not guaranteed either.
+
+So: **one writer per face, fed by two queues.** Control is unbounded and never dropped —
+losing a `state` leaves a face permanently wrong about her rather than briefly behind. Audio
+is bounded at 16 frames and drops the *oldest*, because a face that cannot keep up should
+hear a gap and catch up. And the catch-all is split: a face that genuinely went away stays
+quiet, anything else is logged once. That distinction is the difference between diagnosable
+and not.
+
+### The voice itself
+
+- **`IVoice.Audio`** raises the PCM at the moment it reaches the sound card — the one point
+  where being in step with the visemes is guaranteed, since both are read from the same
+  buffer. The span is copied into a pooled array and returned immediately; a handler may
+  not hold it.
+- **Binary frames are audio and nothing else.** No header, no tag. A second binary stream
+  would be a version decision.
+- **Opt-in, uniquely.** `subscribe` gains `want: ["audio"]`, and no face gets audio until it
+  asks. `skip` declines a *rendering hint*; audio is a *physical output*, and opt-out would
+  mean every browser face on this machine playing her voice over the speakers she is already
+  using — her talking over herself in the same room.
+- **The format is announced**: `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`
+  in `hello`, read from the live voice model. `audioAvailable` is **false** on the Windows
+  voice, which cannot be teed — a face is *told* it will get nothing rather than waiting in
+  silence, which is the difference between a limitation and a bug.
+- **Stopping needs no message.** A non-`speaking` state means throw the buffer away, and the
+  host drains its own queues at the same moment. Confirmed rather than assumed: `Hush()`
+  does raise `Finished`.
+
+### Also, from the Android side
+
+The test harness starts a **real** `WebSocketFaceServer` on an ephemeral port, into her real
+log — so "grep the last `face socket listening` line" could hand back a dead test token for a
+port that no longer exists, and the failure presented as *the client* being broken. Servers
+now carry a `Label`; the harness's says `TEST face socket`. Cost real time on the client
+side, and the fix is one string.
+
+*And a flake I exposed rather than created: `FaceProtocolChecks` asserted `FaceCount == 2`
+on the line after `ConnectAsync`, but a client has the 101 response strictly before the
+server finishes building the face. Two channel allocations in the `Face` constructor widened
+that window enough to lose it every time. It now waits, which it always should have.*
+
+---
+
 ## 0.21.2 — 2026-08-31
 
 **The camera gets a switch.** PATCH, but it closes a hole that had been open since Stage 9.
