@@ -16,6 +16,31 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.18.0 — 2026-08-31
+
+**The room gets quieter.** MINOR: the status readout moved and became optional.
+
+- **The drawer button sits outboard of the state**, to the right of it. The state is about
+  the room and reads first; the drawer is the way out.
+- **The status readout floats over her top-left corner** on translucent glass, instead of
+  taking a strip of chrome along the bottom. It is reference material — glanced at, not
+  read — so it belongs *in* the room quietly rather than in a band of its own. It does not
+  take clicks: a readout that swallows a click over the scene is a trap.
+- **`ShowStats`** turns it off entirely, from Settings. On by default, because it answers
+  most of the questions anyone asks about her; off is the setting for actually looking at
+  her.
+- **The missing-key pill is gone.** A permanent amber warning across the bottom of the
+  room is one you stop seeing, and it nagged whoever was looking at her rather than whoever
+  could act on it. Settings carries it now: the field is marked, its label reads **API key
+  — needed**, and it gains an amber rule down its edge so someone who came for something
+  else still finds it.
+
+*(A `sed` deleting four lines by number took the wrong four and left an orphan `});`,
+which broke the whole bridge — the drawer stopped opening. Caught by the console, not by
+the build, because nothing compiles this file.)*
+
+---
+
 ## 0.17.0 — 2026-08-31
 
 **The console gets its corners back.** MINOR: the control surface moved.

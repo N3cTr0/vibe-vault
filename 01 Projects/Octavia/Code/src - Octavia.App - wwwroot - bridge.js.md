@@ -44,7 +44,7 @@ const hourSel = el('roomHour');
 const musicChk = el('music');
 const keyIn = el('key');
 const keyRow = el('keyrow');
-const keyPill = el('pillKey');
+const statsChk = el('stats');
 const textIn = el('text');
 const hushBtn = el('hush');
 
@@ -301,6 +301,11 @@ function applyHello(msg) {
 
   if (msg.whisperCompute) computeSel.value = msg.whisperCompute;
 
+  if (msg.stats !== undefined) {
+    statsChk.checked = !!msg.stats;
+    document.body.classList.toggle("no-stats", !msg.stats);
+  }
+
   if (msg.cameraDevice !== undefined) wantedCamera = msg.cameraDevice;
 
   if (msg.music !== undefined) {
@@ -342,11 +347,11 @@ function applyHello(msg) {
   adoptAvatar(msg.avatar);
 }
 
-/* The missing key is the one status that has to lead somewhere. It lights a pill in
-   the strip and marks the field it wants, rather than parking an input in the console
-   where it is read every day and needed once. */
+/* The missing key marks the field that wants it, in Settings, and nowhere else.
+   It used to light an amber pill across the bottom of the room as well — which nagged
+   whoever was looking at her rather than whoever could act on it, and a permanent
+   warning is one you stop seeing. */
 function wantKey(wanted) {
-  keyPill.hidden = !wanted;
   keyRow.classList.toggle('wanted', wanted);
 }
 
@@ -483,12 +488,6 @@ el('saveKey').addEventListener('click', () => {
 
 keyIn.addEventListener('keydown', e => { if (e.key === 'Enter') el('saveKey').click(); });
 
-// The pill is the signpost; Settings is where the thing actually is.
-keyPill.addEventListener('click', () => {
-  openDrawer('settings');
-  keyIn.focus();
-});
-
 voiceSel.addEventListener('change', () => send({ type: 'setVoice', value: voiceSel.value }));
 avatarSel.addEventListener('change', () => send({ type: 'setAvatar', value: avatarSel.value }));
 engineSel.addEventListener('change', () => send({ type: 'setVoiceEngine', value: engineSel.value }));
@@ -496,6 +495,7 @@ micSel.addEventListener('change', () => send({ type: 'setMicrophone', value: mic
 outSel.addEventListener('change', () => send({ type: 'setOutput', value: outSel.value }));
 computeSel.addEventListener('change', () => send({ type: 'setWhisperCompute', value: computeSel.value }));
 musicChk.addEventListener('change', () => send({ type: 'setMusic', value: musicChk.checked }));
+statsChk.addEventListener('change', () => send({ type: 'setStats', value: statsChk.checked }));
 hourSel.addEventListener('change', () => {
   const hour = Number(hourSel.value);
   // Applied here as well as sent, so the room changes while the click is still warm

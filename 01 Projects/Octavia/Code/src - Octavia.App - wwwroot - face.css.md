@@ -249,14 +249,23 @@ body.busy #text{padding-right:98px}
    and from a sofa scanning is all that happens. */
 /* Stacked and right-aligned, sharing the control row rather than sitting under it. The
    left of the bar is where you act; the right is where you look. */
-/* The block sits right — `.grow` before it does that — but the rows inside it align
-   left. Right-aligning the text too gave every label a different starting x, and a list
-   you scan wants one edge to run your eye down. */
+/* Floated over her top-left corner on translucent glass, rather than filling a strip of
+   chrome. It is reference material — glanced at, not read — so it should sit *in* the
+   room quietly instead of taking a band of the window away from her.
+   `pointer-events:none` because it is a readout: nothing here is clickable, and a panel
+   that swallows clicks over the scene is a trap. */
 .meta{
-  flex:0 0 auto;
+  position:absolute;top:var(--s4);left:var(--s4);z-index:3;
   display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  padding:var(--s2) var(--s3);border-radius:var(--radius);
+  background:rgba(255,253,247,.34);
+  border:1px solid var(--room-line);
+  backdrop-filter:blur(10px);
+  pointer-events:none;
+  transition:opacity .3s,background 1s linear,border-color 1s linear;
 }
-.pill.act{align-self:flex-start;margin-top:3px}
+/* Off entirely, for when you just want to look at her. */
+body.no-stats .meta{opacity:0;visibility:hidden}
 .pill{
   display:flex;gap:7px;align-items:center;
   font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.1em;text-transform:uppercase;
@@ -268,14 +277,9 @@ body.busy #text{padding-right:98px}
 .pill.dead{opacity:.4}
 .pill.dead .d{background:var(--ink-faint)}
 .pill.bad .d{background:var(--alert)}
-/* The one pill that is also a control: the missing-key state, which has to lead
-   somewhere rather than merely stating a problem. */
-.pill.act{
-  background:transparent;border:1px solid var(--warn);border-radius:var(--radius-pill);
-  padding:5px 12px;cursor:pointer;color:var(--warn);opacity:1;font-family:var(--mono);
-}
-.pill.act .d{background:var(--warn)}
-.pill.act:hover{background:rgba(184,121,31,.12)}
+/* The missing-key pill lived here. It has gone to Settings — a permanent amber warning
+   across the bottom of the room is exactly the kind of thing you stop seeing, and it was
+   nagging the person looking at her rather than the person who can fix it. */
 
 /* ── splash ─────────────────────────────────────────────── */
 #splash{
@@ -384,8 +388,15 @@ body:not(.loading) #splash{opacity:0;visibility:hidden;pointer-events:none}
 }
 .field-row.check input:checked{background:var(--cobalt)}
 .field-row.check input:checked::after{transform:translateX(17px)}
+/* Louder now that this is the *only* place the missing key is mentioned. It has to be
+   findable by someone who came to Settings for something else. */
 #keyrow.wanted .label{color:var(--warn)}
+#keyrow.wanted .label::after{content:" — needed";font-weight:600}
 #keyrow.wanted input[type=password]{border-color:var(--warn)}
+#keyrow.wanted{
+  border-left:2px solid var(--warn);
+  padding-left:var(--s3);margin-left:calc(var(--s3) * -1 - 2px);
+}
 
 .ghost{
   font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.12em;text-transform:uppercase;

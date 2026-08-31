@@ -43,19 +43,33 @@ source-path: src\Octavia.App\wwwroot\index.html
     <span class="spacer"></span>
     <span id="watching" hidden>camera</span>
 
-    <!-- The drawer opens from the top right, beside the state it belongs with. It sat in
-         the console row with the microphone, which put a settings menu among the controls
-         you use mid-conversation. -->
+    <span id="state"><span class="dot"></span><span id="stateLabel">Idle</span></span>
+
+    <!-- Last in the row, outboard of the state. The drawer is the way out of the room;
+         the state is about the room, so it reads first. -->
     <button id="drawerBtn" title="Transcript, settings and health" aria-label="Open the drawer" aria-expanded="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
         <path d="M4 7h16M4 12h16M4 17h16"/>
       </svg>
     </button>
-
-    <span id="state"><span class="dot"></span><span id="stateLabel">Idle</span></span>
   </header>
 
-  <div id="stage"><canvas id="scene"></canvas></div>
+  <div id="stage">
+    <canvas id="scene"></canvas>
+
+    <!-- A readout, not a control surface, and now a *quiet* one: floated over the room
+         at the top left on translucent glass rather than filling a strip of chrome.
+         It can be switched off entirely — see "Show the status readout" in Settings.
+         The missing-key warning that used to live here has gone to Settings, where it
+         can nag the person who can act on it instead of the person looking at her. -->
+    <div class="meta">
+      <span class="pill" id="pillVoice"><span class="d"></span>Voice <b id="voiceLabel">&mdash;</b></span>
+      <span class="pill" id="pillEars"><span class="d"></span>Ears <b id="ears">not started</b></span>
+      <span class="pill" id="pillBrain"><span class="d"></span>Brain <b id="model">&mdash;</b></span>
+      <span class="pill" id="pillMusic"><span class="d"></span>Music <b id="musicLabel">&mdash;</b></span>
+      <span class="pill" id="pillProfile"><span class="d"></span>Profile <b id="profile">&mdash;</b></span>
+    </div>
+  </div>
 
   <div id="placard">
     <span id="speaker">&nbsp;</span>
@@ -101,18 +115,6 @@ source-path: src\Octavia.App\wwwroot\index.html
       </div>
 
       <span class="grow"></span>
-
-      <!-- A readout, not a control surface. It sits to the right of the controls now
-           rather than beneath them: the left of this bar is where you act, the right is
-           where you look, and mixing the two is what made it read as a wall of text. -->
-      <div class="meta">
-        <span class="pill" id="pillVoice"><span class="d"></span>Voice <b id="voiceLabel">&mdash;</b></span>
-        <span class="pill" id="pillEars"><span class="d"></span>Ears <b id="ears">not started</b></span>
-        <span class="pill" id="pillBrain"><span class="d"></span>Brain <b id="model">&mdash;</b></span>
-        <span class="pill" id="pillMusic"><span class="d"></span>Music <b id="musicLabel">&mdash;</b></span>
-        <span class="pill" id="pillProfile"><span class="d"></span>Profile <b id="profile">&mdash;</b></span>
-        <button class="pill act" id="pillKey" hidden><span class="d"></span>Needs an API key &mdash; open settings</button>
-      </div>
     </div>
   </div>
 </div>
@@ -173,6 +175,12 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint">Pick the real sound card. A virtual endpoint &mdash; streaming software, remote audio &mdash; flattens the sound to full scale and leaves no beat to find.</span>
       </label>
 
+      <label class="field-row check" for="stats">
+        <span class="label">Show the status readout</span>
+        <input id="stats" type="checkbox">
+        <span class="hint">The voice, ears, brain, music and profile panel over her top-left corner. Off is the setting for actually looking at her.</span>
+      </label>
+
       <label class="field-row" for="whisperCompute">
         <span class="label">Speech recognition runs on</span>
         <select id="whisperCompute">
@@ -201,7 +209,7 @@ source-path: src\Octavia.App\wwwroot\index.html
       <label class="field-row" for="key" id="keyrow">
         <span class="label">API key</span>
         <input id="key" type="password" placeholder="sk-ant-..." autocomplete="off">
-        <span class="hint">Sealed to this Windows account with DPAPI. It never returns to this page, and it is not needed while she is on a local brain.</span>
+        <span class="hint" id="keyHint">Sealed to this Windows account with DPAPI. It never returns to this page, and it is not needed while she is on a local brain.</span>
         <button id="saveKey" class="ghost">Store the key</button>
       </label>
 

@@ -366,6 +366,12 @@ internal sealed class OctaviaSession : IDisposable
                 _looking?.TrySetResult(string.IsNullOrWhiteSpace(frame) ? null : frame);
                 break;
 
+            case "setStats":
+                _config.ShowStats = !message.TryGetProperty("value", out var s) || s.ValueKind != JsonValueKind.False;
+                _config.Save();
+                Announce();
+                break;
+
             case "setMusic":
                 SelectMusic(!message.TryGetProperty("value", out var m) || m.ValueKind != JsonValueKind.False);
                 break;
@@ -447,6 +453,7 @@ internal sealed class OctaviaSession : IDisposable
         music = _config.Music,
         musicAvailable = _music.IsRunning,
         camera = _config.Camera,
+        stats = _config.ShowStats,
 
         // Devices, so the drawer can offer a choice rather than inheriting whatever
         // Windows calls default — which on a machine with streaming software installed
