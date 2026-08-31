@@ -16,6 +16,65 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.15.0 — 2026-08-31
+
+**The gate and the brain stop being the same model.** MINOR: a notable behaviour change,
+and a documented rule reversed.
+
+### A constraint that was the VM's, not the design's
+
+`GateModel` had to equal `LocalModel`, and the self-test **failed** when it did not. The
+reason was real and measured: on the 16 GB dev VM the server could hold one model, so a
+separate gate meant a swap on every utterance — 24 seconds against 0.7 for a warm call.
+
+Re-measured on 32 GB: **a 3B gate and a 7B brain both stay resident**, alternating calls
+run at 0.39 s and 3.1 s with no swap at all, and 15.9 GB is still free. The check is a note
+now rather than a failure, and the config recommends the split — the two jobs want opposite
+things, and no one model was best at both.
+
+### Bigger was not better at anything measured
+
+New probe: `EarsTest models <name>...` times a warm gate judgement, scores it against four
+mixed cases, times a spoken reply, and counts how many of four unambiguous requests produce
+the right tool call. CPU-only, which is what this machine has:
+
+| model | gate | correct | reply | tools |
+|---|---|---|---|---|
+| `llama3.2:3b` | 688 ms | **4/4** | 4.9 s | 4/4 |
+| `qwen2.5:3b` | **308 ms** | 2/4 | **1.6 s** | 4/4 |
+| `qwen2.5:7b` | 815 ms | 2/4 | 5.1 s | 4/4 |
+| `llama3.1:8b` | 1843 ms | 2/4 | 9.5 s | 4/4 |
+
+Two things worth keeping:
+
+- **Every model called tools correctly**, including the 3B. The assumption that small
+  models cannot be trusted with Stage 12 was wrong on these cases — though four
+  unambiguous requests is a floor, not a hard test.
+- **Both Qwens answer NO to "what is the weather doing tomorrow".** They fail closed on a
+  gate that is supposed to fail open, and a gate that never opens is worse than none. It
+  looks like prompt sensitivity rather than capability, and it is worth chasing:
+  `qwen2.5:3b` at 308 ms would be the better gate if the instruction can be made to land.
+
+**Configured:** gate `llama3.2:3b-cpu`, brain `qwen2.5:7b-cpu`. Gate median **665 ms** on
+the split, and the brain is now a model that can hold a conversation for the same reply
+time the 3B took.
+
+### Answers folded into the roadmap
+
+- **Google Home, no Home Assistant.** Google publishes mobile SDKs and a manufacturer API;
+  there is no supported way for a Windows service to control Google Home. HA is therefore
+  the recommendation *to make the stage possible*, not a preference — and most of those
+  devices are Matter or WiFi underneath, which HA can hold alongside Google without
+  removing anything.
+- **UniFi UDM SE at `10.1.1.1`**, folded in through HA's UniFi integration rather than a
+  second server.
+- **The UDM SE's own WireGuard is enough; Tailscale is not needed** unless the ISP is
+  CGNAT. Forwarding WireGuard's UDP port is a different proposition from forwarding hers —
+  a WireGuard endpoint is silent to unauthenticated packets. The Windows firewall still
+  needs one inbound rule, scoped to the LAN.
+
+---
+
 ## 0.14.0 — 2026-08-31
 
 **A door she can open to a phone, and a body that moves when the music does.** MINOR: a

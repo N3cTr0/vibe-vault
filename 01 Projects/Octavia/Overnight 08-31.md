@@ -137,6 +137,31 @@ bone as rest + offset so the idle pose survives.
 4. **Re-take the Stage 10 exit test from the sofa**, now that she has a face worth looking
    at. Still outstanding from the move.
 
+## Answered, 08/31/2026 morning
+
+- **`%APPDATA%\Octavia.old` deleted.**
+- **The key is the Anthropic one** (`sk-ant-…`), Settings → API key.
+- **A newer graphics card by the end of the year.** So the room's effects stay cheap for
+  now and Stage 8 stays parked, but neither has to be designed around the GT 730 forever.
+  Re-run `EarsTest models` and `EarsTest compute` the day it arrives — every figure in this
+  vault is CPU-only.
+- **The avatar stays a borrowed sample** until there is time to buy one.
+- **UniFi is a UDM SE at `10.1.1.1`.**
+- **No Home Assistant; smart devices are on Google Home.** This is the one answer that
+  changed a plan — see [[Roadmap]] stage 12. Google has no API a Windows service can use,
+  so HA becomes a prerequisite rather than a preference.
+- **WireGuard on the UDM SE is enough**; Tailscale only if the ISP is CGNAT.
+- **The model question is now measured** rather than argued — gate and brain are split,
+  and bigger turned out to be worse at everything tested. See [[Profiles & Configuration]].
+
+## Still open
+
+- **Is the Jabra's microphone muted?** The probe reads 0.0001 with buffers arriving, so the
+  capture works and there is no signal. Run `dotnet run --project tools\EarsTest -- mic`
+  and talk.
+- **Go-ahead on the brain-side tool loop.** The key answers *which* key, not *yes write it*.
+- **The Stage 10 exit test from the sofa**, still outstanding from the move.
+
 ## Questions I could not answer alone
 
 1. **The tool loop — shall I write it against your key?** It is the last thing between the

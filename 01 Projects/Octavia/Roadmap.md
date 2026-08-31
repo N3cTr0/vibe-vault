@@ -593,6 +593,37 @@ is empty, so a machine with no servers configured is byte-for-byte unaffected.
 its own; UniFi has community ones, and failing that a small server is a day's work against
 its API. That is the whole return on doing the seam first.
 
+### The house, as it actually is *(answered 08/31/2026)*
+
+**No Home Assistant. Smart devices are on Google Home. UniFi is a UDM SE at `10.1.1.1`.**
+
+That changes the recommendation, because **Google Home has no usable API for a Windows
+desktop service.** The Home APIs Google publishes are mobile SDKs for Android and iOS
+apps; the Smart Home API is for device *manufacturers*. There is no supported way for a
+program on this PC to say "turn the kitchen light off" to Google Home.
+
+So the recommendation is **install Home Assistant, and let it be the only thing she talks
+to.** Not as a preference — as the thing that makes the stage possible at all.
+
+- **Most Google Home devices are not really Google's.** They are Matter, Thread, Zigbee or
+  plain WiFi devices that happened to be enrolled through Google. Matter is explicitly
+  multi-admin: HA can control them *alongside* Google Home, locally, with Google still
+  working exactly as it does now. Nothing has to be torn out to try this.
+- **HA ships an MCP server** (2025.x onwards), so it plugs into the seam already built
+  with no integration code at all.
+- **HA has a UniFi integration**, which folds the UDM SE into the same surface — one
+  server to configure rather than two, and network presence becomes just another sensor.
+- For anything genuinely Google-only, HA's Google Assistant SDK integration can relay a
+  spoken command. Clunky, and a fallback rather than the plan.
+
+**Where to run it:** this machine has the cores and the memory, so HA in Docker or a VM
+here is the cheapest start. A Pi or a spare box is tidier long-term — HA does not enjoy
+sharing a machine that reboots for games.
+
+**The order that follows:** install HA → adopt whatever it can see → enable its MCP server
+→ add one `McpServers` entry → *then* write the brain-side tool loop, with something real
+to call.
+
 ## Stage 13 — Away: a phone that asks the house how it is
 
 "How is everything at home?" from somewhere else. This is a **second face over the Stage 3
@@ -620,6 +651,28 @@ wrong order produces a phone app that can only be used on the sofa it was built 
    socket is never reachable from the internet at all. **Not a port forward** — a
    microphone and a house controller behind a forwarded port is the worst version of this
    project.
+
+   **Decided 08/31/2026: the UDM SE's own WireGuard server. Tailscale is not needed.**
+
+   The UDM SE runs a WireGuard VPN server natively. A phone connects to it, receives an
+   address on the LAN, and can then reach `10.1.1.x` — including this PC — directly. No
+   software on the PC, no third-party coordination service, and Octavia's socket is never
+   exposed beyond the LAN.
+
+   The one forwarded port this needs is **WireGuard's own UDP port on the router**, which
+   is a completely different proposition from forwarding hers: a WireGuard endpoint does
+   not answer unauthenticated packets at all, so it is silent to a scanner. That is the
+   distinction the warning in `WebSocketFaceServer` is about — not "never forward
+   anything", but "never forward *her*".
+
+   Tailscale remains the fallback for one specific case: **CGNAT**, where the ISP gives no
+   reachable public address and no port can be forwarded at all. Worth checking before
+   setting WireGuard up.
+
+   **Do not forget the Windows firewall.** Binding every interface is necessary and not
+   sufficient — inbound TCP on the face port from anything but loopback is blocked by
+   default, so `RemoteAccess` alone will look broken. One inbound rule, scoped to the LAN
+   subnet rather than Any.
 4. **A protocol subset for a phone.** A phone does not want visemes at 60 Hz. `hello`
    already carries capabilities; the client should be able to say what it wants and be
    sent only that. This is a protocol change and belongs in PROTOCOL.md before any client

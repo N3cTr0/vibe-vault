@@ -202,13 +202,20 @@ internal static class SelfTest
             return new Check("Attention gate", true,
                 "off — she answers everything she hears");
 
+        /* Two different models used to be a hard failure: on the 16 GB dev VM the server
+           could hold only one, so it swapped on every utterance and a measured warm call
+           went from 0.7 s to 24 s.
+
+           **That is a property of the machine, not of the design.** Re-measured on
+           08/31/2026 with 32 GB: a 3B gate and a 7B brain both stay resident, alternating
+           calls run at 0.39 s and 3.1 s with no swap at all, and 15.9 GB is still free.
+           So this is a note now rather than a failure — and a *useful* split, because the
+           gate wants speed and the brain wants sense, and no single model is best at both. */
         if (string.Equals(config.Brain, "local", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(config.GateModel, config.LocalModel, StringComparison.OrdinalIgnoreCase))
-            return new Check("Attention gate", false,
-                $"judging with '{config.GateModel}' while thinking with '{config.LocalModel}'",
-                "Two models cannot both stay loaded, so the server swaps them on every " +
-                "utterance — measured at 24 seconds against 0.7 for a warm call. Set " +
-                "\"GateModel\" to match \"LocalModel\".");
+            return new Check("Attention gate", true,
+                $"judging with '{config.GateModel}', thinking with '{config.LocalModel}' — " +
+                "check `ollama ps` lists both, or every utterance pays a model swap");
 
         return new Check("Attention gate", true, $"{config.GateModel}, {config.GateFollowUpSeconds}s follow-up window");
     }

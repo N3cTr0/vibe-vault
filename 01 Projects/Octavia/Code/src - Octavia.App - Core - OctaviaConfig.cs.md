@@ -124,10 +124,27 @@ internal sealed class OctaviaConfig
     /// listening affordable. See ROADMAP.md stage 9.
     public string Gate { get; set; } = "local";
 
-    /// The model that judges. **Keep this the same as LocalModel when the local brain
-    /// is in use.** A different one is not merely a second download — the server evicts
-    /// one to load the other, and a measured swap cost 24 seconds against 0.7 for a
-    /// warm call. A smaller, *separate* gate model is slower than a larger resident one.
+    /// The model that judges — and it **should not** be the same as LocalModel any more.
+    ///
+    /// It used to have to be. On the 16 GB dev VM the server could hold one model, so a
+    /// separate gate meant a swap on every utterance: 24 seconds against 0.7 for a warm
+    /// call. Re-measured on 32 GB (08/31/2026): a 3B gate and a 7B brain both stay
+    /// resident and alternate at 0.39 s and 3.1 s with no swap at all.
+    ///
+    /// So split them, because the two jobs want opposite things. Measured here, CPU-only:
+    ///
+    /// | model | gate | correct | reply | tools |
+    /// |---|---|---|---|---|
+    /// | `llama3.2:3b` | 688 ms | **4/4** | 4.9 s | 4/4 |
+    /// | `qwen2.5:3b`  | 308 ms | 2/4 | 1.6 s | 4/4 |
+    /// | `qwen2.5:7b`  | 815 ms | 2/4 | 5.1 s | 4/4 |
+    /// | `llama3.1:8b` | 1843 ms | 2/4 | 9.5 s | 4/4 |
+    ///
+    /// **Bigger was not better at anything measured.** Both Qwens answer NO to "what is
+    /// the weather doing tomorrow" — they fail open in the wrong direction, and a gate
+    /// that never opens is worse than none. That looks like prompt sensitivity rather
+    /// than capability, and is worth chasing: qwen2.5:3b at 308 ms would be the better
+    /// gate if the instruction can be made to land. `EarsTest models <name>...` measures it.
     ///
     /// Avoid reasoning models here whatever their size. They spend their whole token
     /// budget deliberating a yes-or-no question and return an empty answer.
