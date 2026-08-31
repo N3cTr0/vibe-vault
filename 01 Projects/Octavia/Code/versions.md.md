@@ -18,6 +18,44 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.21.1 — 2026-08-31
+
+**She has a face on the outside of the window too.** PATCH: branding, no behaviour.
+
+Until now she had **no icon at all** — no `<ApplicationIcon>` in the csproj, so the exe wore
+the generic .NET box, and the tray fell back to `SystemIcons.Application`. From a supplied
+mock sheet she now has an exe and window icon, a tray icon, and a favicon on the page the
+socket serves, so a phone that shortcuts to her face gets her mark rather than a globe.
+
+`tools\make-icons.ps1` cuts the panels out of the sheet and writes the whole set. It is
+committed rather than scratch: there is no transparent master yet, and when one arrives the
+answer should be one command rather than an afternoon of re-deriving crops.
+
+Two decisions in it worth keeping:
+
+- **The mask is a shape, not a colour key.** Keying black to transparent would punch holes
+  straight through artwork that is mostly dark. Clipping to the rounded square and the circle
+  the design already draws removes the surround and leaves the art alone.
+- **Nothing is upscaled.** Every size is a downscale from its panel. A 512px web icon was
+  generated and then deleted — the source panel is 315px, so 512 would have been invented
+  detail presented as resolution.
+
+**The tray icon does not really work, and that was measured rather than assumed.** Rendered
+at a true 16×16 and magnified, the colour circle is an unreadable purple blob and the
+monochrome version is worse — a dark smudge, near-invisible on a dark taskbar. The circular
+mask rescued it as far as it goes: it is now a clean purple *disc* rather than a black square,
+and it reads as a distinct dot. That is what shipped, deliberately, with the reason written
+down. A circuit-brain, a face profile and a HUD ring cannot survive 256 total pixels; the
+concentric ring at her temple could, and is the obvious tray-only variant if it is ever worth
+doing.
+
+The vault gains [[Branding]], holding the **source sheet** rather than only the generated
+icons — an `.ico` cannot be re-cropped, re-masked or exported at a size nobody has asked for
+yet, so the thing the icons were cut from is the thing worth keeping. Dated, so a later sheet
+sits beside this one instead of replacing it.
+
+---
+
 ## 0.21.0 — 2026-08-31
 
 **Faces have identity, so `look` stops opening every camera in the house.** MINOR: an

@@ -235,10 +235,34 @@ The WebView, once stage 0a is settled.
 
 ## Stage 3 — A peer, not a viewer
 
-Follows her Stage 14 and cannot start before it. **Item 1 of that stage — faces having any
-identity at all — is specified** in the vault at `01 Projects\Octavia\Stage 14 - Face
-Identity.md`, written from this side because this is the client that needs it. It is a change
-to *her* repo; nothing here moves until it lands. What lands here:
+Follows her Stage 14. **Item 1 — faces having any identity at all — landed in her v0.21.0**
+(08/31/2026), built from the spec in the vault at
+`01 Projects\Octavia\Stage 14 - Face Identity.md`, which was written from this side because
+this is the client that needs it.
+
+Two decisions in that implementation matter here:
+
+- **`SendTo` still honours a face's `skip` list.** Being addressed directly is not a reason
+  to override what a face asked for — this client opts out of `viseme` and `level`, and must
+  not start receiving sixty a second because the host learned its id.
+- **`look` is now targeted**, so this client will only open its camera for a question asked
+  *through* it. That is the whole reason item 1 came first.
+
+Items 2–7 are untouched, so **this stage is still blocked** on her voice reaching the phone
+(item 3) and the phone's microphone reaching her (item 2).
+
+**Item 3 is specified**, in the vault at
+`01 Projects\Octavia\Stage 14 - Her Voice On Another Face.md`. Three things in it decide how
+this client behaves, so they are worth knowing here:
+
+- **Audio is opt-*in*** — `subscribe` gains `want: ["audio"]`. This client will ask only when
+  it is the device meant to make noise, which is a user setting rather than a default.
+  Opt-out would have every face on the host's own machine playing her voice over the speakers
+  she is already using.
+- **Binary frames are audio and nothing else**, raw PCM in the format `hello` advertises —
+  `audioRate` varies per voice, so it must be re-read on every `hello`, never cached once.
+- **Flush the buffer on any `state` that is not `speaking`**, or she keeps talking here after
+  being hushed in the room. What lands here:
 
 - **Her voice out of the tablet speaker** — a host→face `audio` message, teed from
   `NeuralVoice.OnAudioPlayed` so it is already in sync with the visemes.

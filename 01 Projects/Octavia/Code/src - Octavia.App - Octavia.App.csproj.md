@@ -19,8 +19,9 @@ source-path: src\Octavia.App\Octavia.App.csproj
     <RootNamespace>Octavia</RootNamespace>
     <AssemblyName>Octavia</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\octavia.ico</ApplicationIcon>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>0.21.0</Version>
+    <Version>0.21.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

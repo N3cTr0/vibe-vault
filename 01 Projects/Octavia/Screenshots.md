@@ -37,6 +37,22 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.21.1 — she gets an icon
+
+### Her own mark in the title bar
+
+![[v0.21.1 - her own icon in the title bar, at last.png]]
+
+**Checking:** that the icon actually reached the window, which is the one thing
+`<ApplicationIcon>` does not prove on its own — WPF falls back to the exe icon only when the
+window does not set its own, and this confirms the fallback works rather than assuming it.
+Before this the title bar showed the generic .NET box. See [[Branding]].
+
+Incidentally caught: `MUSIC 155 bpm`, headphones on, and the room tinted purple. She was
+hearing something play while the shot was taken — none of which was arranged.
+
+---
+
 ## v0.19.3 — local-first, and the chrome as it settled
 
 The first set taken with [[#How they are taken|the committed scripts]], and the first to include her **window** rather than only her face — the title bar is in frame because it is part of what she looks like.

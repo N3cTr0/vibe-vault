@@ -15,6 +15,12 @@ source-path: src\Octavia.App\wwwroot\index.html
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://octavia.avatar; media-src 'self' blob:; connect-src 'self' blob: ws://127.0.0.1:* ws://localhost:* https://octavia.avatar">
 <title>Octavia</title>
+<!-- Since v0.20.0 the socket serves this page, so a phone or a browser tab is a face like
+     any other — and a face deserves her mark rather than a globe. `apple-touch-icon` is
+     what iOS uses when someone adds her to a home screen; `icon-192` is Android's. -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="face.css">
 </head>
 <body data-state="idle" class="loading">

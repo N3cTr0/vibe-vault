@@ -175,13 +175,40 @@ public partial class App : Application
 
         _tray = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = TrayIcon(),
             Text = $"Octavia — {_config.Profile} ({_config.Brain})",
             Visible = true,
             ContextMenuStrip = menu
         };
 
         _tray.DoubleClick += (_, _) => _window?.Surface();
+    }
+
+    /// Her mark, or the generic Windows box if the file is missing.
+    ///
+    /// A separate icon from the window's, and deliberately a rounder, simpler crop: the
+    /// tray draws at 16 pixels — 20 or 24 on a high-DPI display — and the full app icon
+    /// measured at that size is an unreadable smudge. `SystemIcons.Application` is still
+    /// the fallback, because a missing asset should cost her the branding and nothing else.
+    private static Icon TrayIcon()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "octavia-tray.ico");
+
+        try
+        {
+            if (!File.Exists(path)) return SystemIcons.Application;
+
+            // Asks for the 16px entry rather than letting GDI+ pick and rescale, which is
+            // the difference between the artwork drawn for this size and a downsample of
+            // the 48. SystemInformation gives the size the shell actually wants.
+            var wanted = SystemInformation.SmallIconSize;
+            return new Icon(path, wanted);
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"tray icon could not be loaded: {ex.Message}");
+            return SystemIcons.Application;
+        }
     }
 
     private void Quit()
