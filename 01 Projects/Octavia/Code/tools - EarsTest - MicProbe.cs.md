@@ -43,6 +43,20 @@ internal static class MicProbe
         if (standard is null) return;
 
         Console.WriteLine();
+        /* The endpoint's own level, which is the commonest reason a working microphone
+           delivers almost nothing. "Not muted" and "turned up" are different questions,
+           and Windows keeps a per-device capture level that nothing in the app can see. */
+        try
+        {
+            var volume = standard.AudioEndpointVolume;
+            Console.WriteLine($"level: {volume.MasterVolumeLevelScalar:P0}" +
+                              $"{(volume.Mute ? "  MUTED" : "")}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"level: could not read ({ex.Message})");
+        }
+
         Console.WriteLine($"listening to '{standard.FriendlyName}' for {seconds}s — make some noise:");
 
         // This used to read AudioMeterInformation.MasterPeakValue, on the reasoning
@@ -57,9 +71,16 @@ internal static class MicProbe
             Console.WriteLine($"  {i + 1}s  peak so far {peakSeen:0.000}");
         }
 
-        Console.WriteLine(peakSeen > 0.01f
-            ? $"  SIGNAL PRESENT (peak {peakSeen:0.000}) — audio reaches Windows"
-            : "  SILENT — nothing arrived on that device while the capture was open");
+        /* Three verdicts, matching the self-test. One threshold is what made this probe
+           call a working headset dead: a quiet room and a dead device both came back
+           SILENT, and only one of them is a fault. Any noise floor at all proves the
+           path — it is digital zero that means something is wrong. */
+        Console.WriteLine(peakSeen switch
+        {
+            > 0.02f => $"  SIGNAL PRESENT (peak {peakSeen:0.000}) — she can hear you",
+            > 0.0005f => $"  WORKING, room noise only (peak {peakSeen:0.000}) — talk to see it rise",
+            _ => "  DIGITALLY SILENT — not even a noise floor, which a live microphone always has"
+        });
 
         foreach (var device in endpoints) device.Dispose();
         standard.Dispose();

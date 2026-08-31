@@ -18,6 +18,21 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.15.1 — 2026-08-31
+
+**The microphone was never broken.** PATCH.
+
+`EarsTest mic` judged its reading against a single threshold, so a quiet room and a dead
+device both came back `SILENT` — and it spent a morning looking like a fault. It reports
+the endpoint's level and mute state now, and gives the same three verdicts the self-test
+does: signal, room noise, or genuine digital silence. The Jabra reads 100%, unmuted, and a
+noise floor of 0.004 that rises when spoken to. Working all along.
+
+The same single-threshold mistake in the self-test was fixed in v0.12.0; this is the other
+half of it, in the tool someone reaches for first.
+
+---
+
 ## 0.15.0 — 2026-08-31
 
 **The gate and the brain stop being the same model.** MINOR: a notable behaviour change,
