@@ -26,7 +26,7 @@ Two deliberate choices:
 - **It points at the Debug build, not `dist`.** The Debug exe is rewritten by every build, so the shortcut is always the latest Octavia and can never go stale. `dist` is for handing to someone else.
 - **It names its profile.** Without `--profile dev` the shortcut inherits whatever `config.json` says, which the app itself rewrites — so the icon's brain could change without anyone touching the icon. See [[Profiles & Configuration]].
 
-A second shortcut with `--profile live` is the way to keep both brains one double-click away.
+A second shortcut with `--profile cloud` is the way to keep both brains one double-click away. Since v0.19.3 the *unadorned* shortcut is also safe: the base brain is local, so a shortcut with no `--profile` at all still gets a working assistant rather than one waiting for an API key.
 
 ## Command line
 

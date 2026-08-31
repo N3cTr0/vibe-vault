@@ -18,6 +18,89 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.20.1 — 2026-08-31
+
+**The contract now says what the code does.** No behaviour change; documentation only, which
+is exactly why it is a PATCH and exactly why it mattered enough to do straight away.
+
+`PROTOCOL.md` had fallen behind `OctaviaSession` by **five face→host messages** —
+`setMicrophone`, `setOutput`, `setCameraDevice`, `setWhisperCompute` and `setStats` — and by
+**eight `hello` fields**: `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`,
+`output`, `whisperCompute` and `toolServers[]`.
+
+This stopped being cosmetic the moment a second face existed. An Android client is being
+written against that document by someone who cannot read `OctaviaSession`, and the gap was
+found the hard way — `say` carries `text` while every `set*` message carries `value`, and the
+first implementation guessed `value`. She accepts the wrong field and silently does nothing
+with it: no error, no log line, a dead Send button. **A contract that is quietly incomplete
+is worse than one that is honestly small.**
+
+Also corrected two stale strings the vault tooling had been printing since the repo went to
+GitHub: `_Code Index` claimed she was "not yet on GitHub", and `check-vault.ps1`'s own
+documentation said the snapshot was the only off-machine copy. Both have been untrue since
+08/30/2026.
+
+## 0.20.0 — 2026-08-31
+
+**Her face is now reachable from another machine.** MINOR: the socket learned to serve
+HTTP, which is a new subsystem and the thing Stage 13 was actually blocked on.
+
+### The problem, which was not the one written down
+
+Stage 13 step 1 opened the *socket* to the LAN in 0.14.0 and everyone — this changelog
+included — recorded that as "a transport that can leave the machine". It was half of one.
+`wwwroot` never reached the built-in face over a network at all: it arrives through
+`CoreWebView2.SetVirtualHostNameToFolderMapping`, which is a **WebView2 feature, not a
+server**. Nothing in this process had ever answered a GET. A phone has no equivalent of a
+virtual host, so it could open the socket and still have no page to run in it.
+
+The alternative was vendoring `wwwroot` into the client, and it lost on a fact rather than
+a preference: **there are two virtual host mappings, not one.** The second serves her
+avatars folder, and `AvatarUrl()` hands the face `https://octavia.avatar/<file>`. A VRM is
+*user data* — in a git-ignored folder, chosen at runtime, in no repository — so it can
+never be baked into a client, and the host would have had to serve files regardless. The
+choice was one mechanism or two, and two of them drifting.
+
+### What landed
+
+- **`StaticFiles`** resolves a request path to a file under `wwwroot` (`/`) or her avatars
+  folder (`/avatars/`), and says no by default: traversal is checked on the *resolved*
+  path rather than by hunting for `..`, and an extension not on the list is refused rather
+  than sent as octet-stream. It is not a file share.
+- **`WebSocketFaceServer` answers GETs** that are not upgrades. The listener was already
+  parsing request lines for the handshake, so this is a branch rather than a second server
+  — and it means the page and the socket share one origin and one port.
+- **A cookie, because sub-resources cannot carry a query string.** `<link href="face.css">`
+  and `import('./watch.js')` are resolved by the browser, which knows nothing about a key;
+  gating them on `?key=` would have served the page and then refused everything in it. The
+  credential is echoed back `HttpOnly`, `SameSite=Strict`, and the assets present that.
+- **`bridge.js` stops hardcoding `127.0.0.1`.** A face served over HTTP came *from* the
+  socket, so it addresses the socket as the origin it was loaded from. The built-in page is
+  not served by the socket and still gets told with `?port=`, so it is unchanged. It also
+  accepts `?key=` now, which is what a remote face presents.
+- **The avatar URL is rewritten in the renderer**, not in `hello` — one `hello` is
+  serialised once and broadcast to every attached face, so the host cannot say something
+  different to each. The face is the only party that knows which origin it is on. This is
+  the first place "faces have no identity" (Stage 14) actually bites.
+
+### Proven, not reasoned about
+
+Loaded in a real browser over HTTP while her own WebView2 face was attached — two faces at
+once, which is what Stage 3 was for. Splash green on all three steps, every module and the
+vendored three.js 200, the 14.4 MB VRM fetched from `/avatars/`, eighteen `blob:` texture
+loads, and her character on screen with a face. Traversal (plain and percent-encoded), the
+`/avatars/../config.json` escape, and an unserved file type all 404; an asset with no
+credential is 401.
+
+The one console error is `ERR_NAME_NOT_RESOLVED` with no matching network request, and it
+reproduces on a bare stylesheet with no scripts, socket or avatar — so it belongs to the
+browser harness, not to her.
+
+**Still to do before a phone can use this:** remote access is off by default and needs a
+Windows firewall rule scoped to the LAN subnet, and `getUserMedia` will not run on a plain
+`http://10.1.1.x` origin — which is why the Android client owns the camera and microphone
+natively and leaves the WebView as a renderer.
+
 ## 0.19.3 — 2026-08-31
 
 **Four roadmap bugs closed, one of which was live.** MINOR-adjacent but PATCH: nothing

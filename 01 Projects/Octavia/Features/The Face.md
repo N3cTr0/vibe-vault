@@ -28,7 +28,7 @@ The last two implement one interface, which is what lets either take the same pe
 
 No key. No model calls. Its CSP is `default-src 'none'`, and `connect-src` names only the loopback face socket and the read-only `https://octavia.avatar` origin the host maps — so it cannot reach the wider network, and it cannot even read a character file the host did not offer it. No audio. No decisions.
 
-It receives `state`, `level`, `viseme`, `emotion`, `caption`, `turn`, `notice`, `hello`, `diagnostics`, and sends `ready`, `say`, `listen`, `hush`, `forget`, `setKey`, `setVoice`, `selfTest`, `saveDiagnostics`, `faceError`. That is the entire contract. See [[The Host-Face Bridge]].
+The full message list lives in [[Face Protocol]], which is regenerated from `PROTOCOL.md` on every vault sync. **It is not repeated here**, because the copy that used to be sat well behind the code and read "that is the entire contract" while being wrong about it — the same drift that cost the Android client a debugging round in v0.20.1. See [[The Host-Face Bridge]] for why the seam is shaped this way.
 
 It does not choose its own character either: the host names one in `hello`, on an origin the host maps.
 
@@ -53,7 +53,22 @@ Every one of those is reachable by hand from [[The Dev Panel]], which is the onl
 
 The host has no browser console, so the face forwards `window.onerror` and unhandled rejections as `faceError` messages into `octavia.log` — now at `error` level, since a renderer that throws is not routine. The `ready` message carries `faceBuilt` — true only if `window.Face` exists, which means the WebGL context and the whole scene graph constructed without throwing. That one boolean is how the host verifies the renderer works headlessly, and it is what the Renderer line of the self-test reports.
 
-Since v0.5.0 the page also carries the **Health drawer**: the self-test results with their remedies, this machine's facts, and the recent log. See [[Diagnostics]].
+**But a face that never parsed never runs the code that reports anything**, and that hole stayed open until v0.19.3. A JavaScript syntax error is invisible to `dotnet build` and to the test harness, so the build goes green and the face is simply dead — which is how v0.18.0 shipped a broken bridge. Two things closed it:
+
+- **`MainWindow.WatchForFace`** gives the page 30 seconds to send `ready` and otherwise logs an error and shows the fallback panel — a surface that does not depend on the renderer working, which is the entire point. The grace is deliberately generous because `ready` is sent when the socket opens, not when the scene finishes.
+- **`EarsTest`'s `SyntaxChecks`** loads the real page in WebView2 over the same virtual origin and lets Chromium parse it, asserting no `SyntaxError`, that `window.Face` was published, and that the bridge would have sent `ready`. It was proved by breaking it on purpose: an orphan `});` in `bridge.js` names the file and line. Run it alone with `dotnet run --project tools\EarsTest -- syntax`.
+
+Since v0.5.0 the page also carries the self-test results with their remedies, this machine's facts, and the recent log — a **Health drawer** then, and since the v0.10.0 rebuild the **Health tab** of the single drawer that replaced all three. See [[Diagnostics]].
+
+## The chrome, as it settled
+
+The console was rebuilt in v0.10.0 and refined through v0.19.x. What it is now:
+
+- **One drawer, four tabs** — Transcript, Settings, Health, and Dev when offered — replacing three hand-written drawers with their own headers and close buttons. Its button sits top right, outboard of the state pill.
+- **The status readout floats over the room** at the top left on translucent glass, and can be switched off entirely (*Settings → Show the status readout*) for when you want to look at her rather than her telemetry.
+- **The caption is a subtitle, not a strip.** It sits *inside* the stage on a gradient scrim and fades after nine seconds of quiet. It has to be an overlay: as a sibling below the stage, hiding it changed the stage's height, fired the canvas `ResizeObserver` and re-framed the camera — she visibly jumped size twice a cycle. See [[The Room]].
+- **Typing costs a click**, because most turns are spoken. The field opens focused and stays open until dismissed or a minute idle, and never discards a half-written line.
+- **The API key is a setting, not a status.** It moved out of the strip into Settings, where it can nag the person who can act on it rather than the person looking at her.
 
 ## Fonts and assets
 

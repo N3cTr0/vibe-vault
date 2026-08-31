@@ -50,7 +50,7 @@ The alternative would have been host-side debug commands for everything, which w
 - Whenever the face is **served without a host** — a face on its own is being worked on by definition, so `tools\serve-face.ps1` gets it for free. See [[Build & Release]].
 - `DevPanel` in `config.json` forces it either way.
 
-The module is a dynamic `import()`, so a published face on the `live` profile never fetches it. The button is `hidden` until the host says otherwise.
+The module is a dynamic `import()`, so a published face on the `cloud` or `home` profile never fetches it. The button is `hidden` until the host says otherwise.
 
 ## What it added to the face's surface
 

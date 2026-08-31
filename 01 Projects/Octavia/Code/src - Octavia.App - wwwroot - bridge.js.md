@@ -22,6 +22,32 @@ const params = new URLSearchParams(location.search);
 const port = params.get('port');
 const token = params.get('token');
 
+/* A face from another machine presents the durable remote key instead of the per-run
+   token, which is scoped to a process on the host's own box. See PROTOCOL.md. */
+const key = params.get('key');
+
+/* Where the socket is.
+
+   The built-in page is served by WebView2 from a virtual host and is *not* served by the
+   socket, so it cannot infer the port and is told it with `?port=`. Anything else — a
+   browser on a tablet, the Android client — loaded this page over HTTP *from the socket
+   itself*, so the socket is simply where the page came from. Hardcoding 127.0.0.1 was
+   right while every face was on this machine and is exactly wrong for a phone: it would
+   have the handset dial itself. */
+function socketAddress() {
+  const credential = token ? `token=${encodeURIComponent(token)}`
+                   : key ? `key=${encodeURIComponent(key)}`
+                   : null;
+  if (!credential) return null;
+
+  if (port) return `ws://127.0.0.1:${port}/?${credential}`;
+
+  if (location.protocol === 'http:' || location.protocol === 'https:')
+    return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/?${credential}`;
+
+  return null;
+}
+
 let socket = null;
 let socketReady = false;
 let queued = [];
@@ -58,10 +84,11 @@ function send(message) {
 }
 
 function connectSocket() {
-  if (!port || !token) return false;
+  const address = socketAddress();
+  if (!address) return false;
 
   try {
-    socket = new WebSocket(`ws://127.0.0.1:${port}/?token=${encodeURIComponent(token)}`);
+    socket = new WebSocket(address);
   } catch (err) {
     console.warn('socket construction failed', err);
     return false;
@@ -206,8 +233,24 @@ let avatarShowing = null;
    megabytes and log an error every time. */
 const avatarFailed = new Set();
 
+/* The host names a character with the virtual-host URL *its own* WebView2 page can reach.
+   Every other face loaded this page from the socket over HTTP, where `octavia.avatar` does
+   not resolve at all — so point it back at the origin the page came from, which serves her
+   avatars folder at `/avatars/`.
+
+   Rewritten in the renderer rather than in `hello` because one `hello` is serialised once
+   and broadcast to every attached face at once: the host cannot say something different to
+   each of them, and the face is the only party that knows which of the two it is. */
+const AVATAR_ORIGIN = 'https://octavia.avatar/';
+
+function reachableAvatar(url) {
+  if (!url || !url.startsWith(AVATAR_ORIGIN)) return url;
+  if (port) return url;   // the built-in page, where that virtual host is real
+  return '/avatars/' + url.slice(AVATAR_ORIGIN.length);
+}
+
 function adoptAvatar(url) {
-  const wanted = url || null;
+  const wanted = reachableAvatar(url) || null;
   if (wanted === avatarShowing || (wanted && avatarFailed.has(wanted))) return;
   avatarShowing = wanted;
 

@@ -80,7 +80,9 @@ The round trip is **tested, not assumed** — a lesson taken from PartnerTool, w
 
 The check extracts each note's fenced body exactly as the restore does and compares it byte-for-byte with the source file (both normalised to LF, source trailing whitespace trimmed the way the sync writes it), and separately scans for mojibake markers.
 
-Last run 08/30/2026 at v0.11.0, on the new machine: **83 clean, 0 mismatched, 0 with mojibake.** (The run before it was v0.10.0 at 82, immediately before the move off the VM.)
+Last run 08/31/2026 at v0.20.1: **99 clean, 0 mismatched, 0 with mojibake.** (Earlier runs: 83 at v0.11.0 on arrival at the new machine, and 82 at v0.10.0 immediately before the move off the VM.)
+
+Since 08/30/2026 this is the **second** off-machine copy rather than the only one — the repo has a private GitHub remote. It is still the one a human can read without a git client, and it is what this note is written against, so it is still worth keeping current.
 
 That run earned its keep: it caught mojibake in `README.md` where an earlier `perl -pi` edit had mangled multi-byte UTF-8 down to lone `0xE2` bytes. The vault was faithfully copying a corrupted *source* file — the snapshot was fine, the repo was not. Verify after every sync that follows a bulk text edit.
 

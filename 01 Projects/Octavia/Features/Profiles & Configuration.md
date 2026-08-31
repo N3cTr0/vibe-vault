@@ -5,27 +5,44 @@ tags: [octavia, feature]
 
 # Profiles & Configuration
 
-*Stage 2, v0.3.0; command-line selection and the flattening fix in v0.4.1; the persistence fix in v0.6.1.* `<data>\config.json`, read at startup.
+*Stage 2, v0.3.0; command-line selection and the flattening fix in v0.4.1; the persistence fix in v0.6.1; **local-first defaults in v0.19.3**.* `<data>\config.json`, read at startup.
 
 ## The problem profiles solve
 
-The dev VM and the target machine want **opposite settings**. The VM has two cores and no GPU: it wants a small Whisper model and a free local brain. The target box has a modern GPU: it wants `large-v3-turbo` and Claude. Without profiles that is four keys hand-edited every time you move between machines — and inevitably one gets forgotten.
+Different machines want **different settings**, and the difference is not small: a weak box wants a small Whisper model, a strong one wants `large-v3-turbo`, and the choice between a free local brain and a paid hosted one is a different axis again. Without profiles that is four keys hand-edited every time — and inevitably one gets forgotten.
 
 ## How it works
 
-The file carries both, and one flag chooses:
+The file carries all of them, and one flag chooses:
 
 ```json
 {
-  "Profile": "dev",
+  "Profile": "home",
   "Profiles": {
-    "dev":  { "Brain": "local", "LocalModel": "llama3.2:3b", "WhisperModel": "small.en" },
-    "live": { "Brain": "claude", "WhisperModel": "large-v3-turbo" }
+    "home":  { "Brain": "local",  "WhisperModel": "large-v3-turbo" },
+    "cloud": { "Brain": "claude", "WhisperModel": "large-v3-turbo" },
+    "dev":   { "Brain": "local",  "WhisperModel": "small.en" }
   }
 }
 ```
 
-The named entry is merged over the base settings **in memory only**, so the file keeps describing both machines.
+The named entry is merged over the base settings **in memory only**, so the file keeps describing every machine.
+
+| Profile | Brain | Whisper | For |
+|---|---|---|---|
+| `home` | local | `large-v3-turbo` | **The default.** Costs nothing, needs no key, works offline |
+| `cloud` | Claude | `large-v3-turbo` | When the hosted model is actually wanted |
+| `dev` | local | `small.en` | A machine that cannot carry the good speech model |
+
+`live` is still accepted and resolves to what `cloud` does, so an older `config.json` keeps behaving exactly as it did.
+
+## Why local is the base default *(v0.19.3)*
+
+**The base `Brain` is `local`, and that matters more than the profile names.** An unnamed or misspelled profile falls through to the base settings — so before this, a typo in `--profile` produced an assistant pointed at Claude, and on a machine with no key stored that refuses *every single turn* with "No API key yet". She looked broken rather than limited.
+
+This was not hypothetical. The config on the development machine said `Profile: "live"` → `Brain: "claude"` with no key ever stored; she worked only because the desktop shortcut passed `--profile dev`. Started any other way she could not answer at all, and the API-key warning cluttering her face was this, reporting a real misconfiguration correctly.
+
+The local brain needs no key, no network and no account. It is the only honest thing for a fallback path to land on. See [[Lessons Learned]] — *fall back to the thing that needs nothing*.
 
 ## Choosing one — three sources, highest wins
 
@@ -37,7 +54,7 @@ The named entry is merged over the base settings **in memory only**, so the file
 
 **Why the command line had to exist.** A Windows shortcut can pass an argument but *cannot* set an environment variable. Before v0.4.1 the only way to pin a launcher's profile was the config file — which the app itself rewrites, so the desktop shortcut's brain depended on a mutable file nobody was watching. `--profile dev` on the shortcut states the intent where the intent belongs. `--profile=dev` and `-p dev` work too.
 
-An unknown profile name logs a warning and falls through to the base settings rather than failing.
+An unknown profile name falls through to the base settings rather than failing. **Since v0.19.3 that is a warning naming the profiles that do exist** — it used to be an info line, which is precisely how the misconfiguration above sat unnoticed for weeks. Anything that quietly substitutes one configuration for another needs to say so loudly enough to be read.
 
 **Where it shows.** The active profile appears in the face's status panel and the tray tooltip (`Octavia — dev (local)`), and the log names the profile *and the source of the choice*: `profile 'dev' (command line): brain=local, whisper=small.en`.
 
@@ -57,27 +74,74 @@ So `Save()` now keeps a second snapshot: **the merged settings as they stood at 
 
 ## Keys
 
+Defaults are the ones in `Core\OctaviaConfig.cs`, not the ones in any particular machine's file.
+
+### Brain
+
 | Key | Default | Notes |
 |---|---|---|
-| `Profile` | `live` | `--profile` then `OCTAVIA_PROFILE` win |
-| `Brain` | `claude` | `claude` or `local` |
-| `Model` | `claude-sonnet-5` | |
+| `Profile` | `home` | `--profile` then `OCTAVIA_PROFILE` win |
+| `Brain` | `local` | `local` or `claude` — **local since v0.19.3** |
+| `Model` | `claude-sonnet-5` | Only used when `Brain` is `claude` |
 | `LocalEndpoint` | `http://localhost:11434/v1` | Any OpenAI-compatible server |
 | `LocalModel` | `llama3.2:3b` | Must be pulled on that server first |
 | `MaxTokens` | `1024` | She is told to be brief; this is a backstop |
+
+### Ears
+
+| Key | Default | Notes |
+|---|---|---|
 | `Recognizer` | `whisper` | `whisper` or `windows` |
 | `WhisperModel` | `large-v3-turbo` | |
 | `WhisperLanguage` | `en` | or `auto` |
+| `WhisperCompute` | `auto` | `auto` / `cpu` / `gpu` — see [[Whisper Integration]] |
+| `WhisperThreads` | `0` | 0 lets Whisper choose |
 | `RecognitionCulture` | `en-US` | Windows recognizer only |
+| `MinConfidence` | `0.35` | Raise if she answers the television |
+| `MinUtteranceChars` | `2` | |
+| `MicrophoneDevice` | *(empty)* | Substring of the device name; empty is the Windows default |
+
+### Voice
+
+| Key | Default | Notes |
+|---|---|---|
 | `VoiceEngine` | `windows` | `windows` or `neural` — see [[The Voice]] |
 | `VoiceName` | first installed | The Windows voice; Settings → Voice |
 | `NeuralVoiceName` | `en_GB-jenny_dioco-medium` | The Piper voice, kept separately |
+| `VoiceRate` | `0` | −10 to 10 |
+
+### Attention
+
+| Key | Default | Notes |
+|---|---|---|
+| `Gate` | `local` | See [[The Attention Gate]] |
+| `GateModel` | `llama3.2:3b` | Must be non-reasoning; see [[Lessons Learned]] |
+| `GateFollowUpSeconds` | `25` | How long a conversation stays open |
+| `WakeNames` | `Octavia` | |
+
+### Senses and the room
+
+| Key | Default | Notes |
+|---|---|---|
+| `Music` | `true` | Listen to what this machine plays — see [[Music]] |
+| `MusicFromRoom` | `false` | Also listen through the microphone (v0.16.0) |
+| `OutputDevice` | *(empty)* | Which endpoint the loopback taps |
+| `Camera` | `false` | See [[Eyes]] |
+| `CameraDevice` | *(empty)* | |
 | `AvatarFile` | *(empty)* | A `.vrm` in her avatars folder; empty is the bust |
 | `RoomHour` | `-1` | Pin the room to an hour 0–23; negative follows the clock |
-| `VoiceRate` | `0` | −10 to 10 |
+| `ShowStats` | `true` | The status readout over her top-left corner (v0.18.0) |
+
+### Host
+
+| Key | Default | Notes |
+|---|---|---|
+| `FacePort` | `8848` | 0 picks any free port — see [[Face Protocol]] |
+| `RemoteAccess` | `false` | Bind beyond loopback, for a face on another device |
+| `McpServers` | *(none)* | Tool servers — see [[Roadmap]] stage 12 |
 | `Hotkey` | `Ctrl+Alt+O` | Ctrl+Alt+Space is usually taken by an IME |
-| `MinConfidence` | `0.35` | Raise if she answers the television |
-| `MinUtteranceChars` | `2` | |
+| `LogLevel` | `info` | |
+| `DevPanel` | *(null)* | Null follows the profile; `true`/`false` overrides |
 | `ListenOnStart` | `false` | |
 | `StartMinimised` | `false` | |
 

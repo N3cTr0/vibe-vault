@@ -40,12 +40,21 @@ Now: mic open, peak amplitude at exactly zero for 10 seconds → a notice on her
 
 | Key | Default | Notes |
 |---|---|---|
+| Key | Default | Notes |
+|---|---|---|
 | `Recognizer` | `whisper` | `whisper` or `windows` |
 | `WhisperModel` | `large-v3-turbo` | `small.en` in the `dev` profile |
 | `WhisperLanguage` | `en` | ISO code, or `auto` to detect per utterance |
+| `WhisperCompute` | `auto` | `auto` / `cpu` / `gpu` — see below |
+| `WhisperThreads` | `0` | 0 lets Whisper choose |
+| `MicrophoneDevice` | *(empty)* | Substring of the device name; empty is the Windows default |
 | `MinConfidence` | `0.35` | Raise if she answers the television |
 
 The Windows desktop recognizer remains an automatic fallback: if Whisper fails to start, she logs it, says so, and carries on with the old ears.
+
+**`WhisperCompute` exists because "auto" is not neutral.** Whisper loads the GPU runtime wherever one will load at all, and on a weak card that is *slower* than a good processor — which is exactly the machine she moved to. The setting is exposed in Settings as "Speech recognition runs on", and it takes effect on restart because the runtime order is chosen when the library loads.
+
+**`MicrophoneDevice` matches on a substring**, not an exact name, because `WaveIn` truncates device names to 31 characters while the WASAPI enumeration does not. Matching the full string would silently fail for any device with a long name.
 
 ## Testing
 
@@ -53,4 +62,6 @@ The Windows desktop recognizer remains an automatic fallback: if Whisper fails t
 
 ## Not yet
 
-No wake word. No speaker identification. Continuous listening still sends every recognised phrase to the brain, which is why always-on is a demo rather than a mode to live in until the Stage 8 gate exists — see [[Roadmap]].
+No wake word. No speaker identification.
+
+*The line that used to be here — "continuous listening sends every recognised phrase to the brain, so always-on is a demo rather than a mode to live in" — has been **untrue since v0.9.0**.* A small local model now judges what was addressed to her before the brain is troubled, and what it declines is shown faintly rather than swallowed. See [[The Attention Gate]].

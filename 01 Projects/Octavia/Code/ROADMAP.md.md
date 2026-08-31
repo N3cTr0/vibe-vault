@@ -894,6 +894,158 @@ Android SDK and a device to test on, neither of which is what this repo is. The 
 listing 1–4 is that they are all doable here, and they are what makes the app a week
 rather than a month.
 
+That repository now exists: `C:\Projects\Octavia-Android`, private on GitHub, `minSdk 28`.
+
+### Step 1 was half done, and the missing half was the page *(closed in 0.20.0)*
+
+Binding the socket to the LAN was recorded here as "a transport that can leave the
+machine". It was the transport and not the face. **`wwwroot` was never served by anything**
+— it reaches the built-in page through a WebView2 virtual host mapping, which is a feature
+of that control rather than a server, and nothing in this process had ever answered a GET.
+A phone could therefore open the socket and still have no page to run inside it.
+
+Vendoring the page into the client was the obvious alternative and it lost on a fact: there
+are **two** virtual host mappings, and the second serves her avatars folder. A VRM is user
+data, in a git-ignored folder, chosen at runtime, in no repository — it can never be baked
+into a client, so the host had to serve files either way. The real choice was one mechanism
+or two of them drifting.
+
+So the socket now answers plain GETs from `wwwroot` and `/avatars/`, sharing one port and
+one origin with the WebSocket, with the credential carried in a cookie because a page's
+sub-resources cannot carry a query string. See `PROTOCOL.md` → *Serving the face*.
+
+**Two things this uncovered that Stage 14 has to carry:**
+
+1. `getUserMedia` does not run on a plain `http://<lan-ip>` origin — it is not a secure
+   context. So a tablet's camera and microphone cannot live in the WebView. The Android
+   client owns them **natively** and answers `sight` itself; the WebView stays a renderer,
+   which is what the protocol always said a face was.
+2. The avatar URL had to be rewritten in the *renderer*, because one `hello` is serialised
+   once and broadcast to every face — the host cannot say something different to each. That
+   is item 1 of Stage 14 (faces have no identity) drawing blood for the first time.
+
+## Stage 14 — More than one body *(agreed 08/31/2026)*
+
+Stage 13 imagined a phone that *asks how the house is* — a thin, away-from-home client that
+mostly reads. **This is a bigger ask and it deserves its own stage:** a tablet that is a peer
+to the desktop face, open at the same time as it, with her mic, her camera and her voice
+working there exactly as they do here.
+
+The difference matters because Stage 13's design survives having one weak client. This one
+does not: the moment two faces can both *speak*, the host needs to know which one it is
+talking to, and it currently cannot tell them apart at all.
+
+### What already works, and it is more than expected
+
+- **Two faces at once, rendering.** `FaceHub.Send` serialises once and fans out to the
+  WebView2 page and every socket client in `_faces`. Open the tablet beside the desktop and
+  both already show her, in step, today. This was the point of Stage 3 and it landed.
+- **The camera is already in the right place.** `camera.js` opens the camera *in the face*,
+  and says why in its own header: "it puts the camera where the *person* is — a face on a
+  wall tablet has one; the machine under the desk may not." `look`/`sight` is a face→host
+  round trip, so a tablet answering with its own camera needs **no protocol change**.
+- **`subscribe` / `skip`** already lets a tablet decline what it cannot use.
+- **`remote.key` and the LAN binding** already let it connect at all.
+
+### 1. Faces have no identity — everything else depends on fixing this
+
+`IFaceTransport` is broadcast-only in both directions: `Send(object message)` goes to
+everyone, and `event Action<JsonElement>? MessageReceived` says **who sent nothing at all**.
+That was a deliberate simplification — "the being stops knowing about the renderer" — and it
+is exactly right for faces that only watch. It stops being right the moment a face has a
+microphone.
+
+Every item below needs a face id, so this is first and nothing else starts until it lands:
+
+- `MessageReceived` carries the id of the face that sent it.
+- `Send` gains an optional target; no target keeps today's broadcast, so no existing
+  behaviour changes.
+- `WebSocketFaceServer` already keys `_faces` by id, so it mostly has this. `FaceHub`,
+  `WebViewFaceTransport` and `OctaviaSession` are where the work is.
+
+Note the seam does *not* get coarser: the session learns that faces are distinguishable, not
+how any of them connected.
+
+### 2. Audio upstream — her ears, on the tablet
+
+`WhisperRecognizer` and `MicLevelMeter` each construct their own `WaveIn` and **are** the
+capture device rather than consumers of a stream. So this is a real refactor and not a
+parameter:
+
+- Introduce an audio-source seam — `LocalMicSource` wrapping today's `WaveIn`, and a
+  `FaceAudioSource` fed from a socket. Silero and Whisper stop caring where samples came from.
+- A face→host `audio` message. **Binary WebSocket frames, not base64 in JSON** — base64 is a
+  third more bytes and a great deal of garbage at 16 kHz.
+- **16 kHz mono 16-bit PCM**, resampled on the tablet, because that is what Silero and
+  Whisper want and the tablet has cycles to spare.
+- Two live sources means two transcription streams. This box is a **Ryzen 7 3700X — 8 cores,
+  16 threads**, not 16 cores; measure before assuming two Whisper instances are free, and
+  consider one shared queue instead.
+
+### 3. Audio downstream — her voice, out of the tablet
+
+**Today her voice cannot leave this PC.** `NeuralVoice` writes to a `WaveOut` and `SapiVoice`
+calls `SetOutputToDefaultAudioDevice()`. A tablet in another room sees her mouth move in
+silence.
+
+There is a neat way in. `NeuralVoice.OnAudioPlayed` is *already* handed the exact PCM at the
+moment it goes to the sound card — that is how the visemes stay in step with what is heard.
+Teeing that same buffer to a face gets audio that is in sync with the visemes the tablet is
+already receiving, for free, at the one point in the code where that is guaranteed. A
+host→face `audio` message, same format, same framing.
+
+SAPI is the harder half and can wait: getting at its PCM means `SetOutputToAudioStream`.
+
+**Rejected: speaking with the tablet's own TTS.** It breaks the rule that a face is a
+renderer, and she would have a different voice in every room.
+
+### 4. Camera arbitration — `look` must name a face
+
+`_looking` is a single `TaskCompletionSource` and `look` is broadcast. With two faces attached
+**both open their camera** and the first to answer wins, arbitrarily. That quietly breaks the
+second promise in `camera.js` — "it is never opened unasked" — for the face that was not being
+spoken to, and it lights the privacy marker in an empty room. Send `look` to one face id.
+
+### 5. Turn ownership — a new idea, and the one to get right
+
+Which face is she talking to? It decides where the voice goes, whose camera opens, and who
+"you" is in the transcript. The simplest rule that survives contact: **the face whose audio
+produced the current utterance owns the turn until it ends.**
+
+### 6. Echo, which the network makes worse
+
+`Mute()`/`Unmute()` around her speech is what stops her transcribing herself, and it works
+because everything is in one process on one clock. A tablet with an open mic and a speaker
+playing her voice, both across a network with latency in each direction, will hear her and
+transcribe it.
+
+**Push-to-talk on the tablet for the first version.** It is honest, it is robust, and it
+sidesteps the whole problem. Always-on listening there needs real echo cancellation — Android's
+`AcousticEchoCanceler` is per-device and not dependable — and should be its own piece of work.
+
+### 7. The attention gate now has two rooms
+
+`AttentionGate` decides what she answers and what she lets go. Two microphones in two rooms
+doubles the surface it is wrong on, and "was that addressed to me?" may need to be scoped per
+face rather than per session.
+
+### 8. `PROTOCOL.md` had fallen behind the code — ✅ **fixed in 0.20.1**
+
+`setStats`, `setMicrophone`, `setOutput`, `setCameraDevice` and `setWhisperCompute` were all
+handled in `OctaviaSession` and none were in the face→host table. `hello` was worse: eight
+fields undocumented — `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`,
+`output`, `whisperCompute`, `toolServers[]`.
+
+Both are now written down. This mattered more than a tidy-up: an Android client is being
+built against this document by someone who cannot see `OctaviaSession`, and a contract that
+is quietly incomplete is worse than one that is honestly small.
+
+### Order
+
+1 → 3 → 2 → 6 → 4 → 5 → 7, with 8 folded in as the document is touched. Audio *out* before
+audio *in*: it is the smaller change, it is independently useful, and it makes a tablet worth
+looking at before it is worth talking to.
+
 ## Standing constraints
 
 - Anything reflex-speed (lip sync, dancing, level meters) is local; the model is for

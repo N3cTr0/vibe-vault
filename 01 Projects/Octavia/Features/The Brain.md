@@ -25,7 +25,7 @@ Where it goes was the whole decision. Not the **system prompt**, because the cac
 
 It also tells her not to mention it unless asked. A model told "music is playing" will otherwise open every reply by saying so.
 
-Selected by `Brain: "claude" | "local"` in config, which the `dev` and `live` profiles set — see [[Profiles & Configuration]].
+Selected by `Brain: "local" | "claude"` in config, which the profiles set. **Local is the default since v0.19.3**, base setting included, so a mistyped profile lands on a brain that needs no key rather than one that refuses every turn — see [[Profiles & Configuration]].
 
 ## Sentence streaming
 

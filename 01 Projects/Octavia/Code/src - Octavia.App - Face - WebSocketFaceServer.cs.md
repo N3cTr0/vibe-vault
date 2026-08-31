@@ -29,6 +29,13 @@ internal sealed class WebSocketFaceServer : IDisposable
 {
     private const string HandshakeGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+    /// Set once the query string has proved who a browser is, so the page's own scripts,
+    /// styles and characters can be fetched without a credential the browser has no way
+    /// to attach. `HttpOnly` because nothing in `wwwroot` reads these — only the socket
+    /// does — and script that cannot see a secret cannot leak one.
+    private const string CookieName = "octavia_token";
+    private const string KeyCookieName = "octavia_key";
+
     /// One attached face, and what it has asked not to be sent.
     ///
     /// A renderer wants visemes sixty times a second; a phone in a pocket wants a
@@ -145,7 +152,15 @@ internal sealed class WebSocketFaceServer : IDisposable
             if (request is null) { client.Close(); return; }
 
             var from = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
-            if (!Authorised(request.Value.Target, from))
+
+            /* A face's *sub-resources* cannot carry the query string. `<link href="face.css">`
+               and `import('./watch.js')` are resolved by the browser, which knows nothing
+               about a key, so gating them on `?key=` would serve the page and then refuse
+               everything in it. The credential is therefore echoed back as a cookie on the
+               way through, and the assets present that instead. */
+            var credential = Credential(request.Value.Target, request.Value.Headers);
+
+            if (!Authorised(credential, from))
             {
                 Log.Write("face socket refused a connection with a bad or missing token");
                 await WriteAsync(stream, "HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
@@ -153,9 +168,11 @@ internal sealed class WebSocketFaceServer : IDisposable
                 return;
             }
 
+            // Not an upgrade: this is a browser asking for the page itself. Serving it is
+            // what lets a renderer with no WebView2 virtual host — a phone — exist at all.
             if (!request.Value.Headers.TryGetValue("sec-websocket-key", out var key))
             {
-                await WriteAsync(stream, "HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+                await ServeFileAsync(stream, request.Value, credential);
                 client.Close();
                 return;
             }
@@ -313,25 +330,50 @@ internal sealed class WebSocketFaceServer : IDisposable
     /// not** — that token is handed out in the log and in a URL, and it is scoped to a
     /// process on this box. A remote face presents the durable remote key instead, and
     /// only when remote access was switched on at start.
-    private bool Authorised(string target, IPAddress? from)
+    /// What a request offered, from the query string if it has one and the cookie if it
+    /// does not. The query wins: a fresh URL is a deliberate act, a cookie is a leftover.
+    private static (string? Token, string? Key) Credential(string target, Dictionary<string, string> headers)
     {
-        var query = target.IndexOf('?');
-        if (query < 0) return false;
-
         string? token = null, key = null;
 
-        foreach (var pair in target[(query + 1)..].Split('&'))
+        var query = target.IndexOf('?');
+        if (query >= 0)
+        {
+            foreach (var pair in target[(query + 1)..].Split('&'))
+            {
+                var eq = pair.IndexOf('=');
+                if (eq < 0) continue;
+
+                var name = pair[..eq];
+                var value = Uri.UnescapeDataString(pair[(eq + 1)..]);
+
+                if (name.Equals("token", StringComparison.OrdinalIgnoreCase)) token = value;
+                else if (name.Equals("key", StringComparison.OrdinalIgnoreCase)) key = value;
+            }
+        }
+
+        if (token is not null || key is not null) return (token, key);
+
+        if (!headers.TryGetValue("cookie", out var cookies)) return (null, null);
+
+        foreach (var pair in cookies.Split(';'))
         {
             var eq = pair.IndexOf('=');
             if (eq < 0) continue;
 
-            var name = pair[..eq];
-            var value = Uri.UnescapeDataString(pair[(eq + 1)..]);
+            var name = pair[..eq].Trim();
+            var value = pair[(eq + 1)..].Trim();
 
-            if (name.Equals("token", StringComparison.OrdinalIgnoreCase)) token = value;
-            else if (name.Equals("key", StringComparison.OrdinalIgnoreCase)) key = value;
+            if (name.Equals(CookieName, StringComparison.Ordinal)) token = value;
+            else if (name.Equals(KeyCookieName, StringComparison.Ordinal)) key = value;
         }
 
+        return (token, key);
+    }
+
+    private bool Authorised((string? Token, string? Key) offered, IPAddress? from)
+    {
+        var (token, key) = offered;
         var local = from is not null && IPAddress.IsLoopback(from);
 
         if (local)
@@ -362,7 +404,7 @@ internal sealed class WebSocketFaceServer : IDisposable
         return false;
     }
 
-    private static async Task<(string Target, Dictionary<string, string> Headers)?> ReadRequestAsync(NetworkStream stream)
+    private static async Task<(string Method, string Target, Dictionary<string, string> Headers)?> ReadRequestAsync(NetworkStream stream)
     {
         var head = new List<byte>(1024);
         var one = new byte[1];
@@ -392,7 +434,65 @@ internal sealed class WebSocketFaceServer : IDisposable
             if (colon > 0) headers[line[..colon].Trim()] = line[(colon + 1)..].Trim();
         }
 
-        return (parts[1], headers);
+        return (parts[0], parts[1], headers);
+    }
+
+    /// Answer a plain GET with a file from `wwwroot` or her avatars folder.
+    ///
+    /// The caller has already authorised this request, so the only questions left are
+    /// whether the method is one we answer and whether the path names something we are
+    /// willing to hand over. `StaticFiles` decides the second and says no by default.
+    private async Task ServeFileAsync(NetworkStream stream, (string Method, string Target, Dictionary<string, string> Headers) request, (string? Token, string? Key) credential)
+    {
+        var head = request.Method.Equals("HEAD", StringComparison.OrdinalIgnoreCase);
+
+        if (!head && !request.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteAsync(stream, "HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, HEAD\r\nConnection: close\r\n\r\n");
+            return;
+        }
+
+        if (StaticFiles.Resolve(request.Target) is not var (path, type))
+        {
+            await WriteAsync(stream, "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            return;
+        }
+
+        byte[] body;
+        try
+        {
+            body = await File.ReadAllBytesAsync(path, _stopping.Token);
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"face http: could not read {path}: {ex.Message}");
+            await WriteAsync(stream, "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            return;
+        }
+
+        /* Hand the credential back as a cookie so the page's own assets can be fetched.
+           `SameSite=Strict` because no other site has any business causing a request
+           here, and `Path=/` because `/avatars/` needs it as much as `/` does. It is not
+           marked `Secure`: this socket speaks plain HTTP on a LAN behind Wireguard, and a
+           `Secure` cookie would simply never be sent. */
+        var cookies = "";
+        if (credential.Token is { Length: > 0 } t)
+            cookies += $"Set-Cookie: {CookieName}={t}; Path=/; HttpOnly; SameSite=Strict\r\n";
+        if (credential.Key is { Length: > 0 } k)
+            cookies += $"Set-Cookie: {KeyCookieName}={k}; Path=/; HttpOnly; SameSite=Strict\r\n";
+
+        await WriteAsync(stream,
+            "HTTP/1.1 200 OK\r\n" +
+            $"Content-Type: {type}\r\n" +
+            $"Content-Length: {body.Length}\r\n" +
+            cookies +
+            // Her face changes as often as she is rebuilt and is only ever served over a
+            // LAN, so a cache that has to be reasoned about costs more than it saves.
+            "Cache-Control: no-store\r\n" +
+            "X-Content-Type-Options: nosniff\r\n" +
+            "Connection: close\r\n\r\n");
+
+        if (!head) await stream.WriteAsync(body, _stopping.Token);
     }
 
     private static Task WriteAsync(NetworkStream stream, string text) =>

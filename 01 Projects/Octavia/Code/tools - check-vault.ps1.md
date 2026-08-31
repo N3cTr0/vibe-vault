@@ -18,8 +18,9 @@ source-path: tools\check-vault.ps1
     Round trip - does every Code note still reproduce its source byte-for-byte,
                  and is any note carrying mojibake?
 
-  The round trip matters more than usual for Octavia: with no git remote yet, the
-  vault snapshot is the only off-machine copy of the source.
+  The round trip still matters with a git remote in place: GitHub is the primary
+  off-machine copy, and the vault snapshot is the readable one that `Restore From
+  Snapshot` is written against.
 
   Exit code is the number of problems found, so it can gate a commit.
 

@@ -1,0 +1,72 @@
+---
+project: Octavia Android
+tags: [octavia, octavia-android, code]
+source-path: README.md
+---
+
+# README.md
+
+```markdown
+# Octavia for Android
+
+A second face for [Octavia](https://github.com/N3cTr0/Octavia), over the same protocol her
+built-in one speaks.
+
+She is not on this phone. She is on the PC at home, and this is a window onto her: an
+Android app that connects to her face socket, renders her in a WebView, and lets you ask
+the house how it is from somewhere that is not the sofa.
+
+## The one idea to keep
+
+**This is a renderer, not a second Octavia.** It holds no API key, runs no model, owns no
+conversation and makes no decision about what she says. Everything it knows arrived as a
+JSON message over a WebSocket. If this app ever starts thinking, something has gone wrong
+in the design and not merely in the code.
+
+That is not a constraint invented here — it is the contract in `PROTOCOL.md` in her repo,
+which was written in Stage 3 precisely so that a face could one day be somewhere else.
+
+## How it connects
+
+```
+     phone                            home
+  ┌──────────┐                   ┌──────────────┐
+  │  this app│                   │ Octavia.exe  │
+  │          │  WireGuard ─────► │              │
+  │  WebView │  ws://10.1.1.x    │ WebSocketFace│
+  │  + mic   │  + remote key     │ Server       │
+  └──────────┘                   └──────────────┘
+```
+
+- **The VPN is the security boundary**, not the key. The UDM SE runs WireGuard natively;
+  the phone joins the LAN and reaches her directly. **Her socket is never forwarded.** The
+  one forwarded port is WireGuard's own UDP port, which does not answer unauthenticated
+  packets at all. See Stage 13 in her `ROADMAP.md` for why that distinction matters.
+- **The key is `remote.key`** from her data folder — persistent, revocable by rolling,
+  typed in once. Deliberately *not* the per-run token, which is regenerated every start and
+  would mean re-pairing every time she restarts.
+- **Remote access is off by default** in her config. `RemoteAccess: true` and a Windows
+  firewall rule scoped to the LAN subnet are both required; binding alone looks broken.
+
+## Status
+
+**Nothing is built yet.** The repo exists, the design is written down, and the two things
+that have to happen in *her* repo before this app can do its job are named in `ROADMAP.md`.
+
+Read `ROADMAP.md` before writing code. It is short and it will save you building the wrong
+thing first.
+
+## Relationship to the other repo
+
+| | |
+|---|---|
+| Her | `C:\Projects\Octavia` — [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) |
+| This | `C:\Projects\Octavia-Android` — [`N3cTr0/Octavia-Android`](https://github.com/N3cTr0/Octavia-Android) |
+| The contract between them | `PROTOCOL.md`, **in her repo** |
+
+`PROTOCOL.md` is deliberately not copied here. Two copies of a contract is one copy of a
+contract and one lie waiting to happen; this repo links to hers and pins the version it was
+written against.
+
+**Written against protocol version 1**, as of her v0.19.3.
+```

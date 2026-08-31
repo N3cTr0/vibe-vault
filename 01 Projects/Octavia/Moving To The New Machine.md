@@ -92,7 +92,7 @@ Two other things a real GPU changes immediately:
 - **`WhisperModel`** — the `dev` profile pins `small.en` because this VM could not do better. A real machine wants `large-v3-turbo`.
 - **`GateModel`** must stay equal to `LocalModel`. Two models cannot both be resident and the server swaps them on every utterance — measured at 24 s against 0.7 s warm. The self-test fails loudly if they differ.
 - **`Camera`** is currently `true` in the live config, set while testing. It ships `false` by default; decide which you want.
-- **The desktop shortcut** at `C:\Users\Claude\Desktop\Octavia.lnk` points at the Debug exe with `--profile dev`. Recreate it — see [[Build & Release]] — and note the profile names are due to change; the roadmap's Stage 9 section explains why.
+- **The desktop shortcut** at `C:\Users\Claude\Desktop\Octavia.lnk` points at the Debug exe with `--profile dev`. Recreate it — see [[Build & Release]] — and note the profile names have **since changed**: they are `home` / `cloud` / `dev` as of v0.19.3, with `home` the default and `local` the base brain, so a shortcut no longer needs `--profile` at all to get a working assistant. See [[Profiles & Configuration]].
 
 ## The one real risk
 
@@ -160,6 +160,17 @@ tracked files, with `data\` and `dist\` correctly excluded.
   playback device and re-run `dotnet run --project tools\EarsTest -- music demo` before
   drawing any conclusion about beat detection. Tempo still wandered here (75–184 bpm around
   a played 132), which is the expected consequence of a crest factor that low.
+
+  > **Wrong, and closed 08/31/2026.** The virtual-endpoint theory above is the *third*
+  > version of an explanation that was wrong all three times, and this note is left intact
+  > because how it was wrong is the useful part. It was never Remote Desktop, never a
+  > virtual endpoint, and never the headset: **the decoder read the low two bytes of each
+  > 32-bit `WAVE_FORMAT_EXTENSIBLE` sample.** Those bits are uniform noise, uniform noise
+  > has a crest factor of 1.73, and that is why four unrelated devices all returned 1.7 to
+  > three decimal places. Four unrelated devices do not share a defect; a decoder does.
+  > Fixed in v0.14.x — the capture now reads 7.7 against a source of 7.7, and the tempo
+  > settles at 131.8 bpm against a played 132. See [[Music]], and [[Lessons Learned]]
+  > for the general form: *a constant across environments is evidence about your code.*
 - **The camera cannot be re-verified: there is no webcam attached to this machine.** The
   Jabra headset does mean there is a real microphone, so the mic path can be tested.
 - **The photoreal stage is still blocked, and the shopping list is not met.** The GPU is a

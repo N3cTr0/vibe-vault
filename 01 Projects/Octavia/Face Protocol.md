@@ -19,13 +19,45 @@ and owns no audio device. Everything it knows arrives as a message.
 
 | Transport | Used by | Notes |
 |---|---|---|
-| WebSocket | Any face, including the built-in one | `ws://127.0.0.1:<FacePort>/?token=<token>` |
+| WebSocket | Any face, including the built-in one | `ws://<host>:<FacePort>/?token=<token>` — or `?key=<remote key>` from another machine |
+| HTTP `GET` | Any face that is not the built-in page | The same port serves the page itself. See *Serving the face* below |
 | WebView2 postMessage | The built-in page, as a fallback | Automatic if the socket cannot be reached |
 
 The host runs both at once and broadcasts to every connected face, so several can be
-attached simultaneously — useful when developing a new renderer beside the old one.
+attached simultaneously — useful when developing a new renderer beside the old one, and
+the intended arrangement once a tablet is a face alongside the desktop.
 
-**The socket binds to `127.0.0.1` only** and requires a token. See *Security* below.
+**The socket binds to `127.0.0.1` unless `RemoteAccess` is on**, in which case it binds
+every interface and a remote face must present the remote key. See *Security* below.
+
+## Serving the face
+
+The built-in page reaches `wwwroot` through a WebView2 virtual host mapping, which is a
+feature of that control and not a server. Any other renderer needs the files over HTTP, so
+**the same port answers plain GETs** that are not WebSocket upgrades:
+
+| Path | Serves |
+|---|---|
+| `/` | `wwwroot/index.html` |
+| `/<file>` | `wwwroot`, including `lib/` |
+| `/avatars/<file>` | Her avatars folder — VRM characters, which live in her data folder rather than the install |
+
+Anything outside those two roots is a 404, as is any extension not on the served list.
+Paths are checked after resolution, so a symlink is no more use than a `..`.
+
+**Authentication carries in a cookie after the first request.** A page's sub-resources —
+`<link href="face.css">`, `import('./watch.js')` — are fetched by the browser, which knows
+nothing about a credential, so the first authorised request is answered with an `HttpOnly`,
+`SameSite=Strict` cookie and the assets present that. An asset requested without either is
+`401`.
+
+**A face served this way should address the socket as the origin it was loaded from**, not
+as `127.0.0.1` — that is the host's loopback, not the client's. `?port=` overrides this and
+exists for the built-in page, which is *not* served over HTTP and so cannot infer anything.
+
+**`getUserMedia` will not run on a plain `http://<lan-ip>` origin**, because it is not a
+secure context. A face on another machine that needs a camera or microphone should own
+them natively and answer `sight` itself, rather than expecting a WebView to do it.
 
 ## Versioning
 
@@ -40,7 +72,7 @@ than failing. Removing or repurposing anything is a version bump.
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. |
+| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. |
 | `state` | `value`: `idle` \| `listening` \| `thinking` \| `speaking` | Her overall state. Drives posture, expression and the status pill. |
 | `level` | `value`: 0.0–1.0 | Microphone amplitude, ~20 Hz while listening. This is what makes the face react while you are still talking. |
 | `viseme` | `value`: 0.0–1.0, `shape?` | Mouth openness from real phoneme events during synthesis, and which mouth shape to make. Sent at phoneme rate. |
@@ -160,6 +192,11 @@ if the stream stops, rather than freezing the last value.
 | `setAvatar` | `value` | Choose a character by file name; empty means the plaster bust. The host refuses a name that is not in its avatars folder. |
 | `setRoomHour` | `value`: 0–23, or −1 | Pin the room's lighting to an hour, or follow the clock. |
 | `setMusic` | `value`: bool | Whether she listens to the machine's output at all. False closes the loopback device rather than merely ignoring it. |
+| `setMicrophone` | `value` | Capture device by name, from `microphones[]`. Empty follows the Windows default. |
+| `setOutput` | `value` | Render device by name, from `outputs[]`. Empty follows the Windows default. This is what her music sense listens to, so it is not merely a playback preference. |
+| `setCameraDevice` | `value` | Which camera a `look` should open, by **label** rather than id — a device id is regenerated per origin and per permission grant, so it cannot be stored in a config file and still mean anything tomorrow. Empty lets the face choose. |
+| `setWhisperCompute` | `value`: `auto` \| a named backend | Which compute Whisper should use. `auto` is the default and the right answer on any machine nobody has measured. |
+| `setStats` | `value`: bool | Whether the face should show its own performance figures. A hint to the renderer, stored by the host so it survives a reload. |
 | `sight` | `image?`, `error?` | The answer to `look`: one base64 JPEG, or why there isn't one. **Always send one or the other** — silence leaves the host waiting for a frame that is not coming. |
 | `faceError` | `text` | The renderer threw. The host writes it to `octavia.log`, since a face has no console the host can see. |
 | `selfTest` | — | Run the checks and answer with `diagnostics`. Free — it never calls a paid model. |

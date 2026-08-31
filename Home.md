@@ -9,7 +9,8 @@ The vault is organised with the **PARA method**: Projects (active work), Areas (
 ## Projects
 
 - [[PartnerTool]] — Progressive Computing's Windows support/diagnostic tool *(the project hub — start here)*
-- [[Octavia]] — always-on desktop AI companion with an animated 3D face, local ears, and Claude behind her *(project hub)*
+- [[Octavia]] — always-on desktop AI companion with an animated 3D face, local ears, and a **local** model behind her by default (Claude on request) *(project hub)*
+- [[Octavia Android]] — a second face for her on a phone, over the same protocol, reached over WireGuard *(project hub)*
 - [[Claude Dev VM]] — dedicated Win11 VM (VMware Workstation Pro) giving Claude Code full autonomous access for development
 
 ## How this vault works

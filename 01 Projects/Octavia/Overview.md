@@ -17,16 +17,18 @@ She began as a single HTML file (`C:\Projects\talking-avatar.html`) — a three.
 | Face | WebView2 hosting three.js r180 (ES modules), served from a virtual `https://octavia.face` origin |
 | Avatar | A VRM character via `@pixiv/three-vrm`, or the plaster bust — see [[The Avatar Interface]] |
 | Room | A shader environment with a full day of lighting — see [[The Room]] |
-| Brain | Anthropic SDK (`claude-sonnet-5`), streamed; or any OpenAI-compatible local server |
+| Brain | Any OpenAI-compatible local server, streamed — **the default**; or the Anthropic SDK (`claude-sonnet-5`) |
 | Ears | Silero VAD (ONNX) → Whisper (`Whisper.net`, CPU + CUDA runtimes) |
 | Voice | Windows speech, or Piper out of process — see [[The Voice]] |
 | Lip sync | SAPI phoneme events, or read out of the waveform for any other engine |
 | Attention | A small local model judges what was addressed to her — see [[The Attention Gate]] |
 | Eyes | One still from the face's camera, only when a question needs it — see [[Eyes]] |
-| Music | WASAPI loopback on the output endpoint, beat-detected locally — see [[Music]] |
+| Music | WASAPI loopback on the output endpoint, and optionally the microphone for music playing in the room — beat-detected locally, see [[Music]] |
 | Audio | NAudio for capture and playback; a small in-house FFT for analysis |
+| Hands | An MCP client over stdio, so an integration is a server rather than a branch — see [[Roadmap]] stage 12 |
+| Serving | The face socket also answers GETs, so a phone or tablet can load her face from the host itself — see [[Face Protocol]] |
 | Secrets | DPAPI, sealed to the current Windows account |
-| Distribution | Self-contained single-file exe (~480 MB) — see [[Build & Release]] |
+| Distribution | Self-contained single-file exe (~310 MB) plus a `wwwroot` beside it — see [[Build & Release]] |
 
 ## Why she is not a web page
 
@@ -46,9 +48,13 @@ Talk or type; she answers in two or three short sentences, spoken aloud in a neu
 
 Leave her listening and she no longer answers everything she hears: a small local model judges what was addressed to her, for free, and what she declines is shown faintly rather than swallowed — see [[The Attention Gate]]. Ask her something that needs eyes and she takes a single still, if you have turned that on — see [[Eyes]].
 
+Music playing on *another* device in the same room reaches her too, through the microphone rather than the machine's output — off by default, because lyrics are speech and the attention gate has to survive them. See [[Music]].
+
 She can also explain herself: a self-test with remedies, and one zip you can send from a machine nobody can reach — see [[Diagnostics]].
 
-She does not yet have a wake word or any control over the house. Those are stages, not omissions — see [[Roadmap]].
+Her face is no longer only hers. The socket that carries the protocol now serves the page itself, so a phone or a wall tablet can load her face from the host over the LAN rather than needing a copy of it — which is what an Android client is being built against. See [[Face Protocol]] and [[Roadmap]] stage 13.
+
+**She cannot yet act on the house.** The seam is built and tested — an MCP client, a risk policy, a confirmation rule for anything irreversible — and configured servers show up in the status readout, so the plumbing is real and visible. What is missing is the brain-side loop that lets her *call* one. She has no wake word either. Both are stages, not omissions — see [[Roadmap]].
 
 ## Where things live
 
@@ -59,4 +65,5 @@ She does not yet have a wake word or any control over the house. Those are stage
 | `src\Octavia.App\wwwroot\` | The face: the loop, the room, the avatars, the console |
 | `src\Octavia.App\wwwroot\lib\` | Vendored three.js and three-vrm — excluded from the vault snapshot |
 | `tools\EarsTest\` | Headless test harness and probes — see [[The Ears]] |
-| `%APPDATA%\Octavia\` | Config, log, DPAPI-sealed key, Whisper models, `avatars\`, `voices\` |
+| `tools\*.ps1` | Vault sync and check, the face dev server, an external face, a mock MCP server, and the screenshot pair — see [[Screenshots]] |
+| **`data\`** | Config, log, DPAPI-sealed key, Whisper models, `avatars\`, `voices\` — **inside the repo since v0.11.0**, git-ignored, so one folder is the whole of her. `%APPDATA%\Octavia` only for an installed copy; see [[Profiles & Configuration]] |
