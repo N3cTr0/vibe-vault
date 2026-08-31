@@ -260,6 +260,23 @@ left guessing.
 > official installer still ships ROCm 6.4.2 and RDNA4 needs ROCm 7.x — so it means
 > [experimental Vulkan](https://docs.ollama.com/gpu) or a community fork until upstream
 > catches up.
+>
+> **Decided 08/31/2026: the AMD build.** Radeon RX 9070 XT (or its successor if one lands
+> first), Ryzen 9 9950X3D, 128 GB DDR5. **Stage 8 therefore plans on Epic's Audio-Driven
+> Animation rather than Audio2Face**, which is the better answer regardless — it lives
+> inside the renderer instead of competing with it for the card.
+>
+> Two things that follow, and are easy to forget later:
+>
+> - **Nothing in this repo should assume CUDA.** `Whisper.net.Runtime.Cuda` is still
+>   referenced in the `.csproj` and will simply never load on that machine; the
+>   `WhisperCompute` setting added in v0.12.0 already handles choosing, but `gpu` will mean
+>   Vulkan there rather than CUDA, and the runtime package needs adding before it can.
+> - **Re-measure everything on arrival.** Every figure in this repo and the vault —
+>   `EarsTest models`, `EarsTest compute`, the gate median, the music crest — was taken on
+>   an 8-core CPU with a GT 730 doing nothing useful. The 128 GB is the part that changes
+>   the design rather than just the numbers: a small fast gate and a genuinely large brain
+>   can both stay resident, which is the split v0.15.0 established at 3B and 7B.
 
 
 The reference image — a photoreal woman — is a different rendering class from Stage 5.
