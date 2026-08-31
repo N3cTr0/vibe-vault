@@ -579,7 +579,9 @@ Cheap, high value, and it makes her feel like she is in the room rather than in 
 
 **Built in v0.16.0** as `MusicFromRoom`, off by default. A second `MusicAnalyzer` fed from
 the frames the voice detector already reads. **Not yet verified against real room audio** —
-that needs a speaker playing in the room, which is a thing to test rather than assert.
+**Verified 08/31/2026**: music on another computer, loopback reading energy 0.00, and she
+reported 141 bpm at confidence 0.49 through the microphone. The lower confidence against
+loopback's 1.00 is the room-and-boom-mic penalty, showing up exactly as predicted.
 
 ## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
 

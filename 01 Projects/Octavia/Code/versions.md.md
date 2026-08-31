@@ -18,6 +18,34 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.16.1 — 2026-08-31
+
+**The cups sit on her ears, and the room source is proven.** PATCH.
+
+### Room music, verified
+
+v0.16.0 shipped `MusicFromRoom` untested against real room audio. It works: with music
+playing on a *different computer* and the loopback probe reading **energy 0.00**, she
+reported **141 bpm at confidence 0.49** through the microphone. Both halves of that matter
+— the silent loopback is what proves it is the mic, and 0.49 against loopback's 1.00 is
+exactly the reduced certainty a boom mic in a room was predicted to give.
+
+### The headphone depth, measured rather than argued
+
+Height was right after v0.16.0; depth was not, and the sign was the reason. `vrm-avatar.js`
+notes that VRM 1.0 faces -Z, which invites the assumption that "behind the head" is +Z.
+**After the loader plugin has finished, it is not**: the head bone's axes come out
+world-aligned and the eye bones sit at *greater* z than the head bone, so the face points
++Z and behind is negative.
+
+Settled by shoving the whole assembly to +0.10 and watching it land in front of her nose —
+one deliberately wrong value being worth more than another round of reasoning. The offset
+is now 0.26 of the head half-width behind the eye line, which puts the cup on the ear
+rather than the temple or the back of the skull. The comment records the measurement so
+the next person does not re-derive it from a misleading premise.
+
+---
+
 ## 0.16.0 — 2026-08-31
 
 **She can hear a room, her headphones sit on her ears, and the dance stopped twitching.**

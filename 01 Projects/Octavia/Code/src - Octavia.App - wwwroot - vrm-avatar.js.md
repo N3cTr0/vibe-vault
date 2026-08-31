@@ -132,8 +132,16 @@ export async function loadVrmAvatar(url) {
     // line *is* the ear line — that is the whole measurement.
     earHeight = eyeMid.y - headWorld.y;
 
-    // And a little behind it, because an ear canal sits back from the eyes.
-    earBack = -(eyeMid.z - headWorld.z) - halfWidth * 0.14;
+    /* And behind it, because an ear canal sits well back from the eyes.
+
+       The sign here is measured, not reasoned. The loader's comment above says VRM 1.0
+       faces -Z, which invites the assumption that "behind" is +Z — but after the plugin
+       has finished with it the head bone's axes are world-aligned and the eye bones sit
+       at *greater* z than the head bone, so the face points **+Z** and behind is
+       negative. Proved by shoving the whole assembly to +0.10 and watching it end up in
+       front of her nose. The 0.26 is then just where the cup lands on the ear rather
+       than the temple or the back of the skull. */
+    earBack = -(eyeMid.z - headWorld.z) - halfWidth * 0.26;
   }
 
   const headphones = createHeadphones(halfWidth);
