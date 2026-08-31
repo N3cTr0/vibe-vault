@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using Microsoft.Web.WebView2.Core;
+using NAudio.Wave;
 using NAudio.CoreAudioApi;
 using Octavia.Core;
 using Octavia.Face;
@@ -129,7 +130,7 @@ internal static class SystemReport
             facts.Add(new Fact("Music listening", host.Music));
 
             if (standard is not null)
-                facts.Add(new Fact("Signal on default", $"peak {Peak(standard, TimeSpan.FromMilliseconds(600)).ToString("0.000", CultureInfo.InvariantCulture)}"));
+                facts.Add(new Fact("Signal on default", $"peak {PeakAsync(standard, TimeSpan.FromMilliseconds(600)).GetAwaiter().GetResult().ToString("0.000", CultureInfo.InvariantCulture)}"));
 
             standard?.Dispose();
             foreach (var device in endpoints) device.Dispose();
@@ -151,28 +152,38 @@ internal static class SystemReport
     /// machine always measured 0.000 and the microphone check called a working
     /// headset silent. It is a WASAPI capture of our own now — still independent of
     /// the WaveIn path she listens through, so the two can still disagree usefully.
-    public static float Peak(MMDevice device, TimeSpan window)
+    /// Built with `WasapiRecorderBuilder`, the same way `LoopbackListener` opens its
+    /// capture — `WasapiCapture` is obsolete in this NAudio, and two different capture
+    /// paths in one codebase is how the diagnostics end up disagreeing with the thing
+    /// they are diagnosing.
+    public static async Task<float> PeakAsync(MMDevice device, TimeSpan window)
     {
         var highest = 0f;
 
         try
         {
-            using var capture = new WasapiCapture(device);
-            var format = capture.WaveFormat;
+            var recorder = await new WasapiRecorderBuilder().WithDevice(device).BuildAsync();
+            var format = recorder.WaveFormat;
 
-            capture.DataAvailable += (_, e) =>
+            var buffers = 0;
+            recorder.DataAvailable += (buffer, flags, position, timestamp) =>
             {
-                var peak = PeakOf(e.Buffer, e.BytesRecorded, format);
+                buffers++;
+                if ((flags & AudioClientBufferFlags.Silent) != 0) return;
+                var peak = AudioSamples.PeakOf(buffer, buffer.Length, format);
                 if (peak > highest) highest = peak;
             };
 
-            using var stopped = new ManualResetEventSlim(false);
-            capture.RecordingStopped += (_, _) => stopped.Set();
+            recorder.StartRecording();
+            await Task.Delay(window);
+            recorder.StopRecording();
+            recorder.Dispose();
 
-            capture.StartRecording();
-            Thread.Sleep(window);
-            capture.StopRecording();
-            stopped.Wait(TimeSpan.FromSeconds(2));
+            // The one thing a peak of zero cannot tell you on its own: whether the
+            // capture ran at all. Buffers arriving and reading near-zero is a quiet
+            // room; no buffers is a broken device, and they deserve different answers.
+            if (buffers == 0)
+                Log.Warn($"'{device.FriendlyName}' delivered no buffers at all in {window.TotalMilliseconds:0} ms");
         }
         catch (Exception ex)
         {
@@ -188,8 +199,6 @@ internal static class SystemReport
     /// `Extensible` rather than `IeeeFloat`. Testing the encoding directly here would
     /// have reproduced the loopback's own bug in the diagnostics that are supposed to
     /// catch it.
-    private static float PeakOf(byte[] buffer, int count, NAudio.Wave.WaveFormat format) =>
-        AudioSamples.PeakOf(buffer, count, format);
 }
 
 /// What only the running session knows, handed to the report so nothing has to reach

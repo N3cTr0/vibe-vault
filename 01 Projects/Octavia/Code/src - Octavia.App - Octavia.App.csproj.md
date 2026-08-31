@@ -20,7 +20,7 @@ source-path: src\Octavia.App\Octavia.App.csproj
     <AssemblyName>Octavia</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>0.13.0</Version>
+    <Version>0.14.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

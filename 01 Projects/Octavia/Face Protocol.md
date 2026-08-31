@@ -149,6 +149,7 @@ if the stream stops, rather than freezing the last value.
 | Type | Fields | Meaning |
 |---|---|---|
 | `ready` | `faceBuilt`: bool | The face has loaded. `faceBuilt` is false if the renderer failed to construct — the host logs this. Triggers `hello`. |
+| `subscribe` | `skip`: string[] | Message types this face does not want. Answered by the socket server itself and never relayed to the host, because it describes one connection rather than the session. **Opt-out, not opt-in**: a face that never sends it keeps receiving everything, so no existing renderer changes behaviour and a new message type reaches old clients rather than being silently withheld. A phone would send `{"skip":["viseme","level"]}` — sixty visemes a second is a battery, not a feature. |
 | `say` | `text` | The user typed something. |
 | `listen` | — | Toggle listening. |
 | `hush` | — | Stop speaking and abandon the current reply. |
@@ -171,8 +172,29 @@ if the stream stops, rather than freezing the last value.
 
 A local WebSocket is reachable by anything running on the machine, so:
 
-- The listener binds **`127.0.0.1` only** — never `0.0.0.0`. Nothing off-machine can reach
-  it without a deliberate tunnel.
+- The listener binds **`127.0.0.1` by default** — never `0.0.0.0`. Nothing off-machine can
+  reach it without a deliberate tunnel.
+
+### Remote faces (v0.14.0, off by default)
+
+`RemoteAccess: true` binds every interface as well, so a phone or a wall tablet can
+attach. It changes the authentication rules rather than relaxing them:
+
+| Where from | Accepts |
+|---|---|
+| Loopback | the per-run `token`, **or** the remote key |
+| Anywhere else | the remote **key only**, and only when `RemoteAccess` is on |
+
+The per-run token is deliberately *not* accepted remotely: it is written to the log and
+carried in a URL, and it is scoped to a process on this machine. The remote key lives in
+`<data>\remote.key`, survives restarts — a phone cannot re-pair every time she starts —
+and is presented as `?key=...`. Regenerating it revokes every device at once, which is
+the whole revocation story: there is no per-device list.
+
+**The key is one shared secret in front of a microphone and, later, a house.** That is
+enough behind Tailscale or Wireguard, where "every interface" means the tailnet and the
+LAN. It is *not* enough behind a forwarded port, and the host logs a warning saying so
+every time remote access starts.
 - Every connection must present a **token** generated fresh at each start:
   `ws://127.0.0.1:<port>/?token=<token>`. A connection without it is refused at the
   handshake with `401` and never becomes a WebSocket.

@@ -103,7 +103,7 @@ const rig = {
      driven by beats actually detected rather than by a clock running here — the host is
      the one listening, and a face that guessed would drift out of time. */
   music: false, bpm: 0, energy: 0,
-  beat: 0, beats: 0, sway: 0, headphones: 0,
+  beat: 0, beats: 0, sway: 0, headphones: 0, dance: 0,
 
   /* Set by the dev panel to drive something the host would normally own. Null means
      "nobody is holding this", which is the state everything ships in. */
@@ -175,6 +175,13 @@ function tick() {
     rolT += rig.sway * 0.075 * force;
     yawT += rig.sway * 0.10 * force;
   }
+
+  /* How much of her is dancing. Eased rather than switched, so she settles into it and
+     out of it instead of snapping — and scaled by energy, so a quiet passage moves her
+     less rather than moving her the same amount intermittently. */
+  const danceTarget = rig.music && !reduced ? 0.35 + rig.energy * 0.65 : 0;
+  rig.dance = lerp(rig.dance, danceTarget, 1 - Math.pow(0.25, dt));
+  avatar.setDance?.(rig.dance, rig.sway, rig.beat);
 
   rig.yaw = lerp(rig.yaw, yawT, 1 - Math.pow(0.02, dt));
   rig.pitch = lerp(rig.pitch, pitT, 1 - Math.pow(0.02, dt));

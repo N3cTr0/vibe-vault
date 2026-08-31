@@ -52,7 +52,7 @@ internal static class MicProbe
         var peakSeen = 0f;
         for (var i = 0; i < seconds; i++)
         {
-            var peak = Octavia.Diagnostics.SystemReport.Peak(standard, TimeSpan.FromSeconds(1));
+            var peak = Octavia.Diagnostics.SystemReport.PeakAsync(standard, TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
             if (peak > peakSeen) peakSeen = peak;
             Console.WriteLine($"  {i + 1}s  peak so far {peakSeen:0.000}");
         }

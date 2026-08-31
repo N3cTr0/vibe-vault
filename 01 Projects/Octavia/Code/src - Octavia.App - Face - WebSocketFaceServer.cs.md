@@ -29,7 +29,32 @@ internal sealed class WebSocketFaceServer : IDisposable
 {
     private const string HandshakeGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-    private readonly ConcurrentDictionary<Guid, WebSocket> _faces = new();
+    /// One attached face, and what it has asked not to be sent.
+    ///
+    /// A renderer wants visemes sixty times a second; a phone in a pocket wants a
+    /// caption and the state of the house. Sending the first to the second is not merely
+    /// wasteful, it is the difference between a usable mobile client and one that eats a
+    /// battery over a mobile connection. `hello` already describes what the *host* can
+    /// do; `subscribe` is the other half of that conversation.
+    private sealed class Face(WebSocket socket)
+    {
+        public WebSocket Socket { get; } = socket;
+
+        /// Replaced wholesale rather than mutated. `subscribe` arrives on this
+        /// connection's receive thread while `Broadcast` reads this from whichever
+        /// thread produced a viseme — and a HashSet being cleared and refilled under a
+        /// concurrent `Contains` is a genuine race, not a theoretical one. Swapping a
+        /// reference is atomic; editing a set is not.
+        private volatile IReadOnlySet<string> _skip = new HashSet<string>();
+
+        public IReadOnlySet<string> Skip
+        {
+            get => _skip;
+            set => _skip = value;
+        }
+    }
+
+    private readonly ConcurrentDictionary<Guid, Face> _faces = new();
     private readonly CancellationTokenSource _stopping = new();
     private TcpListener? _listener;
     private bool _disposed;
@@ -41,14 +66,27 @@ internal sealed class WebSocketFaceServer : IDisposable
     public int FaceCount => _faces.Count;
     public bool IsRunning => _listener is not null;
 
+    /// Whether a face on another machine may connect at all. Off means loopback only,
+    /// which is what she has always been and remains the default.
+    public bool Remote { get; private set; }
+
     /// Returns false when the port could not be bound; the host then runs on the
     /// WebView2 channel alone rather than refusing to start.
-    public bool Start(int port)
+    public bool Start(int port, bool remote = false)
     {
+        Remote = remote;
+
         try
         {
-            // Loopback only. Binding 0.0.0.0 would expose her to the network.
-            _listener = new TcpListener(IPAddress.Loopback, port);
+            /* Loopback unless told otherwise. Binding every interface is what makes a
+               phone possible and is also the single riskiest line in the project, which
+               is why it is opt-in, logged loudly, and gated behind a separate key.
+
+               It is still not a security boundary on its own: the intended deployment is
+               Tailscale or Wireguard, where "every interface" means the tailnet and the
+               LAN rather than the internet. A forwarded port would put a microphone and
+               a house controller on the public internet behind one shared secret. */
+            _listener = new TcpListener(remote ? IPAddress.Any : IPAddress.Loopback, port);
             _listener.Start();
             Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         }
@@ -61,6 +99,12 @@ internal sealed class WebSocketFaceServer : IDisposable
 
         _ = Task.Run(AcceptLoop);
         Log.Write($"face socket listening on ws://127.0.0.1:{Port}/?token={Token}");
+
+        if (remote)
+            Log.Warn($"face socket is ALSO listening on every interface, port {Port}. " +
+                     "Remote faces must present the remote key. Reach it over Tailscale or " +
+                     "Wireguard, never a forwarded port.");
+
         return true;
     }
 
@@ -100,7 +144,8 @@ internal sealed class WebSocketFaceServer : IDisposable
             var request = await ReadRequestAsync(stream);
             if (request is null) { client.Close(); return; }
 
-            if (!Authorised(request.Value.Target))
+            var from = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+            if (!Authorised(request.Value.Target, from))
             {
                 Log.Write("face socket refused a connection with a bad or missing token");
                 await WriteAsync(stream, "HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
@@ -127,10 +172,11 @@ internal sealed class WebSocketFaceServer : IDisposable
             socket = WebSocket.CreateFromStream(stream, isServer: true,
                 subProtocol: null, keepAliveInterval: TimeSpan.FromSeconds(30));
 
-            _faces[id] = socket;
+            var face = new Face(socket);
+            _faces[id] = face;
             Log.Write($"face connected over socket ({_faces.Count} attached)");
 
-            await ReceiveLoopAsync(socket);
+            await ReceiveLoopAsync(face);
         }
         catch (Exception ex)
         {
@@ -144,8 +190,9 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
     }
 
-    private async Task ReceiveLoopAsync(WebSocket socket)
+    private async Task ReceiveLoopAsync(Face face)
     {
+        var socket = face.Socket;
         var buffer = new byte[8192];
         var message = new MemoryStream();
 
@@ -186,6 +233,16 @@ internal sealed class WebSocketFaceServer : IDisposable
             try
             {
                 using var doc = JsonDocument.Parse(text);
+
+                // `subscribe` is answered here rather than relayed: it is about this one
+                // connection, and the session has no notion of which face asked.
+                if (doc.RootElement.TryGetProperty("type", out var kind) &&
+                    kind.GetString() == "subscribe")
+                {
+                    Subscribe(face, doc.RootElement);
+                    continue;
+                }
+
                 MessageReceived?.Invoke(doc.RootElement.Clone());
             }
             catch (Exception ex)
@@ -195,15 +252,21 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
     }
 
-    public void Broadcast(string json)
+    /// `type` is passed in rather than parsed out: this is called for every viseme, and
+    /// re-reading the JSON sixty times a second to learn what we just serialised would
+    /// be work done purely to discard it.
+    public void Broadcast(string json, string? type = null)
     {
         if (_faces.IsEmpty) return;
 
-        var bytes = Encoding.UTF8.GetBytes(json);
-        foreach (var (id, socket) in _faces)
+        byte[]? bytes = null;
+        foreach (var (id, face) in _faces)
         {
-            if (socket.State != WebSocketState.Open) continue;
-            _ = SendAsync(id, socket, bytes);
+            if (face.Socket.State != WebSocketState.Open) continue;
+            if (type is not null && face.Skip.Contains(type)) continue;
+
+            bytes ??= Encoding.UTF8.GetBytes(json);
+            _ = SendAsync(id, face.Socket, bytes);
         }
     }
 
@@ -221,23 +284,81 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
     }
 
-    private bool Authorised(string target)
+    /// `{ "type": "subscribe", "skip": ["viseme", "level"] }`
+    ///
+    /// Opt-*out* rather than opt-in, deliberately: a face that says nothing keeps getting
+    /// everything, so no existing renderer changes behaviour and a new message type
+    /// reaches old clients rather than being silently withheld from them.
+    private static void Subscribe(Face face, JsonElement message)
+    {
+        var wanted = new HashSet<string>();
+
+        if (message.TryGetProperty("skip", out var skip) && skip.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var entry in skip.EnumerateArray())
+                if (entry.GetString() is { Length: > 0 } name) wanted.Add(name);
+        }
+
+        face.Skip = wanted;
+
+        Log.Write(face.Skip.Count == 0
+            ? "face subscribed to everything"
+            : $"face skipping: {string.Join(", ", face.Skip)}");
+    }
+
+    /// Who may connect, and with what.
+    ///
+    /// A connection from this machine may use the per-run token, which is what the
+    /// built-in page and `attach-face.ps1` hold. **A connection from anywhere else may
+    /// not** — that token is handed out in the log and in a URL, and it is scoped to a
+    /// process on this box. A remote face presents the durable remote key instead, and
+    /// only when remote access was switched on at start.
+    private bool Authorised(string target, IPAddress? from)
     {
         var query = target.IndexOf('?');
         if (query < 0) return false;
+
+        string? token = null, key = null;
 
         foreach (var pair in target[(query + 1)..].Split('&'))
         {
             var eq = pair.IndexOf('=');
             if (eq < 0) continue;
-            if (!pair[..eq].Equals("token", StringComparison.OrdinalIgnoreCase)) continue;
 
-            // Fixed-time compare so the token cannot be guessed a character at a time.
-            return CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(Uri.UnescapeDataString(pair[(eq + 1)..])),
-                Encoding.UTF8.GetBytes(Token));
+            var name = pair[..eq];
+            var value = Uri.UnescapeDataString(pair[(eq + 1)..]);
+
+            if (name.Equals("token", StringComparison.OrdinalIgnoreCase)) token = value;
+            else if (name.Equals("key", StringComparison.OrdinalIgnoreCase)) key = value;
         }
 
+        var local = from is not null && IPAddress.IsLoopback(from);
+
+        if (local)
+        {
+            // Fixed-time compare so the token cannot be guessed a character at a time.
+            if (token is not null && CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(token), Encoding.UTF8.GetBytes(Token)))
+                return true;
+
+            // A local client may also use the remote key, which is what makes it
+            // testable from this machine without opening the socket to the network.
+            return RemoteKey.Matches(key);
+        }
+
+        if (!Remote)
+        {
+            Log.Warn($"refused a face from {from}: remote access is off");
+            return false;
+        }
+
+        if (RemoteKey.Matches(key))
+        {
+            Log.Write($"remote face authorised from {from}");
+            return true;
+        }
+
+        Log.Warn($"refused a face from {from}: bad or missing remote key");
         return false;
     }
 
@@ -285,7 +406,7 @@ internal sealed class WebSocketFaceServer : IDisposable
         _stopping.Cancel();
         try { _listener?.Stop(); } catch (Exception ex) { Log.Write($"face socket stop: {ex.Message}"); }
 
-        foreach (var socket in _faces.Values) socket.Dispose();
+        foreach (var face in _faces.Values) face.Socket.Dispose();
         _faces.Clear();
         _stopping.Dispose();
     }

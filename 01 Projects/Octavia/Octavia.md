@@ -25,7 +25,8 @@ tags: [octavia, moc]
 - [[Face Protocol]] — the host/face message contract, version 1
 - [[Conventions & Security Model]] — the rules every change must follow
 - [[Build & Release]] — dev builds, publish, moving her to another PC, versioning
-- [[Moving To The New Machine]] — **read first after the move off the VM**
+- [[Overnight 08-31]] — **read this first**: what changed overnight, what needs you, and the open questions
+- [[Moving To The New Machine]] — read after the move off the VM
 - [[Restore From Snapshot]] — rebuilding the source when the vault is all that survived
 - [[Lessons Learned]] — the expensive ones, so we never pay twice
 - [[Changelog]] — full version history (mirror of `versions.md`)

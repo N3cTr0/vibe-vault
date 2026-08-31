@@ -16,6 +16,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.14.0 — 2026-08-31
+
+**A door she can open to a phone, and a body that moves when the music does.** MINOR: a
+new transport mode and a changed performance.
+
+### Stage 13 — the groundwork, which is not the app
+
+Steps 1–4 of the stage, all of which live in this repo. The Android client does not, and
+is not pretended to.
+
+- **`RemoteAccess`** binds every interface as well as loopback. Off by default, logged
+  loudly when on, and the single riskiest line in the project — which is why it is a
+  switch rather than a default.
+- **`remote.key`** — a durable, readable, groupable secret in her data folder. The per-run
+  token is regenerated every start, which is right for a page the host loads a second
+  later and useless for a phone in a pocket. **The per-run token is not accepted from off
+  the machine at all**: it is written to the log and carried in a URL. Regenerating the
+  key revokes every device at once, which is the whole revocation story.
+- **`subscribe`** — a face may name message types it does not want. Opt-*out*, so a face
+  that never sends it keeps getting everything and no existing renderer changes. A phone
+  sends `{"skip":["viseme","level"]}`, because sixty visemes a second is a battery rather
+  than a feature.
+- **The network decision, written down** in PROTOCOL.md: Tailscale or Wireguard, never a
+  forwarded port. One shared secret in front of a microphone and a house is enough behind
+  a tunnel and is not enough on the open internet.
+
+### She dances with more than her head
+
+Head-only movement reads as listening. A person moving to music moves from the hips, and
+the shoulders and arms follow a beat late. `setDance(amount, sway, beat)` joins the avatar
+interface: hips, spine, chest and arms, every bone written as rest + offset so the idle
+pose is not lost the moment the music starts, and the chest counter-rotating against the
+hips because a torso does that and a board does not. Small angles throughout — the line
+between dancing and convulsing on an anime rig is about fifteen degrees. The bust ignores
+it, having no body to move.
+
+### Audit
+
+- **A race in the code written an hour earlier.** The per-connection `skip` set was a
+  `HashSet` written on one connection's receive thread and read by `Broadcast` from
+  whichever thread produced a viseme. It is an immutable set swapped by reference now:
+  replacing a reference is atomic, editing a set under a concurrent read is not.
+- **`WasapiCapture` is obsolete** in this NAudio, and the peak probe was the only thing
+  still using it — two capture paths in one codebase is how a diagnostic ends up
+  disagreeing with the thing it diagnoses. It is `WasapiRecorderBuilder` now, the same as
+  the loopback, sharing the same `AudioSamples` decoder. `Peak` became `PeakAsync`.
+- The probe now says when **no buffers arrived at all**, which is the one thing a peak of
+  zero cannot tell you on its own: a quiet room and a dead device read identically
+  otherwise.
+- Build is clean: **no errors and no warnings**.
+
+---
+
 ## 0.13.0 — 2026-08-31
 
 **A splash, a room with air in it, and the beginnings of hands.** MINOR: a new subsystem

@@ -36,7 +36,8 @@ internal static class SelfTest
         // line for those in a bundle taken while she is stopped would only mislead.
         if (host.Running) checks.AddRange([Transport(host), Renderer(host)]);
 
-        checks.AddRange([Microphone(config), SpeechModel(config), Voice(config, host), Avatar(config),
+        checks.Add(await Microphone(config));
+        checks.AddRange([SpeechModel(config), Voice(config, host), Avatar(config),
                          Music(config, host), Camera(config), Gate(config)]);
 
         checks.Add(await BrainAsync(config, host, cancel));
@@ -99,7 +100,7 @@ internal static class SelfTest
 
     /// The failure this one is really for: a capture device that opens successfully and
     /// delivers pure digital silence, which looks identical to her ignoring you.
-    private static Check Microphone(OctaviaConfig config)
+    private static async Task<Check> Microphone(OctaviaConfig config)
     {
         try
         {
@@ -119,7 +120,7 @@ internal static class SelfTest
                     "Clear MicrophoneDevice to follow the Windows default, or pick one of: " +
                     string.Join(", ", endpoints.Select(d => d.Name)));
 
-            var peak = SystemReport.Peak(device, TimeSpan.FromSeconds(1.5));
+            var peak = await SystemReport.PeakAsync(device, TimeSpan.FromSeconds(1.5));
             var reading = peak.ToString("0.000", CultureInfo.InvariantCulture);
 
             // Three outcomes, not two. The failure worth catching is a device that

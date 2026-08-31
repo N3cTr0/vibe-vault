@@ -182,6 +182,16 @@ internal sealed class OctaviaConfig
     /// substring against the device label.
     public string CameraDevice { get; set; } = "";
 
+    /// Whether a face on another machine may connect — a phone, a wall tablet.
+    ///
+    /// **Off by default and worth leaving off until the network part is done.** On, the
+    /// face socket binds every interface instead of loopback, and a remote face must
+    /// present the durable key in `remote.key` rather than the per-run token. That key is
+    /// one shared secret in front of a microphone and, later, a house: it is enough
+    /// behind Tailscale or Wireguard, and it is *not* enough behind a forwarded port.
+    /// See ROADMAP.md stage 13.
+    public bool RemoteAccess { get; set; }
+
     /// The MCP servers that give her hands, keyed by the name their tools are prefixed
     /// with. Empty — the default — means she can talk and nothing else, which is the
     /// right state for a machine that has not been told what it is allowed to touch.

@@ -53,7 +53,10 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
         // Serialise once, however many faces are attached.
         var json = JsonSerializer.Serialize(message, Json);
         _page?.SendJson(json);
-        _sockets?.Broadcast(json);
+
+        // The type is read off the object rather than back out of the JSON, so a face
+        // that has opted out of visemes costs nothing to skip.
+        _sockets?.Broadcast(json, message.GetType().GetProperty("type")?.GetValue(message) as string);
     }
 
     public void Dispose()

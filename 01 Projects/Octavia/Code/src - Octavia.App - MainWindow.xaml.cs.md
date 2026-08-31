@@ -102,7 +102,7 @@ public partial class MainWindow : Window
         };
 
         _sockets = new WebSocketFaceServer();
-        var socketUp = _sockets.Start(_config.FacePort);
+        var socketUp = _sockets.Start(_config.FacePort, _config.RemoteAccess);
 
         _hub = new FaceHub(new WebViewFaceTransport(Face), socketUp ? _sockets : null);
         _session = new OctaviaSession(_config, _hub);

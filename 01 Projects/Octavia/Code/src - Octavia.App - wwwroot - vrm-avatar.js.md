@@ -62,6 +62,21 @@ export async function loadVrmAvatar(url) {
   rest('leftShoulder', 0, 0, -0.06);
   rest('rightShoulder', 0, 0, 0.06);
 
+  /* Dancing needs a body, and a body needs a rest position to move *from*.
+     The idle above is the only pose the format does not supply, so it is also the only
+     thing a dance can be an offset of — applying rotations absolutely would snap her
+     arms back to a T-pose the moment the music started. */
+  const DANCE_BONES = ['hips', 'spine', 'chest', 'upperChest',
+                       'leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm'];
+  const restPose = new Map();
+  for (const name of DANCE_BONES) {
+    const node = vrm.humanoid?.getNormalizedBoneNode(name);
+    if (node) restPose.set(name, { node, x: node.rotation.x, y: node.rotation.y, z: node.rotation.z });
+  }
+
+  const hips = restPose.get('hips')?.node ?? null;
+  const hipsRestY = hips ? hips.position.y : 0;
+
   // Look at a point she can be told to move, rather than posing the eyes by hand.
   const gazeTarget = new THREE.Object3D();
   root.add(gazeTarget);
@@ -141,7 +156,8 @@ export async function loadVrmAvatar(url) {
   const state = {
     shape: null, weight: 0, smoothed: 0,
     expression: 'neutral', expressionWeight: 0, applied: {},
-    blink: 0, gazeX: 0, gazeY: 0, breathe: 1
+    blink: 0, gazeX: 0, gazeY: 0, breathe: 1,
+    dance: 0, danceSway: 0, danceBeat: 0
   };
 
   function set(name, value) {
@@ -180,6 +196,15 @@ export async function loadVrmAvatar(url) {
       if (head) head.rotation.set(pitch, yaw, roll);
     },
 
+    /** How much of her is moving to the music.
+        `amount` 0–1 eases the whole thing in and out, `sway` is the bar-length
+        oscillation the face already computes, and `beat` is the per-beat impulse. */
+    setDance(amount, sway, beat) {
+      state.dance = amount;
+      state.danceSway = sway;
+      state.danceBeat = beat;
+    },
+
     update(dt, elapsed) {
       state.smoothed += (state.weight - state.smoothed) * (1 - Math.pow(0.004, dt));
 
@@ -204,6 +229,44 @@ export async function loadVrmAvatar(url) {
         headPoint.z + 1.0);
 
       root.position.y = Math.sin(elapsed * 0.62) * 0.006 * state.breathe;
+
+      /* The dance.
+
+         Head movement alone reads as listening, not dancing — a person moving to music
+         moves from the hips, and the shoulders and arms follow a beat late. Every bone
+         here is written as rest + offset, and the offsets are small: an anime rig will
+         happily bend into shapes no shoulder makes, and the line between dancing and
+         convulsing is about fifteen degrees.
+
+         Counter-rotation is what sells it. The chest turns *against* the hips rather
+         than with them, which is what a torso actually does and what stops the whole
+         body reading as one board being waved. */
+      const dance = state.dance ?? 0;
+      if (restPose.size > 0) {
+        const s = (state.danceSway ?? 0) * dance;
+        const b = (state.danceBeat ?? 0) * dance;
+        const put = (name, x, y, z) => {
+          const rest = restPose.get(name);
+          if (rest) rest.node.rotation.set(rest.x + x, rest.y + y, rest.z + z);
+        };
+
+        put('hips', b * 0.05, s * 0.13, s * 0.075);
+        put('spine', -b * 0.035, s * -0.05, s * -0.055);
+        put('chest', -b * 0.02, s * -0.07, s * -0.045);
+        put('upperChest', 0, s * -0.04, s * -0.03);
+
+        // Arms swing on the opposite phase to each other, and lag the bar slightly so
+        // they trail the body rather than moving with it.
+        const swing = Math.sin(elapsed * 2.0) * dance;
+        put('leftUpperArm', swing * 0.10, 0, s * 0.16 + b * 0.07);
+        put('rightUpperArm', -swing * 0.10, 0, s * 0.16 - b * 0.07);
+        put('leftLowerArm', 0, 0, -Math.abs(s) * 0.14 - b * 0.10);
+        put('rightLowerArm', 0, 0, Math.abs(s) * 0.14 + b * 0.10);
+
+        // A knee-bend she does not have bones for, faked by dropping the hips on the
+        // beat. Small: a centimetre reads as a bounce, five reads as a fault.
+        if (hips) hips.position.y = hipsRestY - b * 0.012 * dance;
+      }
 
       // Applies expressions, look-at and the spring bones that make hair move.
       vrm.update(dt);
