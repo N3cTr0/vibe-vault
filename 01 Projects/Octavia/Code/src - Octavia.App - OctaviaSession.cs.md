@@ -43,6 +43,12 @@ internal sealed class OctaviaSession : IDisposable
     private bool _responding;
     private bool _wantsToListen;
     private bool _faceBuilt;
+    private bool _faceSpoke;
+
+    /// Whether the face has ever said `ready`. A renderer whose JavaScript failed to parse
+    /// never runs the code that reports errors, so silence is the only symptom the host can
+    /// observe — and silence is what nothing was watching for. See ROADMAP.md stage 10a.
+    internal bool FaceSpoke => _faceSpoke;
     private Mood _mood = Mood.Neutral;
     private float _lastSentLevel = -1f;
     private bool _disposed;
@@ -287,6 +293,7 @@ internal sealed class OctaviaSession : IDisposable
         switch (typeNode.GetString())
         {
             case "ready":
+                _faceSpoke = true;
                 _faceBuilt = message.TryGetProperty("faceBuilt", out var b) && b.ValueKind == JsonValueKind.True;
                 if (_faceBuilt) Log.Write("face ready; scene built");
                 else Log.Warn("face ready but the scene did not build - check WebGL support and the browser console");

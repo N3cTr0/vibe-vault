@@ -18,16 +18,35 @@ internal sealed class OctaviaConfig
 {
     /// Which named entry in Profiles to overlay on the settings below. A --profile
     /// argument wins over this, and OCTAVIA_PROFILE sits between the two.
-    public string Profile { get; set; } = "live";
+    public string Profile { get; set; } = "home";
 
     /// Named overrides, so one machine can be a cheap test rig and another the real
     /// thing without hand-editing four keys each time.
+    ///
+    /// `home` is the intended primary and the default: she runs on the local model, which
+    /// costs nothing, needs no key and works with the network down. `cloud` is for the
+    /// times Claude is actually wanted. `dev` is `home` with a smaller Whisper, for a
+    /// machine that cannot carry the good one.
+    ///
+    /// `live` is kept because existing config files name it. It resolves to the same
+    /// thing `cloud` does, so an older file keeps behaving exactly as it did.
     public Dictionary<string, JsonObject> Profiles { get; set; } = new()
     {
+        ["home"] = new JsonObject
+        {
+            ["Brain"] = "local",
+            ["WhisperModel"] = "large-v3-turbo",
+            ["Recognizer"] = "whisper"
+        },
+        ["cloud"] = new JsonObject
+        {
+            ["Brain"] = "claude",
+            ["WhisperModel"] = "large-v3-turbo",
+            ["Recognizer"] = "whisper"
+        },
         ["dev"] = new JsonObject
         {
             ["Brain"] = "local",
-            ["LocalModel"] = "llama3.2:3b",
             ["WhisperModel"] = "small.en",
             ["Recognizer"] = "whisper"
         },
@@ -43,8 +62,13 @@ internal sealed class OctaviaConfig
     /// port makes an external face's URL stable across restarts. See PROTOCOL.md.
     public int FacePort { get; set; } = 8848;
 
-    /// "claude" for the real thing, "local" for an OpenAI-compatible server.
-    public string Brain { get; set; } = "claude";
+    /// "local" for an OpenAI-compatible server, "claude" for the hosted model.
+    ///
+    /// Local is the base default deliberately. An unnamed or misspelled profile falls
+    /// back to these settings, and falling back to a brain that refuses every turn
+    /// without an API key is the worst of the available failures — she looks broken
+    /// rather than limited. Local needs nothing and works offline.
+    public string Brain { get; set; } = "local";
 
     public string Model { get; set; } = "claude-sonnet-5";
     public int MaxTokens { get; set; } = 1024;
@@ -300,7 +324,10 @@ internal sealed class OctaviaConfig
 
         if (!Profiles.TryGetValue(wanted, out var overrides))
         {
-            Log.Write($"profile '{wanted}' ({source}) is not defined; using the base settings");
+            // A warning, not a note. A misspelled profile silently falls back to the base
+            // settings, which is how a machine ends up running something nobody chose.
+            Log.Warn($"profile '{wanted}' ({source}) is not defined; using the base settings " +
+                     $"(brain={Brain}, whisper={WhisperModel}). Defined: {string.Join(", ", Profiles.Keys)}");
             return this;
         }
 

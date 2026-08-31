@@ -18,6 +18,58 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.19.3 — 2026-08-31
+
+**Four roadmap bugs closed, one of which was live.** MINOR-adjacent but PATCH: nothing
+changes shape, but her default brain does.
+
+**She was one shortcut away from being mute.** The config on this machine said
+`Profile: "live"` → `Brain: "claude"`, and no key has ever been stored — so every turn
+would have hit "No API key yet. Paste one below and try again." She worked only because
+the shortcut passes `--profile dev`. Started any other way, from the exe, from
+`dotnet run`, from a fresh shortcut, she could not answer at all. The API-key nag that
+was cluttering her face in 0.18.x was this, correctly reporting a real misconfiguration.
+
+Stage 10's local-first profiles are now built, and the important half is not the new
+names: **base `Brain` defaults to `local`**. An unnamed or misspelled profile falls back
+to the base settings, and a keyless Claude is the worst possible thing to fall back to —
+she looks broken rather than limited. Shipped profiles are `home` (local,
+`large-v3-turbo`, the default), `cloud` (Claude) and `dev` (local, `small.en`). `live`
+still resolves to what it always meant, so no existing config changes behaviour. An
+undefined profile is now a **warning** that names the ones that exist; it was an info
+line, which is exactly how this hid.
+
+**Stage 10a is closed, both halves.** `EarsTest` gained `SyntaxChecks`, which takes the
+option that entry preferred: load the real page in the WebView2 already on the dependency
+list and let Chromium parse it. No hand-rolled parser, no Node, same engine that runs it
+for real, and served from the same virtual `https://` origin so the CSP behaves as it does
+in the app. It asserts no `SyntaxError`, `window.Face` published, and that the bridge would
+have sent `ready`.
+
+It was proved by breaking it. An orphan `});` appended to `bridge.js` — the v0.18.0 fault
+exactly — turns it red and names the file and line, with `window.Face` still fine and
+`ready` missing, which is that bug's precise signature. The host half, `WatchForFace`,
+gives the face 30 seconds to say `ready` and otherwise logs an error and shows the
+fallback panel: a surface that survives the renderer being dead, which is the whole point.
+
+**Stage 2a is closed.** `LocalBrain`'s streaming loop reads to null instead of testing
+`EndOfStream`, so it no longer blocks a thread pool thread waiting for the token it then
+politely awaits. The build is at **zero warnings**. The audit that entry asked for came
+back clean: `EndOfStream` occurred exactly once in the project.
+
+**Docs.** `README.md` described a console that has not existed since 0.18.0 and opened by
+calling her "a talking bust with Claude behind her" — both halves of that are now wrong.
+It documents the drawer and its tabs, the typing button, the status-readout setting and
+the local-first default. `PROTOCOL.md` turned out to already carry `camera` in both the
+`hello` table and its own `look`/`sight` section, so that item was closed before it was
+opened.
+
+*A check nobody has watched fail is not a check. The syntax check was written, passed
+immediately, and that proved nothing — the only informative run was the one against a
+deliberately broken file.*
+
+---
+
 ## 0.19.2 — 2026-08-31
 
 **The typing field stays where you left it.** PATCH.

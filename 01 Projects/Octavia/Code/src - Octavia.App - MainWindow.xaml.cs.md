@@ -114,6 +114,40 @@ public partial class MainWindow : Window
             : $"https://{FaceHost}/index.html";
 
         Face.CoreWebView2.Navigate(address);
+        WatchForFace();
+    }
+
+    /// How long the face gets to say `ready` before the host stops believing in it.
+    /// `ready` is sent when the socket opens, not when the scene finishes building, so
+    /// this is many times longer than it should ever need — the cost of being wrong here
+    /// is hiding a working face, so it is deliberately generous.
+    private static readonly TimeSpan FaceGrace = TimeSpan.FromSeconds(30);
+
+    /// A JavaScript parse error in `wwwroot` is invisible to `dotnet build` and to the
+    /// test harness: the build goes green and the face is simply dead. The page cannot
+    /// report it either, because the file that never parsed never runs the error handler.
+    /// The one thing the host can observe is that `ready` never arrived — so it watches
+    /// for that, and says so somewhere that does not depend on the renderer working.
+    /// See ROADMAP.md stage 10a.
+    private void WatchForFace()
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = FaceGrace };
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (_session?.FaceSpoke != false) return;
+
+            Log.Error($"the face never sent 'ready' within {FaceGrace.TotalSeconds:0}s - " +
+                      "its scripts most likely failed to parse; open the browser console");
+
+            ShowFallback(
+                "Octavia's face did not start.\n\nThe window loaded but her renderer never " +
+                "reported in, which usually means one of her script files has a syntax error. " +
+                "Her log has the detail, and the tray menu can still save a diagnostics bundle.");
+        };
+
+        timer.Start();
     }
 
     private void ShowFallback(string message)

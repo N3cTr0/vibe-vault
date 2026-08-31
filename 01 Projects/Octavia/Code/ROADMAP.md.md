@@ -540,15 +540,28 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
    textured, zero errors, verified in the browser and in WebView2. The missing
    `setKTX2Loader` is still a genuine latent gap for a model that needs it — but it was
    not this, and neither was the lighting.
-2. **Local-first profiles.** Agreed but not built: she should run mainly on the local
-   model, with Claude added later for specific things. Concretely — base `Brain` default
-   becomes `local`; the shipped profiles become `home` (local brain, good Whisper — the
-   intended primary), `cloud` (Claude), and `dev` (local brain, `small.en`, for a weak
-   machine); default `Profile` becomes `home`. Existing `config.json` files carry
-   `dev`/`live`, so either migrate them or keep both names working.
-3. **Docs and vault for the Stage 10 work** — `README.md` still describes the old
-   console, `PROTOCOL.md` has no `camera` field note for the button, and there is no
-   vault note for the rebuilt console. Screenshots for v0.10.0 have not been taken.
+2. ~~**Local-first profiles.**~~ **Done 08/31/2026, v0.19.3** — and it was not cosmetic.
+   The live `config.json` on this machine said `Profile: "live"` → `Brain: "claude"` with
+   **no key stored**, so every turn would have been refused with "No API key yet". She only
+   worked because the shortcut passes `--profile dev`; started any other way she was mute.
+   That is also where the API-key nag came from.
+
+   `home` (local, `large-v3-turbo`), `cloud` (Claude) and `dev` (local, `small.en`) are the
+   shipped profiles, `Profile` defaults to `home`, and **base `Brain` defaults to `local`** —
+   which is the part that matters, because an unnamed or misspelled profile falls back to the
+   base and a keyless Claude is the worst thing to fall back to. `live` still resolves, so
+   older config files are untouched. An undefined profile is now a **warning** naming the
+   ones that exist; it used to be an info line, which is how this went unnoticed.
+
+   Verified by launching her with no `--profile` at all: `profile 'home' (config file):
+   brain=local` and `brain: qwen2.5:7b-cpu (local)`.
+3. **Docs and vault for the Stage 10 work.** *Mostly done 08/31/2026, v0.19.3.*
+   `README.md` now describes the drawer and its tabs, the typing button, the status-readout
+   setting, and the local-first default — its opening line and the "two brains" section both
+   claimed Claude was her mind, which stopped being true this release. `PROTOCOL.md` turned
+   out to already document `camera`, in both the `hello` table and its own `look`/`sight`
+   section, so that item was already closed. The vault gained *Chrome over the room* in
+   [[The Room]] at 0.19.1. **Still open: screenshots for v0.10.0 onward have not been taken.**
 4. **Re-take the Stage 10 exit test** on the new machine, from an actual sofa.
 
 ---
@@ -585,7 +598,13 @@ the frames the voice detector already reads. **Not yet verified against real roo
 reported 141 bpm at confidence 0.49 through the microphone. The lower confidence against
 loopback's 1.00 is the room-and-boom-mic penalty, showing up exactly as predicted.
 
-## Stage 2a — The streaming loop blocks a thread on every token *(found 08/31/2026)*
+## ~~Stage 2a — The streaming loop blocks a thread on every token~~ *(done 08/31/2026)*
+
+**Fixed in v0.19.3.** `while (await reader.ReadLineAsync(cancel) is { } line)` — the peek is
+gone rather than worked around, and the build is at zero warnings. The audit the entry asked
+for came back clean: `EndOfStream` appeared exactly once in the whole project, and the other
+synchronous waits (`App.xaml.cs`, `SystemReport`, the dispose path) are all on threads that
+have nowhere else to be.
 
 **`LocalBrain.cs:96` is `while (!reader.EndOfStream)`, and `EndOfStream` is a synchronous
 read.** The compiler says so — CA2024, the one warning in an otherwise clean build — and it
@@ -616,7 +635,29 @@ Worth doing at the same time: **check whether anything else in the project reads
 this way.** CA2024 fires per call site, and one warning in the build output is easy to stop
 seeing — which is how this one survived several releases.
 
-## Stage 10a — Nothing checks the face's own syntax *(found 08/31/2026)*
+## ~~Stage 10a — Nothing checks the face's own syntax~~ *(done 08/31/2026)*
+
+**Both halves landed in v0.19.3.**
+
+`SyntaxChecks` takes the second option this entry proposed — it loads the real page in the
+WebView2 the app already depends on and lets Chromium do the parsing. No hand-rolled parser,
+no Node, and the same engine that will run it for real. It checks the virtual `https://`
+origin too, so the CSP behaves exactly as it does in the app rather than as a `file://` load
+would. It asserts three things: nothing raised a `SyntaxError`, `window.Face` was published,
+and the bridge would have sent `ready`.
+
+**Proved by breaking it.** Appending an orphan `});` to `bridge.js` — the v0.18.0 fault
+exactly — turns it red and names the file and line: `SyntaxError: Unexpected token '}'
+(https://octavia.face/bridge.js:848)`, with `window.Face` still ok and `ready` missing, which
+is the precise signature of that bug. A check nobody has watched fail is not yet a check.
+
+The host half is `MainWindow.WatchForFace`: 30 seconds after navigation, if the session has
+never seen a `ready`, it logs an error and shows the existing fallback panel — a surface that
+does not depend on the renderer working, which is the whole point. The grace is deliberately
+many times longer than needed, because `ready` is sent when the socket opens rather than when
+the scene finishes, and the cost of being wrong is hiding a working face.
+
+*Run it alone with `dotnet run --project tools/EarsTest -- syntax`.*
 
 **A JavaScript syntax error in `wwwroot` is invisible to everything this project has.**
 `dotnet build` does not read those files and `EarsTest` does not parse them, so the build

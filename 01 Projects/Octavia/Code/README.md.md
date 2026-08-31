@@ -9,9 +9,9 @@ source-path: README.md
 ```markdown
 # Octavia
 
-A talking bust with Claude behind her. A .NET desktop host owns the microphone, the
-voice, the API key and the conversation; a WebView2 renders the face and does nothing
-else.
+A talking avatar with a language model behind her — a local one by default, Claude when
+you ask for it. A .NET desktop host owns the microphone, the voice, the API key and the
+conversation; a WebView2 renders the face and does nothing else.
 
 ## Why it is split this way
 
@@ -44,15 +44,21 @@ legal face: the built-in page, a browser on a wall tablet, or an Unreal applicat
 dotnet run --project src/Octavia.App
 ```
 
-On first launch there is no API key. The console at the bottom of the window shows an
-API key field — paste an `sk-ant-...` key and press Store. It is sealed with DPAPI to
-your Windows account under `<data>\apikey.dat` and is never sent back to the
-page. `ANTHROPIC_API_KEY` is used instead when it is set.
+She runs on a local model by default, so there is nothing to pay for and no key to paste —
+see [Profiles](#profiles). To use Claude instead, switch to the `cloud` profile and put a
+key in **Settings → API key**: paste an `sk-ant-...` key and press Store. It is sealed with
+DPAPI to your Windows account under `<data>\apikey.dat` and is never sent back to the page.
+`ANTHROPIC_API_KEY` is used instead when it is set.
 
 - **Microphone button**, `Space`, or the tray menu toggles listening.
 - **Ctrl+Alt+O** wakes the window and toggles listening from anywhere.
 - **Esc** or **Hush** stops her mid-sentence.
-- **Log** opens the transcript; **Forget** clears her memory of the conversation.
+- **The keyboard button** opens a field for typing. It stays open until you close it or
+  leave it unused for a minute, and never discards a half-written line.
+- **The drawer** (top right) holds the Transcript, Settings and Health, each a tab.
+  **Forget** — in the Transcript tab — clears her memory of the conversation.
+- **Settings → Show the status readout** turns off the voice/ears/brain panel over her
+  top-left corner, for when you want to look at her rather than at her telemetry.
 - Closing the window hides her to the tray. Quit from the tray menu.
 
 ## Moving her to another PC
@@ -90,9 +96,10 @@ needs a speech recognizer for your language, under Settings, Time and language, 
 
 ## Two brains
 
-`Brain: "claude"` is her real mind. `Brain: "local"` points her at any server speaking
-the OpenAI-compatible chat API — Ollama, LM Studio, `llama-server` — so development
-costs nothing and works offline:
+`Brain: "local"` — the default — points her at any server speaking the OpenAI-compatible
+chat API: Ollama, LM Studio, `llama-server`. It costs nothing, needs no key and works
+offline. `Brain: "claude"` swaps in the hosted model for the things a small local one
+cannot do.
 
 ```
 ollama serve
@@ -109,9 +116,22 @@ slower to finish than a slower one that stops talking.
 
 ## Profiles
 
-The dev machine and the real one want opposite settings, so `config.json` carries both
-and one flag chooses. `dev` selects the local brain and `small.en`; `live` selects
-Claude and `large-v3-turbo`.
+Different machines want different settings, so `config.json` carries several and one flag
+chooses:
+
+| Profile | Brain | Whisper | For |
+|---|---|---|---|
+| `home` | local | `large-v3-turbo` | **The default.** Costs nothing, needs no key, works offline |
+| `cloud` | Claude | `large-v3-turbo` | When the hosted model is actually wanted |
+| `dev` | local | `small.en` | A machine that cannot carry the good speech model |
+
+`live` is still accepted and means what `cloud` means, so an older `config.json` keeps
+behaving exactly as it did.
+
+**The base settings are local too**, which matters more than it looks: an unnamed or
+misspelled profile falls back to them, and falling back to a brain that refuses every turn
+without an API key makes her look broken rather than limited. A profile name that is not
+defined is now a warning in the log naming the ones that are.
 
 Three ways to pick one, highest wins:
 
@@ -157,8 +177,8 @@ megabytes of downloaded artefacts, none of it source.
 
 | Key | Default | Notes |
 |---|---|---|
-| `Profile` | `live` | Which `Profiles` entry to overlay; `--profile` then `OCTAVIA_PROFILE` win |
-| `Brain` | `claude` | `claude` or `local` |
+| `Profile` | `home` | Which `Profiles` entry to overlay; `--profile` then `OCTAVIA_PROFILE` win |
+| `Brain` | `local` | `local` or `claude` |
 | `Model` | `claude-sonnet-5` | Cheaper and newer than Sonnet 4.6 |
 | `LocalEndpoint` | `http://localhost:11434/v1` | Ollama's default; any OpenAI-compatible server works |
 | `LocalModel` | `llama3.2:3b` | Must be pulled on that server first |

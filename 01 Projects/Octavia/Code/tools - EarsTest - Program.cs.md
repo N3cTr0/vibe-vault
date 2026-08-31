@@ -18,6 +18,7 @@ if (args.Length > 0 && args[0] == "mouth") { MouthProbe.Run(args.Length > 1 ? ar
 if (args.Length > 0 && args[0] == "music") { await MusicProbe.RunAsync(args.Length > 1 && args[1] == "demo", args.Length > 2 ? args[2] : null); return; }
 if (args.Length > 0 && args[0] == "beats") { Environment.Exit(MusicChecks.Run()); }
 if (args.Length > 0 && args[0] == "gate") { await GateProbe.RunAsync(); return; }
+if (args.Length > 0 && args[0] == "syntax") { Environment.Exit(SyntaxChecks.Run()); }
 if (args.Length > 0 && args[0] == "models")
 {
     await ModelProbe.RunAsync(args.Length > 1 ? args[1..] : ["llama3.2:3b-cpu"]);
@@ -107,6 +108,10 @@ failures += BrainChecks.Run();
 Console.WriteLine();
 Console.WriteLine("face and expression:");
 failures += FaceChecks.Run();
+
+Console.WriteLine();
+Console.WriteLine("the face's own scripts:");
+failures += SyntaxChecks.Run();
 
 Console.WriteLine();
 Console.WriteLine("voice:");

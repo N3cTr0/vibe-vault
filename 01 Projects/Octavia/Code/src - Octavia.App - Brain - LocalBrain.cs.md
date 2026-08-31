@@ -102,11 +102,15 @@ internal sealed class LocalBrain : IBrain
             await using var body = await response.Content.ReadAsStreamAsync(cancel);
             using var reader = new StreamReader(body);
 
-            while (!reader.EndOfStream)
+            // Read to null rather than testing EndOfStream: that property has to peek at
+            // the stream to answer, and on a server-sent-event response there is nothing
+            // to peek at until the model emits the next token. It blocked a thread pool
+            // thread for the length of every reply — worst on the CPU-pinned brain, which
+            // is the one that is slowest to produce a token.
+            while (await reader.ReadLineAsync(cancel) is { } line)
             {
                 if (cancel.IsCancellationRequested) break;
 
-                var line = await reader.ReadLineAsync(cancel);
                 if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:")) continue;
 
                 var payload = line[5..].Trim();
