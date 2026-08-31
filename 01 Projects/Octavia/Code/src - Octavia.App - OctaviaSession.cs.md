@@ -29,6 +29,10 @@ internal sealed class OctaviaSession : IDisposable
     private IVoice _voice;
     private readonly MicLevelMeter _meter = new();
     private readonly MusicWatcher _music = new();
+
+    /// A second analyser fed from the microphone, so a speaker in the room is not silence
+    /// to her. Only started when MusicFromRoom is on and her ears are open.
+    private readonly MusicWatcher _roomMusic = new();
     private readonly AttentionGate _gate;
     private readonly Brain.Tools.ToolRegistry _tools;
 
@@ -683,6 +687,26 @@ internal sealed class OctaviaSession : IDisposable
             {
                 var ears = await OpenEarsAsync();
                 ears.Recognized += OnHeard;
+
+                /* Room music. The microphone is already open and these are the very same
+                   frames the voice detector is reading, so hearing a speaker across the
+                   room costs one subscription and no extra capture. See ROADMAP.md 11a. */
+                if (_config.MusicFromRoom && ears is WhisperRecognizer whisper)
+                {
+                    _roomMusic.Changed += state => _face.Send(new
+                    {
+                        type = "music",
+                        playing = state.Playing,
+                        bpm = state.Bpm,
+                        energy = state.Energy,
+                        beat = false
+                    });
+                    _roomMusic.Beat += () => _face.Send(new { type = "music", beat = true });
+
+                    _roomMusic.StartFromFrames(SileroVad.SampleRate);
+                    whisper.Audio += _roomMusic.Push;
+                    Log.Write("music: also listening for a beat in the room, through the microphone");
+                }
                 ears.Trouble += Notice;
                 ears.Hypothesised += partial =>
                     _face.Send(new { type = "caption", who = "You", text = partial, tentative = true });
@@ -972,6 +996,7 @@ internal sealed class OctaviaSession : IDisposable
         // bookkeeping: skipping it leaves an MCP server running after she closes.
         // Blocking here is deliberate — Dispose has no async form to hand this to, and
         // an orphaned process is worse than a two-second wait on the way out.
+        _roomMusic.Dispose();
         _tools.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

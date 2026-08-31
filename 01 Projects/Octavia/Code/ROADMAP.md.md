@@ -579,6 +579,10 @@ instance and she has both sources. Two things need care:
 
 Cheap, high value, and it makes her feel like she is in the room rather than in the PC.
 
+**Built in v0.16.0** as `MusicFromRoom`, off by default. A second `MusicAnalyzer` fed from
+the frames the voice detector already reads. **Not yet verified against real room audio** —
+that needs a speaker playing in the room, which is a thing to test rather than assert.
+
 ## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
 
 Four pieces of polish that the textured face made visible, because until v0.12.0 nobody

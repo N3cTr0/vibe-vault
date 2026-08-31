@@ -103,7 +103,7 @@ const rig = {
      driven by beats actually detected rather than by a clock running here — the host is
      the one listening, and a face that guessed would drift out of time. */
   music: false, bpm: 0, energy: 0,
-  beat: 0, beats: 0, sway: 0, headphones: 0, dance: 0,
+  beat: 0, beats: 0, sway: 0, headphones: 0, dance: 0, phase: 0, bounce: 0,
 
   /* Set by the dev panel to drive something the host would normally own. Null means
      "nobody is holding this", which is the state everything ships in. */
@@ -151,10 +151,25 @@ function tick() {
   rig.headphones = lerp(rig.headphones, wearing, 1 - Math.pow(0.06, dt));
   avatar.setHeadphones(reduced ? wearing : rig.headphones);
 
-  // A sway every four beats rather than every beat: moving to the bar is what reading
-  // as dancing looks like, and per-beat sway reads as a twitch.
-  const swayTarget = rig.music ? Math.sin(rig.beats * Math.PI / 2) : 0;
-  rig.sway = lerp(rig.sway, swayTarget, 1 - Math.pow(0.02, dt));
+  /* A continuous phase, in beats, advancing at the detected tempo.
+
+     This used to be `sin(beats * PI/2)` off an integer counter — a **step function**,
+     smoothed by a lerp that could not hide the corner. Together with a beat impulse that
+     decayed a tenth per frame, it meant eight bones were being driven by two staircases,
+     which is exactly what "jittery" was. A phase is smooth by construction and the beat
+     only corrects it.
+
+     It keeps ticking when the music stops, so the movement eases out mid-stride instead
+     of freezing on whatever value the last beat left behind. */
+  rig.phase += dt * (rig.music && rig.bpm > 20 ? rig.bpm / 60 : 1.7);
+
+  // The bar carries the sway; four beats to a cycle, because moving to the bar is what
+  // reads as dancing and moving to every beat reads as a nervous tic.
+  rig.sway = Math.sin(rig.phase * Math.PI / 2);
+
+  // A smooth rise and fall once per beat, for the knee-bend and the nod. Nothing here
+  // is allowed to be a spike.
+  rig.bounce = 0.5 - 0.5 * Math.cos(rig.phase * Math.PI * 2);
 
   /* head carriage */
   const breathe = reduced ? 0 : 1;
@@ -171,7 +186,7 @@ function tick() {
   // a quiet passage is a smaller movement rather than the same one turned off.
   if (rig.music && !reduced) {
     const force = 0.35 + rig.energy * 0.65;
-    pitT += rig.beat * 0.085 * force;
+    pitT += (rig.bounce - 0.5) * 0.10 * force;
     rolT += rig.sway * 0.075 * force;
     yawT += rig.sway * 0.10 * force;
   }
@@ -181,7 +196,9 @@ function tick() {
      less rather than moving her the same amount intermittently. */
   const danceTarget = rig.music && !reduced ? 0.35 + rig.energy * 0.65 : 0;
   rig.dance = lerp(rig.dance, danceTarget, 1 - Math.pow(0.25, dt));
-  avatar.setDance?.(rig.dance, rig.sway, rig.beat);
+  // Bounce arrives as -1..1 so the avatar's constants stay in the same units they were
+  // written in, back when this was a 0..1 impulse.
+  avatar.setDance?.(rig.dance, rig.sway, (rig.bounce - 0.5) * 2);
 
   rig.yaw = lerp(rig.yaw, yawT, 1 - Math.pow(0.02, dt));
   rig.pitch = lerp(rig.pitch, pitT, 1 - Math.pow(0.02, dt));
@@ -282,6 +299,13 @@ window.Face = {
     if (music.beat) {
       rig.beat = 1;
       rig.beats++;
+
+      /* Re-sync the phase rather than drive movement from the beat itself.
+         The body runs off a clock advancing at the detected tempo; a beat only says
+         "you are here", and the phase is eased a quarter of the way to the nearest whole
+         beat. Snapping it would put the twitch straight back. */
+      const error = Math.round(rig.phase) - rig.phase;
+      rig.phase += error * 0.25;
       return;
     }
 

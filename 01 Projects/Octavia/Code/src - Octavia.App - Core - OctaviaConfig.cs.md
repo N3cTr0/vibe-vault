@@ -97,6 +97,20 @@ internal sealed class OctaviaConfig
     /// machine where anything at all might come out of the speakers.
     public bool Music { get; set; } = true;
 
+    /// Whether she also listens for music **in the room**, through the microphone,
+    /// rather than only to what this computer is playing.
+    ///
+    /// `Music` above is WASAPI loopback: it hears this machine's output and nothing else,
+    /// so a speaker across the room is silence to it. This is the other half, and it costs
+    /// nothing extra to capture — the microphone is already open when she is listening,
+    /// and these are the same frames the voice detector sees.
+    ///
+    /// **Off by default, and only active while she is listening.** Two honest caveats: a
+    /// boom mic in a reverberant room delivers far worse dynamics than a loopback, so the
+    /// tempo will be less certain; and it only works when her ears are on, which is a
+    /// different condition from `Music` and will surprise someone eventually.
+    public bool MusicFromRoom { get; set; }
+
     /// Whether the face offers its dev panel, which drives every performance she can
     /// give by hand. Null follows the profile — on for `dev`, off for `live` — which is
     /// the right answer often enough that setting this is the exception.

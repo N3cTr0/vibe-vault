@@ -51,6 +51,34 @@ internal sealed class MusicWatcher : IDisposable
     /// Peak and RMS behind the crest factor, for when the ratio alone is ambiguous.
     public (double Peak, double Rms) Levels => (_listener.Peak, _listener.Rms);
 
+    /// Analyse audio handed in from elsewhere instead of opening a loopback.
+    ///
+    /// **This is how she hears a room.** Loopback is what *this computer* is playing; a
+    /// speaker across the room — another PC, a phone, a hi-fi — never touches it and only
+    /// ever reaches the microphone. For something that lives in a room rather than on a
+    /// desktop that was the wrong way round, and it looked exactly like the beat detection
+    /// being broken. See ROADMAP.md stage 11a.
+    ///
+    /// The same analyser either way, so everything measured about tempo still holds. What
+    /// does *not* hold is the crest factor: a boom mic in a reverberant room with gain
+    /// control on it will never deliver the dynamics a loopback does, so expect this
+    /// source to be less certain and treat its confidence accordingly.
+    public void StartFromFrames(int sampleRate)
+    {
+        _wanted = true;
+        _external = true;
+        _analyzer = new MusicAnalyzer(sampleRate);
+    }
+
+    /// Frames from that other source, at the rate given to StartFromFrames. Called on
+    /// whatever thread captured them, exactly as the loopback's own callback is.
+    public void Push(float[] samples, int count)
+    {
+        if (_external) OnFrames(samples, count);
+    }
+
+    private bool _external;
+
     public async Task<bool> StartAsync()
     {
         if (_listener.IsRunning) return true;
@@ -102,6 +130,15 @@ internal sealed class MusicWatcher : IDisposable
     public void Stop()
     {
         _wanted = false;
+
+        if (_external)
+        {
+            _external = false;
+            _analyzer = null;
+            if (_last.Playing || _last.Bpm > 0) { _last = default; Changed?.Invoke(_last); }
+            return;
+        }
+
         if (!_listener.IsRunning) return;
 
         _listener.Frames -= OnFrames;

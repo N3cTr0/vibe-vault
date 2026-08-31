@@ -103,8 +103,41 @@ export async function loadVrmAvatar(url) {
   const headTop = bounds.max.y;
   const headHeight = head && headTop > headPoint.y ? headTop - headPoint.y : 0.22;
 
-  const headphones = createHeadphones(headHeight * 0.62);
-  headphones.object.position.set(0, headHeight * 0.40, -headHeight * 0.06);
+  /* Where the ears are, from the eyes rather than from a proportion.
+     A rig has no ear bone, but it does have eyes, and on every human head — and every
+     stylised one drawn from a human — **the ear canal sits at eye height and behind the
+     eyes**. VRM 1.0 requires `leftEye` and `rightEye`, so that is two measurements
+     instead of two guesses: the eyes give the height directly, and the gap between them
+     gives the head's width to hang the cups on. Sizing from head *height* put them too
+     high and too far forward, because a head is not as deep as it is tall. */
+  const eyeL = vrm.humanoid?.getNormalizedBoneNode('leftEye') ?? null;
+  const eyeR = vrm.humanoid?.getNormalizedBoneNode('rightEye') ?? null;
+
+  // Wide enough to sit outside the hair rather than inside it, which is where a real
+  // pair would be. Narrower and the cups vanish into a long fringe.
+  const halfWidth = headHeight * 0.68;
+
+  // Fallbacks for a rig with no eye bones. The height is the one that was wrong: cups
+  // sat around the cheekbone, a good way below where an ear is.
+  let earHeight = headHeight * 0.52;
+  let earBack = -halfWidth * 0.14;
+
+  if (eyeL && eyeR && head) {
+    const left = eyeL.getWorldPosition(new THREE.Vector3());
+    const right = eyeR.getWorldPosition(new THREE.Vector3());
+    const headWorld = head.getWorldPosition(new THREE.Vector3());
+    const eyeMid = left.clone().add(right).multiplyScalar(0.5);
+
+    // Head-local, because that is the space the headphones are parented into. The eye
+    // line *is* the ear line — that is the whole measurement.
+    earHeight = eyeMid.y - headWorld.y;
+
+    // And a little behind it, because an ear canal sits back from the eyes.
+    earBack = -(eyeMid.z - headWorld.z) - halfWidth * 0.14;
+  }
+
+  const headphones = createHeadphones(halfWidth);
+  headphones.object.position.set(0, earHeight, earBack);
 
   if (head) head.add(headphones.object);
   else {

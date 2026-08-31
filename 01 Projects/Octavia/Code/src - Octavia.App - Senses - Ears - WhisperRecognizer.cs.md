@@ -46,6 +46,10 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     public event Action<string>? Hypothesised;
     public event Action<string>? Trouble;
 
+    /// Mono 16 kHz frames as they arrive, for anything that wants to listen alongside the
+    /// voice detector. Nothing is recorded here either.
+    public event Action<float[], int>? Audio;
+
     // A device can open successfully and still deliver digital silence — a muted
     // input, or RDP with microphone redirection switched off. Without this the
     // failure is invisible: she looks like she is listening and simply never answers.
@@ -145,6 +149,13 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
             if (_frameFill < SileroVad.FrameSamples) continue;
 
             _frameFill = 0;
+
+            /* The same frames, offered to anyone else who wants them — the music analyser,
+               so she can hear a room and not only this machine. Raised outside the lock
+               below on purpose: a subscriber doing real work must not hold up the voice
+               detector, and the analyser copies what it needs. */
+            Audio?.Invoke(_frame, SileroVad.FrameSamples);
+
             try
             {
                 ProcessFrame();

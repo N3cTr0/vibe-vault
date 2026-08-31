@@ -16,6 +16,61 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.16.0 — 2026-08-31
+
+**She can hear a room, her headphones sit on her ears, and the dance stopped twitching.**
+MINOR: a new source of hearing.
+
+### Stage 11a — the microphone as a second ear for music
+
+Loopback is what *this computer* plays. A speaker across the room — another PC, a phone —
+never touched it, which is how "she will not dance" turned out to mean "the music was on a
+different machine". `MusicFromRoom` runs a second `MusicAnalyzer` on the microphone frames
+the voice detector is already reading, so it costs one subscription and no extra capture.
+
+Off by default, and honest about two things: a boom mic in a reverberant room gives far
+worse dynamics than a loopback, so expect less certainty; and it only works while her ears
+are open, which is a different condition from `Music` and will surprise someone.
+
+**Built and passing every check, but not yet verified against real room audio** — that
+needs a speaker in the room, which is a thing to do rather than a thing to assert.
+
+### The headphones sit where her ears are
+
+They were sized and placed from head *height*, an assumption about width taken from an
+unrelated measurement. They now come from the **eye bones**, which VRM 1.0 requires: the
+ear canal sits at eye height and slightly behind, so that is two measurements instead of
+two guesses. Cups widened so they sit outside the hair rather than buried in it — with
+thanks for the marked-up screenshot, which showed the gap immediately.
+
+### The dance was being driven by two staircases
+
+`sway` came from `sin(beats * PI/2)` where `beats` was an **integer counter** — a step
+function — and the beat impulse decayed a tenth per frame. Eight bones driven off those is
+exactly what "jittery" looked like.
+
+There is a continuous **phase** now, in beats, advancing at the detected tempo; each beat
+only eases it a quarter of the way toward the nearest whole beat rather than driving
+anything. Sway is a smooth function of phase over a bar, the per-beat bounce is a raised
+cosine, and nothing anywhere is a spike. It keeps ticking when the music stops so she eases
+out mid-stride instead of freezing on the last value.
+
+### A latent bug that would have hit the first good monitor
+
+**The canvas was laid out at the size of its drawing buffer.** `setSize(w, h, false)`
+deliberately leaves the CSS alone, `#scene` relied on `inset:0`, and a canvas is a
+*replaced* element — with width and height auto it takes its intrinsic size, which `inset`
+cannot stretch. On any display with `devicePixelRatio > 1` the canvas therefore overflowed
+its stage by exactly that ratio, anchored top-left, and she rendered enormous and off to
+the bottom right.
+
+Invisible here because WebView2 runs at dpr 1 on this machine, and waiting for the first
+4K monitor or a laptop with display scaling. Found only because the browser pane emulates
+dpr 2 — and confirmed pre-existing by reproducing it on the previous commit before
+assuming it was today's work.
+
+---
+
 ## 0.15.2 — 2026-08-31
 
 **"She will not dance" is almost never the analyser.** PATCH.

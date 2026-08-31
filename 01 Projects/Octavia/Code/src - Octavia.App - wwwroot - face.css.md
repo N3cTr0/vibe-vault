@@ -122,7 +122,16 @@ body.trouble #state .dot{background:var(--alert)}
 @keyframes pulse{50%{opacity:.25}}
 
 #stage{flex:1 1 auto;position:relative;min-height:0}
-#scene{position:absolute;inset:0;display:block}
+/* `inset:0` is not enough on its own. A canvas is a *replaced* element, so with width and
+   height auto it lays out at its intrinsic size — the drawing buffer — and `inset` cannot
+   stretch it. The renderer is called as `setSize(w, h, false)`, which deliberately leaves
+   the style alone, so on any display with `devicePixelRatio > 1` the buffer is 2x the
+   stage and the canvas overflows it by 2x, anchored top left. She then renders enormous
+   and off to the bottom right, because the middle of the picture is no longer the middle
+   of the box.
+   Invisible on this machine — WebView2 runs at dpr 1 here — and waiting for the first
+   4K monitor or a laptop with display scaling. */
+#scene{position:absolute;inset:0;display:block;width:100%;height:100%}
 
 /* ── placard ────────────────────────────────────────────── */
 #placard{
