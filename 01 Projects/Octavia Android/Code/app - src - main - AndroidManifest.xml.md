@@ -10,10 +10,12 @@ source-path: app\src\main\AndroidManifest.xml
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- The only permission this stage needs. No microphone and no camera yet: the protocol
-         cannot carry audio upstream, and both belong to the app natively rather than to a
-         WebView, because getUserMedia will not run on a plain http origin. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Held only while the talk button is down. The microphone belongs to the app rather
+         than to a WebView because getUserMedia will not run on a plain http LAN origin —
+         that is not a secure context. The camera will arrive the same way. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"

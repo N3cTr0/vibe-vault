@@ -8,10 +8,10 @@ tags: [octavia, octavia-android, moc]
 > A second face for [[Octavia]], over the protocol her built-in one already speaks. She stays on the PC at home; this is an Android window onto her — a WebSocket, a renderer and (eventually) a microphone, reached over WireGuard. **This note is the reference point for everything on the phone side.**
 
 - **Repo:** `C:\Projects\Octavia-Android` — git since 08/31/2026, private remote [`N3cTr0/Octavia-Android`](https://github.com/N3cTr0/Octavia-Android)
-- **Current version:** 0.3.0 — **Stage 1 works**: it connects to her and you can talk to her from the phone. AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
+- **Current version:** 0.5.0 — **her voice comes out of the phone**, on top of Stage 1's connect-and-type. AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
 - **Started:** 08/31/2026, out of [[Octavia]]'s Stage 13
 - **Parent project:** [[Octavia]] — her `PROTOCOL.md` is the contract and lives in *her* repo, deliberately not copied here
-- **Written against:** protocol version 1, as of her v0.19.3
+- **Written against:** protocol version 1. Audio playback was built against her **v0.22.0**; she is at **v0.23.0**, which added `talking` and binary frames *upstream* for a microphone here — the host half of this repo's next stage.
 
 ## The one idea to keep
 
@@ -24,6 +24,8 @@ Her Stage 13 says so explicitly: the app needs an Android SDK and a device to te
 ## Where it actually got to
 
 **Stage 1 is working on the real J7 Pro (08/31/2026).** She answered a typed question from the handset, spoke the reply on the PC, and both turns came back to the phone. Her log read `face connected over socket (2 attached)` and `face skipping: viseme, level` — a **second face beside her desktop one**, which is exactly what Stage 3 built the protocol for. See `Screenshots\`.
+
+**Her voice came out of the 11T Pro at v0.5.0 (08/31/2026)**, which closed the one acceptance criterion her side could not check for itself — that the PCM is actually *playable*. Two utterances, 1,051,344 and 391,608 bytes, **zero frames dropped**, at the 22050 Hz `hello` advertised. `AudioTrack` reporting `state:started` proves nothing on its own — it says that from the moment `play()` is called, written to or not — so bytes are the evidence and `VoicePlayer` counts them.
 
 **The development loop needs nothing exposed:** `adb reverse tcp:8848 tcp:8848` points the handset's own loopback at the host's, over USB. Her socket stays bound to `127.0.0.1`, `RemoteAccess` stays off, no Windows firewall rule and no elevation — and because the connection arrives from loopback, the per-run token works. Wireguard and the remote key replace only the address.
 

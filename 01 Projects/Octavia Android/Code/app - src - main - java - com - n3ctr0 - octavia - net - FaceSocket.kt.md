@@ -14,6 +14,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
@@ -236,6 +237,26 @@ class FaceSocket(private val listener: Listener) {
 
     fun send(type: String) {
         socket?.send(JSONObject().put("type", type).toString())
+    }
+
+    /**
+     * Take or release the floor.
+     *
+     * `true` begins a binary stream; `false` is the **end-of-utterance marker**, so her
+     * voice detector never has to guess where the sentence stopped. Deliberately not
+     * `listen`, which toggles her *own* microphone and has to keep working independently.
+     *
+     * She refuses this if another face already holds the floor, or if her ears are not open
+     * yet — and answers with a `notice` rather than silence, which is why the caller does
+     * not need to guess and this returns nothing.
+     */
+    fun talking(value: Boolean) {
+        socket?.send(JSONObject().put("type", "talking").put("value", value).toString())
+    }
+
+    /** One frame of microphone PCM. A binary frame is audio in both directions. */
+    fun sendAudio(frame: ByteArray) {
+        socket?.send(frame.toByteString(0, frame.size))
     }
 
     fun noteProtocol(version: Int) {

@@ -173,6 +173,25 @@ tracked files, with `data\` and `dist\` correctly excluded.
   > for the general form: *a constant across environments is evidence about your code.*
 - **The camera cannot be re-verified: there is no webcam attached to this machine.** The
   Jabra headset does mean there is a real microphone, so the mic path can be tested.
+
+  > **Closed 09/01/2026 — she has eyes.** A spare USB camera was plugged into the host. It
+  > enumerates as a generic UVC device, `USB Video Device`, status OK, and it carries a
+  > microphone of its own: `Microphone (USB Audio Device)`.
+  >
+  > **The camera itself is still unopened**, and deliberately: `Camera` is `false` in
+  > config, which is where it should stay until somebody chooses otherwise. What is
+  > verified is that the device is present and that its microphone carries signal.
+  >
+  > **Her ears moved without anyone asking them to.** That microphone is now the *only*
+  > capture device Windows lists and therefore the default, and `MicrophoneDevice` is empty
+  > — which means "follow the default". So she is listening through a cheap camera mic
+  > rather than the Jabra boom. `EarsTest -- mic` says `SIGNAL PRESENT (peak 0.100)`, so she
+  > can hear, but 0.100 is modest and a camera across the desk is not a boom at the mouth.
+  > Worth watching for a drop in transcription accuracy, and a one-line fix if so:
+  > **Settings → Microphone** now names both.
+  >
+  > One incidental gain: `MusicFromRoom` listens through the same microphone, and a camera
+  > mic pointed at the room is a *better* room microphone than a boom pointed at a mouth.
 - **The photoreal stage is still blocked, and the shopping list is not met.** The GPU is a
   **GeForce GT 730** — Kepler, on the legacy 30.0.14.7514 driver, with `nvidia-smi` failing
   at `Failed to initialize NVML`. CUDA 12 dropped Kepler, so **Whisper CUDA, TensorRT 10.13

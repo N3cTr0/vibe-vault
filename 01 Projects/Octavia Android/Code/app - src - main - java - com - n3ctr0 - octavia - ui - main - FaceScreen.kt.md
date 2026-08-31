@@ -9,7 +9,16 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FaceScreen.kt
 ```kotlin
 package com.n3ctr0.octavia.ui.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -103,6 +112,10 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
             )
         }
 
+        if (state.micAccepted) {
+            TalkButton(state, viewModel)
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = draft,
@@ -130,6 +143,78 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
             settings = settings,
             onDismiss = { settingsOpen = false },
             onSave = { settingsOpen = false; viewModel.reconnect() },
+        )
+    }
+}
+
+/**
+ * Hold to talk.
+ *
+ * Push-to-talk rather than always-on, and it is not only about echo: a held button has
+ * already answered *"was that addressed to me?"*, so her attention gate does not apply to
+ * this stream at all, and one talker at a time means one transcription.
+ *
+ * The release is the end of the utterance — she does not wait for a voice detector to
+ * decide the sentence stopped — so the gesture must report going up **however it ends**,
+ * including a finger dragged off the button. `tryAwaitRelease` covers both.
+ */
+@Composable
+private fun TalkButton(state: FaceState, viewModel: FaceViewModel) {
+    val context = LocalContext.current
+    var granted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        granted = it
+    }
+
+    val live = state.talking
+    val enabled = state.link == FaceSocket.Link.Up
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                when {
+                    live -> MaterialTheme.colorScheme.error
+                    enabled -> MaterialTheme.colorScheme.primaryContainer
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+            )
+            .pointerInput(enabled, granted) {
+                detectTapGestures(
+                    onPress = {
+                        if (!enabled) return@detectTapGestures
+                        if (!granted) { ask.launch(Manifest.permission.RECORD_AUDIO); return@detectTapGestures }
+
+                        viewModel.startTalking()
+                        // Returns whether it was a release or a cancel; either way the
+                        // floor must go back, so the result is deliberately ignored.
+                        tryAwaitRelease()
+                        viewModel.stopTalking()
+                    }
+                )
+            }
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            when {
+                !enabled -> "Not connected"
+                !granted -> "Tap to allow the microphone"
+                live -> "Listening — release to send"
+                else -> "Hold to talk"
+            },
+            fontSize = 15.sp,
+            fontWeight = if (live) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (live) MaterialTheme.colorScheme.onError
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.9f else 0.4f),
         )
     }
 }

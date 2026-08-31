@@ -338,7 +338,7 @@ state and her mood.
 adapter — no CUDA, three cores — and both routes need a real NVIDIA card. Unreal, the
 MetaHuman and Audio2Face all wait for that machine. Nothing else in this stage does.
 
-## Stage 9 — Eyes and hands *(gate done 08/30/2026; eyes built, camera unverified)*
+## Stage 9 — Eyes and hands *(gate done 08/30/2026; eyes built; a camera arrived 09/01/2026, still unopened)*
 
 - Camera frames to the brain on demand (Sonnet is multimodal; "can you see me?" works).
 - Presence detection locally so she notices you arrive.
@@ -394,8 +394,18 @@ exist. Meanwhile the free layer already does the cheap half of the job — her n
 matched in the transcript for nothing. What a real wake word would buy is not running
 Whisper at all, which is a battery argument on a machine that is plugged in.
 
-**Presence detection is not built.** It needs the camera, and the camera cannot be tested
-here. It waits with it.
+**Presence detection is not built.** It needs the camera, and it waits with it.
+
+> **A camera arrived 09/01/2026** — a spare USB one, plugged into the host. It enumerates
+> as a generic UVC `USB Video Device`, status OK, with a microphone of its own. So "the
+> camera cannot be tested here" is no longer true, and this is unblocked whenever it is
+> worth doing.
+>
+> **It has not been opened.** `Camera` is `false` in config and should stay there until
+> somebody chooses otherwise; what is verified is that the device exists, not that a frame
+> comes back. Two things still gate a real end-to-end test: `MaybeLookAsync` requires the
+> **Claude brain**, and there is no API key on this machine — so `look` never fires on the
+> `home` profile regardless of hardware.
 
 ## Stage 10 — The interface she is operated through
 

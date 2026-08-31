@@ -18,6 +18,66 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.6.0 — 2026-09-01
+
+**She hears the phone.** MINOR — a new subsystem, and the last one before this client is a
+peer rather than a viewer. Built against her v0.23.0.
+
+Measured on the 11T Pro, holding the button for five seconds:
+
+```
+MicRecorder: microphone open at 16000Hz, buffer 5120
+MicRecorder: sent 155520 bytes (~4860ms)
+
+(host)  ears listening to a face (a391e797) / face a391e797 has the floor
+        ears listening to the Windows default / face a391e797 released the floor
+```
+
+155,520 bytes over 4.86 s is exactly 16 kHz × 2 bytes a sample — the arithmetic is right to
+the byte, and the floor was taken on press and given back on release.
+
+**And she transcribed it.** An accidental early press produced
+`overheard (television, lyrics, 6937 ms): Hello, how are you?` — captured on the handset,
+streamed, and put through Whisper. Her own microphone could not open at the time, so the
+phone was the only possible source.
+
+### What is in it
+
+- **`MicRecorder`** — `AudioRecord` at **16 kHz mono 16-bit**, fixed by contract rather than
+  negotiated, because that is what Silero and Whisper want. `VOICE_RECOGNITION` as the source
+  so the platform gives the chain tuned for speech rather than the gain and noise shaping
+  that flatter a voice memo and confuse a recogniser.
+- **Hold to talk.** The release is the end of the utterance, so she never waits for a voice
+  detector to decide the sentence stopped. `tryAwaitRelease` covers a finger dragged off the
+  button as well as a clean lift — both mean *release the floor*.
+- **The floor is asked for before the microphone opens.** She can refuse — another face holds
+  it, or her ears are not open — and answers with a `notice`. Opening the device first would
+  capture audio with nowhere to go.
+- **Press while she is speaking sends `hush`.** That is what talking over someone means.
+- **The button only exists when `micAccepted`.** A control that could only fail should not be
+  offered, the same courtesy `camera` already gets.
+- Release on losing the link, on leaving the app, and on the device refusing to open.
+
+### Two findings for her repo
+
+**1. A host with no microphone of its own cannot accept one from a face.** This machine has
+**no capture device at all** — both audio endpoints are render-only, so `waveInOpen` fails
+with `BadDeviceId`. In `StartListening`, the room-music block calls `_localMic.Start()`
+*before* `_ears = ears`, so a local failure means the recogniser is never assigned and
+`micAccepted` stays false. **A machine with no microphone is exactly the machine that most
+needs a phone's**, and it is the trap-1 fix — keeping the local mic alive for room music —
+that introduced the coupling.
+
+Worked around here by setting `MusicFromRoom: false` in her config; the original is saved at
+`data\config.json.premic`. With it off, `_ears` is assigned and everything above works.
+
+**2. The attention gate still runs on floor audio.** Held-button speech goes
+`OnRecognized` → `Consider` → `_gate.JudgeAsync`, and produced an `overheard` rather than an
+answer. The comment on `Consider` already contains the argument against this: *"everything
+typed does not [come through here]. If you took the trouble to type it, you meant it, and a
+gate that second-guesses a deliberate act is only ever wrong."* **Holding a button is as
+deliberate as typing.**
+
 ## 0.5.0 — 2026-08-31
 
 **Her voice comes out of the phone.** MINOR — a new subsystem. Built against her v0.22.0,

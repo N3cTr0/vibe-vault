@@ -81,6 +81,16 @@ Measured on the same scene, before and after: brightness **0.15 → 0.18**. A re
 
 **Presence detection** — "she notices you arrive" — is not built at all. It needs the camera, so it waits with it.
 
+## There is a camera now *(09/01/2026)*
+
+A spare USB one, plugged into the host. It enumerates as a generic UVC `USB Video Device`, status OK, and carries a microphone of its own. Every note that said the camera path could not be tested on this machine is out of date.
+
+**It has not been opened**, and that is the correct state: `Camera` stays `false` until somebody switches it on in Settings. What has been verified is that the device is present — not that a frame comes back, which is a different claim and needs someone to grant the permission.
+
+One thing that still gates a genuine end-to-end test regardless of hardware: `MaybeLookAsync` returns early unless the brain is `ClaudeBrain`, and there is no API key here. On the `home` profile `look` never fires at all, so the eye button appears and toggles but nothing opens. That is a limitation worth knowing before concluding the camera is broken.
+
+**Its microphone became the default input.** It is now the only capture device Windows lists, and `MicrophoneDevice` is empty — which means "follow the default" — so her ears moved off the Jabra boom without anyone choosing that. `EarsTest -- mic` reports `SIGNAL PRESENT (peak 0.100)`: she can hear, but a camera mic across the desk is not a boom at the mouth. See [[The Ears]] and [[Moving To The New Machine]].
+
 ## Turning it on *(v0.21.2)*
 
 **Settings → Let her see you**, with a **Camera** picker beside it. Until v0.21.2 there was no camera control anywhere in the interface: the setting existed, the host handled `setCameraDevice`, `hello` carried the device, and the face received it — but nothing could ever set it, so the only way to enable her camera was to hand-edit `config.json`. The eye button was correctly hidden the whole time, which is why it read as having been removed.

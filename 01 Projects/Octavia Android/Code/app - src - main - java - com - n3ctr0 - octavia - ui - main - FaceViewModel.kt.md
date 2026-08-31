@@ -10,6 +10,7 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FaceViewModel.kt
 package com.n3ctr0.octavia.ui.main
 
 import androidx.lifecycle.ViewModel
+import com.n3ctr0.octavia.audio.MicRecorder
 import com.n3ctr0.octavia.audio.VoicePlayer
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
@@ -42,6 +43,11 @@ data class FaceState(
     val audioRate: Int = 0,
     /** Whether this device asked for her voice, and has a track to play it on. */
     val playingHere: Boolean = false,
+    /** Whether the *host* will take audio from a face at all. A microphone button that
+     *  could only fail should not be offered. */
+    val micAccepted: Boolean = false,
+    /** Whether the button is down and this device holds her ears. */
+    val talking: Boolean = false,
 )
 
 /**
@@ -55,6 +61,11 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
 
     private val socket = FaceSocket(this)
     private val voice = VoicePlayer()
+
+    /** Frames go straight out as they are read. There is no buffering to do: she is the
+     *  one deciding what counts as an utterance, and holding audio here would only add
+     *  latency to a decision made at the other end. */
+    private val mic = MicRecorder { frame -> socket.sendAudio(frame) }
 
     fun connect() {
         if (!settings.configured) return
@@ -79,6 +90,7 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      * running by accident.
      */
     fun release() {
+        stopTalking()
         socket.disconnect()
         // The track holds a hardware buffer; leaving it open through a doze would keep the
         // audio path awake for a conversation nobody is listening to.
@@ -99,6 +111,42 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
 
     fun hush() = socket.send("hush")
 
+    /**
+     * The button went down.
+     *
+     * **Pressing while she is speaking hushes her**, because that is what talking over
+     * someone means — the alternative is recording over the top of her own voice and asking
+     * her to transcribe the result.
+     *
+     * The floor is requested before the microphone opens, not after: she may refuse it —
+     * another face is holding it, or her ears are not open yet — and she answers with a
+     * `notice`, which arrives in the transcript. Opening the device first would mean
+     * capturing audio with nowhere to go.
+     */
+    fun startTalking() {
+        if (!_state.value.micAccepted || _state.value.link != FaceSocket.Link.Up) return
+
+        if (_state.value.her == "speaking") socket.send("hush")
+        socket.talking(true)
+
+        if (!mic.start()) {
+            // The device refused. Give the floor straight back rather than holding ears we
+            // cannot feed — she has no other way to know the microphone never opened.
+            socket.talking(false)
+            append(Line("", "This device would not open its microphone.", Line.Kind.Notice))
+            return
+        }
+        _state.update { it.copy(talking = true) }
+    }
+
+    /** The button came up, the app went away, or the link dropped. All three mean release. */
+    fun stopTalking() {
+        if (!_state.value.talking && !mic.active) return
+        mic.stop()
+        socket.talking(false)
+        _state.update { it.copy(talking = false) }
+    }
+
     fun forget() = socket.send("forget")
 
     override fun onCleared() {
@@ -108,7 +156,13 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
     }
 
     override fun onLink(link: FaceSocket.Link, detail: String?) {
-        if (link != FaceSocket.Link.Up) voice.flush()
+        if (link != FaceSocket.Link.Up) {
+            voice.flush()
+            // She treats a face that vanishes mid-stream as a release, but the microphone
+            // is ours to close — leaving it open would keep recording into a dead socket.
+            mic.stop()
+            _state.update { it.copy(talking = false) }
+        }
         _state.update { it.copy(link = link, linkDetail = detail) }
     }
 
@@ -146,6 +200,7 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
                         audioAvailable = message.optBoolean("audioAvailable", false),
                         audioRate = message.optInt("audioRate"),
                         playingHere = settings.playAudio && voice.ready,
+                        micAccepted = message.optBoolean("micAccepted", false),
                     )
                 }
             }
