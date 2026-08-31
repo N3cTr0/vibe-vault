@@ -44,6 +44,10 @@ class FaceSocket(private val listener: Listener) {
 
         /** One message from the host. Unknown types reach here too; ignoring them is the caller's job. */
         fun onMessage(message: JSONObject)
+
+        /** One binary frame: raw PCM, in the format the last `hello` advertised. Per the
+         *  protocol a binary frame is audio and nothing else, so there is nothing to parse. */
+        fun onAudio(frame: ByteArray)
     }
 
     /** Message types this face cannot use, declined at connect time.
@@ -99,9 +103,16 @@ class FaceSocket(private val listener: Listener) {
         return if (isToken) "token=$trimmed" else "key=$trimmed"
     }
 
-    fun connect(host: String, port: Int, credential: String) {
+    /** Whether to ask for her voice. Off unless this is the device meant to make noise —
+     *  see the note on `subscribe` below. */
+    @Volatile
+    var wantAudio: Boolean = false
+        private set
+
+    fun connect(host: String, port: Int, credential: String, wantAudio: Boolean) {
         wanted = true
         attempt = 0
+        this.wantAudio = wantAudio
         open(host, port, credential, ++generation)
     }
 
@@ -124,10 +135,19 @@ class FaceSocket(private val listener: Listener) {
                 attempt = 0
                 listener.onLink(Link.Up, null)
 
-                // Opt out of what this face cannot use, then say the face is built. `ready`
-                // triggers `hello`, so it goes second — otherwise the capabilities arrive
-                // before the host has been told what to withhold.
-                webSocket.send(JSONObject().put("type", "subscribe").put("skip", org.json.JSONArray(skip)).toString())
+                /* Opt out of what this face cannot use, and opt *in* to what it wants.
+                   Audio is the one stream the host will not send unasked, because it is a
+                   physical output rather than a rendering hint — a face that draws her
+                   mouth has not thereby claimed the right to make noise. Over a desk cable
+                   this device is in the same room as her speakers, so asking is a decision.
+
+                   `ready` goes second because it triggers `hello`, and the capabilities
+                   should not arrive before the host has been told what to withhold. */
+                val subscribe = JSONObject()
+                    .put("type", "subscribe")
+                    .put("skip", org.json.JSONArray(skip))
+                if (wantAudio) subscribe.put("want", org.json.JSONArray(listOf("audio")))
+                webSocket.send(subscribe.toString())
                 webSocket.send(JSONObject().put("type", "ready").put("faceBuilt", true).toString())
             }
 
@@ -145,6 +165,13 @@ class FaceSocket(private val listener: Listener) {
                     return
                 }
                 listener.onMessage(parsed)
+            }
+
+            /** A binary frame is audio and nothing else — the protocol is explicit, so
+             *  there is no type to check and no header to strip. */
+            override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) {
+                if (gen != generation) return
+                listener.onAudio(bytes.toByteArray())
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {

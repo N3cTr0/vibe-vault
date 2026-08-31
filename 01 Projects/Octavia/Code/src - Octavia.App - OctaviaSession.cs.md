@@ -33,6 +33,14 @@ internal sealed class OctaviaSession : IDisposable
     /// A second analyser fed from the microphone, so a speaker in the room is not silence
     /// to her. Only started when MusicFromRoom is on and her ears are open.
     private readonly MusicWatcher _roomMusic = new() { Name = "room" };
+
+    /// **One** local microphone, shared by the ears and the room-music analyser.
+    ///
+    /// Owned here rather than inside the recogniser precisely so the two can be separated:
+    /// a face taking the floor moves what she *transcribes* without moving what she hears
+    /// around her. Opening the device twice would be the obvious way to get this wrong.
+    private LocalMicSource? _localMic;
+    private readonly PcmFramer _roomFramer = new();
     private readonly AttentionGate _gate;
     private readonly Brain.Tools.ToolRegistry _tools;
 
@@ -80,6 +88,17 @@ internal sealed class OctaviaSession : IDisposable
             UseNeuralVoice().Forget("starting the neural voice");
 
         _face.MessageReceived += OnFaceMessage;
+
+        // Only the face holding the floor is listened to. Frames from anyone else are
+        // dropped rather than mixed — two rooms transcribed into one sentence is worse
+        // than one of them being ignored.
+        _face.AudioReceived += (from, pcm) =>
+        {
+            if (_floor == from) _faceMic?.Push(pcm, pcm.Length);
+        };
+
+        // A phone that walks out of range must not hold her ears for ever.
+        _face.FaceDeparted += from => { if (_floor == from) ReleaseFloor("disconnected and so released"); };
 
         _meter.LevelChanged += level =>
         {
@@ -175,6 +194,13 @@ internal sealed class OctaviaSession : IDisposable
 
         _meter.Device = device;
         if (_meter.IsRunning) { _meter.Stop(); _meter.Start(); }
+
+        /* The shared source is torn down too, or the ears would reopen onto the old device:
+           a capture device is chosen when the stream opens and not afterwards, and this one
+           outlives the recogniser precisely so the room-music analyser can keep it. */
+        _localMic?.Dispose();
+        _localMic = null;
+        _roomFramer.Frame -= _roomMusic.Push;
 
         if (_ears is not null)
         {
@@ -422,6 +448,13 @@ internal sealed class OctaviaSession : IDisposable
             // the setting existed and the protocol carried the device, but nothing in the
             // face could turn it on. Logged at warn on the way up, because a camera coming
             // on in someone's home should leave a mark that is easy to find later.
+            // Push-to-talk. Deliberately not `listen`, which toggles *her own* microphone
+            // — a different thing that has to keep working independently.
+            case "talking":
+                OnTalking(inbound.From,
+                    !message.TryGetProperty("value", out var talk) || talk.ValueKind != JsonValueKind.False);
+                break;
+
             case "setCamera":
                 var seeing = !message.TryGetProperty("value", out var cam) || cam.ValueKind != JsonValueKind.False;
                 _config.Camera = seeing;
@@ -508,6 +541,10 @@ internal sealed class OctaviaSession : IDisposable
         // rate comes from the live voice's own model config, so it changes with the voice
         // — and `hello` is re-sent on every settings change, which carries the new rate
         // with it. A face must re-read this each time rather than caching it once.
+        // Whether the host will take audio *from* a face at all, so a client does not offer
+        // a microphone button that could only fail — the same courtesy `camera` already does.
+        micAccepted = _ears is WhisperRecognizer,
+
         audioAvailable = _voice.AudioFormat is not null,
         audioRate = _voice.AudioFormat?.Rate ?? 0,
         audioBits = _voice.AudioFormat?.Bits ?? 0,
@@ -753,6 +790,16 @@ internal sealed class OctaviaSession : IDisposable
                 var ears = await OpenEarsAsync();
                 ears.Recognized += OnHeard;
 
+                /* One device, two listeners. The recogniser is handed the source rather
+                   than building its own, so the room-music analyser below can frame the
+                   same microphone independently — and so a face taking the floor moves
+                   only what she transcribes. */
+                if (ears is WhisperRecognizer recogniser)
+                {
+                    _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
+                    recogniser.UseSource(_localMic);
+                }
+
                 /* Room music. The microphone is already open and these are the very same
                    frames the voice detector is reading, so hearing a speaker across the
                    room costs one subscription and no extra capture. See ROADMAP.md 11a. */
@@ -782,9 +829,26 @@ internal sealed class OctaviaSession : IDisposable
                         _face.Send(new { type = "music", beat = true });
                     };
 
+                    /* Bound to the **local microphone**, not to whatever the recogniser is
+                       currently consuming.
+
+                       This used to be `whisper.Audio += _roomMusic.Push`, which was exactly
+                       right while there was only one microphone in the world. Once a face
+                       can hand the ears a phone, that subscription would quietly follow it
+                       — and she would report the tablet's kitchen radio as the music around
+                       *her*. Everything would appear to work.
+
+                       So the local source keeps running and is framed separately for music
+                       even while a face holds the floor for speech. Speech moves rooms; her
+                       sense of what is playing here does not. The extra work is one
+                       byte-to-float loop over 16 kHz mono, which is nothing. */
                     _roomMusic.StartFromFrames(SileroVad.SampleRate);
-                    whisper.Audio += _roomMusic.Push;
-                    Log.Write("music: also listening for a beat in the room, through the microphone");
+                    _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
+                    _roomFramer.Frame += _roomMusic.Push;
+                    _localMic.Data += _roomFramer.Push;
+                    _localMic.Start();
+
+                    Log.Write("music: also listening for a beat in this room, through the local microphone");
                 }
                 ears.Trouble += Notice;
                 ears.Hypothesised += partial =>
@@ -876,6 +940,90 @@ internal sealed class OctaviaSession : IDisposable
         // face shows it faintly so the reason is visible without opening the log.
         Log.Write($"overheard ({verdict.Why}, {verdict.Cost.TotalMilliseconds:0} ms): {text}");
         _face.Send(new { type = "overheard", text, why = verdict.Why });
+    }
+
+    // ---- the floor -------------------------------------------
+
+    /* Push-to-talk from a face, and it is load-bearing rather than a convenience.
+       A held button has already answered "was that addressed to me?", so the attention
+       gate does not apply to this path and item 7 is not needed for it. One talker at a
+       time also means one Whisper, so the earlier worry about sizing two concurrent
+       transcriptions against eight cores does not arise. */
+
+    /// Which face is holding the floor, if any. One at a time, first press wins.
+    private FaceId? _floor;
+    private FaceAudioSource? _faceMic;
+    private System.Threading.Timer? _floorTimeout;
+
+    /// A phone in a pocket with a stuck button must not own her ears indefinitely.
+    private static readonly TimeSpan FloorLimit = TimeSpan.FromSeconds(60);
+
+    private void OnTalking(FaceId from, bool holding)
+    {
+        if (holding) TakeFloor(from);
+        else if (_floor == from) ReleaseFloor("released");
+    }
+
+    private void TakeFloor(FaceId from)
+    {
+        if (_floor is { } held)
+        {
+            if (held == from) return;
+
+            // Refused out loud rather than in silence. Two half-sentences interleaved into
+            // one transcript is worse than being told to wait.
+            _face.Send(new { type = "notice", text = "Someone else is talking to her." }, from);
+            Log.Write($"face {from} pressed while {held} holds the floor; refused");
+            return;
+        }
+
+        // Talking over her is an interrupt, not something to record on top of. `hush`
+        // already does exactly the right thing.
+        if (_state is AgentState.Speaking or AgentState.Thinking) Hush();
+
+        if (_ears is not WhisperRecognizer recogniser)
+        {
+            _face.Send(new { type = "notice", text = "Her ears are not open yet." }, from);
+            return;
+        }
+
+        _floor = from;
+        _faceMic = new FaceAudioSource($"a face ({from})");
+
+        // The local microphone is muted for *speech* — she must not transcribe a blend of
+        // this room and the other one. It keeps running for the room-music analyser, which
+        // is a different question entirely. See the note on _localMic.
+        recogniser.UseSource(_faceMic);
+        _faceMic.Start();
+
+        _floorTimeout = new System.Threading.Timer(
+            _ => ReleaseFloor("timed out"), null, FloorLimit, Timeout.InfiniteTimeSpan);
+
+        Log.Write($"face {from} has the floor");
+    }
+
+    private void ReleaseFloor(string why)
+    {
+        if (_floor is not { } held) return;
+
+        _floor = null;
+        _floorTimeout?.Dispose();
+        _floorTimeout = null;
+
+        /* Ending the utterance here rather than waiting for the voice detector to guess.
+           A released button is a far better end-of-sentence marker than silence is, and a
+           face that vanished mid-stream means the same thing — otherwise the floor is held
+           for ever by something that is no longer there. */
+        if (_ears is WhisperRecognizer recogniser)
+        {
+            recogniser.Flush();
+            if (_localMic is not null) recogniser.UseSource(_localMic);
+        }
+
+        _faceMic?.Dispose();
+        _faceMic = null;
+
+        Log.Write($"face {held} {why} the floor");
     }
 
     // ---- eyes ------------------------------------------------
@@ -1100,6 +1248,9 @@ internal sealed class OctaviaSession : IDisposable
         // bookkeeping: skipping it leaves an MCP server running after she closes.
         // Blocking here is deliberate — Dispose has no async form to hand this to, and
         // an orphaned process is worse than a two-second wait on the way out.
+        _floorTimeout?.Dispose();
+        _faceMic?.Dispose();
+        _localMic?.Dispose();
         _roomMusic.Dispose();
         _tools.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }

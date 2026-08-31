@@ -128,6 +128,14 @@ internal sealed class WebSocketFaceServer : IDisposable
 
     public event Action<FaceMessage>? MessageReceived;
 
+    /// Microphone audio pushed in by a face, with the face it came from — 16 kHz, 16-bit,
+    /// mono, little-endian, fixed by contract rather than negotiated.
+    public event Action<FaceId, byte[]>? AudioReceived;
+
+    /// A face has gone. The floor it may have been holding has to be released, or a phone
+    /// that walks out of range owns her ears until she restarts.
+    public event Action<FaceId>? FaceDeparted;
+
     public int Port { get; private set; }
     public string Token { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     public int FaceCount => _faces.Count;
@@ -276,6 +284,7 @@ internal sealed class WebSocketFaceServer : IDisposable
         finally
         {
             _faces.TryRemove(id, out _);
+            FaceDeparted?.Invoke(id);
             socket?.Dispose();
             client.Dispose();
         }
@@ -317,6 +326,17 @@ internal sealed class WebSocketFaceServer : IDisposable
 
             message.Write(buffer, 0, result.Count);
             if (!result.EndOfMessage) continue;
+
+            /* A binary frame is audio and nothing else, in **both** directions — the same
+               rule PROTOCOL.md states for her voice going out. No header to parse, so a
+               microphone frame costs nothing to recognise. */
+            if (result.MessageType == WebSocketMessageType.Binary)
+            {
+                var pcm = message.ToArray();
+                message.SetLength(0);
+                AudioReceived?.Invoke(face.Id, pcm);
+                continue;
+            }
 
             var text = Encoding.UTF8.GetString(message.ToArray());
             message.SetLength(0);

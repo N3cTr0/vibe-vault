@@ -46,6 +46,12 @@ internal sealed class WebViewFaceTransport : IFaceTransport
     }
 
     /// The built-in page is on the machine already making the sound. Nothing to send.
+    /// The built-in page has this machine's microphone already; nothing arrives this way.
+#pragma warning disable CS0067
+    public event Action<FaceId, byte[]>? AudioReceived;
+    public event Action<FaceId>? FaceDeparted;
+#pragma warning restore CS0067
+
     public void SendAudio(ReadOnlyMemory<byte> pcm) { }
 
     public FaceId? BuiltInFace => Id;

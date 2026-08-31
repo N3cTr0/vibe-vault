@@ -72,7 +72,7 @@ than failing. Removing or repurposing anything is a version bump.
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. The four `audio*` fields describe her voice as a stream: `audioAvailable` is false on the Windows voice, which cannot be teed, and a face is told so rather than left waiting for frames that were never coming. `audioRate` comes from the live voice model, so it **changes when the voice does** — re-read it on every `hello` rather than caching it once. |
+| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`, `micAccepted`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. The four `audio*` fields describe her voice as a stream: `audioAvailable` is false on the Windows voice, which cannot be teed, and a face is told so rather than left waiting for frames that were never coming. `audioRate` comes from the live voice model, so it **changes when the voice does** — re-read it on every `hello` rather than caching it once. `micAccepted` says whether the host will take audio *from* a face at all, so a client does not offer a microphone button that could only fail. |
 | `state` | `value`: `idle` \| `listening` \| `thinking` \| `speaking` | Her overall state. Drives posture, expression and the status pill. |
 | `level` | `value`: 0.0–1.0 | Microphone amplitude, ~20 Hz while listening. This is what makes the face react while you are still talking. |
 | `viseme` | `value`: 0.0–1.0, `shape?` | Mouth openness from real phoneme events during synthesis, and which mouth shape to make. Sent at phoneme rate. |
@@ -139,6 +139,19 @@ no separate stop message and there does not need to be one: she has stopped, so 
 still held is a tail she has already finished, and playing it means she carries on talking
 on the phone after going quiet in the room. The host drops its own queued frames at the
 same moment, so the two halves agree.
+
+### Upstream — a microphone somewhere else
+
+**The same rule applies in reverse: a binary frame from a face is microphone audio and
+nothing else.** 16 kHz, 16-bit, mono, little-endian, fixed by contract rather than
+negotiated — that is what Silero and Whisper want, and a handset has cycles to spare for the
+resample. Only the face currently holding the floor is listened to; frames from anyone else
+are dropped rather than mixed, because two rooms transcribed into one sentence is worse than
+one of them being ignored.
+
+While a face holds the floor the **local microphone is muted for speech** — but it keeps
+running, because her sense of what is *playing in this room* is a different question and
+must not follow the phone.
 
 ### Back-pressure
 
@@ -229,6 +242,7 @@ if the stream stops, rather than freezing the last value.
 | `ready` | `faceBuilt`: bool | The face has loaded. `faceBuilt` is false if the renderer failed to construct — the host logs this. Triggers `hello`. |
 | `subscribe` | `skip`: string[], `want`: string[] | Message types this face does not want, and streams it does. See *Audio* below for `want`. Answered by the socket server itself and never relayed to the host, because it describes one connection rather than the session. **Opt-out, not opt-in**: a face that never sends it keeps receiving everything, so no existing renderer changes behaviour and a new message type reaches old clients rather than being silently withheld. A phone would send `{"skip":["viseme","level"]}` — sixty visemes a second is a battery, not a feature. `want` is the counterpart and is **opt-in**; the two are independent, and being sent audio is not a reason to start receiving visemes again. |
 | `say` | `text` | The user typed something. |
+| `talking` | `value`: bool | **Push-to-talk from a face.** True takes the floor and begins a binary audio stream; false releases it, and is the end-of-utterance marker — so the voice detector never has to guess where the sentence stopped. Deliberately **not** `listen`, which toggles *her own* microphone and has to keep working independently. One face holds the floor at a time and a second press is refused with a `notice`. A face that disconnects mid-stream counts as a release, and there is a timeout, because a phone in a pocket must not own her ears for ever. Pressing while she is speaking **hushes her**, which is what talking over someone means. |
 | `listen` | — | Toggle listening. |
 | `hush` | — | Stop speaking and abandon the current reply. |
 | `forget` | — | Clear the conversation. |

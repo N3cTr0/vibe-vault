@@ -38,6 +38,8 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
 
         if (_page is not null) _page.MessageReceived += Relay;
         if (_sockets is not null) _sockets.MessageReceived += Relay;
+        if (_sockets is not null) _sockets.AudioReceived += (id, pcm) => AudioReceived?.Invoke(id, pcm);
+        if (_sockets is not null) _sockets.FaceDeparted += id => FaceDeparted?.Invoke(id);
     }
 
     /// Only socket faces can receive audio. The built-in page shares this machine's speakers,
@@ -51,6 +53,9 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
         SocketBound: _sockets?.IsRunning ?? false,
         Port: _sockets?.Port ?? 0,
         SocketFaces: _sockets?.FaceCount ?? 0);
+
+    public event Action<FaceId, byte[]>? AudioReceived;
+    public event Action<FaceId>? FaceDeparted;
 
     private void Relay(FaceMessage message) => MessageReceived?.Invoke(message);
 

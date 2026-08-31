@@ -18,6 +18,56 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.5.0 — 2026-08-31
+
+**Her voice comes out of the phone.** MINOR — a new subsystem. Built against her v0.22.0,
+which added the host half, and this closes the one acceptance criterion she could not:
+**criterion 2, that the bytes are actually playable.**
+
+Measured on the 11T Pro:
+
+```
+utterance: 1051344 bytes (~23840ms), 0 frame(s) dropped
+utterance:  391608 bytes  (~8880ms), 0 frame(s) dropped
+```
+
+and the system's own view of the track:
+
+```
+AudioTrack  state:started  usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH
+FormatInfo{channelMask=0x1, sampleRate=22050}
+```
+
+`state:started` alone proves nothing — `AudioTrack` reports it from the moment `play()` is
+called, whether or not a byte is ever written. **Bytes are the evidence**, which is why
+`VoicePlayer` counts them and logs a duration per utterance.
+
+### What is in it
+
+- **`VoicePlayer`** — an `AudioTrack` in `MODE_STREAM`, built from the rate `hello`
+  advertises and **rebuilt when the voice changes**, never assumed. `CONTENT_TYPE_SPEECH`
+  so the system ducks music for her and routes her to a headset sensibly.
+- **A dedicated writer thread.** `AudioTrack.write` blocks until the buffer has room; doing
+  that on the socket's reader thread would stall every other message, and her captions would
+  arrive late behind her own voice.
+- **Bounded queue of 16 frames, dropping the oldest** — the same rule the host applies at
+  its end, for the same reason: a device that cannot keep up should hear a gap and catch up
+  rather than fall further behind for the rest of the utterance.
+- **Flush on any `state` that is not `speaking`**, as the protocol requires, and on any loss
+  of the link. Without it she carries on talking here after going quiet in the room, which
+  is worse than not being heard at all.
+- **`Speak here` is off by default**, and that is the protocol's decision rather than
+  caution. A face that draws her mouth has not claimed the right to make noise; on a desk
+  cable this handset is in the same room as her speakers.
+- The connection line now distinguishes the three causes of silence: speaking here, her
+  voice cannot be streamed, or simply not asked for.
+
+### Not closed
+
+**Whether it *sounds* like her is a human's judgement**, and the one thing no probe here can
+settle. The bytes are the right length, at the right rate, in the right format, and none
+were dropped.
+
 ## 0.4.1 — 2026-08-31
 
 **The 11T Pro is on the bench, and it is newer than the roadmap assumed.** No code change —

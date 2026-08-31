@@ -29,7 +29,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     private readonly string _modelName;
     private readonly string? _device;
 
-    private WaveIn? _capture;
+    private IAudioSource? _source;
     private readonly float[] _frame = new float[SileroVad.FrameSamples];
     private int _frameFill;
     private readonly Queue<float[]> _preroll = new();
@@ -73,46 +73,90 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     public void Start()
     {
         _wantListening = true;
-        _listeningSince = DateTime.UtcNow;
-        _loudestHeard = 0f;
-        _reportedDeaf = false;
-        if (_capture is not null) return;
+        ArmSilenceWatch();
 
-        _capture = new WaveIn
-        {
-            WaveFormat = new WaveFormat(SileroVad.SampleRate, 16, 1),
-            BufferMilliseconds = 32
-        };
-
-        var index = AudioDevices.WaveInIndex(_device);
-        if (index >= 0)
-        {
-            _capture.DeviceNumber = index;
-            Log.Write($"listening on '{WaveIn.GetCapabilities(index).ProductName}'");
-        }
-
-        _capture.DataAvailable += OnAudio;
-        _capture.RecordingStopped += (_, e) =>
-        {
-            if (e.Exception is not null) Log.Write($"mic stopped: {e.Exception.Message}");
-        };
-        _capture.StartRecording();
+        _source ??= new LocalMicSource(_device);
+        _source.Data += OnAudio;
+        _source.Start();
     }
 
     public void Stop()
     {
         _wantListening = false;
-        var capture = _capture;
-        _capture = null;
 
-        if (capture is not null)
+        if (_source is not null)
         {
-            capture.DataAvailable -= OnAudio;
-            try { capture.StopRecording(); } catch (Exception ex) { Log.Write($"mic stop: {ex.Message}"); }
-            capture.Dispose();
+            _source.Data -= OnAudio;
+            _source.Stop();
         }
 
         ResetUtterance();
+    }
+
+    /// Hands the ears a different microphone — a face's, rather than this machine's.
+    ///
+    /// The old source is detached but **not disposed**: the local microphone goes on
+    /// running while a face holds the floor, because the room-music analyser is still
+    /// listening to it. Speech moves rooms; her sense of what is playing around her does
+    /// not. See ROADMAP.md stage 14 item 2.
+    public void UseSource(IAudioSource source)
+    {
+        if (ReferenceEquals(source, _source)) return;
+
+        /* Detached, and deliberately **not stopped**. The local microphone is shared: the
+           room-music analyser frames it independently, so stopping it here would silence
+           her sense of this room for exactly as long as somebody held the floor elsewhere
+           — which is the trap this whole item is written around, wearing a different hat. */
+        if (_source is not null) _source.Data -= OnAudio;
+
+        _source = source;
+        ResetUtterance();
+        ArmSilenceWatch();
+
+        Log.Write($"ears listening to {source.Name}");
+
+        if (_wantListening)
+        {
+            _source.Data += OnAudio;
+            _source.Start();
+        }
+    }
+
+    private void ArmSilenceWatch()
+    {
+        _listeningSince = DateTime.UtcNow;
+        _loudestHeard = 0f;
+        _reportedDeaf = false;
+    }
+
+    /// End the utterance now and transcribe whatever has been gathered.
+    ///
+    /// For a source that knows where the sentence stopped. A released push-to-talk button
+    /// is a far better end marker than 800 ms of quiet: it is exact, it costs no latency,
+    /// and it cannot be fooled by someone pausing mid-thought. The voice detector still
+    /// decides for the local microphone, which has nothing better to go on.
+    public void Flush()
+    {
+        float[]? samples;
+
+        lock (_utterance)
+        {
+            var voicedSeconds = _voicedFrames * SileroVad.FrameSamples / (float)SileroVad.SampleRate;
+            samples = voicedSeconds >= MinVoicedSeconds ? _utterance.ToArray() : null;
+
+            _utterance.Clear();
+            _preroll.Clear();
+            _inSpeech = false;
+            _quietFrames = 0;
+            _voicedFrames = 0;
+            _frameFill = 0;
+            _vad.Reset();
+        }
+
+        if (samples is null) return;
+
+        Hypothesised?.Invoke("…");
+        _ = TranscribeAsync(samples);
     }
 
     public void Mute()
@@ -137,15 +181,15 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         }
     }
 
-    private void OnAudio(object? sender, WaveInEventArgs e)
+    private void OnAudio(byte[] buffer, int count)
     {
         if (_muted || !_wantListening || _disposed) return;
 
-        WatchForSilence(e);
+        WatchForSilence(buffer, count);
 
-        for (var i = 0; i < e.BytesRecorded - 1; i += 2)
+        for (var i = 0; i < count - 1; i += 2)
         {
-            _frame[_frameFill++] = (short)(e.Buffer[i] | (e.Buffer[i + 1] << 8)) / 32768f;
+            _frame[_frameFill++] = (short)(buffer[i] | (buffer[i + 1] << 8)) / 32768f;
             if (_frameFill < SileroVad.FrameSamples) continue;
 
             _frameFill = 0;
@@ -167,13 +211,20 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         }
     }
 
-    private void WatchForSilence(WaveInEventArgs e)
+    private void WatchForSilence(byte[] buffer, int count)
     {
         if (_reportedDeaf) return;
 
-        for (var i = 0; i < e.BytesRecorded - 1; i += 2)
+        /* Only for a source that is supposed to be delivering continuously. A local device
+           that is open and handing over digital zeroes is broken, and saying so is one of
+           the more useful things she does. A push-to-talk face delivering nothing is
+           somebody **not holding a button** — the normal state — and warning about it would
+           name Remote Desktop audio settings at a person holding a phone. */
+        if (_source?.ExpectsContinuousAudio != true) return;
+
+        for (var i = 0; i < count - 1; i += 2)
         {
-            var sample = Math.Abs((short)(e.Buffer[i] | (e.Buffer[i + 1] << 8)) / 32768f);
+            var sample = Math.Abs((short)(buffer[i] | (buffer[i + 1] << 8)) / 32768f);
             if (sample > _loudestHeard) _loudestHeard = sample;
         }
 

@@ -18,6 +18,12 @@ internal interface IFaceTransport
 {
     event Action<FaceMessage>? MessageReceived;
 
+    /// Microphone audio pushed in by a face, with the face it came from.
+    event Action<FaceId, byte[]>? AudioReceived;
+
+    /// A face has gone: any floor it held must be released.
+    event Action<FaceId>? FaceDeparted;
+
     /// Raw PCM to every face that asked for her voice. Opt-in: see `subscribe`/`want` in
     /// PROTOCOL.md. The memory is pooled by the caller and must not be held past the call.
     void SendAudio(ReadOnlyMemory<byte> pcm);

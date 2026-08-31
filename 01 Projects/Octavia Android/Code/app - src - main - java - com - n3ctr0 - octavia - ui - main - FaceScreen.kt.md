@@ -30,6 +30,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -164,6 +165,12 @@ private fun LinkLine(state: FaceState, viewModel: FaceViewModel) {
                 if (state.protocol > 0) append(" · protocol ${state.protocol}")
                 if (state.model.isNotBlank()) append(" · ${state.model}")
                 if (state.profile.isNotBlank()) append(" · ${state.profile}")
+                // Silence has three different causes and they should not look alike.
+                when {
+                    state.playingHere -> append(" · speaking here at ${state.audioRate} Hz")
+                    !state.audioAvailable -> append(" · her voice cannot be streamed")
+                    else -> {}
+                }
             }
     }
 
@@ -226,6 +233,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
     var host by remember { mutableStateOf(settings.host) }
     var port by remember { mutableStateOf(settings.port.toString()) }
     var credential by remember { mutableStateOf(settings.credential) }
+    var playAudio by remember { mutableStateOf(settings.playAudio) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -246,6 +254,21 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Speak here", fontSize = 14.sp)
+                        Text(
+                            // She will not send audio unasked, and this is why: on a desk
+                            // cable this handset is in the same room as her speakers.
+                            "Off unless this is the device that should make noise. She plays " +
+                                "through the host's speakers regardless.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Switch(checked = playAudio, onCheckedChange = { playAudio = it })
+                }
             }
         },
         confirmButton = {
@@ -253,6 +276,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                 settings.host = host
                 settings.port = port.toIntOrNull() ?: 8848
                 settings.credential = credential
+                settings.playAudio = playAudio
                 onSave()
             }) { Text("Connect") }
         },

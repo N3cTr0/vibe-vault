@@ -41,12 +41,28 @@ class Settings(context: Context) {
         get() = prefs.getString(CREDENTIAL, "") ?: ""
         set(value) = prefs.edit().putString(CREDENTIAL, value.trim()).apply()
 
+    /**
+     * Whether to ask the host for her voice.
+     *
+     * **Off by default, and that is the protocol's decision rather than caution.** Audio is
+     * a physical output: a face that draws her mouth has not thereby claimed the right to
+     * make noise, and every face on the host's own machine would otherwise play her over
+     * the speakers she is already using. On a desk cable this handset is in that same room.
+     *
+     * It becomes true for the device that is *meant* to be heard — a tablet on a wall in
+     * another room — and that is a choice a person makes once.
+     */
+    var playAudio: Boolean
+        get() = prefs.getBoolean(PLAY_AUDIO, false)
+        set(value) = prefs.edit().putBoolean(PLAY_AUDIO, value).apply()
+
     val configured: Boolean get() = host.isNotBlank() && credential.isNotBlank()
 
     private companion object {
         const val HOST = "host"
         const val PORT = "port"
         const val CREDENTIAL = "credential"
+        const val PLAY_AUDIO = "playAudio"
     }
 }
 ```

@@ -18,6 +18,65 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.23.0 — 2026-09-01
+
+**A microphone somewhere else.** MINOR: a refactor of how she hears, not plumbing. Stage 14
+item 2, from [[Stage 14 - A Microphone Somewhere Else]] — the last thing between a tablet
+and a peer.
+
+`WhisperRecognizer` did not *consume* microphone audio; it **was** the microphone. It built
+its own `WaveIn`, chose the device, and raised into its own frame loop, so there was nothing
+to hand a different source to. Now there is `IAudioSource`, with `LocalMicSource` (today's
+capture, lifted out unchanged) and `FaceAudioSource` (fed by binary frames from one face).
+Everything from the 512-sample frames inward was already source-agnostic and is untouched.
+
+**Push-to-talk, and it is load-bearing.** A held button has already answered *"was that
+addressed to me?"*, so the attention gate does not apply to this path and item 7 is not
+needed for it. One talker at a time also means one Whisper, so the earlier worry about
+sizing two concurrent transcriptions against eight cores does not arise. `talking:false` is
+an exact end-of-utterance marker, which `Flush()` acts on directly rather than waiting 800 ms
+for the detector to guess.
+
+The floor is held by one face, released by the button, by disconnection or by a timeout —
+a phone in a pocket must not own her ears for ever. A second face pressing is refused with a
+`notice` rather than silence. Pressing while she is speaking hushes her, because that is what
+talking over someone means.
+
+### The two traps the spec warned about, and they were both real
+
+**The room-music analyser is fed from the microphone.** `whisper.Audio += _roomMusic.Push`
+was exactly right while there was one microphone in the world. Swap the source wholesale and
+that subscription quietly follows the phone — she would report the tablet's kitchen radio as
+the music around *her*, and **everything would appear to work**. So the local microphone is
+owned by the session, shared, and framed *separately* for music by a small extracted
+`PcmFramer`. It keeps running while a face holds the floor: speech moves rooms, her sense of
+what is playing here does not.
+
+Which also means `UseSource` detaches the old source but must **not stop** it — the same
+trap wearing a different hat, and the thing most likely to be undone later by someone
+tidying up. So it is a test: two spy sources, switch between them, assert the first is still
+running. Reintroducing `_source.Stop()` turns it red, which was checked rather than assumed.
+
+**`WatchForSilence` would cry wolf.** The deaf-microphone warning names Remote Desktop audio
+settings, and it is right to. For a push-to-talk face, silence is the *normal* state —
+nobody is holding the button — so every remote session would raise it at somebody holding a
+phone. Gated on `ExpectsContinuousAudio`, which is why that flag is on the interface.
+
+### Also
+
+`micAccepted` in `hello`, so a client does not offer a microphone button that could only
+fail. Binary frames upstream mirror the downstream rule already in `PROTOCOL.md`: a binary
+frame is audio and nothing else, in both directions. Only the floor-holder's frames are
+read; anyone else's are dropped rather than mixed.
+
+*Not done, and worth being straight about: acceptance criteria 1, 5, 6 and 9 need a real
+handset — a held button producing a transcript, the local microphone genuinely muted during a
+remote utterance, the room analyser still hearing this room, and barge-in. What is covered
+here is the seam and both traps at unit level, and criterion 6's mechanism directly. The rest
+is the first press on the Android side.*
+
+---
+
 ## 0.22.0 — 2026-08-31
 
 **Her voice can leave this machine.** MINOR: a new stream on the wire, and every send now

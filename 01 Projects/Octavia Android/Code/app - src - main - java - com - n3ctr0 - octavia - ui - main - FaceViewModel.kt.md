@@ -10,6 +10,7 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FaceViewModel.kt
 package com.n3ctr0.octavia.ui.main
 
 import androidx.lifecycle.ViewModel
+import com.n3ctr0.octavia.audio.VoicePlayer
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,12 @@ data class FaceState(
     val profile: String = "",
     val protocol: Int = 0,
     val needKey: Boolean = false,
+    /** Whether the *host* can stream at all — false on the Windows voice, which cannot be
+     *  teed. Reported so this face can say why it is silent rather than look broken. */
+    val audioAvailable: Boolean = false,
+    val audioRate: Int = 0,
+    /** Whether this device asked for her voice, and has a track to play it on. */
+    val playingHere: Boolean = false,
 )
 
 /**
@@ -47,10 +54,11 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
     val state: StateFlow<FaceState> = _state.asStateFlow()
 
     private val socket = FaceSocket(this)
+    private val voice = VoicePlayer()
 
     fun connect() {
         if (!settings.configured) return
-        socket.connect(settings.host, settings.port, settings.credential)
+        socket.connect(settings.host, settings.port, settings.credential, settings.playAudio)
     }
 
     fun reconnect() {
@@ -70,7 +78,12 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      * with a notification, which is a deliberate, visible thing rather than a socket left
      * running by accident.
      */
-    fun release() = socket.disconnect()
+    fun release() {
+        socket.disconnect()
+        // The track holds a hardware buffer; leaving it open through a doze would keep the
+        // audio path awake for a conversation nobody is listening to.
+        voice.stop()
+    }
 
     fun say(text: String) {
         val trimmed = text.trim()
@@ -90,12 +103,16 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
 
     override fun onCleared() {
         socket.disconnect()
+        voice.stop()
         super.onCleared()
     }
 
     override fun onLink(link: FaceSocket.Link, detail: String?) {
+        if (link != FaceSocket.Link.Up) voice.flush()
         _state.update { it.copy(link = link, linkDetail = detail) }
     }
+
+    override fun onAudio(frame: ByteArray) = voice.play(frame)
 
     /**
      * **Unknown types fall through untouched, on purpose.** Within protocol version 1 she
@@ -105,17 +122,44 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      */
     override fun onMessage(message: JSONObject) {
         when (message.optString("type")) {
-            "hello" -> _state.update {
-                it.copy(
-                    model = message.optString("model"),
-                    profile = message.optString("profile"),
-                    protocol = message.optInt("protocol"),
-                    her = message.optString("state", it.her),
-                    needKey = !message.optBoolean("hasKey", true),
-                )
+            "hello" -> {
+                /* The rate belongs to the voice model and changes when the voice does, so
+                   it is re-read on every `hello` rather than cached once. `configure` is
+                   idempotent when nothing moved — rebuilding the track mid-sentence would
+                   be audible. */
+                if (settings.playAudio) {
+                    voice.configure(
+                        available = message.optBoolean("audioAvailable", false),
+                        sampleRate = message.optInt("audioRate"),
+                        bits = message.optInt("audioBits"),
+                        channels = message.optInt("audioChannels"),
+                    )
+                }
+
+                _state.update {
+                    it.copy(
+                        model = message.optString("model"),
+                        profile = message.optString("profile"),
+                        protocol = message.optInt("protocol"),
+                        her = message.optString("state", it.her),
+                        needKey = !message.optBoolean("hasKey", true),
+                        audioAvailable = message.optBoolean("audioAvailable", false),
+                        audioRate = message.optInt("audioRate"),
+                        playingHere = settings.playAudio && voice.ready,
+                    )
+                }
             }
 
-            "state" -> _state.update { it.copy(her = message.optString("value", "idle")) }
+            "state" -> {
+                val value = message.optString("value", "idle")
+
+                // "A face must throw away buffered audio on any state that is not
+                // `speaking`." Otherwise she carries on talking here after going quiet in
+                // the room, which is worse than not being heard at all.
+                if (value != "speaking") voice.flush()
+
+                _state.update { it.copy(her = value) }
+            }
 
             "caption" -> _state.update {
                 it.copy(

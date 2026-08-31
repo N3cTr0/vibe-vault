@@ -110,6 +110,10 @@ Console.WriteLine("face and expression:");
 failures += FaceChecks.Run();
 
 Console.WriteLine();
+Console.WriteLine("audio sources:");
+failures += SourceChecks.Run(modelPath);
+
+Console.WriteLine();
 Console.WriteLine("the face's own scripts:");
 failures += SyntaxChecks.Run();
 

@@ -262,8 +262,25 @@ Two decisions in that implementation matter here:
 - **`look` is now targeted**, so this client will only open its camera for a question asked
   *through* it. That is the whole reason item 1 came first.
 
-Items 2–7 are untouched, so **this stage is still blocked** on her voice reaching the phone
-(item 3) and the phone's microphone reaching her (item 2).
+**Item 3 — her voice — landed in her v0.22.0, and this client plays it as of 0.5.0.** So the
+half of this stage that makes a tablet worth *looking at* is done. What remains is the half
+that makes it worth *talking to*: **item 2, the microphone** — the larger work, and the last
+thing between here and a peer.
+
+**Item 2 is specified**, in the vault at
+`01 Projects\Octavia\Stage 14 - A Microphone Somewhere Else.md`. What it means here:
+
+- **`AudioRecord` at 16 kHz mono 16-bit, native** — not a WebView, because `getUserMedia`
+  will not run on a plain `http://` LAN origin. The format is fixed by contract rather than
+  negotiated: 16 kHz is what Silero and Whisper want, and this device resamples if it must.
+- **Push-to-talk**, and it earns three things rather than merely avoiding echo: the attention
+  gate does not apply (a held button has already answered "was that addressed to me?"), one
+  talker means one Whisper, and no cancellation is needed.
+- **`talking: true/false` brackets the stream**, and `false` is the end-of-utterance marker —
+  so the VAD never has to guess where the sentence stopped. **Send it on losing the link
+  too**, or the floor stays held.
+- **Press while she is speaking = `hush`.** That is what talking over someone means.
+- `RECORD_AUDIO` at runtime, and only show the button when `hello` says `micAccepted`.
 
 **Item 3 is specified**, in the vault at
 `01 Projects\Octavia\Stage 14 - Her Voice On Another Face.md`. Three things in it decide how

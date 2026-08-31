@@ -984,6 +984,27 @@ Every item below needs a face id, so this is first and nothing else starts until
 Note the seam does *not* get coarser: the session learns that faces are distinguishable, not
 how any of them connected.
 
+### ~~2. Audio upstream — her ears, on the tablet~~ *(done 09/01/2026, v0.23.0)*
+
+> **Landed**, from [[Stage 14 - A Microphone Somewhere Else]]. `IAudioSource` with a local
+> and a face implementation, push-to-talk with a single floor-holder, `Flush()` on release,
+> and binary frames upstream mirroring the downstream rule.
+>
+> **Both traps in that spec were real.** The room-music analyser was fed from
+> `whisper.Audio`, so swapping the source would have moved her sense of *this* room to the
+> phone with everything still appearing to work; the local microphone is now owned by the
+> session, shared, and framed separately. And `WatchForSilence` would have named RDP audio
+> settings at somebody holding a phone, so it is gated on `ExpectsContinuousAudio`.
+>
+> The "do not stop the old source" rule is a **test** rather than a comment, because it is
+> exactly what a later tidy-up would undo: reintroducing `_source.Stop()` turns it red.
+>
+> **Needs a handset to finish:** criteria 1, 5, 6 and 9 — a held button producing a
+> transcript, the desk microphone genuinely muted during a remote utterance, the room
+> analyser still hearing this room, and barge-in. The seam and both traps are covered here.
+
+<details><summary>The original plan</summary>
+
 ### 2. Audio upstream — her ears, on the tablet
 
 `WhisperRecognizer` and `MicLevelMeter` each construct their own `WaveIn` and **are** the
@@ -999,6 +1020,8 @@ parameter:
 - Two live sources means two transcription streams. This box is a **Ryzen 7 3700X — 8 cores,
   16 threads**, not 16 cores; measure before assuming two Whisper instances are free, and
   consider one shared queue instead.
+
+</details>
 
 ### ~~3. Audio downstream — her voice, out of the tablet~~ *(done 08/31/2026, v0.22.0)*
 
