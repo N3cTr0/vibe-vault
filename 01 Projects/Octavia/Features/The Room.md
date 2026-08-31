@@ -46,6 +46,23 @@ Face.setHour(null)   // follow the real clock again
 
 Which is how the whole cycle was checked without waiting a day for it.
 
+## Chrome over the room, never around it
+
+Everything that sits on the room floats **inside** the stage rather than above or below it:
+the status readout on translucent glass at the top left, and the caption placard as a
+subtitle across the bottom on a short gradient scrim. Both are `pointer-events:none`, so
+neither ever takes a click meant for her.
+
+That is a hard rule, not a preference. The canvas is watched by a `ResizeObserver`, and a
+resize recomputes the fit and the camera distance — so any chrome that changes the stage's
+size re-frames her. The caption used to be a sibling *below* the stage and collapsed after
+nine seconds of quiet to give her the space; the collapse grew the stage by 92px and she
+visibly jumped size every time it came and went. Overlaid, the viewport is a constant and
+only opacity animates. See [[Changelog]] 0.19.1.
+
+The readout can be switched off entirely — *Show the status readout* in Settings — which is
+the setting for actually looking at her rather than at her telemetry.
+
 ## Cost
 
 A shader and three planes. That matters: the same GPU has a photoreal renderer, a speech model and Audio2Face in its future — see [[Roadmap]]. Anything reflex-speed here is local and cheap by design, exactly like the lip sync in [[The Voice]].

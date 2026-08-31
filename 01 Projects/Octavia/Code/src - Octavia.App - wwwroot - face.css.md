@@ -133,21 +133,23 @@ body.trouble #state .dot{background:var(--alert)}
 #scene{position:absolute;inset:0;display:block;width:100%;height:100%}
 
 /* ── placard ────────────────────────────────────────────── */
+/* Overlaid on the room rather than stacked under it.
+   Collapsing it used to change the stage's height, which fires the ResizeObserver, which
+   re-frames the camera — so she rescaled every time the caption came or went, and the
+   transition made that a visible lurch rather than a move. Nothing about the stage
+   changes now; only the text fades. The scrim keeps it legible over whatever she happens
+   to be standing in front of. */
 #placard{
-  flex:0 0 auto;padding:0 var(--s5) var(--s3);text-align:center;
-  min-height:92px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
-  max-height:220px;
-  transition:max-height .5s var(--ease),min-height .5s var(--ease),padding .5s var(--ease),opacity .4s;
-  overflow:hidden;
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  padding:var(--s6) var(--s5) var(--s4);text-align:center;
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  pointer-events:none;
+  background:linear-gradient(to top, var(--room-tint) 35%, transparent);
+  transition:opacity .45s ease;
 }
 
-/* When nobody has said anything for a while, the placard gets out of the way and the
-   room takes the space. **Collapsed, not merely faded** — fading alone leaves a 92px
-   band of nothing, which is the opposite of the point. `min-height:0` is not enough
-   either: the caption still has an intrinsic height, so the element only shrinks to its
-   text. It takes `max-height` against a real number to animate down to nothing.
-   The stage then grows, the ResizeObserver re-frames her, and she is simply bigger. */
-body.quiet #placard{max-height:0;min-height:0;padding-top:0;padding-bottom:0;opacity:0}
+/* Nine seconds after the last word, the room has itself back. */
+body.quiet #placard{opacity:0}
 #caption{
   font-family:var(--display);font-weight:400;font-size:var(--t-caption);
   line-height:1.25;letter-spacing:-.015em;max-width:38ch;margin:0;

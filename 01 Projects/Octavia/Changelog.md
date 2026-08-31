@@ -16,6 +16,35 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.19.1 — 2026-08-31
+
+**The placard fades instead of collapsing.** PATCH: fixes the rescale that came with it.
+
+v0.19.0 gave the placard a `max-height` collapse specifically so it would not leave a band
+of empty room behind. It worked, and it introduced a worse problem: the placard was a flex
+sibling *below* the stage, so collapsing it grew the stage by 92px. The canvas is watched by
+a `ResizeObserver`, a resize recomputes the fit and the camera distance, and the result was
+that she visibly jumped size every time the caption came and went. The thing meant to give
+her the room was re-framing her twice a cycle.
+
+The fix is to stop the stage changing height at all. `#placard` now lives **inside** `#stage`
+as an absolutely-positioned overlay — a subtitle over the room rather than a strip beneath
+it — sitting on a short gradient scrim so the text stays legible against a bright wall, and
+`pointer-events:none` so it never takes a click meant for her. The room is full height in
+both states; only opacity animates.
+
+Measured both ways: with the caption up and down, `#stage` and `#scene` both report 615px,
+so the observer never fires and the camera never moves.
+
+*The hidden-pane artifact from 0.19.0 bit again and is worth restating in its sharper form:
+while the pane is hidden, `requestAnimationFrame` never fires and running transitions freeze.
+A frozen transition reports a settled-looking `opacity` — 0.65 in this case — that is neither
+end of the animation, and it reads exactly like a CSS rule being overridden. Test the cascade
+by setting `transition:none` and reading the two states directly; that answer does not depend
+on anything being rendered.*
+
+---
+
 ## 0.19.0 — 2026-08-31
 
 **She gets the room when nobody is talking.** MINOR: the placard comes and goes.

@@ -68,11 +68,16 @@ source-path: src\Octavia.App\wwwroot\index.html
       <span class="pill" id="pillMusic"><span class="d"></span>Music <b id="musicLabel">&mdash;</b></span>
       <span class="pill" id="pillProfile"><span class="d"></span>Profile <b id="profile">&mdash;</b></span>
     </div>
-  </div>
 
-  <div id="placard">
-    <span id="speaker">&nbsp;</span>
-    <p id="caption" class="muted">Press the microphone, or say her name.</p>
+    <!-- Inside the stage, over the room, like a subtitle. It used to be a sibling below
+         it, which meant hiding it changed the stage's height — and a stage that changes
+         height re-frames the camera, so she visibly jumped size every time the caption
+         came and went. Overlaid, the room is always full height and nothing moves but
+         the text. -->
+    <div id="placard">
+      <span id="speaker">&nbsp;</span>
+      <p id="caption" class="muted">Press the microphone, or say her name.</p>
+    </div>
   </div>
 
   <div id="console">
