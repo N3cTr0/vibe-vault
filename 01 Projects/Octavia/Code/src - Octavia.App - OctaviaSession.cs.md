@@ -414,6 +414,21 @@ internal sealed class OctaviaSession : IDisposable
                 SelectOutput(Text(message, "value") ?? "");
                 break;
 
+            // The one sense that is off by default, and the only one that had no switch:
+            // the setting existed and the protocol carried the device, but nothing in the
+            // face could turn it on. Logged at warn on the way up, because a camera coming
+            // on in someone's home should leave a mark that is easy to find later.
+            case "setCamera":
+                var seeing = !message.TryGetProperty("value", out var cam) || cam.ValueKind != JsonValueKind.False;
+                _config.Camera = seeing;
+                _config.Save();
+
+                if (seeing) Log.Warn("camera enabled from settings");
+                else Log.Write("camera disabled from settings");
+
+                Announce();
+                break;
+
             case "setCameraDevice":
                 _config.CameraDevice = Text(message, "value") ?? "";
                 _config.Save();

@@ -37,6 +37,16 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.21.2 — the camera gets a switch
+
+![[v0.21.2 - the camera finally has a switch in Settings.png]]
+
+**Checking:** that the two new rows sit correctly in the **off** state, which is the one every fresh install sees. *Let her see you* is clear, the picker is disabled, and — the second attempt at this shot — it reads *"Whichever the browser picks"* rather than being **blank**. The first version only populated the menu when the camera was on, and a disabled empty select reads as broken rather than as switched off. Worth the retake.
+
+Note what is *not* in the console bottom-left: no eye button, because the sense is off. That is the whole reason this was reported as the camera icon having disappeared. See [[Eyes]].
+
+---
+
 ## v0.21.1 — she gets an icon
 
 ### Her own mark in the title bar

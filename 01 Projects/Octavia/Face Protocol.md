@@ -194,6 +194,7 @@ if the stream stops, rather than freezing the last value.
 | `setMusic` | `value`: bool | Whether she listens to the machine's output at all. False closes the loopback device rather than merely ignoring it. |
 | `setMicrophone` | `value` | Capture device by name, from `microphones[]`. Empty follows the Windows default. |
 | `setOutput` | `value` | Render device by name, from `outputs[]`. Empty follows the Windows default. This is what her music sense listens to, so it is not merely a playback preference. |
+| `setCamera` | `value`: bool | Whether she may open a camera at all. Off by default and the only sense that is; the host echoes it back as `camera` in `hello`, which is what un-hides the eye button. Enabling is logged at **warn** — a camera coming on in someone's home should leave a mark that is easy to find later. |
 | `setCameraDevice` | `value` | Which camera a `look` should open, by **label** rather than id — a device id is regenerated per origin and per permission grant, so it cannot be stored in a config file and still mean anything tomorrow. Empty lets the face choose. |
 | `setWhisperCompute` | `value`: `auto` \| a named backend | Which compute Whisper should use. `auto` is the default and the right answer on any machine nobody has measured. |
 | `setStats` | `value`: bool | Whether the face should show its own performance figures. A hint to the renderer, stored by the host so it survives a reload. |

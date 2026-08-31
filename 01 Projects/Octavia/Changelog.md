@@ -16,6 +16,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.21.2 — 2026-08-31
+
+**The camera gets a switch.** PATCH, but it closes a hole that had been open since Stage 9.
+
+Reported as *"what happened to the camera icon on the UI?"* — and nothing had. The eye
+button and the `camera` pill were still in `index.html`, hidden by one line:
+
+```js
+watchBtn.hidden = !msg.camera;     // bridge.js
+```
+
+`hello.camera` comes from `_config.Camera`, which is `false` by default. Correct behaviour —
+a control for a switched-off sense should not sit there — but **there was no camera control
+anywhere in Settings**, so the only way to turn her camera on was to hand-edit `config.json`
+and restart her.
+
+Half-built rather than deliberately omitted, and the halves were the wrong way round: the
+config keys existed, the host handled `setCameraDevice`, `hello` carried `cameraDevice`, the
+face *received* it into `wantedCamera` — and the face never sent it, because nothing could.
+`camera.js` even exported `cameras()`, commented *"for the settings menu"*, for a settings
+menu that was never written. A wire with no switch on either end.
+
+Now: a **Let her see you** checkbox and a **Camera** picker, both in Settings beside the
+microphone. `setCamera` is new on the wire, so `PROTOCOL.md` moves — unlike 0.21.0, this one
+is visible to another face.
+
+Three details worth keeping:
+
+- **The camera list comes from the face, not the host.** Unlike the microphone and the
+  output, which are the host's devices. `camera.js` enumerates them and matches by *label*,
+  because a device id is regenerated per origin and per permission grant and cannot be stored
+  in a config file and still mean anything tomorrow.
+- **A browser withholds device labels until the permission has been granted once**, so the
+  picker reads *"Not known yet"* on a fresh machine and the hint says why. The difference
+  between a menu that is waiting and a menu that looks broken.
+- **Enabling is logged at `warn`.** A camera coming on in someone's home should leave a mark
+  that is easy to find later; switching it off is a plain note.
+
+*Caught before it shipped: the first version of the picker's change handler called
+`useCamera()`, which is destructured inside `look()` and does not exist at that scope — a
+`ReferenceError` on every camera change. It was also redundant, since `look()` applies
+`wantedCamera` on each look, and calling it there would have broken the promise in
+`camera.js` that a face never asked to look loads no camera code at all. The `SyntaxChecks`
+harness would **not** have caught this: it parses and checks `ready`, and a ReferenceError in
+an event listener is neither.*
+
+Verified both directions against a live browser face: off → checkbox clear, picker disabled,
+eye button hidden; on → `"Camera": true` written to `config.json`, picker enabled, eye button
+back in the console, `warn camera enabled from settings` in the log. The test config was
+returned to `false`, which is where it started.
+
+---
+
 ## 0.21.1 — 2026-08-31
 
 **She has a face on the outside of the window too.** PATCH: branding, no behaviour.

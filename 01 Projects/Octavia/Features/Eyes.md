@@ -81,6 +81,17 @@ Measured on the same scene, before and after: brightness **0.15 → 0.18**. A re
 
 **Presence detection** — "she notices you arrive" — is not built at all. It needs the camera, so it waits with it.
 
+## Turning it on *(v0.21.2)*
+
+**Settings → Let her see you**, with a **Camera** picker beside it. Until v0.21.2 there was no camera control anywhere in the interface: the setting existed, the host handled `setCameraDevice`, `hello` carried the device, and the face received it — but nothing could ever set it, so the only way to enable her camera was to hand-edit `config.json`. The eye button was correctly hidden the whole time, which is why it read as having been removed.
+
+Two things about the picker that are not true of the microphone or output ones:
+
+- **The list comes from the face, not the host.** The camera belongs to whichever renderer the person is sitting in front of — a wall tablet has one, the machine under the desk may not — so `camera.js` enumerates it. Matched by **label**, never by device id: an id is regenerated per origin and per permission grant, so a stored id means nothing tomorrow.
+- **It is empty until she has looked once.** A browser withholds device labels from a page that has never been granted the permission, so the menu reads *"Not known yet"* and the hint explains rather than leaving it looking broken.
+
+Enabling the camera is logged at **warn**, disabling at info — a camera coming on in someone's home should leave a mark that is easy to find later.
+
 ## Watching — she looks at you
 
 *v0.9.2.* The camera button beside the microphone, wearing the same contract: a person presses it, a red **camera** pill stands beside the state pill the whole time, pressing it again ends it. While it is lit her gaze follows you, which is the difference between talking *at* a screen and being looked at.

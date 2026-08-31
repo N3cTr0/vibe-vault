@@ -173,6 +173,23 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint">Which device she listens through. Changing this reopens her ears.</span>
       </label>
 
+      <!-- The camera is the only sense that is off by default, and until now it was also
+           the only one you could not reach without a text editor: the setting existed, the
+           protocol carried it, and nothing could set it. -->
+      <label class="field-row check" for="camera">
+        <span class="label">Let her see you</span>
+        <input id="camera" type="checkbox">
+        <span class="hint">Off by default &mdash; the only sense that is. She opens it for a
+          single frame when a question genuinely needs eyes, shows an unmistakable marker
+          while it is live, and keeps nothing.</span>
+      </label>
+
+      <label class="field-row" for="cameraDevice">
+        <span class="label">Camera</span>
+        <select id="cameraDevice"></select>
+        <span class="hint" id="cameraHint">Which one she looks through.</span>
+      </label>
+
       <label class="field-row check" for="music">
         <span class="label">Hears what you play</span>
         <input id="music" type="checkbox">

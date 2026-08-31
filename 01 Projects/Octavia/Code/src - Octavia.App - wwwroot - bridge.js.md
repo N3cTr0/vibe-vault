@@ -68,6 +68,8 @@ const computeSel = el('whisperCompute');
 let wantedCamera = '';
 const hourSel = el('roomHour');
 const musicChk = el('music');
+const cameraChk = el('camera');
+const cameraSel = el('cameraDevice');
 const keyIn = el('key');
 const keyRow = el('keyrow');
 const statsChk = el('stats');
@@ -354,6 +356,20 @@ function applyHello(msg) {
 
   if (msg.cameraDevice !== undefined) wantedCamera = msg.cameraDevice;
 
+  if (msg.camera !== undefined) {
+    cameraChk.checked = !!msg.camera;
+    // The picker is useless while the sense is off, and leaving it live would imply
+    // choosing a camera does something on its own.
+    cameraSel.disabled = !msg.camera;
+
+    // Enumerating means importing camera.js, and a face that is never asked to look should
+    // never load any camera code — so while the sense is off the menu is filled with the
+    // one option that is true without asking anything. A disabled *empty* select reads as
+    // broken rather than as switched off.
+    if (msg.camera) listCameras();
+    else fill(cameraSel, [{ value: '', label: 'Whichever the browser picks' }], wantedCamera);
+  }
+
   if (msg.music !== undefined) {
     musicChk.checked = !!msg.music;
     /* Naming the endpoint matters more than the reassurance about privacy. She taps one
@@ -554,6 +570,43 @@ el('saveKey').addEventListener('click', () => {
 });
 
 keyIn.addEventListener('keydown', e => { if (e.key === 'Enter') el('saveKey').click(); });
+
+/* The camera list comes from the **face**, not the host — unlike the microphone and the
+   output, which are the host's devices. `camera.js` enumerates them and matches by *label*
+   rather than deviceId, because an id is regenerated per origin and per permission grant,
+   so it cannot be stored in a config file and still mean anything tomorrow.
+
+   A browser withholds device labels from a page that has never been granted the permission,
+   so this list is empty until she has looked once. Saying so is the difference between a
+   menu that is waiting and a menu that looks broken. */
+async function listCameras() {
+  let found = [];
+
+  try {
+    const { cameras } = await import('./camera.js');
+    found = await cameras();
+  } catch (err) {
+    console.warn('could not list the cameras', err);
+  }
+
+  fill(cameraSel,
+    [{ value: '', label: found.length ? 'Whichever the browser picks' : 'Not known yet' }]
+      .concat(found.map(label => ({ value: label, label }))),
+    wantedCamera);
+
+  el('cameraHint').textContent = found.length
+    ? 'Which one she looks through.'
+    : 'A browser will not name the cameras until she has been allowed to look once. Ask her something that needs eyes, allow it, then come back.';
+}
+
+cameraChk.addEventListener('change', () => send({ type: 'setCamera', value: cameraChk.checked }));
+cameraSel.addEventListener('change', () => {
+  // Only the choice is recorded here. `look()` hands it to the module on the next look,
+  // which is what keeps the promise in camera.js that a face never asked to look loads
+  // no camera code at all — and this listener has no `useCamera` in scope anyway.
+  wantedCamera = cameraSel.value;
+  send({ type: 'setCameraDevice', value: cameraSel.value });
+});
 
 voiceSel.addEventListener('change', () => send({ type: 'setVoice', value: voiceSel.value }));
 avatarSel.addEventListener('change', () => send({ type: 'setAvatar', value: avatarSel.value }));
