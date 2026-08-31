@@ -233,6 +233,35 @@ left guessing.
 
 ## Stage 8 — Photoreal: the decision gate *(decided 08/30/2026; rendering waits on the GPU box)*
 
+> **Audio2Face is not load-bearing — researched 08/31/2026, when a new PC with an AMD card
+> was proposed.** [Audio2Face-3D needs CUDA and TensorRT](https://docs.nvidia.com/ace/audio2face-3d-microservice/latest/text/support-matrix.html)
+> on an Ampere, Ada or Blackwell card; open-sourcing it under MIT changed the licence, not
+> the dependencies. That reads like an NVIDIA lock-in for this stage. **It is not**, and
+> the reason is the protocol.
+>
+> Audio-to-blendshape is a populated category now, and every serious option emits **ARKit
+> blendshapes** — which is already the vocabulary here, because Stage 5 deliberately took
+> VRM 1.0's. Anything in this list drops into the same seam:
+>
+> | Option | Emits | Vendor | Note |
+> |---|---|---|---|
+> | [Epic's Audio-Driven Animation](https://dev.epicgames.com/documentation/metahuman/audio-driven-animation) | MetaHuman rig directly | **neutral** | In MetaHuman Animator since UE 5.6. Epic's own hardware guidance lists an RX 5500 XT. Nothing extra to install. |
+> | [NeuroSync](https://neurosync.info/) | 61 ARKit + 7 emotion | neutral | Transformer, streams to UE5 over LiveLink. **CC BY-NC 4.0** — fine personally, not commercially. |
+> | [fotonlabs/unreal-audio2lipsync](https://huggingface.co/fotonlabs/unreal-audio2lipsync) | 52 ARKit @ 60 fps | neutral | Straight into the MetaHuman face rig. |
+> | Audio2Face-3D | ARKit | **NVIDIA only** | Best-known, and the one that costs you the choice. |
+>
+> **The first option is the answer if she is going to be a MetaHuman anyway**: Epic's own
+> audio-driven animation is built into the tool that renders her, vendor-neutral, and needs
+> no second inference stack sharing the card.
+>
+> So the card choice is about *rendering* and about local inference, not about whether this
+> stage is possible. AMD notes: [`Whisper.net.Runtime.Vulkan`](https://www.nuget.org/packages/Whisper.net.Runtime.Vulkan)
+> exists, so Whisper is GPU-accelerated on AMD; Ollama is messier on Windows, where the
+> official installer still ships ROCm 6.4.2 and RDNA4 needs ROCm 7.x — so it means
+> [experimental Vulkan](https://docs.ollama.com/gpu) or a community fork until upstream
+> catches up.
+
+
 The reference image — a photoreal woman — is a different rendering class from Stage 5.
 Two credible routes, decided *when we get here* by how each has matured:
 
