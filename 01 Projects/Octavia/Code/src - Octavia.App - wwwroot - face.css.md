@@ -94,10 +94,9 @@ header{
 }
 .mark{font-family:var(--display);font-weight:700;font-size:var(--t-mark);letter-spacing:-.02em}
 .mark em{font-style:normal;color:var(--cobalt)}
-.eyebrow{
-  font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.18em;text-transform:uppercase;
-  opacity:.5;
-}
+/* The "In residence" eyebrow is gone. It was a label nobody could read a meaning off —
+   it meant "she is here rather than in the cloud", which is true, unremarkable, and not
+   worth a permanent line in the room. */
 .spacer{flex:1}
 
 #watching{
@@ -137,7 +136,18 @@ body.trouble #state .dot{background:var(--alert)}
 #placard{
   flex:0 0 auto;padding:0 var(--s5) var(--s3);text-align:center;
   min-height:92px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  max-height:220px;
+  transition:max-height .5s var(--ease),min-height .5s var(--ease),padding .5s var(--ease),opacity .4s;
+  overflow:hidden;
 }
+
+/* When nobody has said anything for a while, the placard gets out of the way and the
+   room takes the space. **Collapsed, not merely faded** — fading alone leaves a 92px
+   band of nothing, which is the opposite of the point. `min-height:0` is not enough
+   either: the caption still has an intrinsic height, so the element only shrinks to its
+   text. It takes `max-height` against a real number to animate down to nothing.
+   The stage then grows, the ResizeObserver re-frames her, and she is simply bigger. */
+body.quiet #placard{max-height:0;min-height:0;padding-top:0;padding-bottom:0;opacity:0}
 #caption{
   font-family:var(--display);font-weight:400;font-size:var(--t-caption);
   line-height:1.25;letter-spacing:-.015em;max-width:38ch;margin:0;

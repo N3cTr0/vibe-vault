@@ -191,6 +191,9 @@ function applyState(value) {
 
   // Any state at all means she is working, so whatever went wrong before has passed.
   if (value !== 'idle') document.body.classList.remove('trouble');
+
+  // Anything but idle brings the placard back immediately and restarts its clock.
+  stayAwhile();
 }
 
 /* The character the host is offering. Compared before loading, because a VRM is
@@ -524,7 +527,30 @@ function caption(text, who, tentative, extra) {
   captionEl.className = !text ? 'muted' : (extra || '');
   if (tentative) captionEl.classList.add('tentative');
   speakerEl.textContent = who || ' ';
+  stayAwhile();
 }
+
+/* How long the last thing said stays on screen once everything has gone quiet.
+   Not zero: a reply that vanishes the instant she stops speaking is unreadable, and the
+   caption is the only record outside the transcript. Long enough to finish reading a
+   couple of sentences, then the room takes the space back. */
+const LINGER = 9000;
+let lingering = null;
+
+function stayAwhile() {
+  clearTimeout(lingering);
+  document.body.classList.remove('quiet');
+
+  // Only idle earns the collapse. While she is listening, thinking or speaking there is
+  // something about to appear there, and collapsing between every turn would be a
+  // twitch rather than a room.
+  lingering = setTimeout(() => {
+    if (document.body.dataset.state === 'idle') document.body.classList.add('quiet');
+  }, LINGER);
+}
+
+// The opening prompt is subject to the same rule: read it, then have the room back.
+stayAwhile();
 
 function addTurn(who, text) {
   const empty = entries.querySelector('.empty');

@@ -18,6 +18,36 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.19.0 — 2026-08-31
+
+**She gets the room when nobody is talking.** MINOR: the placard comes and goes.
+
+- **"In residence" is gone** from the header. It meant "she runs here rather than in the
+  cloud" — true, unremarkable, and not worth a permanent line in the room.
+- **The placard collapses after nine seconds of quiet** and the stage takes the space, so
+  she is simply bigger when nothing is being said. Any caption or any state but idle brings
+  it straight back.
+
+Two details that took a moment to get right. The linger is **nine seconds, not zero**: a
+reply that vanishes the instant she stops speaking is unreadable, and the caption is the
+only record outside the transcript. And it **collapses rather than fades** — `opacity:0`
+alone leaves a 92px band of nothing, which is the opposite of the point. `min-height:0` is
+not enough either, because the caption still has an intrinsic height; it takes `max-height`
+against a real number to animate down to nothing.
+
+**Roadmap gains stage 10a**: nothing in this project checks the face's own syntax. A
+JavaScript parse error is invisible to `dotnet build` and to `EarsTest`, so the build goes
+green and the face is simply dead — which is how v0.18.0 shipped a broken bridge for a few
+minutes. The entry proposes parsing `wwwroot/*.js` in the harness, and the more valuable
+half: having the host notice that `ready` never arrived and say so.
+
+*Two hours were lost to a measurement artifact worth writing down: **the browser pane does
+not run WebGL or style recalculation while it is hidden**, so screenshots came back with an
+empty scene and `getComputedStyle` returned stale values. Both looked exactly like real
+bugs. Front the pane and capture in the same batch before believing either.*
+
+---
+
 ## 0.18.0 — 2026-08-31
 
 **The room gets quieter.** MINOR: the status readout moved and became optional.

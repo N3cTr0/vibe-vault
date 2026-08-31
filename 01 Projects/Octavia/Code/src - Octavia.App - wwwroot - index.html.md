@@ -39,7 +39,6 @@ source-path: src\Octavia.App\wwwroot\index.html
 <div id="app">
   <header>
     <span class="mark">Octavia<em>.</em></span>
-    <span class="eyebrow">In residence</span>
     <span class="spacer"></span>
     <span id="watching" hidden>camera</span>
 

@@ -585,6 +585,31 @@ the frames the voice detector already reads. **Not yet verified against real roo
 reported 141 bpm at confidence 0.49 through the microphone. The lower confidence against
 loopback's 1.00 is the room-and-boom-mic penalty, showing up exactly as predicted.
 
+## Stage 10a — Nothing checks the face's own syntax *(found 08/31/2026)*
+
+**A JavaScript syntax error in `wwwroot` is invisible to everything this project has.**
+`dotnet build` does not read those files and `EarsTest` does not parse them, so the build
+goes green, every check passes, and the face is simply dead.
+
+Found the hard way in v0.18.0: a `sed` deleting four lines by number took the wrong four,
+left an orphan `});` in `bridge.js`, and the whole bridge failed to parse. The symptom was
+that the drawer button stopped opening the drawer — nothing else, no error anywhere a
+build would show it. It was caught by opening the browser console, which is exactly the
+tool that does not exist on someone else's machine.
+
+Every other silent failure in this project has been given a voice; this one has not. The
+fix is small:
+
+- **Parse every `wwwroot/*.js` in `EarsTest`.** No Node on this machine, so either shell
+  out to whatever is present, or — better, and dependency-free — load each file in the
+  WebView2 that is already a dependency and let it report the parse error.
+- **Report `faceError` louder.** The face already sends unhandled errors to the host, but
+  a file that never parsed never runs the code that would send them. The host could notice
+  that `ready` never arrived and say so.
+
+The second is the more valuable half: it turns "she looks broken" into a line in the log
+for *any* fatal renderer failure, not just a syntax error.
+
 ## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
 
 Four pieces of polish that the textured face made visible, because until v0.12.0 nobody
