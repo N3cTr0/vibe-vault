@@ -561,7 +561,17 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
    claimed Claude was her mind, which stopped being true this release. `PROTOCOL.md` turned
    out to already document `camera`, in both the `hello` table and its own `look`/`sight`
    section, so that item was already closed. The vault gained *Chrome over the room* in
-   [[The Room]] at 0.19.1. **Still open: screenshots for v0.10.0 onward have not been taken.**
+   [[The Room]] at 0.19.1.
+
+   **Screenshots: closed differently than written, 08/31/2026.** Shots for v0.10.0 itself
+   cannot be taken — that console no longer exists. What was built instead is the thing that
+   stops the gap reopening: `tools\shoot.ps1` captures her real window at the 1100x780 every
+   existing shot uses, named from the version in the csproj so it cannot be misfiled;
+   `tools\poke.ps1` clicks and scrolls in window coordinates so a set can be *retaken* after
+   the chrome moves; and `check-vault.ps1` reports when the current version has no shot.
+   Six were taken for v0.19.3, and the two orphaned files already in the vault (v0.12.0,
+   v0.15.0) were finally written up. The standing rule is now **a look after every version
+   bump**, in the same change set as the code — see [[Screenshots]].
 4. **Re-take the Stage 10 exit test** on the new machine, from an actual sofa.
 
 ---

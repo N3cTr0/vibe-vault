@@ -66,6 +66,24 @@ opened.
 immediately, and that proved nothing — the only informative run was the one against a
 deliberately broken file.*
 
+**Late addition — the visual record gets a tool and a rule.** The screenshot folder had
+gone quiet at v0.15.0, and its two most recent files had never been written up at all.
+`tools\shoot.ps1` captures her real window at the 1100x780 every existing shot uses, taking
+the version from `Octavia.App.csproj` so a shot cannot be filed under the wrong release;
+`tools\poke.ps1` clicks and scrolls in window coordinates, which is what you measure off the
+previous shot, so a whole set can be **retaken** after the chrome moves. Both verify the
+window actually came forward before acting, because `SetForegroundWindow` fails silently
+from a background process and the capture then photographs the wrong window.
+
+`check-vault.ps1` now reports when the current version has no shot. It reports rather than
+fails: most releases change no pixels, and the point is to make somebody look.
+
+Six shots taken for v0.19.3 — the first set that includes her **window** rather than only
+her face. One of them carries the two UI fixes from earlier today in a single frame, and
+another is simply the proof this release existed: `PROFILE home`, `BRAIN qwen2.5:7b-cpu
+(local)`. The **v0.10.0–v0.11.0 console rebuild is a permanent gap** — that console is gone
+and cannot be photographed now, which is the argument for the rule.
+
 ---
 
 ## 0.19.2 — 2026-08-31

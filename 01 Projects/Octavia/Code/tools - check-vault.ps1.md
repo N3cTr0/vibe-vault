@@ -103,6 +103,32 @@ foreach ($n in $notes) {
 }
 
 "round trip    : $clean/$($notes.Count) notes restore clean"
+
+# --- the visual record -------------------------------------------------------
+# Most releases change no pixels, and those do not need a shot. But a release that
+# changed her appearance and was never photographed cannot be reconstructed later from
+# a diff, and the changelog describing it is no substitute for seeing her. So this
+# reports rather than fails: it is a reminder to look, not a rule about every version.
+$csproj  = Join-Path $repo 'src\Octavia.App\Octavia.App.csproj'
+$version = ([xml](Get-Content -LiteralPath $csproj -Raw)).Project.PropertyGroup.Version |
+           Where-Object { $_ } | Select-Object -First 1
+
+$shots = Join-Path $VaultPath '01 Projects\Octavia\Screenshots'
+
+if ($version -and (Test-Path -LiteralPath $shots)) {
+  $forThis = @(Get-ChildItem -LiteralPath $shots -Filter "v$version - *.png" -ErrorAction SilentlyContinue)
+
+  if ($forThis.Count -gt 0) {
+    "screenshots   : $($forThis.Count) for v$version"
+  }
+  else {
+    $latest = Get-ChildItem -LiteralPath $shots -Filter '*.png' -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime | Select-Object -Last 1
+    $since = if ($latest) { ($latest.BaseName -split ' - ')[0] } else { 'never' }
+    "screenshots   : none for v$version (newest is $since) - pwsh -File tools\shoot.ps1 '<what it shows>'"
+  }
+}
+
 Write-Host ''
 Write-Host $(if ($problems -eq 0) { 'VAULT OK' } else { "$problems PROBLEM(S)" })
 exit $problems

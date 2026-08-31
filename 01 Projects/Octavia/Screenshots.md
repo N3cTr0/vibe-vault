@@ -11,12 +11,87 @@ Files live in `Screenshots\`, named `v<version> - <subject>.png`. They are delib
 
 ## How they are taken
 
-The face lives in a WebView2, so a browser screenshot is not the real thing. These are captures of the actual application window:
+The face lives in a WebView2, so a browser screenshot is not the real thing. These are captures of the actual application window.
 
-- `tools`-adjacent scratch scripts capture the window by handle (`GetWindowRect` + `CopyFromScreen`).
-- The drawers are opened by finding the button in **WebView2's accessibility tree** and clicking its bounding rectangle. `InvokePattern` is not offered by those elements, so a real click at the right coordinates is the way in.
+**Since 0.19.3 this is two committed scripts rather than scratch code**, because a set that cannot be retaken after the chrome moves is a set that goes stale silently:
 
-That mattered more than expected: the first attempt to open the Health panel clicked straight into the *Settings* drawer, which was still open and covering the button.
+```
+pwsh -File tools\shoot.ps1 'what it shows'      # capture, named for the current version
+pwsh -File tools\poke.ps1 1036 67               # click, in window coordinates
+pwsh -File tools\poke.ps1 880 400 -Scroll -6    # wheel, for a control below the fold
+```
+
+`shoot.ps1` reads the version out of `Octavia.App.csproj`, so a shot cannot be filed under the wrong release, and sizes the window to **1100x780** first — every shot in this folder is that size, and a set taken at whatever size the window happened to be cannot be flipped through. `poke.ps1` takes window coordinates, which is exactly what you measure off the previous shot, so the two agree by construction.
+
+Both attach to her input queue before calling `SetForegroundWindow` and then **verify the window actually came forward**, refusing to act if it did not. That is not defensive padding: `SetForegroundWindow` fails silently from a background process and the click — or the capture — then lands on whatever window *is* in front. It has cost a debugging round before. See [[Lessons Learned]].
+
+The earlier sets opened drawers through **WebView2's accessibility tree**, because `InvokePattern` is not offered by those elements. A plain click at the right coordinates turned out to be enough and is far less to maintain.
+
+That mattered more than expected once: the first attempt to open the Health panel clicked straight into the *Settings* drawer, which was still open and covering the button.
+
+## When to take them
+
+**After every version bump**, as part of the same change set as the code and the vault sync — see [[Vault upkeep]]. Most releases change no pixels and need nothing; the judgement is only ever "did anything visible move?". A release that changed her appearance and was never photographed cannot be reconstructed from a diff afterwards, and a changelog entry describing the chrome is no substitute for seeing it.
+
+`tools\check-vault.ps1` reports whether the current version has any shot at all, and names the newest one if not. It **reports rather than fails** — the point is to make you look, not to demand a photograph of a bug fix.
+
+---
+
+## v0.19.3 — local-first, and the chrome as it settled
+
+The first set taken with [[#How they are taken|the committed scripts]], and the first to include her **window** rather than only her face — the title bar is in frame because it is part of what she looks like.
+
+### Idle, with the room to herself
+
+![[v0.19.3 - idle, the placard faded and the room hers.png]]
+
+**Checking:** the 0.19.1 fix. Nine seconds after the last word the caption fades and she keeps the whole stage — and, crucially, **does not change size doing it**. The placard used to be a sibling below the stage, so hiding it grew the stage, fired the canvas `ResizeObserver` and re-framed the camera; she visibly jumped twice a cycle. Overlaid, the viewport is a constant. See [[The Room]].
+
+Also the answer to the question that started this release: `PROFILE home` and `BRAIN qwen2.5:7b-cpu (local)`. Before 0.19.3 this said `live` and `claude`, with no key stored, so every turn was refused.
+
+### The typing field, staying put
+
+![[v0.19.3 - the typing field, which now stays open between messages.png]]
+
+**Checking:** that the field opens focused with the button showing its active state. Until 0.19.2 sending a line closed it, so a typed conversation meant re-opening it for every message.
+
+### Answering
+
+![[v0.19.3 - answering, the caption over the room.png]]
+
+**Checking:** two fixes in one frame, which is why this is the shot worth keeping. The caption sits **over** the room as a subtitle on its scrim rather than in a strip beneath it (0.19.1), and the field has stayed open, cleared and focused after sending (0.19.2). The Hush square is present because she is thinking, and absent everywhere else in this set.
+
+### The drawer, on a real turn
+
+![[v0.19.3 - the drawer on Transcript, a real local-brain turn.png]]
+
+**Checking:** the local brain actually answering through the whole stack — not a probe, a turn. Her reply is *"I can't see the house yet"*, which is both in character and true: [[Roadmap]] stage 12 is the one that gives her the house.
+
+### Settings, both halves
+
+![[v0.19.3 - settings, appearance through the devices she uses.png]]
+
+**Checking:** appearance, speech, voice and the device pickers, each reading back from the host rather than defaulting in the page. *Hears what you play* names the actual endpoint it is listening to.
+
+![[v0.19.3 - settings, the status readout switch and the API key out of her face.png]]
+
+**Checking:** the three things that moved here. **Show the status readout** switches off the panel over her top-left corner; **Speech recognition runs on** is the CPU/GPU choice added when this machine turned out to have the better processor; and the **API key** now lives down here instead of nagging from a pill on her face. The hint says it is not needed on a local brain, which is now the default.
+
+---
+
+## v0.15.0 — dancing to what the machine plays
+
+![[v0.15.0 - dancing to loopback, headphones on.png]]
+
+**Checking:** headphones on and a tempo in the status strip from audio heard through WASAPI loopback. The tempo is right this time — the VM's flattened endpoint that made v0.8.0 read 109 for a 132 bpm track was a decoder bug, not the hardware. See [[Music]].
+
+---
+
+## v0.12.0 — she has a face at last
+
+![[v0.12.0 - textures loading, the CSP fix.png]]
+
+**Checking:** textures rendering, for the first time in the project's life. Every model had always come up blank-faced, and the cause was neither the lighting nor a missing `KTX2Loader` — the CSP simply did not list `blob:`, and three.js decodes embedded glTF textures to a `Blob` and loads them from a `blob:` URL. Every texture in every model was being blocked regardless of format. 20 of 28 materials textured, zero console errors.
 
 ---
 
@@ -136,4 +211,10 @@ The capture caught a terminal window overlapping at the left edge; that is the s
 
 ## Gaps
 
-No screenshots exist for stages 1–4. Those stages were verified from logs, harness output and the protocol rather than by eye, which was correct for what they were — but it does mean there is no visual record of her before the room.
+**Stages 1–4** have no screenshots. Those were verified from logs, harness output and the protocol rather than by eye, which was correct for what they were — but it does mean there is no visual record of her before the room.
+
+**v0.10.0 and v0.11.0 are the expensive gap.** That is the whole console rebuild: three hand-written drawers replaced by one with tabs, the tokens introduced, the API key moved out of the status strip, Hush made transient, the chrome put into the room's own light. The largest visual change the project has had, and nothing was captured while it happened. v0.12.0 is the next shot after it, so the before-and-after is missing its before.
+
+**v0.13.0–v0.14.x and v0.16.0–v0.19.2** are also unphotographed, though less painfully — 0.19.3 shows where that run of changes ended up, even if not how it got there.
+
+This is the gap that [[#When to take them|the after-every-bump rule]] exists to stop reopening.
