@@ -305,11 +305,19 @@ function applyHello(msg) {
 
   if (msg.music !== undefined) {
     musicChk.checked = !!msg.music;
+    /* Naming the endpoint matters more than the reassurance about privacy. She taps one
+       output; a machine has several, and music playing through any of the others is
+       silence to her — which looks exactly like the beat detection being broken. */
+    const heard = (msg.outputs || []).find(d => d.value === (msg.output || ''))
+                ?? (msg.outputs || []).find(d => /default/i.test(d.label));
+
     el('musicHint').textContent = !msg.music
       ? 'She is not listening to the speakers at all.'
       : msg.musicAvailable === false
         ? 'On, but this machine has no output she can listen to.'
-        : 'Nothing is recorded: what survives is a tempo and a loudness.';
+        : heard
+          ? `Listening to ${heard.label.replace(/\s*\(Windows default\)$/, '')}. Play music through that one — she hears a single output, not the machine. Nothing is recorded: a tempo and a loudness.`
+          : 'Nothing is recorded: what survives is a tempo and a loudness.';
     if (!msg.music) showMusic({ playing: false });
   }
 

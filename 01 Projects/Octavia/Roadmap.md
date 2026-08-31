@@ -551,6 +551,32 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
 
 ---
 
+## Stage 11a — She should hear the room, not just the machine *(found 08/31/2026)*
+
+**Her music sense taps WASAPI loopback, which is what *this computer* is playing.** Music
+from a speaker in the same room — another PC, a phone, a hi-fi — never reaches it. It
+reaches the microphone, and the microphone is not wired to the analyser at all.
+
+Found the obvious way: she would not dance, and the loopback was open and reporting zero
+while music was plainly audible in the room. The mic read 0.013 against a 0.004 noise
+floor, so it *could* hear it.
+
+For a thing that lives in a room rather than on a desktop, this is the wrong way round.
+The design is sound for "react to what I am playing"; it is silent for "there is music on".
+
+**The shape of the fix.** `MusicAnalyzer` already consumes arbitrary float PCM, and
+`WhisperRecognizer` already has mic frames at 16 kHz mono. Tee them into a second analyser
+instance and she has both sources. Two things need care:
+
+- **The gate.** Music in the room already risks false wakes; lyrics are speech. Anything
+  here must not make that worse, and might be able to make it better — knowing music is
+  playing is exactly the context a gate could use to be *more* sceptical.
+- **Crest, again.** Room audio through a boom mic is reverberant and gain-controlled, so
+  the beat will be far less clean than loopback. `EarsTest music` should be able to
+  measure the mic source too before anyone trusts it.
+
+Cheap, high value, and it makes her feel like she is in the room rather than in the PC.
+
 ## Stage 11 — The room, the props and the chrome *(agreed 08/31/2026)*
 
 Four pieces of polish that the textured face made visible, because until v0.12.0 nobody

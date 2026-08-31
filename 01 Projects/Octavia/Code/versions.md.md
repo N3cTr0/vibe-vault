@@ -18,6 +18,38 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.15.2 — 2026-08-31
+
+**"She will not dance" is almost never the analyser.** PATCH.
+
+Reported: music playing, no dancing, and a reasonable guess that her music sense was off by
+default. It is not — `Music` defaults to true and the log showed the loopback open the
+whole time. **The music was playing on a different computer**, and WASAPI loopback taps
+what *this* machine plays. She was listening perfectly to an output nobody was using.
+
+Nothing was broken, so the fix is to make the invisible thing visible:
+
+- The Music self-test names the endpoint she actually **opened** — not
+  `LoopbackListener.DefaultDevice()`, which is a different question now that `OutputDevice`
+  exists — and its fix line says to check the music is coming out of that one.
+- `MusicSummary` names the device even while she *is* hearing something, so the log answers
+  the question before it is asked.
+- The Settings hint names it too: *"Listening to Headset Earphone. Play music through that
+  one — she hears a single output, not the machine."*
+
+Verified end to end afterwards: 183 bpm at confidence 1.00 from the probe, then she wore
+her headphones and danced, tracking 110 → 138 bpm as the track changed.
+
+**Also found, and left as [[Roadmap]] stage 11a:** she cannot hear a room at all. Loopback
+is what the *computer* plays; a speaker in the same room only reaches the microphone, which
+is not wired to the analyser. The mic read 0.013 against a 0.004 floor, so it could hear it.
+For something that lives in a room rather than on a desktop, that is the wrong way round.
+
+*(A label/`for` double-toggle was suspected in the music checkbox and tested: one click, one
+toggle, one event. Not the bug. Recorded so nobody suspects it twice.)*
+
+---
+
 ## 0.15.1 — 2026-08-31
 
 **The microphone was never broken.** PATCH.

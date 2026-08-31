@@ -293,8 +293,15 @@ internal static class SelfTest
                 "Windows has nothing to play through, so there is nothing for her to hear. " +
                 "Over Remote Desktop this is normal unless audio is set to play on the remote PC.");
 
+        /* `host.Music` names the endpoint she actually opened, which is not necessarily
+           the Windows default now that OutputDevice exists — and the gap between those
+           two is the whole of "she will not dance". Loopback taps one output; this
+           machine has four, and music played through any of the others is silence to
+           her. So the answer says where to play it rather than only what is wrong. */
         return host.Running
-            ? new Check("Music", true, $"listening to '{device}' — {host.Music}")
+            ? new Check("Music", true, host.Music,
+                "If she is not moving to something you are playing, check this is the same " +
+                "device the music is coming out of — she hears one output, not the machine.")
             : new Check("Music", true, $"would listen to '{device}'");
     }
 

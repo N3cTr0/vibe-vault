@@ -561,10 +561,14 @@ internal sealed class OctaviaSession : IDisposable
         if (!_config.Music) return "off";
         if (!_music.IsRunning) return "no output device";
 
+        /* The device is named even when she *is* hearing something, because "she does
+           not dance" is almost never the analyser and almost always the music going to
+           a different endpoint than the one she tapped. Loopback hears one output; a
+           machine has four. Saying which turns a mystery into a dropdown. */
         var state = _music.State;
         return state.Playing
-            ? $"{state.Bpm:0} bpm now (confidence {state.Confidence:0.00})"
-            : "listening, nothing playing";
+            ? $"{state.Bpm:0} bpm now (confidence {state.Confidence:0.00}) on '{_music.DeviceName}'"
+            : $"listening to '{_music.DeviceName}', nothing playing through it";
     }
 
     private async Task RunSelfTest()
