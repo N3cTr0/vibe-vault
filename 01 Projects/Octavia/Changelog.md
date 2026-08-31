@@ -16,6 +16,26 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.16.2 — 2026-08-31
+
+**The duplicate music logging, which was not what it looked like.** PATCH.
+
+Five identical `music: N bpm` lines in one second looked like the two sources talking over
+each other. It was neither source: the transition was logged on `state.Playing !=
+_last.Playing`, but `_last` is only assigned **after** the 80 ms throttle returns early —
+so the same change re-reported on every frame until a send finally went through and moved
+`_last` on. The log now happens where `_last` is updated, so the two cannot drift apart.
+
+Both sources do also need telling apart, so `MusicWatcher` has a `Name` — `output` for the
+loopback, `room` for the microphone — and it appears in the line.
+
+**And they were genuinely competing.** Both wrote to the same face state with no rule, so
+the tempo would flicker between what this machine plays and what is in the room, with
+neither reading trustworthy. The loopback now wins whenever it has something: clean
+dynamics, no room, no gain control. The microphone only speaks when the loopback is silent.
+
+---
+
 ## 0.16.1 — 2026-08-31
 
 **The cups sit on her ears, and the room source is proven.** PATCH.

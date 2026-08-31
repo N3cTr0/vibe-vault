@@ -19,6 +19,11 @@ namespace Octavia.Senses.Music;
 internal sealed class MusicWatcher : IDisposable
 {
     private readonly LoopbackListener _listener = new();
+    /// Which ear this is — "output" for the loopback, "room" for the microphone. Two
+    /// watchers write the same lines to the same log, and a line that cannot say which
+    /// one it came from is worse than no line.
+    public string Name { get; init; } = "output";
+
     private MusicAnalyzer? _analyzer;
 
     private MusicState _last;
@@ -176,12 +181,11 @@ internal sealed class MusicWatcher : IDisposable
         // is never coalesced. Everything else can wait for the next update.
         for (var i = 0; i < beats; i++) Beat?.Invoke();
 
-        if (state.Playing != _last.Playing)
-        {
-            Log.Write(state.Playing
-                ? $"music: {state.Bpm:0} bpm (confidence {state.Confidence:0.00})"
-                : "music: stopped");
-        }
+        // The transition is logged where `_last` is actually updated, further down —
+        // logging it here re-reported the same change on every frame until the throttle
+        // below finally let a send through and moved `_last` on. Five identical lines in
+        // one second was that, not two sources talking over each other.
+        var wasPlaying = _last.Playing;
 
         // Energy at roughly twelve a second, and only when it moved: the same reasoning
         // as the microphone level, whose stream this one sits beside.
@@ -194,6 +198,14 @@ internal sealed class MusicWatcher : IDisposable
 
         _lastSent = now;
         _last = state;
+
+        if (state.Playing != wasPlaying)
+        {
+            Log.Write(state.Playing
+                ? $"music ({Name}): {state.Bpm:0} bpm (confidence {state.Confidence:0.00})"
+                : $"music ({Name}): stopped");
+        }
+
         Changed?.Invoke(state);
     }
 

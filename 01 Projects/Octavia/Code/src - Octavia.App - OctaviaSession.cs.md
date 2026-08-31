@@ -32,7 +32,7 @@ internal sealed class OctaviaSession : IDisposable
 
     /// A second analyser fed from the microphone, so a speaker in the room is not silence
     /// to her. Only started when MusicFromRoom is on and her ears are open.
-    private readonly MusicWatcher _roomMusic = new();
+    private readonly MusicWatcher _roomMusic = new() { Name = "room" };
     private readonly AttentionGate _gate;
     private readonly Brain.Tools.ToolRegistry _tools;
 
@@ -693,15 +693,29 @@ internal sealed class OctaviaSession : IDisposable
                    room costs one subscription and no extra capture. See ROADMAP.md 11a. */
                 if (_config.MusicFromRoom && ears is WhisperRecognizer whisper)
                 {
-                    _roomMusic.Changed += state => _face.Send(new
+                    /* The loopback wins when it has something.
+                       Both sources write to the same face state, so without a rule they
+                       fight: the tempo flickers between whatever this machine is playing
+                       and whatever is in the room, and neither reading is trustworthy.
+                       Loopback is the better witness — clean dynamics, no room, no gain
+                       control — so the microphone only speaks when it is silent. */
+                    _roomMusic.Changed += state =>
                     {
-                        type = "music",
-                        playing = state.Playing,
-                        bpm = state.Bpm,
-                        energy = state.Energy,
-                        beat = false
-                    });
-                    _roomMusic.Beat += () => _face.Send(new { type = "music", beat = true });
+                        if (_music.State.Playing) return;
+                        _face.Send(new
+                        {
+                            type = "music",
+                            playing = state.Playing,
+                            bpm = state.Bpm,
+                            energy = state.Energy,
+                            beat = false
+                        });
+                    };
+                    _roomMusic.Beat += () =>
+                    {
+                        if (_music.State.Playing) return;
+                        _face.Send(new { type = "music", beat = true });
+                    };
 
                     _roomMusic.StartFromFrames(SileroVad.SampleRate);
                     whisper.Audio += _roomMusic.Push;
