@@ -18,6 +18,37 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.17.0 — 2026-08-31
+
+**The console gets its corners back.** MINOR: the control surface moved.
+
+Three changes, from a marked-up screenshot:
+
+- **The drawer button is in the header**, beside the state it belongs with. It had been
+  sitting in the console row among the microphone and the keyboard — a settings menu
+  filed with the controls you reach for mid-sentence. Smaller up there, because it is a
+  way out rather than something you press while talking.
+- **The status readout moved to the right of the control row**, from underneath it. The
+  left of that bar is where you act and the right is where you look; having both stacked
+  down the left made it read as a wall of text with a microphone on top.
+- **The row spans the full width** instead of a centred 860px column, which was pulling
+  both ends toward the middle and leaving the corners empty.
+
+The pills are right-*positioned* but left-*aligned* inside their block. Right-aligning the
+text as well gave every label a different starting x, and a list you scan down wants one
+edge to run your eye along.
+
+**Not fixed: the headphones.** Four attempts, and adjusting by eye did not converge — each
+round fixed the last complaint and introduced another. Height is right; width and depth
+are not. What was learned is written into ROADMAP.md stage 11 so the next attempt starts
+from it: `Box3.setFromObject` on a skinned mesh returns the *bind pose* (the body reads
+±0.69 wide, arms out), the face mesh is half-width 0.109 against the 0.164 in use, and
+measuring the skull alone buries the cups in a long-haired character's fringe. The missing
+quantity is the hair silhouette at ear height. Worth a dev-panel slider rather than a
+rebuild per guess.
+
+---
+
 ## 0.16.2 — 2026-08-31
 
 **The duplicate music logging, which was not what it looked like.** PATCH.

@@ -161,7 +161,10 @@ body.trouble #state .dot{background:var(--alert)}
   padding:var(--s3) var(--s5) var(--s2);
   transition:background 1s linear,border-color 1s linear;
 }
-.row{display:flex;gap:var(--s3);align-items:center;max-width:860px;margin:0 auto}
+/* Full width rather than a centred 860px column. The controls belong at the left edge
+   and the readout at the right one; a centred column pulled both into the middle and
+   left the corners empty. */
+.row{display:flex;gap:var(--s3);align-items:center}
 
 /* One primary action. Everything else steps down a full size. */
 #talk{
@@ -229,21 +232,28 @@ body.busy #text{padding-right:98px}
 #hush:hover{background:rgba(196,54,47,.12)}
 #hush svg{width:15px;height:15px}
 
+/* In the header now, beside the state. Smaller than it was in the console, because up
+   here it is a way out rather than a control you reach for mid-sentence. */
 #drawerBtn{
-  flex:0 0 auto;width:42px;height:42px;border-radius:var(--radius);
+  flex:0 0 auto;width:32px;height:32px;border-radius:var(--radius);margin-right:var(--s3);
   border:1px solid var(--room-line);background:transparent;color:var(--room-ink);opacity:.75;
   cursor:pointer;display:grid;place-items:center;transition:opacity .18s,border-color .18s;
 }
 #drawerBtn:hover{opacity:1}
 #drawerBtn[aria-expanded="true"]{border-color:var(--cobalt);color:var(--cobalt);opacity:1}
-#drawerBtn svg{width:17px;height:17px}
+#drawerBtn svg{width:15px;height:15px}
 
 /* ── status: a readout, with health ─────────────────────── */
 /* Stacked at the left rather than spread across the window. Five readings on one line
    read as a sentence you have to parse; five short lines read as a list you can scan,
    and from a sofa scanning is all that happens. */
+/* Stacked and right-aligned, sharing the control row rather than sitting under it. The
+   left of the bar is where you act; the right is where you look. */
+/* The block sits right — `.grow` before it does that — but the rows inside it align
+   left. Right-aligning the text too gave every label a different starting x, and a list
+   you scan wants one edge to run your eye down. */
 .meta{
-  max-width:860px;margin:var(--s2) auto 0;
+  flex:0 0 auto;
   display:flex;flex-direction:column;align-items:flex-start;gap:5px;
 }
 .pill.act{align-self:flex-start;margin-top:3px}

@@ -597,6 +597,28 @@ could see her well enough to notice.
   renderer says `ready`, and let it name what it is waiting for rather than spinning
   anonymously — the same argument as the diagnostics stage, one screen earlier.
 
+> **Still not right after four attempts — revisit properly. (08/31/2026)**
+>
+> Height is solved: the cups sit on the eye line, taken from the `leftEye`/`rightEye`
+> bones, and that part is correct. **Width and depth are not**, and adjusting them by eye
+> did not converge — each round fixed the last complaint and introduced another.
+>
+> Two things learned that the next attempt should start from rather than rediscover:
+>
+> - **`Box3.setFromObject` on a skinned mesh returns its *bind pose*.** The body is one
+>   mesh whose bind pose is a T-pose, so it measures ±0.69 wide and reaches above the jaw.
+>   Any "sample the vertices near the head" approach collects outstretched arms unless it
+>   filters by material first.
+> - **The face mesh (`Face_00_SKIN`) is half-width 0.109 on the sample model**, against the
+>   0.164 currently used — roughly 50% too wide. But simply using the measured skull put
+>   the cups *inside* her hair, because on a long-haired character they belong outside it.
+>   The missing quantity is the hair silhouette at ear height, not the skull.
+>
+> So the real fix is probably to measure the **hair** meshes at ear height and clamp just
+> outside them, with the skull as a floor. Worth doing with the model in front of you and
+> a way to nudge the numbers live, rather than a rebuild per guess — a small dev-panel
+> slider for cup width and depth would pay for itself in one sitting.
+
 - **The headphones do not sit right.** They are attached to the head bone and sized from
   `headPoint.y * 0.115`, which is a guess at head *width* derived from character *height*.
   A VRM does not standardise head size, so the guess is wrong per model. Take the head

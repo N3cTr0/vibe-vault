@@ -42,6 +42,16 @@ source-path: src\Octavia.App\wwwroot\index.html
     <span class="eyebrow">In residence</span>
     <span class="spacer"></span>
     <span id="watching" hidden>camera</span>
+
+    <!-- The drawer opens from the top right, beside the state it belongs with. It sat in
+         the console row with the microphone, which put a settings menu among the controls
+         you use mid-conversation. -->
+    <button id="drawerBtn" title="Transcript, settings and health" aria-label="Open the drawer" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M4 7h16M4 12h16M4 17h16"/>
+      </svg>
+    </button>
+
     <span id="state"><span class="dot"></span><span id="stateLabel">Idle</span></span>
   </header>
 
@@ -92,22 +102,17 @@ source-path: src\Octavia.App\wwwroot\index.html
 
       <span class="grow"></span>
 
-      <button id="drawerBtn" title="Transcript, settings and health" aria-label="Open the drawer" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <path d="M4 7h16M4 12h16M4 17h16"/>
-        </svg>
-      </button>
-    </div>
-
-    <!-- A readout, not a control surface: every button that used to live here has gone
-         to the drawer, and each row now says whether it is well as well as what it is. -->
-    <div class="meta">
-      <span class="pill" id="pillVoice"><span class="d"></span>Voice <b id="voiceLabel">&mdash;</b></span>
-      <span class="pill" id="pillEars"><span class="d"></span>Ears <b id="ears">not started</b></span>
-      <span class="pill" id="pillBrain"><span class="d"></span>Brain <b id="model">&mdash;</b></span>
-      <span class="pill" id="pillMusic"><span class="d"></span>Music <b id="musicLabel">&mdash;</b></span>
-      <span class="pill" id="pillProfile"><span class="d"></span>Profile <b id="profile">&mdash;</b></span>
-      <button class="pill act" id="pillKey" hidden><span class="d"></span>Needs an API key &mdash; open settings</button>
+      <!-- A readout, not a control surface. It sits to the right of the controls now
+           rather than beneath them: the left of this bar is where you act, the right is
+           where you look, and mixing the two is what made it read as a wall of text. -->
+      <div class="meta">
+        <span class="pill" id="pillVoice"><span class="d"></span>Voice <b id="voiceLabel">&mdash;</b></span>
+        <span class="pill" id="pillEars"><span class="d"></span>Ears <b id="ears">not started</b></span>
+        <span class="pill" id="pillBrain"><span class="d"></span>Brain <b id="model">&mdash;</b></span>
+        <span class="pill" id="pillMusic"><span class="d"></span>Music <b id="musicLabel">&mdash;</b></span>
+        <span class="pill" id="pillProfile"><span class="d"></span>Profile <b id="profile">&mdash;</b></span>
+        <button class="pill act" id="pillKey" hidden><span class="d"></span>Needs an API key &mdash; open settings</button>
+      </div>
     </div>
   </div>
 </div>
