@@ -18,6 +18,35 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.19.2 — 2026-08-31
+
+**The typing field stays where you left it.** PATCH.
+
+Sending a line closed the field. That was written as "the field has done its job and the
+room comes back", which is a reasonable sentence and wrong about how anybody actually uses
+it: a person who typed once is usually about to type again, and they were made to re-open
+it for every single line. `submitTyped` no longer closes anything — it clears the box and
+puts the cursor back in it.
+
+Closing is now the keyboard button's job, or **a minute of not using it**, whichever comes
+first. The timer restarts on every keystroke and every send, and it only ever fires on an
+**empty** field: a half-written line is somebody still thinking, and a strip of chrome is
+not worth throwing their sentence away. Escape still closes it immediately, unless she is
+talking, in which case Escape stops her instead — that was already true and is unchanged.
+
+**Roadmap gains stage 2a**: `LocalBrain.cs:96` is `while (!reader.EndOfStream)`, which is a
+*synchronous* read — the CA2024 warning, and the only one in the build. On a server-sent-event
+stream there is nothing to peek at until the model emits the next token, so the loop blocks a
+thread pool thread waiting for the line it then politely `await`s on the next statement. It
+costs more here than it used to: the brain is pinned to the CPU, tokens are slow, and the
+thread is parked for the length of every reply.
+
+*Tested by temporarily dropping the timer to 1.5s and driving the three cases — empty field
+closes, draft survives, post-send field closes on its own clock — then restoring the minute.
+A one-minute timeout that is only ever reasoned about is a one-minute timeout nobody has run.*
+
+---
+
 ## 0.19.1 — 2026-08-31
 
 **The placard fades instead of collapsing.** PATCH: fixes the rescale that came with it.

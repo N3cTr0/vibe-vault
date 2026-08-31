@@ -452,9 +452,12 @@ async function look() {
 function submitTyped() {
   const value = textIn.value.trim();
   textIn.value = '';
-  if (value) send({ type: 'say', text: value });
-  // Sent, so the field has done its job and the room comes back.
-  if (value) showField(false);
+  if (!value) return;
+  send({ type: 'say', text: value });
+  // The field stays. Somebody who typed once is usually about to type again, and
+  // closing it under them meant re-opening it for every single line.
+  keepFieldAwhile();
+  textIn.focus();
 }
 
 el('send').addEventListener('click', submitTyped);
@@ -463,14 +466,32 @@ el('send').addEventListener('click', submitTyped);
 const typeBtn = el('typeBtn');
 const fieldWrap = document.querySelector('.field');
 
+/* Closing it is the keyboard button's job, or a minute of not using it — whichever
+   comes first. The timer only ever fires on an *empty* field: a half-written line is
+   somebody still thinking, and reclaiming a strip of chrome is not worth throwing
+   their sentence away. */
+const FIELD_IDLE = 60000;
+let fieldIdle = null;
+
+function keepFieldAwhile() {
+  clearTimeout(fieldIdle);
+  fieldIdle = setTimeout(() => {
+    if (!fieldWrap.hidden && !textIn.value.trim()) showField(false);
+  }, FIELD_IDLE);
+}
+
 function showField(on) {
   fieldWrap.hidden = !on;
   typeBtn.setAttribute('aria-expanded', String(on));
-  if (on) textIn.focus();
+  clearTimeout(fieldIdle);
+  if (on) { textIn.focus(); keepFieldAwhile(); }
   else textIn.value = '';
 }
 
 typeBtn.addEventListener('click', () => showField(fieldWrap.hidden));
+
+// Any keystroke counts as using it, including the ones that leave it empty again.
+textIn.addEventListener('input', keepFieldAwhile);
 
 textIn.addEventListener('keydown', e => {
   if (e.key === 'Enter') submitTyped();

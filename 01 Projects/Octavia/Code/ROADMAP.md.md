@@ -585,6 +585,37 @@ the frames the voice detector already reads. **Not yet verified against real roo
 reported 141 bpm at confidence 0.49 through the microphone. The lower confidence against
 loopback's 1.00 is the room-and-boom-mic penalty, showing up exactly as predicted.
 
+## Stage 2a — The streaming loop blocks a thread on every token *(found 08/31/2026)*
+
+**`LocalBrain.cs:96` is `while (!reader.EndOfStream)`, and `EndOfStream` is a synchronous
+read.** The compiler says so — CA2024, the one warning in an otherwise clean build — and it
+is right in a way that matters more here than it usually would.
+
+`EndOfStream` has to peek at the underlying stream to answer, and on a server-sent-event
+response from Ollama there is nothing to peek at until the model produces the next token.
+So the loop blocks a thread pool thread waiting for it, then hands the line it was already
+waiting for to `await reader.ReadLineAsync` on the very next statement. The `await` is
+decorative: the blocking already happened.
+
+This costs more on this machine than it would have on the VM. The brain is pinned to the
+CPU deliberately (see the Modelfile in [[Changelog]] 0.14.x), tokens arrive slowly, and a
+thread is parked for the entire length of every reply rather than for a moment.
+
+The fix is one line and removes the peek rather than working around it:
+
+```csharp
+string? line;
+while ((line = await reader.ReadLineAsync(cancel)) is not null)
+{
+    if (cancel.IsCancellationRequested) break;
+    ...
+}
+```
+
+Worth doing at the same time: **check whether anything else in the project reads a stream
+this way.** CA2024 fires per call site, and one warning in the build output is easy to stop
+seeing — which is how this one survived several releases.
+
 ## Stage 10a — Nothing checks the face's own syntax *(found 08/31/2026)*
 
 **A JavaScript syntax error in `wwwroot` is invisible to everything this project has.**
