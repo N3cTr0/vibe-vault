@@ -29,7 +29,7 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
     private readonly WebViewFaceTransport? _page;
     private readonly WebSocketFaceServer? _sockets;
 
-    public event Action<JsonElement>? MessageReceived;
+    public event Action<FaceMessage>? MessageReceived;
 
     public FaceHub(WebViewFaceTransport? page, WebSocketFaceServer? sockets)
     {
@@ -40,23 +40,42 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
         if (_sockets is not null) _sockets.MessageReceived += Relay;
     }
 
+    public FaceId? BuiltInFace => _page?.Id;
+
     public FaceStatus Status => new(
         Page: _page is not null,
         SocketBound: _sockets?.IsRunning ?? false,
         Port: _sockets?.Port ?? 0,
         SocketFaces: _sockets?.FaceCount ?? 0);
 
-    private void Relay(JsonElement message) => MessageReceived?.Invoke(message);
+    private void Relay(FaceMessage message) => MessageReceived?.Invoke(message);
 
-    public void Send(object message)
+    /// `to` is null for all but a handful of messages, and null means everyone — the
+    /// behaviour this had before faces had identity. Only something that belongs to one
+    /// renderer, like `look`, names a recipient.
+    public void Send(object message, FaceId? to = null)
     {
         // Serialise once, however many faces are attached.
         var json = JsonSerializer.Serialize(message, Json);
-        _page?.SendJson(json);
 
         // The type is read off the object rather than back out of the JSON, so a face
         // that has opted out of visemes costs nothing to skip.
-        _sockets?.Broadcast(json, message.GetType().GetProperty("type")?.GetValue(message) as string);
+        var type = message.GetType().GetProperty("type")?.GetValue(message) as string;
+
+        if (to is null)
+        {
+            _page?.SendJson(json);
+            _sockets?.Broadcast(json, type);
+            return;
+        }
+
+        if (_page is not null && to == _page.Id)
+        {
+            _page.SendJson(json);
+            return;
+        }
+
+        _sockets?.SendTo(to.Value, json, type);
     }
 
     public void Dispose()

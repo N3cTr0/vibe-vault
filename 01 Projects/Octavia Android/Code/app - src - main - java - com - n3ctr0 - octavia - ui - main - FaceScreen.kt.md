@@ -154,6 +154,9 @@ private fun LinkLine(state: FaceState, viewModel: FaceViewModel) {
     val text = when (state.link) {
         FaceSocket.Link.Idle -> "Not connected. Set up her address and key."
         FaceSocket.Link.Connecting -> "Reaching her…"
+        // Deliberately not "retrying": nothing is going to happen until someone acts.
+        // Saying otherwise would be a spinner that never resolves.
+        FaceSocket.Link.Refused -> state.linkDetail ?: "Refused. Set up again."
         FaceSocket.Link.Retrying -> state.linkDetail?.let { "$it Retrying…" } ?: "Retrying…"
         FaceSocket.Link.Up ->
             buildString {
@@ -168,7 +171,8 @@ private fun LinkLine(state: FaceState, viewModel: FaceViewModel) {
         Text(
             text,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            color = if (state.link == FaceSocket.Link.Refused) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             modifier = Modifier.weight(1f),
         )
         if (state.link != FaceSocket.Link.Up) {

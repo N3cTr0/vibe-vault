@@ -59,6 +59,10 @@ These are the whole design. Each was introduced *before* it had a second impleme
 | `IFaceTransport` | `FaceHub` over `WebViewFaceTransport` + `WebSocketFaceServer` | How the face is reached |
 | `ITool` | `McpClient` via `ToolRegistry` | What she can *do* — an integration is a server, not a branch |
 
+**`IFaceTransport` learned to address one face in v0.21.0**, and it is worth saying what did *not* change: `Send(message, to)` defaults `to` to null, and null still means everyone. The session learns that faces are **distinguishable**, not how any of them connected — so the rule at the top of this note still holds exactly as written. `FaceId` is opaque; nothing can be recovered from one about a transport.
+
+That distinction is what made the change small enough to be safe. See [[Changelog]] 0.21.0.
+
 `ITool` is the newest and the only one still waiting for its second implementation to prove it. It follows the same discipline as the others — introduced before it was needed — and the seam, the stdio client, the risk policy and the confirmation rule for irreversible actions are all built and tested. What is missing is the brain-side loop that calls one. See [[Roadmap]] stage 12.
 
 And one more, in the renderer rather than the host: the **avatar** — the bust and a VRM take the same performance. See [[The Avatar Interface]].

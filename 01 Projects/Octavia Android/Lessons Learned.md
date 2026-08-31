@@ -57,6 +57,22 @@ The fix is a **generation counter** bumped on both `connect` and `disconnect`, c
 
 **And the reason it was findable at all:** her host logs every refusal. A client that failed quietly would have looked merely slow to pair. Noisy rejection on the server is what made a client-side lifetime bug visible in seconds.
 
+## Decide whether a failure is worth retrying, not just how often
+
+The backoff was careful — exponential, capped at fifteen seconds so a phone rejoining a network does not sit in a five-minute wait. All of that is right and none of it is the question that mattered.
+
+A **401 is not a transient fault.** Her per-run token is regenerated every time she starts, so restarting her silently un-pairs the phone — and this client then retried a credential that *could never work*, every fifteen seconds, for twenty minutes, holding the radio up each time and writing a refusal into her log.
+
+**The lesson:** a retry policy needs two decisions, and the tempting one is the second. First *should* this be retried, then how often. Anything that only a person can fix belongs in its own state — `Refused`, not `Retrying` — because "retrying…" on a screen is a promise that something will change.
+
+## Removing a forward does not close an open stream
+
+`adb reverse --remove tcp:8848` looked like a clean way to simulate losing the network. It is not: it stops *new* connections being forwarded and leaves established streams alone, so the socket stayed up and the test reported success while proving nothing.
+
+`adb kill-server` genuinely breaks the transport — established connections dropped 2 → 1 and recovered unaided once it was restored.
+
+**The lesson:** when a negative test passes immediately, check that it actually removed the thing it claimed to. A test that cannot fail is worse than no test, because it is quoted later.
+
 ## Driving a text field over `adb` needs one call, not a loop
 
 Clearing a field with `1..40 | ForEach-Object { adb shell input keyevent KEYCODE_DEL }` silently lost most of the presses — 15 of 40 landed, leaving the tail of the old value glued to the new one and a 49-character "token" that was refused with no clue why.

@@ -88,6 +88,16 @@ Pass several keycodes to **one** invocation instead:
 adb shell "input keyevent 67 67 67 67 …"     # 67 = KEYCODE_DEL
 ```
 
+**For pairing, do not use the dialog at all.** The burst gets truncated — seventy `KEYCODE_DEL` deleted exactly fifteen characters, twice — so write the preferences file directly instead. This is the reliable way to pair during development:
+
+```
+adb push prefs.xml /data/local/tmp/ && adb shell chmod 644 /data/local/tmp/prefs.xml
+adb shell am force-stop com.n3ctr0.octavia
+adb shell run-as com.n3ctr0.octavia cp /data/local/tmp/prefs.xml shared_prefs/octavia.xml
+```
+
+`run-as … sh -c 'cat > …'` fails with *permission denied*; `cp` from a world-readable file works. Force-stop first, or the running process overwrites it on the way out.
+
 And read back what actually landed rather than trusting the taps — a debuggable build allows:
 
 ```

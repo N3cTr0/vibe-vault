@@ -32,7 +32,7 @@ internal static class FaceProtocolChecks
         if (!server.Start(0)) { Console.WriteLine("  FAIL could not start server"); return 1; }
         Check("server started", server.Port > 0, $"port {server.Port}");
 
-        var inbound = new List<JsonElement>();
+        var inbound = new List<FaceMessage>();
         server.MessageReceived += m => { lock (inbound) inbound.Add(m); };
 
         // --- a connection without the token must never become a WebSocket -----------
@@ -84,11 +84,41 @@ internal static class FaceProtocolChecks
 
         if (arrived)
         {
-            JsonElement message;
-            lock (inbound) message = inbound[0];
+            FaceMessage received;
+            lock (inbound) received = inbound[0];
+            var message = received.Body;
             Check("message parsed with its fields",
                 message.GetProperty("type").GetString() == "say" &&
                 message.GetProperty("text").GetString() == "hello from a second face");
+
+            // Stage 14 item 1: the host can tell who spoke. Without this the session
+            // cannot address one face, which is what made `look` open every camera.
+            Check("the message carries its sender", received.From != default,
+                received.From == default ? "FaceId was default" : $"from {received.From}");
+        }
+
+        /* --- addressed to one face, not all of them --------------------------------
+           The point of Stage 14 item 1. `look` used to be broadcast, so a tablet and a
+           desktop both opened their cameras for one question and the first frame back
+           won arbitrarily. This proves the transport can now reach exactly one.
+
+           faceB is the sender above, so it is the one the host knows about — the same
+           way the session learns which face a person is speaking through. */
+        if (arrived)
+        {
+            FaceId knownFace;
+            lock (inbound) knownFace = inbound[0].From;
+
+            server.SendTo(knownFace, """{"type":"look"}""");
+
+            var reachedB = await ReadAsync(faceB);
+            Check("a targeted send reaches the face it named", reachedB.Contains("look"), reachedB);
+
+            // The other face must hear nothing at all. Read with a short timeout: the
+            // assertion is silence, so waiting for a message that should never come is
+            // the only way to check it.
+            var reachedA = await ReadAsync(faceA, TimeSpan.FromSeconds(1));
+            Check("the other face hears nothing", reachedA is null, reachedA ?? "");
         }
 
         // --- a face that leaves is dropped ------------------------------------------
@@ -113,6 +143,27 @@ internal static class FaceProtocolChecks
     {
         var buffer = new byte[8192];
         var result = await socket.ReceiveAsync(buffer, Cancel());
+        return Encoding.UTF8.GetString(buffer, 0, result.Count);
+    }
+
+    /// Returns null if nothing arrived inside `within`. Needed to assert a *silence* —
+    /// that a face which was not addressed received nothing — which cannot be checked any
+    /// other way than by waiting for a message that should never come.
+    ///
+    /// **The read is raced against a delay rather than cancelled.** Cancelling a
+    /// `ReceiveAsync` *aborts* a WebSocket, it does not time out — so the obvious version
+    /// of this helper killed the very face it was proving had been left alone, and the
+    /// next check then reported it as departed. That lesson was already written down in
+    /// this project and still caught me. The receive is simply left pending; the socket
+    /// is disposed at the end of the test either way.
+    private static async Task<string?> ReadAsync(ClientWebSocket socket, TimeSpan within)
+    {
+        var buffer = new byte[8192];
+        var reading = socket.ReceiveAsync(buffer, CancellationToken.None);
+
+        if (await Task.WhenAny(reading, Task.Delay(within)) != reading) return null;
+
+        var result = await reading;
         return Encoding.UTF8.GetString(buffer, 0, result.Count);
     }
 

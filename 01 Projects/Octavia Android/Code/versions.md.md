@@ -18,6 +18,66 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.4.0 — 2026-08-31
+
+**Stage 1 hardened against the things a phone actually does.** MINOR: the connection's
+lifetime changes shape. All of it verified on the J7 Pro rather than reasoned about.
+
+### A 401 is terminal, not transient
+
+Found live rather than by a test. She was restarted at 20:44 and her per-run token is
+regenerated every start, so the phone was silently un-paired — and this client sat at its
+fifteen-second backoff cap retrying a credential that **could never work**, for twenty
+minutes, writing a refusal into her log every fifteen seconds and holding the radio up to
+do it.
+
+Nothing a client can wait for fixes a wrong secret; only a person can. A 401 now stops,
+reports `Refused` as its own link state — separate from `Retrying`, because one is waiting
+for the world to improve and the other is waiting for someone — and says **"Wrong token or
+key — she may have restarted"**, which names the actual cause. `Retry` still forces another
+attempt, for when the host was fixed rather than the phone.
+
+Measured: **one refusal in seventy seconds, down from five.**
+
+### The socket is held only while she is on screen
+
+It was held for the life of the ViewModel, which on a handset means through every doze. Now
+`LifecycleStartEffect` connects on START and releases on STOP. A rotation does not pass
+through STOP, so that still survives; leaving the app does.
+
+**This is a foreground client and that is a deliberate limit, not an oversight.** The day
+she needs to reach the phone *unprompted* it becomes a foreground service with a
+notification — a visible thing, rather than a socket left running by accident.
+
+### What was actually tested, on the device
+
+| | Result |
+|---|---|
+| Wrong credential | 1 refusal, then stops. Was 1 every 15 s, forever |
+| Backgrounded (HOME) | Socket released — her established connections 2 → 1 |
+| Returned to foreground | Reconnects on its own, `face connected over socket (2 attached)` |
+| Transport killed mid-session (`adb kill-server`) | 2 → 1, and back to 2 unaided once restored |
+| Screen off, 50 s | Released and **quiet** — no retries, no log churn |
+
+Removing the `adb reverse` mapping turned out **not** to be a network-loss test: it stops
+new forwards without tearing down an established stream, and the socket stayed up. Killing
+the adb server is the real thing.
+
+### Also learned
+
+**Driving the setup dialog over `adb` is not reliable enough to pair with.** `input keyevent`
+truncates a long burst — seventy `KEYCODE_DEL` deleted exactly fifteen characters, twice,
+leaving the tail of the old token glued to the new one and a 49-character credential. For
+development, write the preferences file instead:
+
+```
+adb push prefs.xml /data/local/tmp/ && adb shell chmod 644 /data/local/tmp/prefs.xml
+adb shell run-as com.n3ctr0.octavia cp /data/local/tmp/prefs.xml shared_prefs/octavia.xml
+```
+
+`run-as … sh -c 'cat > …'` fails with permission denied; `cp` from a world-readable file
+works.
+
 ## 0.3.1 — 2026-08-31
 
 **Re-pairing left the old retry loop alive, hammering her forever.** A real bug, found by

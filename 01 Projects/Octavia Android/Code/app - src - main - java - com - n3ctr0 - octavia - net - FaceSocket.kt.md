@@ -33,8 +33,11 @@ import kotlin.math.min
  */
 class FaceSocket(private val listener: Listener) {
 
-    /** What the UI needs to know about the connection itself, as opposed to her. */
-    enum class Link { Idle, Connecting, Up, Retrying }
+    /** What the UI needs to know about the connection itself, as opposed to her.
+     *
+     *  `Refused` is separate from `Retrying` because the two need opposite behaviour:
+     *  one is waiting for the world to improve, the other is waiting for a person. */
+    enum class Link { Idle, Connecting, Up, Retrying, Refused }
 
     interface Listener {
         fun onLink(link: Link, detail: String?)
@@ -145,13 +148,24 @@ class FaceSocket(private val listener: Listener) {
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                // 401 is worth saying out loud rather than retrying silently forever: it
-                // means the credential is wrong, and no amount of waiting fixes that.
-                val why = when (response?.code) {
-                    401 -> "Refused: wrong token or key."
-                    else -> t.message ?: "could not reach her"
+                /* **A 401 is terminal, and this is not a theoretical distinction.** Her
+                   per-run token is regenerated every time she starts, so restarting her
+                   silently un-pairs the phone. Treating that as a transient fault meant
+                   this client sat at its fifteen-second backoff cap retrying a credential
+                   that could never work — for over an hour, once, burning radio and
+                   writing a refusal into her log every fifteen seconds.
+
+                   Nothing the client can wait for fixes a wrong secret. Only a person
+                   can, so stop and ask one. `Retry` in the UI still forces another go,
+                   for the case where the host was fixed rather than the phone. */
+                if (response?.code == 401) {
+                    wanted = false
+                    generation++
+                    listener.onLink(Link.Refused, "Wrong token or key — she may have restarted.")
+                    return
                 }
-                retry(host, port, credential, why, gen)
+
+                retry(host, port, credential, t.message ?: "could not reach her", gen)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {

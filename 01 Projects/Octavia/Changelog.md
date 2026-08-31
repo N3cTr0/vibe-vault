@@ -16,6 +16,65 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.21.0 — 2026-08-31
+
+**Faces have identity, so `look` stops opening every camera in the house.** MINOR: an
+architectural interface changed and a user-visible behaviour changed with it. Stage 14
+item 1, implemented from a specification written on the Android side — see
+[[Stage 14 - Face Identity]].
+
+`IFaceTransport` was broadcast-only in **both** directions: `Send` went to everyone and
+`MessageReceived` said nothing about who sent it. That was a deliberate simplification and
+exactly right while every face only watched. It stopped being right the moment a face had
+a camera.
+
+**The bug it fixes.** `look` was broadcast and the session waited on a single promise. With
+a tablet and the desktop both attached, one question needing eyes **opened both cameras**,
+lit the privacy marker in an empty room, and whichever frame arrived first won —
+arbitrarily. That quietly broke the promise `camera.js` makes in its own header: *it is
+never opened unasked.*
+
+- `FaceId` and `FaceMessage` — the id was always minted per connection in
+  `WebSocketFaceServer`; it simply never left the class. Letting it out is most of the work.
+- `Send(object message, FaceId? to = null)`, where **null still means everyone**. That
+  default is why the change stayed small, and it is the same instinct as `subscribe` being
+  opt-*out*: a new message type reaches every face rather than being withheld from the ones
+  nobody remembered to address. `SendTo` still honours a face's `skip` list — being
+  addressed directly is not a reason to override what it asked for.
+- `_looking` carries the face it asked, and a `sight` from anyone else is **logged and
+  dropped** rather than silently accepted.
+- The `look` target is the last face a *person* spoke through — `say`, `listen`, `hush` —
+  falling back to the built-in page when the utterance came from the PC's own microphone.
+  **This is not turn ownership**, it is one field, and the comment says so: proper ownership
+  is item 5 and this must be replaced by it rather than grown into it.
+
+Nothing here is visible on the wire, so `PROTOCOL.md` does not move — which is the sign
+this is a seam being repaired rather than an interface being widened. The diff is six
+files, all host-side; `wwwroot` is untouched.
+
+**Verified against the spec's acceptance list**, with one honest gap:
+
+| | |
+|---|---|
+| A targeted send reaches one face, the other hears nothing | `EarsTest`, two live sockets |
+| A `sight` from an unasked face is ignored and logged | **Live**, two browser faces |
+| `caption`, `turn`, `state` still reach every face | **Live** |
+| `subscribe`/`skip` still applies per connection | **Live** — visemes and levels skipped, the rest arrived |
+| The built-in page works with the socket unbound | **Live** — port held by another process, `face ready` still arrived |
+| `FaceStatus` and the diagnostics count unchanged | Untouched in the diff |
+
+**The gap: two real cameras were never opened.** `MaybeLookAsync` requires the Claude brain
+and there is no key on this machine, so the camera path cannot run end to end here. The
+routing is proven at the transport level and by the `sight` guard firing live; the camera
+itself is not. Worth re-checking on a machine with a key before trusting it completely.
+
+*The silence assertion — "the face that was not addressed received nothing" — first killed
+the very face it was proving had been left alone. **Cancelling a `ReceiveAsync` aborts a
+WebSocket, it does not time out**, and that lesson was already written down in this project.
+Racing the read against a delay is the version that works.*
+
+---
+
 ## 0.20.1 — 2026-08-31
 
 **The contract now says what the code does.** No behaviour change; documentation only, which

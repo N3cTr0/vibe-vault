@@ -25,6 +25,12 @@ MainActivity
 
 Four files, and the smallness is the point: everything interesting is in her repo.
 
+## The message lists are deliberately not repeated here
+
+[[Face Protocol]] is regenerated from her `PROTOCOL.md` on every vault sync, so it cannot drift. A hand-kept copy can, and in her vault two of them did — [[Architecture|her Architecture note]] and [[The Face]] sat five face→host messages and eight `hello` fields behind, one of them under the words "that is the entire contract".
+
+**This client is the reason that mattered.** It was written against the gap, guessed `value` where `say` wanted `text`, and she accepted it and silently did nothing. Naming a specific message while making an argument is fine; reproducing the table is not. Link to the mirror.
+
 ## Why `org.json` and not a generated parser
 
 The protocol says a face must **ignore types and fields it does not recognise** rather than failing, because new ones may be added at any time within version 1. Defensive `opt*` reads express that directly. A schema-bound parser expresses the opposite — it turns "she added a field" into "the app crashes", which is exactly backwards for a client that will always be older than the host it talks to.

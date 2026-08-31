@@ -286,11 +286,18 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- face to host ----------------------------------------
 
-    private void OnFaceMessage(JsonElement message)
+    private void OnFaceMessage(FaceMessage inbound)
     {
+        var message = inbound.Body;
         if (!message.TryGetProperty("type", out var typeNode)) return;
 
-        switch (typeNode.GetString())
+        var kind = typeNode.GetString();
+
+        // A person did this, through this face. Everything else — `ready`, `sight`,
+        // settings echoes — is a renderer talking, not somebody in a room.
+        if (kind is "say" or "listen" or "hush") _lastSpokenThrough = inbound.From;
+
+        switch (kind)
         {
             case "ready":
                 _faceSpoke = true;
@@ -355,6 +362,22 @@ internal sealed class OctaviaSession : IDisposable
                 break;
 
             case "sight":
+                // A frame from a face that was never asked is dropped, and said out loud.
+                // Before faces had identity this could not be detected at all: `look` went
+                // to everyone and the first answer back won, arbitrarily. A face answering
+                // a `look` it never received is a bug worth seeing, not one to swallow.
+                if (_looking is not { } pending)
+                {
+                    Log.Warn($"sight from face {inbound.From} with no look outstanding; ignored");
+                    break;
+                }
+
+                if (inbound.From != pending.Face)
+                {
+                    Log.Warn($"sight from face {inbound.From}, but {pending.Face} was asked; ignored");
+                    break;
+                }
+
                 // Whatever came back ends the wait, including a refusal — she should
                 // answer without eyes rather than stand there for twenty seconds.
                 var frame = Text(message, "image");
@@ -370,7 +393,7 @@ internal sealed class OctaviaSession : IDisposable
                     else Log.Write($"sight: {glance}");
                 }
 
-                _looking?.TrySetResult(string.IsNullOrWhiteSpace(frame) ? null : frame);
+                pending.Waiting.TrySetResult(string.IsNullOrWhiteSpace(frame) ? null : frame);
                 break;
 
             case "setStats":
@@ -829,9 +852,24 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- eyes ------------------------------------------------
 
-    /// Set while a `look` is outstanding. One at a time: a second request would leave
-    /// the first waiting forever for a frame that went to the wrong place.
-    private TaskCompletionSource<string?>? _looking;
+    /// Set while a `look` is outstanding, **with the face it was sent to**. One at a
+    /// time: a second request would leave the first waiting forever for a frame that
+    /// went to the wrong place.
+    ///
+    /// The face matters as much as the promise. `look` used to be broadcast, so with a
+    /// tablet and the desktop both attached, one question opened *both* cameras and lit
+    /// the privacy marker in an empty room — breaking the promise `camera.js` makes in
+    /// its own header: "it is never opened unasked".
+    private (FaceId Face, TaskCompletionSource<string?> Waiting)? _looking;
+
+    /// The last face a *person* spoke through — `say`, `listen`, `hush`. Where `look` goes.
+    ///
+    /// **This is not turn ownership** and must not grow into it; that is Stage 14 item 5.
+    /// It is one field that answers one question well enough to fix the camera bug:
+    /// whoever last asked her something is the one holding a device worth looking through.
+    /// Null means nobody has, which is the case when the utterance arrived through the
+    /// PC's own microphone — so it falls back to the built-in page.
+    private FaceId? _lastSpokenThrough;
 
     /// A still, but only if the question genuinely needs one and she is allowed.
     ///
@@ -852,12 +890,22 @@ internal sealed class OctaviaSession : IDisposable
 
         if (_looking is not null) return null;
 
+        // One face, not all of them. Falls back to the built-in page when nobody has
+        // spoken through a remote face — an utterance from the PC's own microphone.
+        var target = _lastSpokenThrough ?? _face.BuiltInFace;
+        if (target is null)
+        {
+            Log.Warn("look: no face to ask, so she answers without eyes");
+            return null;
+        }
+
         var waiting = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _looking = waiting;
+        _looking = (target.Value, waiting);
 
         try
         {
-            _face.Send(new { type = "look" });
+            Log.Write($"look: asking face {target.Value}");
+            _face.Send(new { type = "look" }, target);
 
             // The face has to raise a permission prompt on first use, and a person has
             // to answer it. Long enough for that, and then she gets on without it.

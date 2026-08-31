@@ -945,7 +945,25 @@ talking to, and it currently cannot tell them apart at all.
 - **`subscribe` / `skip`** already lets a tablet decline what it cannot use.
 - **`remote.key` and the LAN binding** already let it connect at all.
 
-### 1. Faces have no identity — everything else depends on fixing this
+### ~~1. Faces have no identity — everything else depends on fixing this~~ *(done 08/31/2026, v0.21.0)*
+
+> **Landed.** Built from [[Stage 14 - Face Identity]], a specification written on the Android
+> side by the client that needed it. `FaceId`, `FaceMessage`, `Send(message, to)` with null
+> still meaning everyone, `SendTo` on the socket server honouring `skip`, and `_looking`
+> carrying the face it asked so an unasked `sight` is logged and dropped.
+>
+> **`look` no longer opens every camera.** It goes to the last face a person spoke through,
+> falling back to the built-in page. That is a stopgap and is commented as one — real turn
+> ownership is item 5 below and should replace it rather than absorb it.
+>
+> Nothing moved on the wire, so `PROTOCOL.md` is unchanged and `wwwroot` is untouched — six
+> host-side files. Items 2–7 were deliberately not started; the Android side is planning
+> around that split.
+>
+> **One gap worth carrying forward:** two real cameras were never opened, because
+> `MaybeLookAsync` requires the Claude brain and there is no key on this machine. The routing
+> is proven at the transport level and the `sight` guard was watched firing live, but the
+> camera path itself is unexercised end to end. Re-check on a machine with a key.
 
 `IFaceTransport` is broadcast-only in both directions: `Send(object message)` goes to
 everyone, and `event Action<JsonElement>? MessageReceived` says **who sent nothing at all**.

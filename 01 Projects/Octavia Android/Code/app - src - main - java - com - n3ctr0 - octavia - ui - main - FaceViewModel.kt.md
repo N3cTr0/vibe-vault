@@ -58,6 +58,20 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
         connect()
     }
 
+    /**
+     * Let go of her while the app is not on screen.
+     *
+     * Stage 1 is a foreground client and nothing here needs to keep listening — so holding
+     * a socket and a retry thread through a doze is spending radio and battery to learn
+     * things nobody is looking at. Android 9 restricts background network anyway, so the
+     * retries would mostly fail and back off to nothing useful.
+     *
+     * The day she needs to reach the phone *unprompted* this becomes a foreground service
+     * with a notification, which is a deliberate, visible thing rather than a socket left
+     * running by accident.
+     */
+    fun release() = socket.disconnect()
+
     fun say(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return

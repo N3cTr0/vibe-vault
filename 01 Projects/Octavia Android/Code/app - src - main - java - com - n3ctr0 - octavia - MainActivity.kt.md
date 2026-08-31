@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.n3ctr0.octavia.data.Settings
@@ -46,8 +47,17 @@ class MainActivity : ComponentActivity() {
                     val model: FaceViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                         @Suppress("UNCHECKED_CAST")
                         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                            FaceViewModel(settings).also { it.connect() } as T
+                            FaceViewModel(settings) as T
                     })
+
+                    /* Connected while she is on screen and let go when she is not, rather
+                       than connected for the life of the ViewModel. A rotation does not
+                       pass through STOP, so the socket still survives one; leaving the app
+                       does, and then nothing is spent on a conversation nobody is reading. */
+                    LifecycleStartEffect(Unit) {
+                        model.connect()
+                        onStopOrDispose { model.release() }
+                    }
 
                     val state by model.state.collectAsStateWithLifecycle()
                     FaceScreen(state, settings, model, Modifier.safeDrawingPadding())

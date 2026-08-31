@@ -16,8 +16,21 @@ namespace Octavia.Face;
 /// with the face on a tablet on the wall.
 internal interface IFaceTransport
 {
-    event Action<JsonElement>? MessageReceived;
-    void Send(object message);
+    event Action<FaceMessage>? MessageReceived;
+
+    /// `to` is optional and null keeps the original meaning: **everyone**.
+    ///
+    /// That default is the reason this change stayed small — nearly every send site is
+    /// untouched — and it is the same instinct as `subscribe` being opt-*out*: a new
+    /// message type reaches every face rather than being silently withheld from the ones
+    /// nobody remembered to address.
+    void Send(object message, FaceId? to = null);
+
+    /// The renderer that is always there — the built-in page — or null when there is
+    /// none. Somewhere to send a message that must reach exactly one face when nothing
+    /// else identifies which. Deliberately separate from `FaceStatus`, which is a
+    /// diagnostics answer and should stay one.
+    FaceId? BuiltInFace { get; }
 
     /// What is actually attached right now. Only a transport knows, and "is anything
     /// listening?" is the first question a diagnostics report has to answer — while the

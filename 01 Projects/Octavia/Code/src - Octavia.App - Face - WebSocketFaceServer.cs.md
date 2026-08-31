@@ -43,8 +43,12 @@ internal sealed class WebSocketFaceServer : IDisposable
     /// wasteful, it is the difference between a usable mobile client and one that eats a
     /// battery over a mobile connection. `hello` already describes what the *host* can
     /// do; `subscribe` is the other half of that conversation.
-    private sealed class Face(WebSocket socket)
+    private sealed class Face(FaceId id, WebSocket socket)
     {
+        /// Carried on the connection so the receive loop can say who a message came from.
+        /// The id was always minted here; it simply never left this class.
+        public FaceId Id { get; } = id;
+
         public WebSocket Socket { get; } = socket;
 
         /// Replaced wholesale rather than mutated. `subscribe` arrives on this
@@ -61,12 +65,12 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
     }
 
-    private readonly ConcurrentDictionary<Guid, Face> _faces = new();
+    private readonly ConcurrentDictionary<FaceId, Face> _faces = new();
     private readonly CancellationTokenSource _stopping = new();
     private TcpListener? _listener;
     private bool _disposed;
 
-    public event Action<JsonElement>? MessageReceived;
+    public event Action<FaceMessage>? MessageReceived;
 
     public int Port { get; private set; }
     public string Token { get; } = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
@@ -140,7 +144,7 @@ internal sealed class WebSocketFaceServer : IDisposable
 
     private async Task ServeAsync(TcpClient client)
     {
-        var id = Guid.NewGuid();
+        var id = FaceId.New();
         WebSocket? socket = null;
 
         try
@@ -189,9 +193,9 @@ internal sealed class WebSocketFaceServer : IDisposable
             socket = WebSocket.CreateFromStream(stream, isServer: true,
                 subProtocol: null, keepAliveInterval: TimeSpan.FromSeconds(30));
 
-            var face = new Face(socket);
+            var face = new Face(id, socket);
             _faces[id] = face;
-            Log.Write($"face connected over socket ({_faces.Count} attached)");
+            Log.Write($"face {id} connected over socket ({_faces.Count} attached)");
 
             await ReceiveLoopAsync(face);
         }
@@ -260,7 +264,7 @@ internal sealed class WebSocketFaceServer : IDisposable
                     continue;
                 }
 
-                MessageReceived?.Invoke(doc.RootElement.Clone());
+                MessageReceived?.Invoke(new FaceMessage(face.Id, doc.RootElement.Clone()));
             }
             catch (Exception ex)
             {
@@ -287,7 +291,20 @@ internal sealed class WebSocketFaceServer : IDisposable
         }
     }
 
-    private async Task SendAsync(Guid id, WebSocket socket, byte[] bytes)
+    /// One recipient, same rules. A face that asked to skip this type still skips it:
+    /// being addressed directly is not a reason to override what it said it wanted, and
+    /// a phone that opted out of visemes should not start receiving them because the
+    /// host happened to know its id.
+    public void SendTo(FaceId id, string json, string? type = null)
+    {
+        if (!_faces.TryGetValue(id, out var face)) return;
+        if (face.Socket.State != WebSocketState.Open) return;
+        if (type is not null && face.Skip.Contains(type)) return;
+
+        _ = SendAsync(id, face.Socket, Encoding.UTF8.GetBytes(json));
+    }
+
+    private async Task SendAsync(FaceId id, WebSocket socket, byte[] bytes)
     {
         try
         {

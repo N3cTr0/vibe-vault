@@ -194,9 +194,16 @@ back, with her log reading `face connected over socket (2 attached)`. The develo
 USB — so her socket stays on `127.0.0.1`, `RemoteAccess` stays off, and no firewall rule or
 elevation is involved. Wireguard replaces only the address.
 
-Still to do here before this stage is *finished* rather than working: it has not been tested
-across a locked screen, a doze, or a roaming radio, which is the part the J7 Pro is actually
-good for.
+**Hardened and closed in 0.4.0.** The gap named here — untested across a locked screen, a
+doze or a lost transport — has been tested on the J7 Pro and two real faults came out of it:
+a 401 was being retried forever against a credential that could never work, and the socket
+was held for the life of the ViewModel rather than while she was on screen. Both fixed; the
+measurements are in `versions.md`.
+
+One deliberate limit remains, and it is a limit rather than a bug: **this is a foreground
+client.** With the screen off it holds nothing, so she cannot reach the phone unprompted.
+That becomes a foreground service with a notification when a stage needs it — a visible
+thing rather than a socket left running by accident.
 
 The original scope follows.
 
@@ -228,7 +235,10 @@ The WebView, once stage 0a is settled.
 
 ## Stage 3 — A peer, not a viewer
 
-Follows her Stage 14 and cannot start before it. What lands here:
+Follows her Stage 14 and cannot start before it. **Item 1 of that stage — faces having any
+identity at all — is specified** in the vault at `01 Projects\Octavia\Stage 14 - Face
+Identity.md`, written from this side because this is the client that needs it. It is a change
+to *her* repo; nothing here moves until it lands. What lands here:
 
 - **Her voice out of the tablet speaker** — a host→face `audio` message, teed from
   `NeuralVoice.OnAudioPlayed` so it is already in sync with the visemes.
