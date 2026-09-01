@@ -266,8 +266,12 @@ served from — so this app puts two faces on the network: the native one that o
 microphone, the floor and her voice, and the panel that only draws. The panel never asks for
 `audio`, so nothing doubles.
 
-**One defect left:** her page assumes a wide viewport, so on a tall narrow panel the status
-placard overlaps her head and the top is clipped. The 10-foot layout meeting a phone.
+**That defect closed itself in 0.7.2**, and the diagnosis in it was wrong. The status placard
+overlapping her head was read as her page assuming a wide viewport — the 10-foot layout
+meeting a phone. It was actually the *panel* being squashed into the top third by a transcript
+holding `weight(1f)` while empty. Given the whole screen, the scene has room and the placard
+clears her. Nothing in her repo needed changing, and it is worth remembering that a layout
+fault was blamed on the other side of the seam before it was measured on this one.
 
 The original scope follows.
 

@@ -18,6 +18,64 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.7.2 — 2026-09-01
+
+**The app is a window onto her page now, not a second interface to her.** Every native
+control on this screen was a reimplementation of something her own page already has, stacked
+above and below it: a title and a state pill duplicating her header, a connection line
+duplicating her placard, a text box and a Send button duplicating her keyboard control.
+
+The layout that produced was worse than the sum of it. `FacePanel` had `weight(2f)` and the
+transcript `weight(1f)`, so the transcript claimed a third of the display **whether or not
+there was anything in it** — and there never is before you speak. She rendered into the top
+third with a dead black band under her.
+
+Now: `fillMaxSize`, no padding, no corner radius, and the system bars hidden
+(`BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`, so a swipe brings them back and nothing is
+trapped). `safeDrawingPadding` came off the whole screen — the face is meant to reach the
+edges, and the dialog handles its own spacing.
+
+**A taller viewport fixed the placard collision for free.** Her page's status placard used to
+sit across her head, which 0.7.1 recorded as a defect needing a narrow layout in her repo. It
+turns out that was a symptom of the squashed panel: given the full height, the scene has room
+and the placard clears her completely. Nothing in her repo needed changing.
+
+### Push-to-talk moved to the volume key
+
+Removing the native chrome removed the only place a talk button could go without covering her
+own controls — and pressing volume-up is the better gesture for one anyway.
+`dispatchKeyEvent` takes the floor on `ACTION_DOWN` and releases it on `ACTION_UP`, guarded
+by a `talking` flag because **`ACTION_DOWN` repeats while a key is held**, and each repeat
+would otherwise take the floor again. `onPause` releases it too: a key held while the app
+goes away would leave her holding a floor nobody is talking into.
+
+Verified from her log, not from the screen: `ears listening to a face (9afec3fb)` → `face
+9afec3fb has the floor` → `released the floor`.
+
+The cost is that **volume-up no longer changes the volume while she is on screen**.
+Volume-down still does and its slider drags back up, so nothing is one-way.
+
+The `FaceViewModel` is now built in `onCreate` rather than inside `setContent`, because a key
+event arrives at the activity and has to reach it. Same activity store, so it is the same
+instance a composable would have been handed.
+
+### Set up is a long press, bottom-right
+
+Deleting it with the rest of the chrome would have been a trap. A credential that stops
+working would leave an app with **no way to repair itself from the device** — which is
+exactly where this handset was this morning, and it took `adb` to get out. Bottom-right
+because that corner of her page is empty; her own controls are top-left, top-right and
+bottom-left, so the 56dp hotspot steals touches from nothing. It draws nothing, because
+drawing it would put native chrome back.
+
+### What is gone, and what that costs
+
+Nothing, as far as can be found. The native transcript looked like the one real loss, so it
+was checked rather than assumed: `bridge.js` has a caption element *and* a transcript of its
+own (`addTurn`, `addOverheard`, behind her hamburger), and its own comment describes the
+caption as "the only record outside the transcript". The native list was duplicating that
+too. Both are reachable on the phone exactly as they are on the host.
+
 ## 0.7.1 — 2026-09-01
 
 **Off the cable. She is reached over WiFi now, and WireGuard is deferred rather than
