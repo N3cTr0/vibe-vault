@@ -437,7 +437,20 @@ is right and stays.
 So her page gains an optional `window.OctaviaEmbedder`. Absent — a browser tab — nothing
 changes. Present, a room face gets its buttons back and calls into whatever is hosting it.
 
-### What lands here
+### What lands here — ✅ **done in 0.9.0**
+
+> **Landed** against host v0.25.0. All three of her buttons are back on the handset and drive
+> this device; watching works and her page owns the marker; **acceptance 6 is closed** by an
+> instrumented test, which was the half the repo side handed over.
+>
+> **One gap this found, and it is hers rather than ours:** a room face can never start her
+> ears. `TakeFloor` needs the recogniser running and only `listen` starts it, which item 9
+> correctly made host-only — so `micAccepted` is false and the phone's microphone cannot work
+> until somebody presses listen at the desk. `listen` conflates *open the host's microphone*
+> with *start the recogniser*; the first belongs to the host room, the second is being-wide.
+>
+> The client's half of that was failing **silently**, which was worse, and now returns a
+> reason the page can show.
 
 - **Inject the embedder over `WebViewCompat.addWebMessageListener`**, with an origin
   allow-list. **Not `addJavascriptInterface`**: that exposes the object to every script in the

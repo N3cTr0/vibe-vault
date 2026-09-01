@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.n3ctr0.octavia.camera.DeviceSenses
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
 
@@ -71,7 +72,13 @@ import com.n3ctr0.octavia.net.FaceSocket
  * 09/01/2026, and it took `adb` to get out of.
  */
 @Composable
-fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, modifier: Modifier = Modifier) {
+fun FaceScreen(
+    state: FaceState,
+    settings: Settings,
+    viewModel: FaceViewModel,
+    senses: DeviceSenses?,
+    modifier: Modifier = Modifier,
+) {
 
     var settingsOpen by remember { mutableStateOf(!settings.configured) }
     var faceShown by remember { mutableStateOf(settings.showFace) }
@@ -80,7 +87,23 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
 
         if (faceShown && state.link == FaceSocket.Link.Up) {
             // No padding, no corner radius, no weight. The page is the screen.
-            FacePanel(config = settings, modifier = Modifier.fillMaxSize())
+            FacePanel(
+                config = settings,
+                senses = senses,
+                /* Her microphone button, on this device's microphone. The floor is held by
+                   a FaceId and audio is only accepted from the holder, so this has to drive
+                   the *native* socket rather than the panel's — the two are different faces
+                   to her, and a press in the panel would have her dropping our audio.
+
+                   A refusal is thrown rather than swallowed: the page is what the person is
+                   looking at, and it is the only thing that can tell them why the button
+                   they just pressed did nothing. */
+                onTalking = { held ->
+                    if (!held) viewModel.stopTalking()
+                    else viewModel.startTalking()?.let { why -> throw IllegalStateException(why) }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
         } else {
             // There is no page to show yet, and a black rectangle explains nothing.
             Disconnected(state, viewModel, onSetUp = { settingsOpen = true })

@@ -15,10 +15,17 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.n3ctr0.octavia.camera.DeviceSenses
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
+import com.n3ctr0.octavia.web.EmbedderBridge
 
 /**
  * Her actual face, rendered by the same page her desktop window uses.
@@ -43,7 +50,13 @@ import com.n3ctr0.octavia.net.FaceSocket
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun FacePanel(config: Settings, modifier: Modifier = Modifier) {
+fun FacePanel(
+    config: Settings,
+    senses: DeviceSenses?,
+    onTalking: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scope = rememberCoroutineScope()
 
     /* Not `?token=` — the credential may be the durable remote key, and the host refuses a
        *token* from anything but loopback. Over a USB tunnel every connection is loopback so
@@ -58,6 +71,8 @@ fun FacePanel(config: Settings, modifier: Modifier = Modifier) {
         append(FaceSocket.credentialParam(config.credential))
         if (config.room.isNotBlank()) append("&room=${Uri.encode(config.room)}")
     }
+
+    var bridge by remember { mutableStateOf<EmbedderBridge?>(null) }
 
     AndroidView(
         modifier = modifier,
@@ -79,10 +94,52 @@ fun FacePanel(config: Settings, modifier: Modifier = Modifier) {
                 webViewClient = WebViewClient()
 
                 setBackgroundColor(android.graphics.Color.BLACK)
+
+                /* Offered before the page is loaded, because her renderer reads
+                   `window.OctaviaEmbedder` once as it starts. A bridge attached afterwards
+                   would leave the buttons hidden for the life of the page and look exactly
+                   like the feature not working. */
+                if (senses != null) {
+                    EmbedderBridge.originOf(url)?.let { origin ->
+                        bridge = EmbedderBridge(
+                            webView = this,
+                            origin = origin,
+                            scope = scope,
+                            senses = senses.lends(),
+                            onTalking = onTalking,
+                            onWatch = { on -> senses.watch(on) },
+                        ).also { it.attach() }
+                    }
+
+                    /* Her eyes, driven from this device's camera. The same call her own
+                       `watch.js` makes — `Face.look(null)` hands her back her own saccades —
+                       so the page cannot tell which side of the WebView the pixels came
+                       from, which is the point. */
+                    var pushedOne = false
+                    senses.onGaze = { x, y ->
+                        val call = if (x == null || y == null) "window.Face.look(null)"
+                                   else "window.Face.look($x, $y)"
+                        // Once, so "did anything actually reach her eyes" is answerable
+                        // without a person standing in front of the camera to watch.
+                        if (!pushedOne && x != null) {
+                            pushedOne = true
+                            android.util.Log.i("FacePanel", "first gaze pushed: $call")
+                        }
+                        post { evaluateJavascript(call, null) }
+                    }
+                }
+
                 loadUrl(url)
             }
         },
         onRelease = { web ->
+            // Watching must not outlive the panel that started it, and the page that owns
+            // the marker is about to stop existing.
+            senses?.onGaze = null
+            senses?.release()
+            bridge?.detach()
+            bridge = null
+
             web.loadUrl("about:blank")
             web.destroy()
         },

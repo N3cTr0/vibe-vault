@@ -12,6 +12,7 @@ package com.n3ctr0.octavia
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,7 +32,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.n3ctr0.octavia.camera.CameraStill
+import com.n3ctr0.octavia.camera.DeviceSenses
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.theme.OctaviaTheme
 import com.n3ctr0.octavia.ui.main.FaceScreen
@@ -43,6 +44,7 @@ import kotlin.coroutines.resume
 class MainActivity : ComponentActivity() {
 
     private lateinit var model: FaceViewModel
+    private lateinit var senses: DeviceSenses
     private lateinit var askMic: ActivityResultLauncher<String>
     private lateinit var askCamera: ActivityResultLauncher<String>
 
@@ -78,15 +80,14 @@ class MainActivity : ComponentActivity() {
             cameraAsked = null
         }
 
-        /* How she takes a picture from this device. Supplied here rather than built into
-           the ViewModel because a permission prompt has to be launched from an activity —
-           and because a `Context` in a ViewModel that outlives rotations is a leak waiting
-           to be written. */
-        val camera = CameraStill(applicationContext)
-        model.eyes = {
-            if (!askForCamera()) CameraStill.Shot.Failed("the camera was not allowed on this device")
-            else camera.take()
-        }
+        /* What this device can lend her. Built here rather than in the ViewModel because a
+           permission prompt has to be launched from an activity, and because a `Context` in
+           a ViewModel that outlives rotations is a leak waiting to be written.
+           `DeviceSenses` owns the camera outright so a `look` and a watch cannot fight over
+           it — see the note in that class. */
+        senses = DeviceSenses(applicationContext) { askForCamera() }
+
+        model.eyes = { senses.takeStill() }
 
         enableEdgeToEdge()
 
@@ -116,7 +117,7 @@ class MainActivity : ComponentActivity() {
                     // No inset padding: the face is meant to reach the edges. What still
                     // needs to clear the bars — the dialog — handles its own spacing rather
                     // than the whole screen paying for it.
-                    FaceScreen(state, settings, model, Modifier.fillMaxSize())
+                    FaceScreen(state, settings, model, senses, Modifier.fillMaxSize())
                 }
             }
         }
@@ -154,8 +155,11 @@ class MainActivity : ComponentActivity() {
                     return true
                 }
 
+                // The key has no way to show a refusal, so it says so in the log rather
+                // than leaving a press that did nothing and explained nothing.
+                val why = model.startTalking()
+                if (why != null) { Log.w("MainActivity", "volume-up refused: $why"); return true }
                 talking = true
-                model.startTalking()
             }
 
             KeyEvent.ACTION_UP -> {

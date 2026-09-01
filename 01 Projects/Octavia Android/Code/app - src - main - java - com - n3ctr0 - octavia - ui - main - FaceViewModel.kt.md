@@ -151,10 +151,25 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      * `notice`, which arrives in the transcript. Opening the device first would mean
      * capturing audio with nowhere to go.
      */
-    fun startTalking() {
-        if (!_state.value.micAccepted || _state.value.link != FaceSocket.Link.Up) return
+    /**
+     * Returns null when the floor was taken, or **why not**.
+     *
+     * It used to return silently, which was survivable while the only way in was a volume
+     * key — you press a key, nothing happens, you shrug. It stopped being survivable when
+     * her page put a microphone button back on the screen: a button that does nothing and
+     * says nothing is the exact failure `micAccepted` exists to prevent.
+     */
+    fun startTalking(): String? {
+        val now = _state.value
+        if (now.link != FaceSocket.Link.Up) return "not connected to her"
 
-        if (_state.value.her == "speaking") socket.send("hush")
+        /* Her ears are not merely off — they have not been started, and **a room face
+           cannot start them**. That takes `listen`, which belongs to the machine she runs
+           on and has been refused from another room since her v0.24.0. So this is not a
+           thing pressing harder will fix, and saying so is the only useful response. */
+        if (!now.micAccepted) return "her ears are not open — they have to be started on the machine she runs on"
+
+        if (now.her == "speaking") socket.send("hush")
         socket.talking(true)
 
         if (!mic.start()) {
@@ -162,9 +177,10 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
             // cannot feed — she has no other way to know the microphone never opened.
             socket.talking(false)
             append(Line("", "This device would not open its microphone.", Line.Kind.Notice))
-            return
+            return "this device would not open its microphone"
         }
         _state.update { it.copy(talking = true) }
+        return null
     }
 
     /** The button came up, the app went away, or the link dropped. All three mean release. */

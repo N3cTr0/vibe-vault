@@ -96,6 +96,10 @@ dependencies {
   implementation(libs.androidx.camera.camera2)
   implementation(libs.androidx.camera.lifecycle)
 
+  // The embedder seam. Needed for addDocumentStartJavaScript and addWebMessageListener,
+  // both of which take an origin allow-list - which addJavascriptInterface does not.
+  implementation(libs.androidx.webkit)
+
   // Her socket. See the note in libs.versions.toml for why this is the only one.
   implementation(libs.okhttp)
 }

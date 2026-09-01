@@ -18,6 +18,83 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.9.0 — 2026-09-01
+
+**Her buttons are back, and they drive this device.** Against host v0.25.0, which added the
+embedder seam specced from this side. The microphone, the eye and the keyboard — the same bar
+the desktop has, in the same place, because it *is* her page.
+
+`window.OctaviaEmbedder` is injected at document start over
+`WebViewCompat.addDocumentStartJavaScript`, with `addWebMessageListener` underneath it as the
+transport. **Both take an origin allow-list, which is the entire reason for the dependency:**
+`addJavascriptInterface` hands its object to every script in the page, and this page arrives
+over plain `http://` on a LAN, so anything that could inject a script into it could open the
+microphone.
+
+The shim looks the port up **per call** rather than capturing it, so the embedder exists
+synchronously at load — which is when her page reads `senses` — without depending on the
+injected transport object being constructed first.
+
+**`talking` drives the native socket, not the panel's.** The floor is a `FaceId` and audio is
+only accepted from the holder; a press in the panel taking the floor would have her dropping
+the native client's audio as coming from someone who does not hold it.
+
+### Watching — she follows you now
+
+A port of her `watch.js` rather than a reimplementation: same 64×36 grid, same `CELL_STEP` and
+`ENOUGH`, same 0.25 smoothing, same mirroring and 0.8/0.55 spans, ~8 Hz. It should feel
+identical whichever face you are standing in front of, and it only exists twice because
+`getUserMedia` cannot run here.
+
+**The port is smaller than the original.** `watch.js` builds greyscale by averaging R, G and
+B; `YUV_420_888`'s Y plane already *is* luma, so that step disappears.
+
+Rotation and mirroring are done while sampling rather than by asking CameraX to rotate the
+buffer — which would copy every pixel to save arithmetic on four thousand. A browser hands
+`watch.js` an upright, already-mirrored video; a sensor does neither, and getting it wrong is
+not a crash but her looking the wrong way.
+
+Proven on the device: `Watcher: watching` → `FacePanel: first gaze pushed:
+window.Face.look(-0.052736998, 0.033563647)`, with her page's own `CAMERA` marker up in the
+header. **The marker is hers, not ours** — one marker, in the place a person already looks.
+The native `CAMERA ON` overlay stays for `look` stills, which her page never learns about.
+
+### A gap in item 9 that this exposed, and it is not the client's
+
+**A room face can never start her ears.** `TakeFloor` requires the recogniser to be running,
+and the recogniser is started by `listen` — which item 9 correctly made host-only. So
+`micAccepted` is false, and the microphone button on the phone cannot work until somebody
+presses listen at the desk.
+
+Confirmed rather than inferred: `micAccepted: False`, `ears: not started`, `listening: False`.
+
+`listen` conflates two things — *open the host machine's microphone* and *start the speech
+recogniser*. The first is a host-room device and belongs where item 9 put it. The second is
+being-wide: it is the same Whisper for every room, and a face taking the floor is an explicit
+request to be transcribed.
+
+**The client's half of that was failing silently**, which is worse. `startTalking` returned
+`Unit` and did nothing when `micAccepted` was false — survivable while the only way in was a
+volume key, and exactly the failure `micAccepted` exists to prevent once a button is on screen.
+It returns the reason now, the bridge rejects the page's promise with it, and the key logs it.
+
+### What the tests found
+
+`Watcher.stop()` touches `LifecycleRegistry`, which **enforces the main thread**. Every caller
+in the app happened to already be on it, so this was correct by luck; the first caller that
+was not — a test — threw. It is `stopNow()` (`@MainThread`, for `onRelease`) and a suspending
+`stop()` now, so the requirement is stated instead of assumed.
+
+It failed identically on the 11T Pro and the J7 Pro, which is what said it was ours rather
+than a device.
+
+Five new instrumented tests, and **acceptance 6 of item 10 is among them** — the half the
+repo side handed over. A still while watching returns a real frame, watching resumes, and her
+gaze is released around it. Without the pause that assertion is false, and false silently: she
+would stop following you some time after a question that had nothing obviously to do with it.
+
+Both suites pass on both handsets — Android 14 and Android 9.
+
 ## 0.8.1 — 2026-09-01
 
 **Her side landed — host v0.24.0, `846b772` — and this client was already speaking the
