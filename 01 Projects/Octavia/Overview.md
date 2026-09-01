@@ -27,6 +27,7 @@ She began as a single HTML file (`C:\Projects\talking-avatar.html`) — a three.
 | Audio | NAudio for capture and playback; a small in-house FFT for analysis |
 | Hands | An MCP client over stdio, so an integration is a server rather than a branch — see [[Roadmap]] stage 12 |
 | Serving | The face socket also answers GETs, so a phone or tablet can load her face from the host itself — see [[Face Protocol]] |
+| Rooms | A face belongs to a *space*, and a conversation on a phone is not the one at the desk — see [[One Being, Many Rooms]] |
 | Secrets | DPAPI, sealed to the current Windows account |
 | Distribution | Self-contained single-file exe (~310 MB) plus a `wwwroot` beside it — see [[Build & Release]] |
 

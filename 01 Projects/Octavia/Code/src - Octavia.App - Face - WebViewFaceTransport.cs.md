@@ -52,7 +52,7 @@ internal sealed class WebViewFaceTransport : IFaceTransport
     public event Action<FaceId>? FaceDeparted;
 #pragma warning restore CS0067
 
-    public void SendAudio(ReadOnlyMemory<byte> pcm) { }
+    public void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to) { }
 
     public FaceId? BuiltInFace => Id;
 
@@ -62,6 +62,12 @@ internal sealed class WebViewFaceTransport : IFaceTransport
     /// targets are "everyone" and "this one", and both mean the same thing here.
     public void Send(object message, FaceId? to = null) =>
         SendJson(JsonSerializer.Serialize(message, FaceHub.Json));
+
+    /// This transport is one face, so the only question is whether it is on the list.
+    public void SendMany(object message, IReadOnlyCollection<FaceId> to)
+    {
+        if (to.Contains(Id)) Send(message);
+    }
 
     public void SendJson(string json)
     {

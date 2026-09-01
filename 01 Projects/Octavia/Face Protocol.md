@@ -23,9 +23,10 @@ and owns no audio device. Everything it knows arrives as a message.
 | HTTP `GET` | Any face that is not the built-in page | The same port serves the page itself. See *Serving the face* below |
 | WebView2 postMessage | The built-in page, as a fallback | Automatic if the socket cannot be reached |
 
-The host runs both at once and broadcasts to every connected face, so several can be
-attached simultaneously — useful when developing a new renderer beside the old one, and
-the intended arrangement once a tablet is a face alongside the desktop.
+The host runs both at once and several faces can be attached simultaneously — useful when
+developing a new renderer beside the old one, and the intended arrangement once a tablet is
+a face alongside the desktop. Since v0.24.0 a face belongs to a **room**, and most messages
+go to a room rather than to everyone; see *Rooms* below.
 
 **The socket binds to `127.0.0.1` unless `RemoteAccess` is on**, in which case it binds
 every interface and a remote face must present the remote key. See *Security* below.
@@ -68,11 +69,88 @@ than failing. Removing or repurposing anything is a version bump.
 
 ---
 
+## Rooms (v0.24.0)
+
+**One being, N rooms.** She has one persona, one voice, one avatar, one key and one set of
+tools. A *room* is a space she can be talked to in, and it owns what makes a conversation a
+conversation: its history, its state, its expression, its floor, and whether a camera may
+open in it.
+
+| The being owns | A room owns |
+|---|---|
+| Persona, voice model, avatar, API key | Its conversation |
+| Tools and MCP servers | Its `state` and its `emotion` |
+| The host machine's devices and config | Its captions, turns and transcript |
+| Her mood *policy* | Her mood *right now* |
+
+**A face names its room in `ready`.** Absent means `host` — the machine she runs on — so the
+built-in page and every renderer written before this keep behaving exactly as they did. A
+face served over HTTP takes it from its own URL (`?room=phone`), which is how a client puts
+two connections in one room by building one query string.
+
+> **Do not derive the room from the credential.** Token-means-loopback-means-host is
+> tempting and wrong: two handsets would silently share a room, and a laptop on the LAN
+> would be indistinguishable from a phone. A room is a statement of intent; state it.
+
+**A room is not a face.** The Android client opens two connections — a native one that owns
+the microphone and a WebView panel that draws her page — and both are the phone's room. If
+room and face were the same thing she would be talking to herself in the next tab.
+
+### She attends one room at a time
+
+There is one voice, one Whisper and one turn in flight. A `say` or a held button from
+another room while she is mid-turn is **refused out loud**:
+
+```json
+{ "type": "notice", "text": "She is talking to someone else." }
+```
+
+This is the mechanism `talking` already used for the floor, generalised from *the floor* to
+*her attention*. Concurrent rooms are deliberately out of scope: two conversations at once
+needs two synthesis pipelines and two transcriptions, and one being holding two
+conversations is a worse simulation rather than a better one.
+
+### What a face may drive
+
+Every face→host message is one of three things, and **the host decides by the room the
+message came from**, before acting.
+
+| Class | Messages | Rule |
+|---|---|---|
+| **Host only** | `listen`, `setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Acted on only from the `host` room. From anywhere else: refused, answered with a `notice`, logged once. |
+| **Room** | `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | Acted on for the sending face's room only. |
+| **Being** | `setKey`, `setVoice`, `setVoiceEngine`, `setAvatar`, `setRoomHour`, `setStats` | Allowed from any room, and echoed to every room — every face is wearing the result. |
+
+`hello.controls` says which of these a face has (`host` or `room`) so a page can hide what it
+cannot use. **That is a hint, not the enforcement.** Both are needed: without the guard a
+remote face can send the message by hand anyway, and without the hint a phone shows a
+microphone button that silently does nothing.
+
+### Where each message goes
+
+- **To the sending face's room:** `caption`, `turn`, `cleared`, `overheard`, `state`,
+  `emotion`, `notice`, `look`, `needKey`, `diagnostics`, `diagnosticsSaved`.
+- **To the room she is attending:** `viseme`, and **her voice** — the binary audio frames.
+  She speaks in one room, not in every room that once asked for audio.
+- **To the `host` room only:** `level` and `music`. Both are measurements of this machine —
+  its microphone and its output mix — and a tempo from the speakers under a desk means
+  nothing at all to somebody holding a phone in a gym.
+- **Per face:** `hello`. It differs by room, by what that face may drive, and by what she is
+  doing *there*.
+
+**Her voice does not play where nobody is standing.** When she is attending any room but the
+host's, this machine's speakers are silenced for the length of the turn while the visemes and
+the streamed PCM continue unchanged. A voice that cannot be streamed at all (`audioAvailable:
+false`) therefore goes unheard in a remote room, and the host says so with a `notice` rather
+than falling back to speaking aloud in an empty house.
+
+---
+
 ## Host to face
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `hello` | `protocol`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`, `micAccepted`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings. Sent on connect and whenever they change. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. The four `audio*` fields describe her voice as a stream: `audioAvailable` is false on the Windows voice, which cannot be teed, and a face is told so rather than left waiting for frames that were never coming. `audioRate` comes from the live voice model, so it **changes when the voice does** — re-read it on every `hello` rather than caching it once. `micAccepted` says whether the host will take audio *from* a face at all, so a client does not offer a microphone button that could only fail. |
+| `hello` | `protocol`, `room`, `controls`, `hasKey`, `model`, `profile`, `ears`, `voice`, `voices[]`, `voiceEngine`, `listening`, `avatar?`, `avatarFile`, `avatars[]`, `roomHour`, `music`, `musicAvailable`, `camera`, `cameraDevice`, `stats`, `microphones[]`, `microphone`, `outputs[]`, `output`, `whisperCompute`, `toolServers[]`, `audioAvailable`, `audioRate`, `audioBits`, `audioChannels`, `micAccepted`, `dev`, `state`, `emotion`, `emotionWeight` | Capabilities and current settings, **for this face**. Sent on connect and whenever they change. `room` is the room this face was put in, echoed back so a typo in `?room=` is visible rather than mysterious; `controls` is `host` or `room` — see *Rooms*. `state`, `emotion`, `camera` and `cameraDevice` are that room's, not the session's. `avatar` is a URL for a VRM character (absent when there is none); `avatars[]` is what the host has to offer and `avatarFile` which is chosen. `voices[]` is `{value, label}` — only the host knows how to tidy a Piper file name into something a menu can show. `microphones[]` and `outputs[]` are `{value, label}` too, where an empty `value` means "follow the Windows default" and is always offered first; the label marks which one that currently is. `toolServers[]` is `{name, ready}` — reported even before she can call them, because "is the integration actually connected" should not need a log to answer. The four `audio*` fields describe her voice as a stream: `audioAvailable` is false on the Windows voice, which cannot be teed, and a face is told so rather than left waiting for frames that were never coming. `audioRate` comes from the live voice model, so it **changes when the voice does** — re-read it on every `hello` rather than caching it once. `micAccepted` says whether the host will take audio *from* a face at all, so a client does not offer a microphone button that could only fail. |
 | `state` | `value`: `idle` \| `listening` \| `thinking` \| `speaking` | Her overall state. Drives posture, expression and the status pill. |
 | `level` | `value`: 0.0–1.0 | Microphone amplitude, ~20 Hz while listening. This is what makes the face react while you are still talking. |
 | `viseme` | `value`: 0.0–1.0, `shape?` | Mouth openness from real phoneme events during synthesis, and which mouth shape to make. Sent at phoneme rate. |
@@ -81,7 +159,7 @@ than failing. Removing or repurposing anything is a version bump.
 | `caption` | `who`, `text`, `tentative?` | The line under her face. `tentative` marks a partial transcript. |
 | `turn` | `who`: `you` \| `octavia`, `text` | A completed turn, for the transcript log. |
 | `overheard` | `text`, `why` | She heard this and decided it was not addressed to her. A face should **show** it, faintly — never swallow it. |
-| `look` | — | Take **one** still from the camera and answer with `sight`. Sent only when a question cannot be answered without eyes. |
+| `look` | — | Take **one** still from the camera and answer with `sight`. Sent only when a question cannot be answered without eyes. Goes to **one** face: one that claims a `camera` in `ready`, in the room that asked. It never leaves that room, and it never reaches a face that said it has no camera. |
 | `notice` | `text` | Something the user should read: an error, a model download, a silent microphone. |
 | `needKey` | — | She cannot think until an API key is supplied. |
 | `cleared` | — | The conversation was forgotten; empty the transcript. |
@@ -239,7 +317,7 @@ if the stream stops, rather than freezing the last value.
 
 | Type | Fields | Meaning |
 |---|---|---|
-| `ready` | `faceBuilt`: bool | The face has loaded. `faceBuilt` is false if the renderer failed to construct — the host logs this. Triggers `hello`. |
+| `ready` | `faceBuilt`: bool, `room?`: string, `senses?`: string[] | The face has loaded. `faceBuilt` is false if the renderer failed to construct — the host logs this. Triggers `hello`. `room` names the space this face is in; absent means `host`, so nothing written before rooms existed changes behaviour. `senses` is what this face can actually do — `["mic", "camera"]` — and is how `look` finds a face with a camera instead of guessing at whoever last spoke. **An absent `senses` is not an empty one**: it means a face that predates the field, and such a face is still asked. A face that claims nothing is a renderer, which is a legal face and always has been. |
 | `subscribe` | `skip`: string[], `want`: string[] | Message types this face does not want, and streams it does. See *Audio* below for `want`. Answered by the socket server itself and never relayed to the host, because it describes one connection rather than the session. **Opt-out, not opt-in**: a face that never sends it keeps receiving everything, so no existing renderer changes behaviour and a new message type reaches old clients rather than being silently withheld. A phone would send `{"skip":["viseme","level"]}` — sixty visemes a second is a battery, not a feature. `want` is the counterpart and is **opt-in**; the two are independent, and being sent audio is not a reason to start receiving visemes again. |
 | `say` | `text` | The user typed something. |
 | `talking` | `value`: bool | **Push-to-talk from a face.** True takes the floor and begins a binary audio stream; false releases it, and is the end-of-utterance marker — so the voice detector never has to guess where the sentence stopped. Deliberately **not** `listen`, which toggles *her own* microphone and has to keep working independently. One face holds the floor at a time and a second press is refused with a `notice`. A face that disconnects mid-stream counts as a release, and there is a timeout, because a phone in a pocket must not own her ears for ever. Pressing while she is speaking **hushes her**, which is what talking over someone means. |
@@ -254,7 +332,7 @@ if the stream stops, rather than freezing the last value.
 | `setMusic` | `value`: bool | Whether she listens to the machine's output at all. False closes the loopback device rather than merely ignoring it. |
 | `setMicrophone` | `value` | Capture device by name, from `microphones[]`. Empty follows the Windows default. |
 | `setOutput` | `value` | Render device by name, from `outputs[]`. Empty follows the Windows default. This is what her music sense listens to, so it is not merely a playback preference. |
-| `setCamera` | `value`: bool | Whether she may open a camera at all. Off by default and the only sense that is; the host echoes it back as `camera` in `hello`, which is what un-hides the eye button. Enabling is logged at **warn** — a camera coming on in someone's home should leave a mark that is easy to find later. |
+| `setCamera` | `value`: bool | Whether she may open a camera **in the sending face's room**. "May she look at all" is a question about a place, not about her: a phone in a gym and a desk should be able to answer it differently. Off by default and the only sense that is; the host echoes it back as `camera` in `hello`, which is what un-hides the eye button. Only the host room's answer is written to the config file, because that file belongs to this machine. Enabling is logged at **warn** — a camera coming on in someone's home should leave a mark that is easy to find later. |
 | `setCameraDevice` | `value` | Which camera a `look` should open, by **label** rather than id — a device id is regenerated per origin and per permission grant, so it cannot be stored in a config file and still mean anything tomorrow. Empty lets the face choose. |
 | `setWhisperCompute` | `value`: `auto` \| a named backend | Which compute Whisper should use. `auto` is the default and the right answer on any machine nobody has measured. |
 | `setStats` | `value`: bool | Whether the face should show its own performance figures. A hint to the renderer, stored by the host so it survives a reload. |

@@ -22,7 +22,6 @@ namespace Octavia.Brain;
 internal sealed class LocalBrain : IBrain
 {
     private readonly OctaviaConfig _config;
-    private readonly Conversation _history = new();
     private readonly HttpClient _http;
 
     public LocalBrain(OctaviaConfig config)
@@ -39,21 +38,20 @@ internal sealed class LocalBrain : IBrain
     public bool IsReady => true;          // failure surfaces on use, with a usable message
     public bool NeedsApiKey => false;
 
-    public void Forget() => _history.Clear();
-
     public async IAsyncEnumerable<string> RespondAsync(
+        Conversation history,
         string userText,
         Situation now = default,
         [EnumeratorCancellation] CancellationToken cancel = default)
     {
-        _history.Add(Utterance.User, userText);
+        history.Add(Utterance.User, userText);
 
         var messages = new List<object> { new { role = "system", content = Persona.System } };
-        messages.AddRange(_history.Turns.Select((t, i) => new
+        messages.AddRange(history.Turns.Select((t, i) => new
         {
             role = t.Role,
             // now.Image is ignored: this brain has no eyes. See IBrain.
-            content = Persona.Situated(t.Text, now.Context, i == _history.Turns.Count - 1)
+            content = Persona.Situated(t.Text, now.Context, i == history.Turns.Count - 1)
         }));
 
         var request = new
@@ -72,12 +70,12 @@ internal sealed class LocalBrain : IBrain
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
-            _history.DropLast();
+            history.DropLast();
             throw;
         }
         catch (Exception ex)
         {
-            _history.DropLast();
+            history.DropLast();
             Log.Write($"local brain unreachable: {ex.Message}");
             throw new InvalidOperationException(
                 $"No local model server at {_config.LocalEndpoint}. Start Ollama or LM Studio.");
@@ -88,7 +86,7 @@ internal sealed class LocalBrain : IBrain
             if (!response.IsSuccessStatusCode)
             {
                 var detail = await response.Content.ReadAsStringAsync(cancel);
-                _history.DropLast();
+                history.DropLast();
                 Log.Write($"local brain {(int)response.StatusCode}: {detail}");
                 throw new InvalidOperationException(
                     $"Local model refused the request ({(int)response.StatusCode}). " +
@@ -144,11 +142,11 @@ internal sealed class LocalBrain : IBrain
 
             if (spoken.Length == 0)
             {
-                _history.DropLast();
+                history.DropLast();
                 throw new InvalidOperationException("The local model returned nothing.");
             }
 
-            _history.Add(Utterance.Assistant, Speech.Speakable(spoken.ToString()));
+            history.Add(Utterance.Assistant, Speech.Speakable(spoken.ToString()));
         }
     }
 

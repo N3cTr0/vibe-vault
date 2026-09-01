@@ -24,9 +24,15 @@ internal interface IFaceTransport
     /// A face has gone: any floor it held must be released.
     event Action<FaceId>? FaceDeparted;
 
-    /// Raw PCM to every face that asked for her voice. Opt-in: see `subscribe`/`want` in
-    /// PROTOCOL.md. The memory is pooled by the caller and must not be held past the call.
-    void SendAudio(ReadOnlyMemory<byte> pcm);
+    /// Raw PCM to the named faces, of those that asked for her voice. Opt-in: see
+    /// `subscribe`/`want` in PROTOCOL.md. The memory is pooled by the caller and must not
+    /// be held past the call.
+    ///
+    /// **It takes a list because her voice belongs to a room.** It used to reach every face
+    /// that had opted in, which meant she spoke aloud in rooms nobody was standing in — a
+    /// question asked on a phone was answered out loud at the desk. The transport is still
+    /// told *who*, never *why*: the session knows about rooms, this does not.
+    void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to);
 
     /// `to` is optional and null keeps the original meaning: **everyone**.
     ///
@@ -35,6 +41,13 @@ internal interface IFaceTransport
     /// message type reaches every face rather than being silently withheld from the ones
     /// nobody remembered to address.
     void Send(object message, FaceId? to = null);
+
+    /// One message, several named recipients, serialised once.
+    ///
+    /// The room-shaped send. A caller that has worked out which faces are in a room hands
+    /// the list over and the transport learns nothing else — the alternative, a `Send` per
+    /// face, would serialise the same JSON once per renderer at viseme rates.
+    void SendMany(object message, IReadOnlyCollection<FaceId> to);
 
     /// The renderer that is always there — the built-in page — or null when there is
     /// none. Somewhere to send a message that must reach exactly one face when nothing

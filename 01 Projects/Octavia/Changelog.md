@@ -16,6 +16,147 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.24.0 — 2026-09-01
+
+**Two rooms.** Built from `Stage 14 - Two Rooms.md`, a specification written on the Android
+side by the client that needed it, for whoever was working in her repo. It supersedes item 5
+(turn ownership), absorbs item 7 (the attention gate), and struck item 4 as already done.
+
+The ask, in the owner's words: *"On the phone I should not be able to toggle the host
+mic/keyboard. Say one day I am at the gym and accidentally click it and no one is at home.
+One brain, same avatar, same personality, but different spaces."*
+
+Two separate faults, kept apart because one is five lines and the other is the architecture.
+
+### 1. A phone could drive this machine
+
+`listen` toggles **the host's microphone**. The handset renders the same page as the desktop,
+so the mic button at the gym opened a microphone in an empty house. `PROTOCOL.md` was honest
+that this is deliberately not a room-level control — and **nothing enforced it**: no `set*`
+case in `OctaviaSession` looked at `inbound.From` at all. The same was true of
+`setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder` and
+`saveDiagnostics`.
+
+There is an authority table now, checked on the room a message came from, before the switch
+acts:
+
+| Class | Rule |
+|---|---|
+| **Host only** — `listen`, `setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Only from the host room. Elsewhere: refused, answered with a `notice`, logged once per room per kind. |
+| **Room** — `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | The sending face's room only. |
+| **Being** — `setKey`, `setVoice`, `setVoiceEngine`, `setAvatar`, `setRoomHour`, `setStats` | Any room, echoed to every room. Every face is wearing the result. |
+
+`hello` gained `controls`, and the page hides its host-only rows when it says `room`.
+**That is a hint and not the enforcement**, and both are needed: without the guard a face can
+send the message by hand anyway, and without the hint a phone shows a microphone button that
+silently does nothing, which is its own kind of broken.
+
+Refusing rather than ignoring matters too. A face that quietly does nothing looks broken, and
+somebody will spend an evening on it.
+
+### 2. There was one conversation, and every face was a window onto it
+
+`RespondTo` did not take a face. `caption`, `turn`, `state`, `emotion` and `cleared` all went
+out with no target, which means everyone. `_brain` held the one `Conversation` there was. So
+typing at her on the phone put your words on the desktop's screen and played her answer in a
+room you were not in.
+
+A **room** now owns what makes a conversation a conversation — its history, its state, its
+mood, its floor, and whether a camera may open in it. The being still owns everything that
+makes her *her*.
+
+**`Conversation` is lifted out of `IBrain`.** There are N conversations and one of her, and
+`Forget()` used to clear the only one there was. Constructing a `ClaudeBrain` per room would
+have duplicated the HTTP client and the key in order to keep two lists of strings apart;
+`RespondAsync` takes the history instead, which `Conversation.cs` was already shaped for.
+
+**Her voice was the one that was actively wrong** rather than merely coarse. `SendAudio`
+reached every face that had opted in, so she spoke aloud in rooms nobody was standing in. It
+takes a room now — and this machine's speakers are silenced for the length of a turn she is
+having somewhere else. Silenced at the sound card and nowhere earlier: the visemes and the
+streamed PCM are read from the same buffer at the same instant, so a phone still gets her
+voice in step with her mouth, and only the room she is not in goes quiet.
+
+The Windows voice cannot be streamed at all, so a remote room is *told* — a `notice` saying
+she can be read and not heard — rather than her falling back to talking out loud at an empty
+desk.
+
+**`_lastSpokenThrough` is gone, as its own comment asked.** A face declares `senses` in
+`ready`, and `look` goes to one that claims a camera, in the room that asked. It matters
+concretely on Android: the native client owns the camera and the WebView panel cannot open one
+at all, because `getUserMedia` needs a secure context and the panel is served over plain HTTP
+— so without `senses` the host had a coin-flip chance of asking the half of the phone that
+physically cannot answer.
+
+**An absent `senses` is not an empty one.** A face that predates the field is a candidate of
+last resort rather than a refusal, which is what keeps `attach-face.ps1`, the checks and the
+built-in page working with no changes at all.
+
+### The decision that kept it small
+
+**Rooms are serialised.** She attends one at a time. One `_responding` flag, one `_turn`, and
+the other room is refused out loud with *"She is talking to someone else."* — exactly what
+`TakeFloor` already did for the floor, generalised from *the floor* to *her attention*.
+
+Making it re-entrant "since there are rooms now" is the concurrency change this defers, and it
+is also untrue to the thing being modelled: one being cannot hold two conversations at once,
+and pretending otherwise is a worse simulation rather than a better one.
+
+### Nothing existing changes
+
+A face that names no room is in the host room. The built-in page needed no edit to keep
+working, and neither did `attach-face.ps1` or `EarsTest`. The room is **not** derived from the
+credential, tempting as that was — token-means-loopback-means-host would put two handsets in
+one room and make a laptop on the LAN indistinguishable from a phone.
+
+### Checked, and broken on purpose first
+
+`EarsTest -- rooms` drives a real `OctaviaSession` through a recording transport and a
+forty-line stub of a local model, and asserts all ten of the spec's acceptance criteria
+in-process — no handset, no API key. Forty-seven assertions.
+
+Each of the four mechanisms was then broken deliberately, to watch the right checks go red:
+
+| Broken | What went red |
+|---|---|
+| `ToRoom` broadcasts again | six, including *nothing of it reaches the desktop's placard* |
+| the authority table removed | eleven — and the phone's `setMusic` really did change the host's settings |
+| one `Conversation` shared by every room | *another room starts from nothing* |
+| her voice always aloud | *the log says where her voice went* |
+
+The conversations in the check run between two **non-host** rooms on purpose: her voice is
+silenced in any room but the host's, so the suite proves the routing without the machine
+talking out loud on every run.
+
+**Criterion 7 is the exception and is said out loud.** `look` needs the Claude brain and there
+is no key on this machine, so the *choice of face* is asserted directly against the rule and
+the end-to-end half is still owed — the same gap item 1 recorded honestly rather than counting
+as done.
+
+**Criterion 8 checked itself.** Three seconds after the first build with rooms in it started, a
+real handset at `10.1.1.181` authorised with the remote key and both of its connections — the
+native client, which asked for audio and skipped visemes, and its WebView panel — landed in
+room `phone` together. The Android side had been sending `ready.room` against the spec before
+the host understood the field; until this build it was ignored.
+
+Two things went wrong in the checks themselves, and both were in the test rather than the
+code. The stub model only understood `Content-Length`, and `PostAsJsonAsync` sends chunked —
+then, having learned to read chunks, it left the trailing CRLF in the receive buffer, which
+makes Windows close with an RST and the client discard a response it had already been handed.
+It presents exactly as a model server that is not there. And the helper that waited for a turn
+treated *any* notice as the end of one, so "her Windows voice cannot leave this machine" ended
+the wait before she had said a word.
+
+### Still owed
+
+- **A Settings row that displays the remote key**, unchanged from 0.23.1. `EarsTest --
+  remotekey show` is still the only way to read it.
+- **Criterion 7 end to end**, which needs a key.
+- **The Windows Firewall being off entirely.** Unrelated to this, and still worth undoing in
+  favour of a scoped inbound LAN rule.
+
+---
+
 ## 0.23.1 — 2026-09-01
 
 **The remote key could never let anybody in.** One character, latent since 0.14.0, found

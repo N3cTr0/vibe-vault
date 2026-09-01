@@ -54,6 +54,34 @@ internal sealed class SapiVoice : IVoice
 
     public bool IsSpeaking => _queued > 0;
 
+    /// There is no stream to tee here, so silencing this engine silences her entirely —
+    /// the room she is attending gets captions and no voice. That is the honest outcome:
+    /// `audioAvailable` in `hello` already says this voice cannot leave the machine, and
+    /// speaking aloud at the desk instead is exactly the fault rooms exist to fix.
+    ///
+    /// `Volume` is used rather than pausing, so visemes keep arriving and her mouth still
+    /// moves in the room she is talking to.
+    private bool _aloud = true;
+
+    public bool Aloud
+    {
+        get => _aloud;
+        set
+        {
+            if (_aloud == value) return;
+            _aloud = value;
+
+            try
+            {
+                _synth.Volume = value ? 100 : 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Write($"could not silence the Windows voice: {ex.Message}");
+            }
+        }
+    }
+
     public SapiVoice(OctaviaConfig config)
     {
         _synth.SetOutputToDefaultAudioDevice();

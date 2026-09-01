@@ -414,17 +414,21 @@ internal sealed class WebSocketFaceServer : IDisposable
         Enqueue(face, new Outbound(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text));
     }
 
-    /// Raw PCM to every face that asked for it, in the format `hello` advertised.
+    /// Raw PCM to each named face that asked for it, in the format `hello` advertised.
     ///
-    /// **Opt-in, unlike everything else here.** See `Face.Want`: a face that has not asked
-    /// receives nothing, because audio is a physical output rather than a rendering hint.
-    public void BroadcastAudio(ReadOnlyMemory<byte> pcm)
+    /// **Two gates, and they answer different questions.** `to` is *where she is talking* —
+    /// the room the session is attending, which is the fix for her voice coming out of a
+    /// speaker in an empty house. `Want` is *whether this renderer makes noise at all*: see
+    /// `Face.Want`, audio is a physical output rather than a rendering hint, so a face that
+    /// has not asked receives nothing however it was addressed.
+    public void SendAudioTo(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to)
     {
-        if (_faces.IsEmpty) return;
+        if (_faces.IsEmpty || to.Count == 0) return;
 
         byte[]? bytes = null;
-        foreach (var face in _faces.Values)
+        foreach (var id in to)
         {
+            if (!_faces.TryGetValue(id, out var face)) continue;
             if (face.Socket.State != WebSocketState.Open) continue;
             if (!face.Want.Contains("audio")) continue;
 

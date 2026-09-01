@@ -88,7 +88,7 @@ source-path: src\Octavia.App\wwwroot\index.html
 
   <div id="console">
     <div class="row">
-      <button id="talk" title="Listen (Ctrl+Alt+O)" aria-label="Toggle listening">
+      <button id="talk" title="Listen (Ctrl+Alt+O)" aria-label="Toggle listening" data-host-only>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
           <rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3.5"/>
         </svg>
@@ -167,7 +167,7 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint" id="voiceHint">Windows speech voices installed on this machine.</span>
       </label>
 
-      <label class="field-row" for="microphone">
+      <label class="field-row" for="microphone" data-host-only>
         <span class="label">Microphone</span>
         <select id="microphone"></select>
         <span class="hint">Which device she listens through. Changing this reopens her ears.</span>
@@ -190,13 +190,13 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint" id="cameraHint">Which one she looks through.</span>
       </label>
 
-      <label class="field-row check" for="music">
+      <label class="field-row check" for="music" data-host-only>
         <span class="label">Hears what you play</span>
         <input id="music" type="checkbox">
         <span class="hint" id="musicHint">Nothing is recorded: what survives is a tempo and a loudness.</span>
       </label>
 
-      <label class="field-row" for="output">
+      <label class="field-row" for="output" data-host-only>
         <span class="label">Output she listens to</span>
         <select id="output"></select>
         <span class="hint">Pick the real sound card. A virtual endpoint &mdash; streaming software, remote audio &mdash; flattens the sound to full scale and leaves no beat to find.</span>
@@ -208,7 +208,7 @@ source-path: src\Octavia.App\wwwroot\index.html
         <span class="hint">The voice, ears, brain, music and profile panel over her top-left corner. Off is the setting for actually looking at her.</span>
       </label>
 
-      <label class="field-row" for="whisperCompute">
+      <label class="field-row" for="whisperCompute" data-host-only>
         <span class="label">Speech recognition runs on</span>
         <select id="whisperCompute">
           <option value="auto">Whichever Whisper picks</option>
@@ -240,7 +240,7 @@ source-path: src\Octavia.App\wwwroot\index.html
         <button id="saveKey" class="ghost">Store the key</button>
       </label>
 
-      <button id="openData" class="ghost">Open her folder</button>
+      <button id="openData" class="ghost" data-host-only>Open her folder</button>
     </div>
   </div>
 
@@ -248,7 +248,7 @@ source-path: src\Octavia.App\wwwroot\index.html
     <div id="diagBody"><div class="empty">Run the self-test to see how she is doing.</div></div>
     <div class="dfoot">
       <button id="diagRun" class="ghost">Test</button>
-      <button id="diagSave" class="ghost">Save a file</button>
+      <button id="diagSave" class="ghost" data-host-only>Save a file</button>
       <p id="diagFoot">The saved file contains her log, which holds what she heard and said. Read it before sending it on.</p>
     </div>
   </div>

@@ -26,6 +26,25 @@ const token = params.get('token');
    token, which is scoped to a process on the host's own box. See PROTOCOL.md. */
 const key = params.get('key');
 
+/* Which room this face is in. Absent means the host's, so the built-in page and every
+   renderer written before rooms existed keep behaving exactly as they did.
+
+   **Deliberately not derived from the credential.** Token-means-loopback-means-host is
+   tempting and wrong: two handsets would silently share one room, and a laptop on the LAN
+   would be indistinguishable from a phone. A room is a statement of intent, so it is
+   stated — and an Android client puts its native connection and its WebView panel in the
+   same room by passing the same `?room=` to the page it loads. */
+const room = params.get('room');
+
+/* What this face can actually do, so `look` reaches a face that has a camera rather than
+   whichever one spoke last.
+
+   `isSecureContext` is the honest test and not a guess: `getUserMedia` does not exist
+   outside one. The built-in page is served from the virtual `https://octavia.face` origin
+   and qualifies; the same file served over plain `http://<lan-ip>` does not, and claiming
+   a camera there would have the host asking for a frame that can never arrive. */
+const senses = window.isSecureContext ? ['camera'] : [];
+
 /* Where the socket is.
 
    The built-in page is served by WebView2 from a virtual host and is *not* served by the
@@ -301,6 +320,29 @@ function pill(id, health, text) {
   if (text !== undefined) node.querySelector('b').textContent = text;
 }
 
+/* What this face may drive. `host` is everything, as it always was; anything else hides the
+   controls that act on the machine she runs on — her microphone, her speakers, her music
+   listening, Whisper's compute, her data folder, the diagnostics file.
+
+   **This is a hint, not the enforcement.** The host refuses those messages by the room they
+   came from, which is the half that matters: a face that can send `listen` by hand could
+   otherwise still open a microphone in an empty house. Both are needed — without the guard
+   a remote face drives the hardware anyway, and without the hint a phone shows a microphone
+   button that silently does nothing, which is its own kind of broken.
+
+   Default `host`, so a face talking to a host that predates this field loses nothing. */
+let controls = 'host';
+
+function applyControls(value) {
+  controls = value === 'room' ? 'room' : 'host';
+  const hidden = controls !== 'host';
+
+  // `style.display` rather than `hidden`, because these rows are laid out with `display`
+  // and a class rule would win against the attribute.
+  document.querySelectorAll('[data-host-only]')
+          .forEach(node => { node.style.display = hidden ? 'none' : ''; });
+}
+
 function applyHello(msg) {
   // The host answering *is* the second splash step; the voice is the third.
   splashStep('host', true);
@@ -308,7 +350,14 @@ function applyHello(msg) {
 
   pill('pillBrain', msg.hasKey ? 'ok' : 'warn', msg.model || '—');
   pill('pillEars', msg.ears && msg.ears !== 'not started' ? 'ok' : 'dead', msg.ears || 'not started');
-  pill('pillProfile', 'ok', msg.profile || '—');
+
+  /* The room is shown beside the profile when it is not the host's. That is the whole
+     reason `hello` echoes it back: `?room=phne` would otherwise put this face in a room of
+     its own, silently, and look exactly like her ignoring it. */
+  pill('pillProfile', 'ok',
+    msg.room && msg.room !== 'host' ? `${msg.profile || '—'} · ${msg.room}` : (msg.profile || '—'));
+
+  applyControls(msg.controls);
 
   wantKey(!msg.hasKey);
 
@@ -558,7 +607,10 @@ textIn.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !document.body.classList.contains('busy')) showField(false);
 });
 
-el('talk').addEventListener('click', () => send({ type: 'listen' }));
+// `listen` toggles the **host machine's** microphone, which is why it is guarded here as
+// well as hidden: a phone at the gym pressing this would open a microphone in an empty
+// house. The host refuses it too; this stops the request being made at all.
+el('talk').addEventListener('click', () => { if (controls === 'host') send({ type: 'listen' }); });
 hushBtn.addEventListener('click', () => send({ type: 'hush' }));
 el('forget').addEventListener('click', () => send({ type: 'forget' }));
 
@@ -627,7 +679,7 @@ el('openData').addEventListener('click', () => send({ type: 'openDataFolder' }))
 
 document.addEventListener('keydown', e => {
   const typing = document.activeElement === textIn || document.activeElement === keyIn;
-  if (e.code === 'Space' && !typing && !e.repeat) {
+  if (e.code === 'Space' && !typing && !e.repeat && controls === 'host') {
     e.preventDefault();
     send({ type: 'listen' });
   }
@@ -934,7 +986,7 @@ setTimeout(() => {
 function announceReady() {
   const built = typeof window.Face === 'object';
   splashStep('renderer', built);
-  send({ type: 'ready', faceBuilt: built });
+  send({ type: 'ready', faceBuilt: built, room: room || undefined, senses });
 }
 
 if (socket) {

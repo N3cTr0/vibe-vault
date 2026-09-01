@@ -116,6 +116,20 @@ Three design decisions:
 
 The button only appears when `hello` says the host would grant the permission, so it cannot exist in a state where it could only fail.
 
+## Whose camera, and whose decision *(v0.24.0)*
+
+Two things moved when she gained rooms.
+
+**`look` now goes to a face that says it has a camera.** It used to go to `_lastSpokenThrough` — the last face a person spoke through — which its own comment called a stopgap and asked to have replaced. A face declares `senses` in `ready`, and `look` goes to one claiming `camera`, **in the room that asked**. A question at the desk can no longer open a lens on a handset in somebody's pocket.
+
+On Android this is not a nicety. The native client owns the camera and the WebView panel cannot open one at all — `getUserMedia` needs a secure context and the panel is served over plain HTTP — so without `senses` the host had a coin-flip chance of asking the half of the phone that physically cannot answer. The built-in page declares its own honestly, from `window.isSecureContext` rather than a guess.
+
+> **An absent `senses` is not an empty one.** A face written before the field existed is a candidate of last resort rather than a refusal, which is what keeps `attach-face.ps1`, the checks and the built-in page working with no changes.
+
+**And "may she look at all" became a question about a place.** `setCamera` is per room: the gym phone and the desk answer it separately, and only the host room's answer is written to `config.json`, because that file belongs to this machine. Enabling is still logged at **warn** and the line now names the room — a camera coming on in someone's home should leave a mark that says *where*. See [[One Being, Many Rooms]].
+
+Still unproven, and for the same reason as everything else on this page: `MaybeLookAsync` needs the Claude brain and there is no key here, so the choice of face is asserted directly against the rule and the round trip is owed.
+
 ## The protocol
 
 `look` (host → face) asks for one still. `sight` (face → host) answers with `image` or with `error`.

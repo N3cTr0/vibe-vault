@@ -84,4 +84,10 @@ The number that hurts is the delay before a genuine cold question with no name i
 "WakeNames": "Octavia"
 ```
 
+## One per room *(v0.24.0)*
+
+Stage 14 item 7 asked whether "was that addressed to me?" needs scoping per face. The answer, once rooms existed, was per **room** — and it is a real hazard rather than a tidiness point: `_lastExchange` drives the *follow-up* rule, so a shared gate would let a conversation at the desk make a second room's gate believe it was mid-exchange and answer a stranger.
+
+So there is one `AttentionGate` per room, constructed with the room, with no shared statics. It was **scoped rather than built out**, deliberately: only a room with always-on listening ever reaches the gate, and today that is the host room alone. Push-to-talk bypasses it entirely and always has — a held button has already answered the question the gate asks. See [[One Being, Many Rooms]].
+
 See also [[Eyes]] — built in the same stage, and the other half of what a room-scale assistant needs.

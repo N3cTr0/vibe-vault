@@ -220,7 +220,11 @@ internal static class FaceProtocolChecks
 
         var pcm = new byte[640];
         for (var i = 0; i < pcm.Length; i++) pcm[i] = (byte)i;
-        server.BroadcastAudio(pcm);
+
+        FaceId[] everyone;
+        lock (inbound) everyone = [inbound[0].From];
+
+        server.SendAudioTo(pcm, everyone);
 
         var audioB = await ReadBinaryAsync(faceB, TimeSpan.FromSeconds(2));
         Check("a face that asked for audio receives it",
@@ -229,6 +233,16 @@ internal static class FaceProtocolChecks
         var audioA = await ReadBinaryAsync(faceA, TimeSpan.FromSeconds(1));
         Check("a face that did NOT ask receives no audio at all",
             audioA is null, $"it received {audioA} bytes");
+
+        /* --- her voice does not leak into the next room ------------------------------
+           Stage 14 item 9, acceptance criterion 3. `SendAudio` took no recipients at all
+           until now, so every face that had opted in heard her — she answered a question
+           asked on a handset out loud at an empty desk. Addressing a face that wants audio
+           and asserting the *other* one stays silent is the transport half of that. */
+        server.SendAudioTo(pcm, []);
+        var toNobody = await ReadBinaryAsync(faceB, TimeSpan.FromSeconds(1));
+        Check("audio addressed to no room reaches nobody", toNobody is null,
+            $"a face received {toNobody} bytes anyway");
 
         // --- a face that leaves is dropped ------------------------------------------
         await faceB.CloseAsync(WebSocketCloseStatus.NormalClosure, null, Cancel());

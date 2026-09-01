@@ -46,6 +46,19 @@ internal interface IVoice : IDisposable
 
     bool IsSpeaking { get; }
 
+    /// Whether **this machine's speakers** should hear her. True normally; false while she
+    /// is attending a room that is not this one.
+    ///
+    /// Silencing the sound card rather than not speaking is deliberate: the visemes, the
+    /// `Audio` tee and the state machine all read from the audio as it is played, so a face
+    /// in the other room still gets her voice, in step with her mouth. Stopping short of the
+    /// output is the only place that can be cut without taking the rest with it.
+    ///
+    /// An engine that cannot stream (SAPI) simply goes quiet — there is nowhere for the
+    /// sound to go instead, and a phone conversation playing out loud in an empty house is
+    /// the thing this exists to stop.
+    bool Aloud { get; set; }
+
     /// What this engine calls itself, for the face and the diagnostics report.
     string EngineName { get; }
 

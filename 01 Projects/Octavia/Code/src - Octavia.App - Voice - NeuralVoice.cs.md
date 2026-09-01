@@ -47,6 +47,17 @@ internal sealed class NeuralVoice : IVoice
     private double _lastOpenness = -1;
     private bool _disposed;
 
+    /// Read on the sound card's thread and written from the turn, so `volatile`. See
+    /// `IVoice.Aloud` and `MouthTap`: the audio is still produced, still teed and still
+    /// read for visemes — only the buffer handed to the speakers is emptied.
+    private volatile bool _aloud = true;
+
+    public bool Aloud
+    {
+        get => _aloud;
+        set => _aloud = value;
+    }
+
     public event Action<double, string?>? Viseme;
     public event Action? Started;
     public event Action? Finished;
@@ -148,7 +159,7 @@ internal sealed class NeuralVoice : IVoice
             };
 
             _output = new WaveOut { BufferMilliseconds = 80, NumberOfBuffers = 3 };
-            _output.Init(new MouthTap(_buffer, OnAudioPlayed));
+            _output.Init(new MouthTap(_buffer, OnAudioPlayed, () => _aloud));
             _output.Play();
 
             _pump = new Thread(Pump) { IsBackground = true, Name = "octavia-piper" };
@@ -375,14 +386,24 @@ internal sealed class NeuralVoice : IVoice
 /// The tap is here rather than where the audio is produced because synthesis runs ahead
 /// of playback: reading visemes off the generator would have her mouth finish a sentence
 /// a second before it was heard.
-internal sealed class MouthTap(IWaveProvider source, Action<ReadOnlySpan<byte>> tap) : IWaveProvider
+///
+/// `aloud` is asked *after* the tap and never before it. That order is the whole design:
+/// when she is answering another room the visemes and the streamed PCM must be exactly
+/// what they would have been, and only the speakers go quiet. Zeroing rather than
+/// returning 0 keeps playback running at real time, so her mouth, her state and the
+/// audio a phone is receiving all stay on the same clock.
+internal sealed class MouthTap(
+    IWaveProvider source, Action<ReadOnlySpan<byte>> tap, Func<bool> aloud) : IWaveProvider
 {
     public WaveFormat WaveFormat => source.WaveFormat;
 
     public int Read(Span<byte> buffer)
     {
         var read = source.Read(buffer);
-        if (read > 0) tap(buffer[..read]);
+        if (read <= 0) return read;
+
+        tap(buffer[..read]);
+        if (!aloud()) buffer[..read].Clear();
         return read;
     }
 }

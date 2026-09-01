@@ -1075,18 +1075,18 @@ SAPI is the harder half and can wait: getting at its PCM means `SetOutputToAudio
 **Rejected: speaking with the tablet's own TTS.** It breaks the rule that a face is a
 renderer, and she would have a different voice in every room.
 
-### 4. Camera arbitration — `look` must name a face
+### ~~4. Camera arbitration — `look` must name a face~~ *(landed in v0.21.0; entry was stale)*
 
-`_looking` is a single `TaskCompletionSource` and `look` is broadcast. With two faces attached
-**both open their camera** and the first to answer wins, arbitrarily. That quietly breaks the
-second promise in `camera.js` — "it is never opened unasked" — for the face that was not being
-spoken to, and it lights the privacy marker in an empty room. Send `look` to one face id.
+> Struck 09/01/2026. `look` has named a face since item 1 landed — the ROADMAP simply never
+> said so. Item 9 changes *how* that face is chosen, from "whoever last spoke" to "a face in
+> the asking room that claims a camera".
 
-### 5. Turn ownership — a new idea, and the one to get right
+### ~~5. Turn ownership~~ — *superseded by item 9*
 
-Which face is she talking to? It decides where the voice goes, whose camera opens, and who
-"you" is in the transcript. The simplest rule that survives contact: **the face whose audio
-produced the current utterance owns the turn until it ends.**
+> "Which face is she talking to" turned out to be the wrong question. **Which *room* is she
+> attending** is the right one: it survives a room having two faces in it, which is the actual
+> arrangement on Android — a native client that owns the microphone and a WebView panel that
+> draws her page. See item 9.
 
 ### 6. Echo, which the network makes worse
 
@@ -1099,11 +1099,13 @@ transcribe it.
 sidesteps the whole problem. Always-on listening there needs real echo cancellation — Android's
 `AcousticEchoCanceler` is per-device and not dependable — and should be its own piece of work.
 
-### 7. The attention gate now has two rooms
+### ~~7. The attention gate now has two rooms~~ — *absorbed into item 9*
 
-`AttentionGate` decides what she answers and what she lets go. Two microphones in two rooms
-doubles the surface it is wrong on, and "was that addressed to me?" may need to be scoped per
-face rather than per session.
+> Scoped rather than built out, which is what the spec asked for: one `AttentionGate` per
+> room, constructed with the room, no shared statics. It only bites when a room gets
+> always-on listening, which on Android it does not have and is not getting here —
+> push-to-talk bypasses the gate entirely, because a held button has already answered the
+> question it asks.
 
 ### 8. `PROTOCOL.md` had fallen behind the code — ✅ **fixed in 0.20.1**
 
@@ -1116,11 +1118,55 @@ Both are now written down. This mattered more than a tidy-up: an Android client 
 built against this document by someone who cannot see `OctaviaSession`, and a contract that
 is quietly incomplete is worse than one that is honestly small.
 
+### ~~9. Two rooms~~ *(done 09/01/2026, v0.24.0)*
+
+> **Landed**, from [[Stage 14 - Two Rooms]] — a specification written on the Android side, by
+> the client that needed it, for whoever was working in her repo. It supersedes item 5,
+> absorbs item 7, and struck item 4 as already done.
+>
+> **Two faults, kept apart on purpose.** The first was five lines and security-shaped: *no*
+> `set*` case in `OctaviaSession` looked at `inbound.From`, so the mic button on a handset at
+> the gym opened the microphone in an empty house. `PROTOCOL.md` was honest that `listen`
+> toggles her own microphone and nothing enforced it. There is an authority table now — host
+> only, room, being — checked on the sending face's room before the switch acts.
+>
+> The second was the architecture. One `Conversation`, one `_state`, one `_mood`, and
+> `caption`/`turn`/`state`/`emotion` all sent with no target, so every face was a window onto
+> one room. `Conversation` is lifted out of `IBrain` — there are N conversations and one of
+> her, and a `ClaudeBrain` per room would duplicate the client and the key to hold a list of
+> strings apart.
+>
+> **Her voice was the one that was actively wrong** rather than merely coarse: `SendAudio`
+> reached every face that had opted in, so she answered a question asked on a phone out loud
+> at an empty desk. It takes a room now, and this machine's speakers are silenced for the
+> length of a turn she is having somewhere else — the visemes and the streamed PCM untouched,
+> only the sound card cut.
+>
+> **`_lastSpokenThrough` is gone, as its own comment asked.** `look` goes to a face that
+> claims a `camera` in `ready`, in the room that asked. An absent `senses` is not an empty one
+> — a face that predates the field is still asked, which is what keeps `attach-face.ps1`, the
+> checks and the built-in page working untouched.
+>
+> **Rooms are serialised and stay that way.** One `_responding` flag, and the other room is
+> refused out loud. Making it re-entrant is the concurrency change this defers: two rooms at
+> once means two Whispers and two synthesis pipelines on eight cores, and a being holding two
+> conversations is a worse simulation rather than a better one.
+>
+> All ten acceptance criteria are asserted in `EarsTest -- rooms`, in-process, against a
+> recording transport and a stub local model — and each of the four mechanisms was broken on
+> purpose first to watch the right checks go red. **Criterion 7 is the exception**: `look`
+> needs the Claude brain and there is no key here, so the *choice of face* is asserted
+> directly and the end-to-end half is still owed, exactly as item 1 recorded the same gap.
+
 ### Order
 
 1 → 3 → 2 → 6 → 4 → 5 → 7, with 8 folded in as the document is touched. Audio *out* before
 audio *in*: it is the smaller change, it is independently useful, and it makes a tablet worth
 looking at before it is worth talking to.
+
+**How it actually went:** 1 → 3 → 2 → 9, with 9 taking 4, 5 and 7 with it. Item 6 (echo)
+stands as decided — push-to-talk, and always-on listening in a remote room is still out of
+scope.
 
 ## Standing constraints
 

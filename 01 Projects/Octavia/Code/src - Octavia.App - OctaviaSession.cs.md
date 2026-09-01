@@ -7,6 +7,7 @@ source-path: src\Octavia.App\OctaviaSession.cs
 # src\Octavia.App\OctaviaSession.cs
 
 ```csharp
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using Octavia.Core;
@@ -41,13 +42,11 @@ internal sealed class OctaviaSession : IDisposable
     /// around her. Opening the device twice would be the obvious way to get this wrong.
     private LocalMicSource? _localMic;
     private readonly PcmFramer _roomFramer = new();
-    private readonly AttentionGate _gate;
     private readonly Brain.Tools.ToolRegistry _tools;
 
     private ISpeechRecognizer? _ears;
     private bool _earsOpening;
     private CancellationTokenSource? _turn;
-    private AgentState _state = AgentState.Idle;
     private bool _responding;
     private bool _wantsToListen;
     private bool _faceBuilt;
@@ -57,15 +56,50 @@ internal sealed class OctaviaSession : IDisposable
     /// never runs the code that reports errors, so silence is the only symptom the host can
     /// observe — and silence is what nothing was watching for. See ROADMAP.md stage 10a.
     internal bool FaceSpoke => _faceSpoke;
-    private Mood _mood = Mood.Neutral;
     private float _lastSentLevel = -1f;
     private bool _disposed;
+
+    // ---- rooms -----------------------------------------------
+
+    /* One being, N rooms. See Room, and Stage 14 item 9.
+
+       Two faults were being fixed at once and they are worth keeping apart. One is that no
+       `set*` case looked at where a message came from, so a phone at the gym could open the
+       microphone in an empty house. The other is that there was one conversation and every
+       face was a window onto it — typing at her on a handset put the words on the desk and
+       played the answer in a room nobody was in. */
+
+    /// Where each face is. A face declares its room in `ready`; saying nothing means the
+    /// host, which is why no existing renderer changes behaviour.
+    private readonly ConcurrentDictionary<FaceId, RoomId> _where = new();
+
+    /// What each face says it can do — `["mic", "camera"]`. A face that declares nothing is
+    /// a renderer, which is a legal face and always has been.
+    private readonly ConcurrentDictionary<FaceId, string[]> _senses = new();
+
+    private readonly ConcurrentDictionary<RoomId, Room> _rooms = new();
+
+    /// Who is in each room, as an array replaced wholesale on every membership change.
+    ///
+    /// The same instinct as `Face.Skip` on the socket server, for the same reason: her voice
+    /// thread reads this forty times a second while a phone can join from a socket thread,
+    /// and enumerating a dictionary through a mutation throws. Swapping a reference is
+    /// atomic; editing a map is not.
+    private volatile IReadOnlyDictionary<RoomId, FaceId[]> _members =
+        new Dictionary<RoomId, FaceId[]>();
+
+    private readonly object _rooming = new();
+
+    /// The room she is attending. **One at a time, deliberately** — she has one voice, one
+    /// Whisper, one `_responding` flag and one cancellation source, and a being that holds
+    /// two conversations at once is a worse simulation rather than a better one. The other
+    /// room is refused out loud; see `RespondTo`.
+    private RoomId _attending = RoomId.Host;
 
     public OctaviaSession(OctaviaConfig config, IFaceTransport face)
     {
         _config = config;
         _face = face;
-        _gate = new AttentionGate(config);
         _tools = new Brain.Tools.ToolRegistry(config);
         _meter.Device = config.MicrophoneDevice;
         _music.Device = config.OutputDevice;
@@ -97,17 +131,28 @@ internal sealed class OctaviaSession : IDisposable
             if (_floor == from) _faceMic?.Push(pcm, pcm.Length);
         };
 
-        // A phone that walks out of range must not hold her ears for ever.
-        _face.FaceDeparted += from => { if (_floor == from) ReleaseFloor("disconnected and so released"); };
+        // A phone that walks out of range must not hold her ears for ever, and must not
+        // leave a room holding an address nothing answers on.
+        _face.FaceDeparted += from =>
+        {
+            if (_floor == from) ReleaseFloor("disconnected and so released");
+            Departed(from);
+        };
 
+        /* Both of these are the **host machine's** microphone and the host machine's output
+           mix, so they go to the host room and nowhere else.
+
+           `music` is the one the spec calls out by name, and it is the room-microphone trap
+           from Stage 14 item 2 wearing different clothes: a tempo measured from the speakers
+           under this desk means nothing at all to somebody holding a phone in a gym. */
         _meter.LevelChanged += level =>
         {
             if (Math.Abs(level - _lastSentLevel) < 0.02f) return;
             _lastSentLevel = level;
-            _face.Send(new { type = "level", value = level });
+            ToRoom(RoomId.Host, new { type = "level", value = level });
         };
 
-        _music.Changed += state => _face.Send(new
+        _music.Changed += state => ToRoom(RoomId.Host, new
         {
             type = "music",
             playing = state.Playing,
@@ -118,10 +163,81 @@ internal sealed class OctaviaSession : IDisposable
 
         // The beat is sent on its own and never coalesced with the state above: a beat
         // that arrives 200 ms late is worse than one that never arrived at all.
-        _music.Beat += () => _face.Send(new { type = "music", beat = true });
+        _music.Beat += () => ToRoom(RoomId.Host, new { type = "music", beat = true });
 
         if (_config.Music) StartMusic().Forget("starting to listen for music");
     }
+
+    // ---- who is where -----------------------------------------
+
+    /// The room, made if this is the first face to name it. Rooms live in memory only, like
+    /// the conversation they hold.
+    private Room RoomNamed(RoomId id) => _rooms.GetOrAdd(id, key => new Room(key, _config));
+
+    /// The room this machine is standing in. Shorthand, because a great deal belongs to it:
+    /// its microphone, its speakers, its settings, and the built-in page.
+    private Room Host => RoomNamed(RoomId.Host);
+
+    /// Whose words the recogniser is currently turning into text. The floor-holder's room
+    /// while a face holds it, this machine's otherwise — the ears follow the microphone,
+    /// not the machine the engine happens to run on.
+    private RoomId EarsRoom => _floor is { } holder ? RoomOf(holder).Id : RoomId.Host;
+
+    private Room RoomOf(FaceId face) =>
+        RoomNamed(_where.TryGetValue(face, out var id) ? id : RoomId.Host);
+
+    /// Lock-free, and it has to be: her voice reads this on the sound card's thread while a
+    /// phone can join from a socket thread. See `_members`.
+    private FaceId[] FacesIn(RoomId room) =>
+        _members.TryGetValue(room, out var faces) ? faces : [];
+
+    private void ToRoom(RoomId room, object message) => _face.SendMany(message, FacesIn(room));
+
+    /// A face is known from the first thing it ever says, in the host room until `ready`
+    /// puts it somewhere else. Waiting for `ready` would leave `attach-face.ps1` and the
+    /// checks — which connect and speak without one — addressable by nothing.
+    private void Seen(FaceId face)
+    {
+        if (_where.ContainsKey(face)) return;
+        Join(face, RoomId.Host);
+    }
+
+    private void Join(FaceId face, RoomId room)
+    {
+        var moved = !_where.TryGetValue(face, out var was) || was != room;
+        _where[face] = room;
+        RoomNamed(room);
+
+        if (moved) Remember();
+        if (moved && room != RoomId.Host) Log.Write($"face {face} is in room '{room}'");
+    }
+
+    private void Departed(FaceId face)
+    {
+        if (!_where.TryRemove(face, out _)) return;
+        _senses.TryRemove(face, out _);
+        Remember();
+    }
+
+    /// Rebuilds the membership snapshot wholesale under the lock, and publishes it with one
+    /// reference swap. Nothing reads the map while it is being edited, because it never is.
+    private void Remember()
+    {
+        lock (_rooming)
+        {
+            var built = new Dictionary<RoomId, List<FaceId>>();
+            foreach (var (face, room) in _where)
+            {
+                if (!built.TryGetValue(room, out var list)) built[room] = list = [];
+                list.Add(face);
+            }
+
+            _members = built.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
+        }
+    }
+
+    /// Every face she could speak to, for the per-face `hello`.
+    private IEnumerable<FaceId> KnownFaces() => _where.Keys;
 
     // ---- what the machine is playing --------------------------
 
@@ -242,20 +358,28 @@ internal sealed class OctaviaSession : IDisposable
         _config.WhisperCompute = wanted;
         _config.Save();
         Log.Write($"whisper compute set to {wanted}; takes effect on restart");
-        Notice($"Whisper will use {wanted} the next time she starts.");
+        Notice(Host, $"Whisper will use {wanted} the next time she starts.");
         Announce();
     }
 
     private void Listen(IVoice voice)
     {
-        voice.Viseme += (openness, shape) => _face.Send(new { type = "viseme", value = openness, shape });
-        voice.Started += () => SetState(AgentState.Speaking);
+        // Her mouth moves where she is talking. A desk avatar mouthing a conversation
+        // happening on a handset in another building is precisely the thing rooms exist to
+        // stop — and it is the same buffer, so the two rooms cannot disagree.
+        voice.Viseme += (openness, shape) =>
+            ToRoom(_attending, new { type = "viseme", value = openness, shape });
+
+        voice.Started += () => SetState(RoomNamed(_attending), AgentState.Speaking);
         voice.Finished += OnVoiceFinished;
+
+        // A voice engine that would not start is about *her*, not about a room, so every
+        // face is told: they are all wearing the result.
         voice.Trouble += Notice;
 
-        // Her voice, to any face that asked for it. Opt-in, so this costs nothing at all
-        // until somebody wants to hear her in another room — see `Face.Want`.
-        voice.Audio += pcm => _face.SendAudio(pcm);
+        // Her voice, to the faces in the room she is attending that asked for it. Opt-in,
+        // so this costs nothing at all until somebody wants to hear her — see `Face.Want`.
+        voice.Audio += pcm => _face.SendAudio(pcm, FacesIn(_attending));
     }
 
     // ---- her voice -------------------------------------------
@@ -316,26 +440,83 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- face to host ----------------------------------------
 
+    /* The authority table. Every face→host message is one of three things, and the check is
+       on the *room the message came from*, here, before the switch acts.
+
+       Hiding a button in the renderer is not the fix and never was: a face that can send
+       `listen` by hand can still open the microphone in an empty house. `hello.controls` is
+       the hint for the interface; this is the enforcement, and both are needed — without the
+       guard a remote face drives the hardware anyway, and without the hint a phone shows a
+       microphone button that silently does nothing, which is its own kind of broken. */
+
+    /// Acts on the machine she runs on. Only from a face in the host room.
+    private static readonly HashSet<string> HostOnly =
+    [
+        "listen", "setMicrophone", "setOutput", "setMusic",
+        "setWhisperCompute", "openDataFolder", "saveDiagnostics"
+    ];
+
+    /// Changes *her*, not a room, so any room may — and every room is told, because every
+    /// face is now wearing it.
+    private static readonly HashSet<string> BeingWide =
+    [
+        "setKey", "setVoice", "setVoiceEngine", "setAvatar", "setRoomHour", "setStats"
+    ];
+
+    /// One line per room per kind of refusal. A wall tablet with a stuck button would
+    /// otherwise write the same sentence into her log until the disk filled.
+    private readonly HashSet<string> _refused = [];
+
+    private bool Refuse(FaceId face, RoomId room, string kind)
+    {
+        _face.Send(new { type = "notice", text = "That belongs to the machine she runs on." }, face);
+
+        lock (_refused)
+        {
+            if (!_refused.Add($"{room}/{kind}")) return true;
+        }
+
+        Log.Write($"'{kind}' from room '{room}' refused; it belongs to the host");
+        return true;
+    }
+
     private void OnFaceMessage(FaceMessage inbound)
     {
         var message = inbound.Body;
         if (!message.TryGetProperty("type", out var typeNode)) return;
 
         var kind = typeNode.GetString();
+        if (kind is null) return;
 
-        // A person did this, through this face. Everything else — `ready`, `sight`,
-        // settings echoes — is a renderer talking, not somebody in a room.
-        if (kind is "say" or "listen" or "hush") _lastSpokenThrough = inbound.From;
+        Seen(inbound.From);
+        var room = RoomOf(inbound.From);
+
+        if (HostOnly.Contains(kind) && room.Id != RoomId.Host)
+        {
+            Refuse(inbound.From, room.Id, kind);
+            return;
+        }
 
         switch (kind)
         {
             case "ready":
                 _faceSpoke = true;
                 _faceBuilt = message.TryGetProperty("faceBuilt", out var b) && b.ValueKind == JsonValueKind.True;
+
+                /* A face declares its room and what it can do, and this is the only place
+                   either is stated. **Not derived from the credential**, tempting as that is:
+                   token means loopback means host would put two handsets in one room and make
+                   a laptop on the LAN indistinguishable from a phone. */
+                Join(inbound.From, RoomId.Named(Text(message, "room")));
+                room = RoomOf(inbound.From);
+                _senses[inbound.From] = Senses(message);
+
                 if (_faceBuilt) Log.Write("face ready; scene built");
                 else Log.Warn("face ready but the scene did not build - check WebGL support and the browser console");
                 Announce();
-                if (_config.ListenOnStart) StartListening();
+
+                // The host machine's ears, so only the host machine's face starts them.
+                if (_config.ListenOnStart && room.Id == RoomId.Host) StartListening();
                 break;
 
             case "faceError":
@@ -344,7 +525,7 @@ internal sealed class OctaviaSession : IDisposable
 
             case "say":
                 var text = Text(message, "text");
-                if (!string.IsNullOrWhiteSpace(text)) RespondTo(text.Trim()).Forget("turn");
+                if (!string.IsNullOrWhiteSpace(text)) RespondTo(room, text.Trim()).Forget("turn");
                 break;
 
             case "listen":
@@ -352,13 +533,15 @@ internal sealed class OctaviaSession : IDisposable
                 break;
 
             case "hush":
-                Hush();
+                // Only the room she is talking to may stop her. Hushing from the next room
+                // is reaching across and cutting somebody else off mid-sentence.
+                if (room.Id == _attending) Hush();
                 break;
 
             case "forget":
-                _brain.Forget();
-                _face.Send(new { type = "cleared" });
-                Notice("Conversation forgotten.");
+                room.History.Clear();
+                ToRoom(room.Id, new { type = "cleared" });
+                Notice(room, "Conversation forgotten.");
                 break;
 
             case "setKey":
@@ -455,21 +638,31 @@ internal sealed class OctaviaSession : IDisposable
                     !message.TryGetProperty("value", out var talk) || talk.ValueKind != JsonValueKind.False);
                 break;
 
+            /* Per room, not per being. "May she open a camera at all" is a question about a
+               place: the gym phone and the desk should be able to answer it differently, and
+               a phone answering yes must not open the lens on this machine.
+
+               The host room's answer is still written to the config, because the config file
+               belongs to this machine. Every other room's lives as long as she does. */
             case "setCamera":
                 var seeing = !message.TryGetProperty("value", out var cam) || cam.ValueKind != JsonValueKind.False;
-                _config.Camera = seeing;
-                _config.Save();
+                room.Camera = seeing;
 
-                if (seeing) Log.Warn("camera enabled from settings");
-                else Log.Write("camera disabled from settings");
+                if (room.Id == RoomId.Host) { _config.Camera = seeing; _config.Save(); }
+
+                // Warn on the way up, wherever it came from: a camera coming on in someone's
+                // home should leave a mark that is easy to find later, and the room is half
+                // of what makes it findable.
+                if (seeing) Log.Warn($"camera enabled in room '{room.Id}'");
+                else Log.Write($"camera disabled in room '{room.Id}'");
 
                 Announce();
                 break;
 
             case "setCameraDevice":
-                _config.CameraDevice = Text(message, "value") ?? "";
-                _config.Save();
-                Log.Write($"camera device: {Named(_config.CameraDevice)}");
+                room.CameraDevice = Text(message, "value") ?? "";
+                if (room.Id == RoomId.Host) { _config.CameraDevice = room.CameraDevice; _config.Save(); }
+                Log.Write($"camera device in room '{room.Id}': {Named(room.CameraDevice)}");
                 Announce();
                 break;
 
@@ -482,7 +675,7 @@ internal sealed class OctaviaSession : IDisposable
                 break;
 
             case "selfTest":
-                RunSelfTest().Forget("self-test");
+                RunSelfTest(room).Forget("self-test");
                 break;
 
             case "saveDiagnostics":
@@ -500,22 +693,56 @@ internal sealed class OctaviaSession : IDisposable
             ? node.GetString()
             : null;
 
+    /// What a face claims it can do. An absent list is **not** an empty one: it means a face
+    /// that predates the field, and treating that as "no camera" would stop `look` reaching
+    /// the built-in page. See `Eyes` for how the difference is used.
+    private static string[] Senses(JsonElement message)
+    {
+        if (!message.TryGetProperty("senses", out var node) || node.ValueKind != JsonValueKind.Array)
+            return [];
+
+        return node.EnumerateArray()
+                   .Where(item => item.ValueKind == JsonValueKind.String)
+                   .Select(item => item.GetString()!.Trim().ToLowerInvariant())
+                   .Where(name => name.Length > 0)
+                   .ToArray();
+    }
+
     /// Bumped only for a breaking change to the message contract; see PROTOCOL.md.
     private const int ProtocolVersion = 1;
 
-    private void Announce() => _face.Send(new
+    /// **Per face, not broadcast.** It used to build one anonymous object and fan it out,
+    /// which had already drawn blood once: the avatar URL had to be patched in the renderer
+    /// because a single `hello` could not say different things to the built-in page and a
+    /// phone. Now it must differ anyway — the room, what that face may drive, and what she
+    /// is doing *in that room* are all different answers to different faces.
+    private void Announce()
+    {
+        foreach (var face in KnownFaces()) Announce(face);
+    }
+
+    private void Announce(FaceId face) => _face.Send(Hello(face, RoomOf(face)), face);
+
+    private object Hello(FaceId face, Room room) => new
     {
         type = "hello",
         protocol = ProtocolVersion,
 
-        // What she is doing and wearing *now*. `state` and `emotion` are otherwise sent
-        // only when they change, so a face attaching to a session already in progress
-        // had no way to know either — and an expression can sit unchanged for a long
-        // time, so a renderer that assumed neutral would simply be wrong until she next
-        // felt something. Found by the renderer contract check.
-        state = _state.ToString().ToLowerInvariant(),
-        emotion = _mood.Name,
-        emotionWeight = _mood.Weight,
+        // Which room this face was put in, echoed back so a typo in `?room=` is visible
+        // rather than mysterious, and `controls`: what it may drive. A page hides its
+        // host-only switches when this says `room`. A hint, not the enforcement — see the
+        // authority table in `OnFaceMessage`, which is where the refusal happens.
+        room = room.Id.ToString(),
+        controls = room.Id == RoomId.Host ? "host" : "room",
+
+        // What she is doing and wearing *now*, in this face's room. `state` and `emotion`
+        // are otherwise sent only when they change, so a face attaching to a session
+        // already in progress had no way to know either — and an expression can sit
+        // unchanged for a long time, so a renderer that assumed neutral would simply be
+        // wrong until she next felt something. Found by the renderer contract check.
+        state = room.State.ToString().ToLowerInvariant(),
+        emotion = room.Mood.Name,
+        emotionWeight = room.Mood.Weight,
         hasKey = _brain.IsReady || !_brain.NeedsApiKey,
         model = _brain.Description,
         profile = _config.Profile,
@@ -534,7 +761,7 @@ internal sealed class OctaviaSession : IDisposable
         roomHour = _config.RoomHour,
         music = _config.Music,
         musicAvailable = _music.IsRunning,
-        camera = _config.Camera,
+        camera = room.Camera,
         stats = _config.ShowStats,
 
         // What a face has to know to play her voice, announced rather than assumed. The
@@ -558,7 +785,7 @@ internal sealed class OctaviaSession : IDisposable
         microphone = _config.MicrophoneDevice ?? "",
         outputs = AudioDevices.Render().Select(d => new { value = d.Name, label = Label(d) }),
         output = _config.OutputDevice ?? "",
-        cameraDevice = _config.CameraDevice ?? "",
+        cameraDevice = room.CameraDevice,
         whisperCompute = _config.WhisperCompute ?? "auto",
 
         // What she has been given hands for. Reported even though she cannot call them
@@ -567,7 +794,7 @@ internal sealed class OctaviaSession : IDisposable
         toolServers = _tools.Providers.Select(p => new { name = p.Name, ready = p.IsReady }),
 
         dev = _config.DevPanel ?? string.Equals(_config.Profile, "dev", StringComparison.OrdinalIgnoreCase)
-    });
+    };
 
     private static string Label(AudioDevice device) =>
         device.IsDefault ? $"{device.Name} (Windows default)" : device.Name;
@@ -677,9 +904,11 @@ internal sealed class OctaviaSession : IDisposable
             : $"listening to '{_music.DeviceName}', nothing playing through it";
     }
 
-    private async Task RunSelfTest()
+    /// Answered to the room that asked. A report is a question about the machine, which any
+    /// room may ask; it is not an answer the other rooms were waiting for.
+    private async Task RunSelfTest(Room room)
     {
-        _face.Send(new { type = "diagnostics", running = true });
+        ToRoom(room.Id, new { type = "diagnostics", running = true });
 
         try
         {
@@ -689,7 +918,7 @@ internal sealed class OctaviaSession : IDisposable
             foreach (var check in checks.Where(c => !c.Ok))
                 Log.Warn($"self-test: {check.Name} — {check.Detail}");
 
-            _face.Send(new
+            ToRoom(room.Id, new
             {
                 type = "diagnostics",
                 running = false,
@@ -701,8 +930,8 @@ internal sealed class OctaviaSession : IDisposable
         catch (Exception ex)
         {
             Log.Error("self-test failed", ex);
-            _face.Send(new { type = "diagnostics", running = false });
-            Notice("The self-test itself failed. The log has the detail.");
+            ToRoom(room.Id, new { type = "diagnostics", running = false });
+            Notice(room, "The self-test itself failed. The log has the detail.");
         }
     }
 
@@ -739,13 +968,13 @@ internal sealed class OctaviaSession : IDisposable
         try
         {
             await Task.Run(() => DiagnosticsBundle.WriteAsync(chosen, _config, Snapshot()));
-            _face.Send(new { type = "diagnosticsSaved", path = chosen });
-            Notice("Diagnostics saved. Open it and read README.txt before sending it on.");
+            ToRoom(RoomId.Host, new { type = "diagnosticsSaved", path = chosen });
+            Notice(Host, "Diagnostics saved. Open it and read README.txt before sending it on.");
         }
         catch (Exception ex)
         {
             Log.Error("diagnostics bundle failed", ex);
-            Notice($"Could not write the diagnostics file: {ex.Message}");
+            Notice(Host, $"Could not write the diagnostics file: {ex.Message}");
         }
     }
 
@@ -850,9 +1079,12 @@ internal sealed class OctaviaSession : IDisposable
 
                     Log.Write("music: also listening for a beat in this room, through the local microphone");
                 }
-                ears.Trouble += Notice;
+                // The engine is this machine's, so its trouble is the host room's. What it
+                // is *hearing* is not: while a face holds the floor these words came off a
+                // phone, and a half-finished sentence belongs beside the mouth that said it.
+                ears.Trouble += text => Notice(Host, text);
                 ears.Hypothesised += partial =>
-                    _face.Send(new { type = "caption", who = "You", text = partial, tentative = true });
+                    ToRoom(EarsRoom, new { type = "caption", who = "You", text = partial, tentative = true });
                 _ears = ears;
                 Log.Write($"ears open: {ears.EngineName}");
                 if (_wantsToListen) EngageEars();
@@ -860,9 +1092,9 @@ internal sealed class OctaviaSession : IDisposable
             catch (Exception ex)
             {
                 Log.Error("cannot open ears", ex);
-                Notice(Explain(ex));
+                Notice(Host, Explain(ex));
                 _wantsToListen = false;
-                if (_state is AgentState.Listening) SetState(AgentState.Idle);
+                if (Host.State is AgentState.Listening) SetState(Host, AgentState.Idle);
             }
             finally
             {
@@ -887,7 +1119,7 @@ internal sealed class OctaviaSession : IDisposable
         catch (Exception ex)
         {
             Log.Warn($"whisper unavailable, falling back to Windows recognizer: {ex.Message}");
-            Notice("Whisper could not start; using the Windows recognizer for now.");
+            Notice(Host, "Whisper could not start; using the Windows recognizer for now.");
             return new SystemSpeechRecognizer(_config.RecognitionCulture);
         }
     }
@@ -896,7 +1128,7 @@ internal sealed class OctaviaSession : IDisposable
     {
         _ears?.Start();
         _meter.Start();
-        if (_state is AgentState.Idle) SetState(AgentState.Listening);
+        if (Host.State is AgentState.Idle) SetState(Host, AgentState.Listening);
         Announce();
     }
 
@@ -905,7 +1137,7 @@ internal sealed class OctaviaSession : IDisposable
         _wantsToListen = false;
         _ears?.Stop();
         _meter.Stop();
-        if (_state is AgentState.Listening) SetState(AgentState.Idle);
+        if (Host.State is AgentState.Listening) SetState(Host, AgentState.Idle);
         Announce();
     }
 
@@ -928,18 +1160,26 @@ internal sealed class OctaviaSession : IDisposable
     /// a deliberate act is only ever wrong.
     private async Task Consider(string text)
     {
-        var verdict = await _gate.JudgeAsync(text);
+        /* The gate belongs to the room the words came from, and has no shared state with any
+           other — the desk being mid-exchange must not make a second room's gate believe it
+           is too, because "follow-up" is the rule that would then fire on a stranger.
+
+           In practice only the host room ever reaches here: push-to-talk bypasses the gate
+           entirely, since a held button has already answered the question it asks. Scoped
+           rather than built out, exactly as the spec asked. */
+        var room = RoomNamed(EarsRoom);
+        var verdict = await room.Gate.JudgeAsync(text);
 
         if (verdict.Answer)
         {
-            await RespondTo(text);
+            await RespondTo(room, text);
             return;
         }
 
         // Never silently. "She ignored me" has to be a question with an answer, and the
         // face shows it faintly so the reason is visible without opening the log.
         Log.Write($"overheard ({verdict.Why}, {verdict.Cost.TotalMilliseconds:0} ms): {text}");
-        _face.Send(new { type = "overheard", text, why = verdict.Why });
+        ToRoom(room.Id, new { type = "overheard", text, why = verdict.Why });
     }
 
     // ---- the floor -------------------------------------------
@@ -977,9 +1217,22 @@ internal sealed class OctaviaSession : IDisposable
             return;
         }
 
+        /* Her attention, not just the floor. This is the same mechanism generalised: a
+           button held in one room while she is mid-turn in another is refused for exactly
+           the reason a second press is — she attends one room at a time, and pretending
+           otherwise would need two Whispers, two voices and two brains in flight. */
+        var asking = RoomOf(from);
+        if (_responding && asking.Id != _attending)
+        {
+            _face.Send(new { type = "notice", text = "She is talking to someone else." }, from);
+            Log.Write($"face {from} pressed from room '{asking.Id}' while she is in '{_attending}'; refused");
+            return;
+        }
+
         // Talking over her is an interrupt, not something to record on top of. `hush`
-        // already does exactly the right thing.
-        if (_state is AgentState.Speaking or AgentState.Thinking) Hush();
+        // already does exactly the right thing — and only her attention is interruptible,
+        // which by now is guaranteed to be this room's, because the refusal above ran first.
+        if (RoomNamed(_attending).State is AgentState.Speaking or AgentState.Thinking) Hush();
 
         if (_ears is not WhisperRecognizer recogniser)
         {
@@ -999,7 +1252,12 @@ internal sealed class OctaviaSession : IDisposable
         _floorTimeout = new System.Threading.Timer(
             _ => ReleaseFloor("timed out"), null, FloorLimit, Timeout.InfiniteTimeSpan);
 
-        Log.Write($"face {from} has the floor");
+        // Holding the button is where a turn begins, so her attention moves now rather than
+        // when the sentence finally arrives — everything between the two, the partial
+        // transcript most of all, has to be drawn in the room that is speaking.
+        _attending = asking.Id;
+
+        Log.Write($"face {from} has the floor, in room '{asking.Id}'");
     }
 
     private void ReleaseFloor(string why)
@@ -1038,40 +1296,64 @@ internal sealed class OctaviaSession : IDisposable
     /// its own header: "it is never opened unasked".
     private (FaceId Face, TaskCompletionSource<string?> Waiting)? _looking;
 
-    /// The last face a *person* spoke through — `say`, `listen`, `hush`. Where `look` goes.
+    /// The face in a room that should be asked to look.
     ///
-    /// **This is not turn ownership** and must not grow into it; that is Stage 14 item 5.
-    /// It is one field that answers one question well enough to fix the camera bug:
-    /// whoever last asked her something is the one holding a device worth looking through.
-    /// Null means nobody has, which is the case when the utterance arrived through the
-    /// PC's own microphone — so it falls back to the built-in page.
-    private FaceId? _lastSpokenThrough;
+    /// This replaces `_lastSpokenThrough`, which was a stopgap that said so in its own
+    /// comment. "Whoever last spoke" is not the question — the question is *who in this room
+    /// has a camera*, and a face now answers it in `ready`.
+    ///
+    /// It matters concretely on Android: the native client owns the camera and the WebView
+    /// panel cannot open one at all, because `getUserMedia` needs a secure context and the
+    /// panel is served over plain HTTP. Without `senses` the host had a coin-flip chance of
+    /// asking the half of the phone that physically cannot answer.
+    ///
+    /// **A face that declared no senses is a candidate of last resort, not a refusal.** That
+    /// is what keeps `attach-face.ps1`, the checks and any renderer built before this field
+    /// existed working exactly as they did.
+    internal FaceId? EyesIn(RoomId room)
+    {
+        var faces = FacesIn(room);
+
+        var claimed = faces.Where(f =>
+            _senses.TryGetValue(f, out var senses) && senses.Contains("camera")).ToArray();
+
+        // The built-in page first among equals, so the answer is stable rather than
+        // whichever face happens to sort first in a dictionary.
+        var page = _face.BuiltInFace;
+        if (claimed.Length > 0)
+            return page is { } known && claimed.Contains(known) ? known : claimed[0];
+
+        var silent = faces.Where(f => !_senses.TryGetValue(f, out var s) || s.Length == 0).ToArray();
+        if (silent.Length == 0) return null;
+
+        return page is { } builtIn && silent.Contains(builtIn) ? builtIn : silent[0];
+    }
 
     /// A still, but only if the question genuinely needs one and she is allowed.
     ///
     /// Three gates before a camera opens, and all three are cheap and legible: the
-    /// setting is on, the words need eyes, and the brain has any. Nothing here consults
-    /// a model — the decision to open a camera in someone's home has to be auditable by
-    /// reading it. See `Sight`.
-    private async Task<string?> MaybeLookAsync(string userText, CancellationToken cancel)
+    /// setting is on **in this room**, the words need eyes, and the brain has any. Nothing
+    /// here consults a model — the decision to open a camera in someone's home has to be
+    /// auditable by reading it. See `Sight`.
+    private async Task<string?> MaybeLookAsync(Room room, string userText, CancellationToken cancel)
     {
-        if (!_config.Camera || !Sight.WantsEyes(userText)) return null;
+        if (!room.Camera || !Sight.WantsEyes(userText)) return null;
 
         // A brain with no eyes would only be told there was a picture it cannot see.
         if (_brain is not ClaudeBrain)
         {
-            Notice("She would need her Claude brain to see anything.");
+            Notice(room, "She would need her Claude brain to see anything.");
             return null;
         }
 
         if (_looking is not null) return null;
 
-        // One face, not all of them. Falls back to the built-in page when nobody has
-        // spoken through a remote face — an utterance from the PC's own microphone.
-        var target = _lastSpokenThrough ?? _face.BuiltInFace;
+        // One face, in the room that asked. Never the room next door: a question at the
+        // desk must not open a lens on a handset in somebody's pocket.
+        var target = EyesIn(room.Id);
         if (target is null)
         {
-            Log.Warn("look: no face to ask, so she answers without eyes");
+            Log.Warn($"look: no face in room '{room.Id}' has a camera, so she answers without eyes");
             return null;
         }
 
@@ -1080,7 +1362,7 @@ internal sealed class OctaviaSession : IDisposable
 
         try
         {
-            Log.Write($"look: asking face {target.Value}");
+            Log.Write($"look: asking face {target.Value} in room '{room.Id}'");
             _face.Send(new { type = "look" }, target);
 
             // The face has to raise a permission prompt on first use, and a person has
@@ -1104,18 +1386,32 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- a turn ----------------------------------------------
 
-    private async Task RespondTo(string userText)
+    private async Task RespondTo(Room room, string userText)
     {
-        if (_responding) return;
+        /* **The single flag stays single, and that is the decision.** Making this re-entrant
+           "because there are rooms now" is the concurrency change this deliberately defers:
+           two rooms conversing at once means two Whispers and two synthesis pipelines on an
+           eight-core box, and — more to the point — one being cannot hold two conversations
+           at once. Pretending she can is a worse simulation, not a better one.
+
+           So the other room is told, out loud, rather than left wondering. The same room
+           pressing twice is left in silence, because it can see she is already answering. */
+        if (_responding)
+        {
+            if (room.Id != _attending)
+                Notice(room, "She is talking to someone else.");
+            return;
+        }
 
         if (!_brain.IsReady && _brain.NeedsApiKey)
         {
-            Notice("No API key yet. Paste one below and try again.");
-            _face.Send(new { type = "needKey" });
+            Notice(room, "No API key yet. Paste one below and try again.");
+            ToRoom(room.Id, new { type = "needKey" });
             return;
         }
 
         _responding = true;
+        _attending = room.Id;
         _turn?.Cancel();
         _turn = new CancellationTokenSource();
         var cancel = _turn.Token;
@@ -1123,9 +1419,25 @@ internal sealed class OctaviaSession : IDisposable
         _ears?.Mute();
         _meter.Stop();
 
-        _face.Send(new { type = "caption", who = "You", text = userText });
-        _face.Send(new { type = "turn", who = "you", text = userText });
-        SetState(AgentState.Thinking);
+        /* Where her voice comes out. Silencing this machine's speakers is the whole of
+           acceptance criterion 3 and it is not cosmetic: before this, a question asked on a
+           handset was answered aloud in an empty house — and if the desk had opted into
+           audio, in two rooms at once. The visemes and the streamed PCM are untouched; only
+           the sound card is. See `IVoice.Aloud`. */
+        var aloud = room.Id == RoomId.Host;
+        _voice.Aloud = aloud;
+
+        Log.Write(aloud
+            ? $"turn in room '{room.Id}'; her voice plays on this machine"
+            : $"turn in room '{room.Id}'; her voice goes only to that room, and this machine stays silent"
+              + (_voice.AudioFormat is null ? " — and this voice cannot be streamed, so nobody will hear it" : ""));
+
+        if (!aloud && _voice.AudioFormat is null)
+            Notice(room, "Her Windows voice cannot leave this machine; you will see her words, not hear them.");
+
+        ToRoom(room.Id, new { type = "caption", who = "You", text = userText });
+        ToRoom(room.Id, new { type = "turn", who = "you", text = userText });
+        SetState(room, AgentState.Thinking);
 
         var reply = new StringBuilder();
 
@@ -1133,22 +1445,22 @@ internal sealed class OctaviaSession : IDisposable
         {
             var now = new Situation(
                 Persona.Music(_music.State.Playing, _music.State.Bpm),
-                await MaybeLookAsync(userText, cancel));
+                await MaybeLookAsync(room, userText, cancel));
 
-            await foreach (var sentence in _brain.RespondAsync(userText, now, cancel))
+            await foreach (var sentence in _brain.RespondAsync(room.History, userText, now, cancel))
             {
                 if (cancel.IsCancellationRequested) break;
 
                 reply.Append(reply.Length > 0 ? " " : "").Append(sentence);
-                _face.Send(new { type = "caption", who = "Octavia", text = reply.ToString() });
-                Feel(Moods.Read(sentence));
+                ToRoom(room.Id, new { type = "caption", who = "Octavia", text = reply.ToString() });
+                Feel(room, Moods.Read(sentence));
                 _voice.Say(sentence);
             }
 
             if (reply.Length > 0)
-                _face.Send(new { type = "turn", who = "octavia", text = reply.ToString() });
+                ToRoom(room.Id, new { type = "turn", who = "octavia", text = reply.ToString() });
             else if (!cancel.IsCancellationRequested)
-                Notice("She had nothing to say.");
+                Notice(room, "She had nothing to say.");
         }
         catch (OperationCanceledException)
         {
@@ -1157,13 +1469,13 @@ internal sealed class OctaviaSession : IDisposable
         catch (Exception ex)
         {
             Log.Error("turn failed", ex);
-            Notice(Explain(ex));
-            _face.Send(new { type = "caption", who = "", text = "Something went wrong reaching the model." });
+            Notice(room, Explain(ex));
+            ToRoom(room.Id, new { type = "caption", who = "", text = "Something went wrong reaching the model." });
         }
         finally
         {
             _responding = false;
-            _gate.Answered();
+            room.Gate.Answered();
             if (!_voice.IsSpeaking) OnVoiceFinished();
         }
     }
@@ -1185,50 +1497,74 @@ internal sealed class OctaviaSession : IDisposable
     {
         if (_responding || _voice.IsSpeaking) return;
 
+        var spokenIn = RoomNamed(_attending);
+
         // The turn is over; her face should not keep the last sentence's mood on it.
-        Feel(Mood.Neutral);
+        Feel(spokenIn, Mood.Neutral);
+
+        // Her voice belongs to this machine again the moment the turn ends, so nothing that
+        // happens next — a hotkey, an utterance into the desk microphone — can be swallowed
+        // by a flag left over from a phone conversation.
+        _voice.Aloud = true;
 
         if (_wantsToListen)
         {
             _ears?.Unmute();
             _meter.Start();
-            SetState(AgentState.Listening);
         }
-        else
-        {
-            SetState(AgentState.Idle);
-        }
+
+        /* The host room follows this machine's ears. Any other room simply goes quiet: its
+           microphone is push-to-talk and belongs to the client, so "listening" would be a
+           claim about a device this process does not own. */
+        SetState(Host, _wantsToListen ? AgentState.Listening : AgentState.Idle);
+        if (spokenIn.Id != RoomId.Host) SetState(spokenIn, AgentState.Idle);
     }
 
     /// Sent only when it changes: an expression is a change of face, and repeating one
     /// every sentence would keep restarting the movement towards it.
-    private void Feel(Mood mood)
+    ///
+    /// Per room, because it drives the avatar. A global mood would put an expression on the
+    /// phone's face that was caused by a conversation in a different building.
+    private void Feel(Room room, Mood mood)
     {
-        if (mood.Name == _mood.Name && Math.Abs(mood.Weight - _mood.Weight) < 0.01) return;
-        _mood = mood;
-        _face.Send(new { type = "emotion", value = mood.Name, weight = mood.Weight });
+        if (mood.Name == room.Mood.Name && Math.Abs(mood.Weight - room.Mood.Weight) < 0.01) return;
+        room.Mood = mood;
+        ToRoom(room.Id, new { type = "emotion", value = mood.Name, weight = mood.Weight });
     }
 
-    private void SetState(AgentState state)
+    private void SetState(Room room, AgentState state)
     {
-        if (_state == state) return;
-        _state = state;
+        if (room.State == state) return;
+        room.State = state;
 
-        // Everything she says comes back through the loopback a few milliseconds later.
-        // Holding the analysis while she talks is what stops her hearing herself and
-        // deciding it is music; the tempo she already had keeps running underneath.
-        _music.Hold = state is AgentState.Speaking;
+        /* Everything she says comes back through the loopback a few milliseconds later.
+           Holding the analysis while she talks is what stops her hearing herself and
+           deciding it is music; the tempo she already had keeps running underneath.
 
-        _face.Send(new { type = "state", value = state.ToString().ToLowerInvariant() });
+           A host concern, so it follows the room she is *attending* rather than any room
+           that happens to change state — the loopback only ever hears this machine. */
+        if (room.Id == _attending) _music.Hold = state is AgentState.Speaking;
+
+        ToRoom(room.Id, new { type = "state", value = state.ToString().ToLowerInvariant() });
     }
 
     /// Notices are the things she thought were worth interrupting for, so they belong in
     /// the log as well as on her face — by the time a bundle arrives, the one that
     /// mattered has long since faded off the screen.
+    /// Everywhere. For the things that are about *her* rather than about a room — a voice
+    /// engine that would not start, a key that was stored — because every face is wearing
+    /// the result.
     private void Notice(string text)
     {
         Log.Write($"notice: {text}");
         _face.Send(new { type = "notice", text });
+    }
+
+    /// One room. For the things that answer something that room asked.
+    private void Notice(Room room, string text)
+    {
+        Log.Write($"notice ({room.Id}): {text}");
+        ToRoom(room.Id, new { type = "notice", text });
     }
 
     public void Dispose()
@@ -1240,7 +1576,7 @@ internal sealed class OctaviaSession : IDisposable
         _ears?.Dispose();
         _meter.Dispose();
         _music.Dispose();
-        _gate.Dispose();
+        foreach (var room in _rooms.Values) room.Dispose();
         _voice.Dispose();
         _brain.Dispose();
 

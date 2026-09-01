@@ -8,7 +8,7 @@ tags: [octavia, moc]
 > An always-on desktop companion with a language model behind her — **a local one by default**, Claude when asked for: a .NET host owns the microphone, the voice, the API key and the conversation; a WebView2 renders her face and does nothing else. Built toward a fully animated — eventually photoreal — 3D face that hears you locally, reacts to music, and later sees and acts. **This note is the reference point for everything Octavia.**
 
 - **Repo:** `C:\Projects\Octavia` on **`N3CTR0-PC`** — git, with a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) (both since 08/30/2026). She moved off the [[Claude Dev VM]] that day; see [[Moving To The New Machine]].
-- **Current version:** 0.23.0 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.24.0 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
 - **A second face exists:** [[Octavia Android]], her phone/tablet client, in its own repo since 08/31/2026.
 - **Started:** 08/29/2026, from a single-file HTML prototype (`C:\Projects\talking-avatar.html`)
 - **Distribution:** self-contained single-file exe in `dist\` (see [[Build & Release]])
@@ -28,6 +28,7 @@ tags: [octavia, moc]
 - [[Stage 14 - Face Identity]] — the spec for item 1, **implemented in v0.21.0**. Items 2–7 are now unblocked
 - [[Stage 14 - Her Voice On Another Face]] — the spec for item 3, **implemented in v0.22.0**. Its "do this first" premise turned out to be wrong about *why*; the fix was still needed
 - [[Stage 14 - A Microphone Somewhere Else]] — the spec for item 2, **implemented in v0.23.0**. Both its traps were real; the room-music one is now a test
+- [[Stage 14 - Two Rooms]] — the spec for item 9, **implemented in v0.24.0**. It replaced item 5, absorbed item 7, and struck item 4 as already done
 - [[Conventions & Security Model]] — the rules every change must follow
 - [[Build & Release]] — dev builds, publish, moving her to another PC, versioning
 - [[Overnight 08-31]] — **read this first**: what changed overnight, what needs you, and the open questions
@@ -44,6 +45,7 @@ tags: [octavia, moc]
 - [[The Brain]] — Claude and the local model behind one interface
 - [[The Voice]] — Windows speech, a neural engine, and lip sync read out of the audio
 - [[The Face]] — the renderer, the avatar, and the host↔page bridge
+- [[One Being, Many Rooms]] — a phone is a *space*, not a second window onto the desk; and what a face is allowed to drive
 - [[The Room]] — the shader wall, the light rig, and the day it runs through
 - [[Profiles & Configuration]] — one flag switches the whole rig
 - [[Music]] — she hears what the machine plays *and what is playing in the room*, and moves to it

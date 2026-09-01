@@ -22,10 +22,15 @@ internal interface IBrain : IDisposable
     /// True only for brains whose readiness a pasted API key would fix.
     bool NeedsApiKey { get; }
 
-    void Forget();
-
     /// Yields the reply one speakable sentence at a time, so the voice can start
     /// before the model has finished writing.
+    ///
+    /// **The history is passed in rather than owned.** A brain used to hold the one
+    /// `Conversation` there was, and `Forget()` cleared it — which stopped being right the
+    /// moment she could be in two rooms: there are N conversations and one of her. Handing
+    /// the history in keeps a single client, a single key and a single set of tools, where
+    /// a `ClaudeBrain` per room would duplicate all three to hold a list of strings apart.
+    /// Forgetting is then `history.Clear()`, in the room that asked.
     ///
     /// `now` is what is true at this moment rather than what was said — music playing,
     /// and what the camera saw when she was asked to look. It rides with the current
@@ -35,6 +40,7 @@ internal interface IBrain : IDisposable
     ///
     /// A brain that cannot use part of it ignores that part. `LocalBrain` has no eyes.
     IAsyncEnumerable<string> RespondAsync(
-        string userText, Situation now = default, CancellationToken cancel = default);
+        Conversation history, string userText, Situation now = default,
+        CancellationToken cancel = default);
 }
 ```

@@ -15,7 +15,7 @@ IBrain
 └── LocalBrain    any OpenAI-compatible server, SSE
 ```
 
-`IBrain` exposes `Description`, `IsReady`, `NeedsApiKey`, `Forget()` and `RespondAsync()`. `NeedsApiKey` is what keeps the key prompt from appearing when she is running on a local model — the session asks the brain rather than assuming.
+`IBrain` exposes `Description`, `IsReady`, `NeedsApiKey` and `RespondAsync()` — and, until v0.24.0, `Forget()`; see *Conversation* below for why that left. `NeedsApiKey` is what keeps the key prompt from appearing when she is running on a local model — the session asks the brain rather than assuming.
 
 ## What is true right now
 
@@ -42,6 +42,8 @@ Claude follows this. A 4B local model does not — see below.
 `Conversation` holds the running turns provider-neutrally, capped at 40 messages, and **drops whole exchanges** rather than half of one: an orphaned assistant turn at the front makes some providers reject the request outright.
 
 A failure before the request lands drops the pending user turn, or the next request sends two user messages in a row.
+
+**The brain stopped owning it in v0.24.0.** It held the single `Conversation` there was and `Forget()` cleared it, which was exactly right until she could be in two rooms at once — then there were N conversations and one of her. `RespondAsync(history, ...)` takes it instead, so one client, one key and one set of tools serve every room; a `ClaudeBrain` per room would have duplicated all of that to keep two lists of strings apart. `Conversation.cs` was already shaped for this — its own header says it is kept provider-neutral so neither brain owns the trimming policy — and forgetting is now `history.Clear()`, in the room that asked. See [[One Being, Many Rooms]].
 
 ## Prompt caching
 

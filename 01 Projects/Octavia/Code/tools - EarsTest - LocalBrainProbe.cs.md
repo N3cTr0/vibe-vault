@@ -24,7 +24,7 @@ internal static class LocalBrainProbe
         try
         {
             var said = new List<string>();
-            await foreach (var sentence in brain.RespondAsync("Say hello in one short sentence."))
+            await foreach (var sentence in brain.RespondAsync(new Conversation(), "Say hello in one short sentence."))
             {
                 Console.WriteLine($"  said: {sentence}");
                 said.Add(sentence);

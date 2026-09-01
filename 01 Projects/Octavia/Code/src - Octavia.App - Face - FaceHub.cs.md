@@ -44,7 +44,8 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
 
     /// Only socket faces can receive audio. The built-in page shares this machine's speakers,
     /// so streaming to it would be her talking over herself in the same room.
-    public void SendAudio(ReadOnlyMemory<byte> pcm) => _sockets?.BroadcastAudio(pcm);
+    public void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to) =>
+        _sockets?.SendAudioTo(pcm, to);
 
     public FaceId? BuiltInFace => _page?.Id;
 
@@ -85,6 +86,24 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
         }
 
         _sockets?.SendTo(to.Value, json, type);
+    }
+
+    /// Serialised once, delivered to each named face. An empty list sends nothing at all,
+    /// which is the right answer and not a mistake: a room with nobody in it is a room with
+    /// nobody in it, and falling back to "everyone" here is exactly the bug rooms exist to
+    /// fix.
+    public void SendMany(object message, IReadOnlyCollection<FaceId> to)
+    {
+        if (to.Count == 0) return;
+
+        var json = JsonSerializer.Serialize(message, Json);
+        var type = message.GetType().GetProperty("type")?.GetValue(message) as string;
+
+        foreach (var face in to)
+        {
+            if (_page is not null && face == _page.Id) _page.SendJson(json);
+            else _sockets?.SendTo(face, json, type);
+        }
     }
 
     public void Dispose()

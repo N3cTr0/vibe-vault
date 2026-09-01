@@ -37,6 +37,16 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.24.0 — idle, with a phone in its own room
+
+![[v0.24.0 - idle, with a phone in its own room.png]]
+
+**The interesting thing about this shot is what it does not show.** A real handset was attached from `10.1.1.181` at the moment of capture, in room `phone`, with both of its connections — the native client and its WebView panel — in that room together. The desktop shows no sign of it, which is the whole of item 9: before this release a phone was a second window onto *this* screen.
+
+Read three things off it. The status placard says `PROFILE dev` with **no room after it** — the room is appended only when it is not the host's, so a `?room=phne` typo is visible rather than mysterious. The microphone button is still there, because this face *is* the host room and may drive this machine; on the handset that button and the four host-only Settings rows are hidden, and the host refuses the messages behind them regardless. And `EARS not started` is the resting state with `ListenOnStart` off, not a fault.
+
+> **The phone arrived on its own, three seconds after she started, already sending `room: "phone"`.** The Android side had implemented its half against the spec before the host understood the field — until this build, `ready.room` was simply ignored. Acceptance criterion 8 was confirmed on real hardware without anybody arranging it. See [[One Being, Many Rooms]].
+
 ## v0.23.1 — the remote key fix
 
 ![[v0.23.1 - idle on 0.23.1, the remote key fix.png]]

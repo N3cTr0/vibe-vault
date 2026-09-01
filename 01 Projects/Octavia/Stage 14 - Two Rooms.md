@@ -5,6 +5,8 @@ tags: [octavia, spec, stage-14]
 
 # Stage 14, item 9 — Two rooms
 
+> **Built, 09/01/2026, v0.24.0.** Added by the repo side, below the original text rather than inside it — everything under this line is as it was written. All ten acceptance criteria are asserted in `EarsTest -- rooms` against a real session, with criterion 7 the one exception: `look` needs the Claude brain and there is no key on this machine, so the *choice of face* is checked directly and the round trip is still owed. Both traps were real and both are commented in the code. See [[One Being, Many Rooms]] and [[Changelog]] 0.24.0.
+
 > **A specification, not a change.** Written 09/01/2026 from the [[Octavia Android]] side, which is the consumer that needs this, for whoever is working in her repo. Nothing in her repo was touched to produce it. It supersedes item 5 (*turn ownership*) and absorbs item 7 (*the attention gate now has two rooms*) — see *What this replaces*.
 
 ## The ask, in the owner's words

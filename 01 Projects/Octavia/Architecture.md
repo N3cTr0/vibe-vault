@@ -53,7 +53,7 @@ These are the whole design. Each was introduced *before* it had a second impleme
 
 | Interface | Implementations | What it isolates |
 |---|---|---|
-| `IBrain` | `ClaudeBrain`, `LocalBrain` | What she thinks with |
+| `IBrain` | `ClaudeBrain`, `LocalBrain` | What she thinks with — *not* what it thinks about; the history is passed in, since v0.24.0 |
 | `ISpeechRecognizer` | `WhisperRecognizer`, `SystemSpeechRecognizer` | What she hears with |
 | `IVoice` | `SapiVoice`, `NeuralVoice` | What she speaks with |
 | `IFaceTransport` | `FaceHub` over `WebViewFaceTransport` + `WebSocketFaceServer` | How the face is reached |
@@ -62,6 +62,10 @@ These are the whole design. Each was introduced *before* it had a second impleme
 **`IFaceTransport` learned to address one face in v0.21.0**, and it is worth saying what did *not* change: `Send(message, to)` defaults `to` to null, and null still means everyone. The session learns that faces are **distinguishable**, not how any of them connected — so the rule at the top of this note still holds exactly as written. `FaceId` is opaque; nothing can be recovered from one about a transport.
 
 That distinction is what made the change small enough to be safe. See [[Changelog]] 0.21.0.
+
+**In v0.24.0 it learned to address a set of them**, and the same care applies: `SendMany` and `SendAudio` take a list of `FaceId`, never a room. The session knows which faces are in a room; the transport is told *who* and never *why*. See [[One Being, Many Rooms]].
+
+**`IBrain` stopped owning the conversation in the same release.** It held the one `Conversation` there was, and `Forget()` cleared it — which stopped being right the moment she could be in two rooms. `RespondAsync(history, ...)` now takes it, so N conversations share one client, one key and one set of tools. This is the interface getting *smaller*, which is the direction that has worked here: a `ClaudeBrain` per room would have duplicated everything expensive in order to keep two lists of strings apart.
 
 `ITool` is the newest and the only one still waiting for its second implementation to prove it. It follows the same discipline as the others — introduced before it was needed — and the seam, the stdio client, the risk policy and the confirmation rule for irreversible actions are all built and tested. What is missing is the brain-side loop that calls one. See [[Roadmap]] stage 12.
 

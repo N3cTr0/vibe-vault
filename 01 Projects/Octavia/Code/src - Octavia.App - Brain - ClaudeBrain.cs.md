@@ -18,7 +18,6 @@ namespace Octavia.Brain;
 internal sealed class ClaudeBrain : IBrain
 {
     private readonly OctaviaConfig _config;
-    private readonly Conversation _history = new();
     private AnthropicClient? _client;
     private string? _keyInUse;
 
@@ -27,8 +26,6 @@ internal sealed class ClaudeBrain : IBrain
     public string Description => _config.Model;
     public bool IsReady => !string.IsNullOrWhiteSpace(SecretStore.ReadApiKey());
     public bool NeedsApiKey => true;
-
-    public void Forget() => _history.Clear();
 
     private AnthropicClient Client()
     {
@@ -72,6 +69,7 @@ internal sealed class ClaudeBrain : IBrain
     }
 
     public async IAsyncEnumerable<string> RespondAsync(
+        Conversation history,
         string userText,
         Situation now = default,
         [EnumeratorCancellation] CancellationToken cancel = default)
@@ -80,7 +78,7 @@ internal sealed class ClaudeBrain : IBrain
         // in the history, or the next request sends two user messages in a row.
         var client = Client();
 
-        _history.Add(Utterance.User, userText);
+        history.Add(Utterance.User, userText);
 
         var parameters = new MessageCreateParams
         {
@@ -91,8 +89,8 @@ internal sealed class ClaudeBrain : IBrain
             {
                 new() { Text = Persona.System, CacheControl = new CacheControlEphemeral() }
             },
-            Messages = _history.Turns
-                .Select((t, i) => Turn(t, now, i == _history.Turns.Count - 1))
+            Messages = history.Turns
+                .Select((t, i) => Turn(t, now, i == history.Turns.Count - 1))
                 .ToList()
         };
 
@@ -147,11 +145,11 @@ internal sealed class ClaudeBrain : IBrain
 
         if (failed && spoken.Length == 0)
         {
-            _history.DropLast();
+            history.DropLast();
             throw new InvalidOperationException("The model could not be reached.");
         }
 
-        _history.Add(Utterance.Assistant, spoken.ToString());
+        history.Add(Utterance.Assistant, spoken.ToString());
     }
 
     public void Dispose() { }
