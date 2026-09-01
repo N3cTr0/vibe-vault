@@ -13,8 +13,9 @@ She began as a single HTML file (`C:\Projects\talking-avatar.html`) — a three.
 
 | Thing | Choice |
 |---|---|
-| Host | WPF, .NET 10 (`net10.0-windows10.0.19041.0`) |
-| Face | WebView2 hosting three.js r180 (ES modules), served from a virtual `https://octavia.face` origin |
+| Host | `Octavia.Server.exe`, a headless console app on .NET 10 (`net10.0-windows10.0.19041.0`) — see [[A Server, And Clients]] |
+| Clients | `Octavia.exe` (a WPF window around a WebView2), [[Octavia Android]], or any browser. None of them contain her |
+| Face | three.js r180 (ES modules), served over HTTP by the server itself |
 | Avatar | A VRM character via `@pixiv/three-vrm`, or the plaster bust — see [[The Avatar Interface]] |
 | Room | A shader environment with a full day of lighting — see [[The Room]] |
 | Brain | Any OpenAI-compatible local server, streamed — **the default**; or the Anthropic SDK (`claude-sonnet-5`) |
@@ -29,7 +30,7 @@ She began as a single HTML file (`C:\Projects\talking-avatar.html`) — a three.
 | Serving | The face socket also answers GETs, so a phone or tablet can load her face from the host itself — see [[Face Protocol]] |
 | Rooms | A face belongs to a *space*, and a conversation on a phone is not the one at the desk — see [[One Being, Many Rooms]] |
 | Secrets | DPAPI, sealed to the current Windows account |
-| Distribution | Self-contained single-file exe (~310 MB) plus a `wwwroot` beside it — see [[Build & Release]] |
+| Distribution | Two self-contained single-file exes plus one `wwwroot` beside them — see [[Build & Release]] |
 
 ## Why she is not a web page
 
@@ -42,6 +43,8 @@ The prototype could not become the thing she is meant to be. Three hard blockers
 Plus the one already biting: the prototype put the API key in the page and called the API from the client.
 
 What survived the move is the face itself, and it survived *because* it was kept dumb. See [[The Face]].
+
+> **All three blockers are the *server's* problem, and none of them is the window's** — which is why v0.26.0 could take the window away entirely and lose nothing. The face went back to being a page loaded over HTTP, which is what it was in the prototype; what changed is where the thinking happens and who holds the key. See [[A Server, And Clients]].
 
 ## What she does today
 

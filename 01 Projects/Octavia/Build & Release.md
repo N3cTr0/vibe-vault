@@ -74,10 +74,17 @@ One trap when driving it from an automated browser: **`requestAnimationFrame` do
 ## Publish
 
 ```
+dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
 
-Produces `dist\Octavia.exe` (~310 MB, .NET runtime included) plus a `wwwroot` folder beside it. **Both must travel.** The face is deliberately left outside the exe so it can be edited on the target machine without a rebuild.
+Produces `dist\Octavia.Server.exe` and `dist\Octavia.exe` (each with the .NET runtime included) plus one `wwwroot` folder beside them. **All of it must travel.** The face is deliberately left outside the exes so it can be edited on the target machine without a rebuild.
+
+> **The server first and the client second**, into the same folder. Both carry `Octavia.Core`, so today the order only decides which identical copy wins — but publishing the client last would leave the *client's* `wwwroot` in place, and that stops being harmless the moment one of them stops shipping the page.
+
+**Only the server needs to go on the machine she lives on.** A client is small and needs nothing but a network route and the remote key — see [[A Server, And Clients]].
+
+> **One version covers all three assemblies**, in `Directory.Build.props`. It used to live in `Octavia.App.csproj`, which was also the only project; three copies kept in step by hand would disagree in a diagnostics bundle before anybody noticed, because `SystemReport.Version` reads whichever assembly happens to be executing. `tools\shoot.ps1`, `sync-vault.ps1` and `check-vault.ps1` all read it from there now, and `EarsTest -- split` fails if a project quietly grows its own.
 
 Drop `--self-contained true` and the two `PublishSingleFile` switches if the target already has the **.NET 10 Desktop Runtime** — a few MB instead.
 

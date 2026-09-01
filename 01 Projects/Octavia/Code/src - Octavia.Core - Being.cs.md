@@ -1,0 +1,71 @@
+---
+project: Octavia
+tags: [octavia, code]
+source-path: src\Octavia.Core\Being.cs
+---
+
+# src\Octavia.Core\Being.cs
+
+```csharp
+using Octavia.Core;
+using Octavia.Face;
+
+namespace Octavia;
+
+/// Her, with nothing to look at: the config, the socket, the hub and the session.
+///
+/// **This is the whole of what a server is.** Everything a renderer needs already travels
+/// over the socket, so a host with no window is not a reduced Octavia — it is the same one
+/// with `FaceHub(page: null, ...)`. That the constructor already took a nullable page is
+/// not luck; it is Stage 3 having been done properly, and this class is the first caller to
+/// use the null.
+///
+/// The window keeps its own wiring rather than going through here, because it has a second
+/// transport to offer and a WebView2 to build first. See `MainWindow`.
+internal sealed class Being : IDisposable
+{
+    private Being(OctaviaConfig config, WebSocketFaceServer sockets, FaceHub hub, OctaviaSession session)
+    {
+        Config = config;
+        Sockets = sockets;
+        Hub = hub;
+        Session = session;
+    }
+
+    public OctaviaConfig Config { get; }
+    public WebSocketFaceServer Sockets { get; }
+    public FaceHub Hub { get; }
+    public OctaviaSession Session { get; }
+
+    /// Where a face should point itself, loopback-shaped. A remote face uses the remote key
+    /// against this machine's address instead; see `RemoteKey`.
+    public string Address => $"http://127.0.0.1:{Sockets.Port}/index.html?token={Sockets.Token}";
+
+    /// Null when the port could not be bound.
+    ///
+    /// **Fatal here, where it is survivable in the window.** A window that loses the socket
+    /// still has the built-in page on its own channel and is worth starting; a server that
+    /// loses it has no way for anything to reach her at all, and pretending otherwise would
+    /// leave a process running that looks alive and answers nobody.
+    public static Being? Start(OctaviaConfig config)
+    {
+        var sockets = new WebSocketFaceServer();
+
+        if (!sockets.Start(config.FacePort, config.RemoteAccess))
+        {
+            sockets.Dispose();
+            return null;
+        }
+
+        var hub = new FaceHub(sockets);
+        return new Being(config, sockets, hub, new OctaviaSession(config, hub));
+    }
+
+    public void Dispose()
+    {
+        Session.Dispose();
+        Hub.Dispose();
+        Sockets.Dispose();
+    }
+}
+```

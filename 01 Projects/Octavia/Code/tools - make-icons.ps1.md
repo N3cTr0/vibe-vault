@@ -25,7 +25,7 @@ param(
   [string]$OutDir = 'C:\Projects\Octavia\src\Octavia.App\Assets',
   # Face-side: the icons a browser wants, which have to be reachable at `/` — since
   # v0.20.0 the socket serves the page, so a phone shortcutting to her gets these.
-  [string]$WebDir = 'C:\Projects\Octavia\src\Octavia.App\wwwroot'
+  [string]$WebDir = 'C:\Projects\Octavia\src\Octavia.Core\wwwroot'
 )
 
 $ErrorActionPreference = 'Stop'

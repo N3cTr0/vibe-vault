@@ -103,13 +103,17 @@ Still version 1, all additions. See [[Face Protocol]].
 - **Face to host:** `selfTest`, `saveDiagnostics`, `openDataFolder`
 - **Host to face:** `diagnostics { running, checks[], facts[], log[] }`, `diagnosticsSaved { path }`
 
-`saveDiagnostics` asks for a bundle but **cannot say where**. The host raises its own dialog and a person picks the path — a face that could name the destination would be a face that could write a file containing the log anywhere on the machine.
+`saveDiagnostics` asks for a bundle but **cannot say where**. The host writes it into `data\diagnostics\` under a timestamped name and answers with the path — a face that could name the destination would be a face that could write a file containing the log anywhere on the machine.
+
+> **The dialog could not survive v0.26.0, and the fix is better than what it replaced.** A `SaveFileDialog` needs a dispatcher and somebody looking at it, and the host may now be running where there is neither — so **the one control that exists for when she is broken would have been broken by moving her**, silently, on the machine where it mattered. It writes to a known place instead and sends the path back over the socket, which also means whoever asked is told even from another room. The old dialog could only ever put the bundle where the person at *that* machine chose, which is no use when the machine that needs diagnosing is somewhere else.
+>
+> It stays host-only. There is no longer a technical reason for it to be — but the bundle carries her log, her config and a system report, and widening the authority table is a decision of its own rather than a side effect of moving a file dialog. See [[A Server, And Clients]].
 
 ## What building it caught
 
 Two faults of exactly the kind the stage exists to expose, both perfectly silent:
 
-- The save dialog was **constructed on a socket thread**. A file dialog is a UI object, so it threw — into a discarded task, where the exception sat unobserved. The button did nothing at all, and nothing anywhere said why.
+- The save dialog was **constructed on a socket thread**. A file dialog is a UI object, so it threw — into a discarded task, where the exception sat unobserved. The button did nothing at all, and nothing anywhere said why. *(Both of that dialog's problems went away in v0.26.0, when the dialog did.)*
 - The headless bundle blocked the dispatcher thread on a task whose continuations were posted back to that same thread, and **hung forever**.
 
 Both are in [[Lessons Learned]].

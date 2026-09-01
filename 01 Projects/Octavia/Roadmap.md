@@ -1266,10 +1266,87 @@ always-on listening in a remote room is still out of scope; it is the only thing
 phone and the desktop *feeling* identical, which is a much sharper way to hold it than it was.
 Item 11 is a real fault rather than a deferred choice, and is the one to do first.
 
+## Stage 15 — A server, and clients *(specced and built 09/02/2026, v0.26.0)*
+
+> **Item 1 is done.** Specced first, in the vault as *Stage 15 — A server, and clients*, and
+> built in one change set because most of it turned out to already exist. `Octavia.Core` is
+> her, `Octavia.Server.exe` is a headless host, `Octavia.exe` is a window that contains none
+> of her. **Nothing on the wire changed**, which is the bill coming due on Stage 3's claim:
+> the Android client connects to the new server unmodified.
+
+The ask: *"the AI and all the actual work gets moved to a different server `.exe`… and then
+have a client version on windows like how she is now just connect onto that instance, the
+same with the android app."*
+
+**Three pieces of evidence made this small.** The session had three references to a UI
+framework in 9,361 lines and only one inside itself; `FaceHub` already took a nullable page,
+so a server was an argument rather than a refactor; and `RoomChecks` had been running her
+headless for a version already, which makes that harness a server minus a listener.
+
+### 1. The split — **done**
+
+`saveDiagnostics` lost its file dialog (a server has no dispatcher and nobody looking at it);
+the page lost its `postMessage` transport and gained reconnection with a persistent bar; and
+`Hotkey`/`StartMinimised` moved to `client.json`, carried over on first run. `EarsTest --
+split` guards the boundary as text, because a compiler cannot — all three assemblies
+legitimately see each other's internals.
+
+### 2. A portable core — **open**
+
+`Octavia.Core` still targets `net10.0-windows` with WPF on, for exactly one method:
+`Sight.Inspect` greys a camera still with `BitmapFrame`. It works headless — WIC underneath,
+no dispatcher — so it costs nothing today. Everything else is already behind an interface:
+Whisper.net and ONNX are cross-platform, and NAudio and `System.Speech` sit behind
+`IAudioSource`, `ISpeechRecognizer` and `IVoice`.
+
+**So a Linux server is one image decoder and one `Octavia.Windows` project away**, and that is
+the prize worth naming: an always-on box in a cupboard wants to be Linux.
+
+### 3. What the host room means when the server has no devices — **open**
+
+`RoomId.Host` means "the room the process is running in". While the server runs on the machine
+with the microphone and the speakers that is *correct*, not merely convenient — it really is
+standing in a room. Move it to a cupboard and the definition evaporates: `listen`,
+`setMicrophone`, `setOutput` and the loopback become commands about a place nobody is in.
+
+Two answers, and one of them is already written down. **(a)** Abolish the host room; every
+face is a room and the local-device features die with the desk. **(b)** The Windows client
+becomes a privileged face that **lends the server its devices** — `senses: ["mic", "camera",
+"speakers", "loopback"]` — and the server routes device-shaped work to it.
+
+> **(b) is `window.OctaviaEmbedder` moved up one level.** Item 10 established that a renderer
+> may borrow the senses of whatever it is embedded in; this is the same sentence with
+> *renderer* swapped for *server*. That it falls out of a seam that already exists is the
+> strongest evidence available that the architecture is right.
+
+**Until this is built: run the client on the server's machine, or use the neural voice.** Her
+voice plays through the server's sound card for the host room, and SAPI cannot be streamed to
+a client at all.
+
+### 4. The server as a Windows Service — **open**
+
+With the client starting it on demand, so double-clicking her still works. A console app
+first, deliberately: a service that fails before its first log line is diagnosed by guesswork.
+
+### 5. Diagnostics bundles over HTTP — **open**
+
+The path goes back over the socket now, which is enough when the client shares a machine with
+the server and no help at all when it does not.
+
+### The cost, stated before it was paid
+
+- **Security stopped being optional.** `RemoteAccess` was opt-in and the desk worked without
+  it; the socket is now the only way in, so the bearer key over plain HTTP is load-bearing —
+  on a machine whose firewall is off entirely. That is the next thing to fix.
+- **One process, one log, one breakpoint** was what made her pleasant to debug. *"She didn't
+  answer"* now has a second place to hide.
+
 ## Standing constraints
 
 - Anything reflex-speed (lip sync, dancing, level meters) is local; the model is for
   thought. The API bill should track conversation, not liveliness.
+  **Since v0.26.0 this means local to the *renderer*, not in-process** — the viseme tap and
+  the PCM still leave the same buffer at the same instant, and the socket carries both.
 - The key never reaches a renderer. New capabilities land in the host.
 - Every renderer change must leave `OctaviaSession` untouched; every sense change must
   leave the face untouched. If a stage wants to break that, the stage is mis-designed.

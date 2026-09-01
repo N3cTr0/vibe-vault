@@ -13,27 +13,33 @@ using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Web.WebView2.Core;
 using Octavia.Core;
-using Octavia.Face;
 
 namespace Octavia;
 
+/// A window around her page, and nothing else.
+///
+/// Until Stage 15 this window *was* her: it built the WebView2, started the socket server,
+/// constructed `OctaviaSession` and owned the being for as long as it was open. Now it
+/// points a browser at a server and gets out of the way — which is what the Android client
+/// has always done, and is why that client needed no changes to keep working.
+///
+/// Everything the page needs it learns from the origin it was loaded from. There are no
+/// virtual hosts here any more: `octavia.face` and `octavia.avatar` were WebView2 features,
+/// and the socket has served both roots over HTTP since v0.20.0.
 public partial class MainWindow : Window
 {
-    private const string FaceHost = "octavia.face";
-    private const string AvatarHost = "octavia.avatar";
     private const int HotkeyId = 0xB0B;
     private const int WmHotkey = 0x0312;
 
-    private readonly OctaviaConfig _config;
-    private OctaviaSession? _session;
-    private WebSocketFaceServer? _sockets;
-    private FaceHub? _hub;
+    private readonly ClientConfig _client;
+    private readonly string _hotkeyText;
     private HwndSource? _hwnd;
     private bool _hotkeyRegistered;
 
-    internal MainWindow(OctaviaConfig config)
+    internal MainWindow(ClientConfig client, string hotkey)
     {
-        _config = config;
+        _client = client;
+        _hotkeyText = hotkey;
         InitializeComponent();
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -62,38 +68,28 @@ public partial class MainWindow : Window
             return;
         }
 
-        // A virtual https origin, not file://, so the page is a secure context. The camera
-        // and microphone permissions that come later depend on that.
-        Face.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            FaceHost, Paths.FaceRoot, CoreWebView2HostResourceAccessKind.Allow);
-
-        // Characters live in her data folder, not the install, so they need an origin of
-        // their own. Read-only, and only that one folder is reachable.
-        Face.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            AvatarHost, Paths.AvatarDir, CoreWebView2HostResourceAccessKind.Allow);
-
         Face.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         Face.CoreWebView2.Settings.IsStatusBarEnabled = false;
         Face.CoreWebView2.Settings.IsSwipeNavigationEnabled = false;
 
-        // The host answers every permission the page asks for, rather than letting the
-        // renderer negotiate with the runtime behind its back. Left unhandled, WebView2
-        // would put its own prompt in front of a person for anything a page requested —
-        // which makes "Camera": false a suggestion rather than a boundary.
+        /* The host still answers every permission the page asks for rather than letting the
+           runtime put its own prompt in front of a person.
+
+           **What it can no longer do is second-guess the answer.** The camera setting is a
+           property of a *room*, it lives in the session, and the session is in another
+           process now — so a client that kept its own copy would be a second switch that
+           disagreed with the first. The server is the gate: it decides whether `look` is
+           ever sent, `hello.camera` decides whether the page offers a watch button, and
+           `setCamera` is refused from any room but this one.
+
+           So this narrows to the question the client can actually answer: is this her page,
+           on the origin I was told to load? Anything else is denied. */
         Face.CoreWebView2.PermissionRequested += (_, request) =>
         {
-            // Only her own page may ask at all. Nothing else is navigable today, but a
-            // permission handler that trusts its caller is one bug away from mattering.
-            var mine = request.Uri.StartsWith($"https://{FaceHost}/", StringComparison.OrdinalIgnoreCase);
-
-            var allowed = mine
-                       && request.PermissionKind == CoreWebView2PermissionKind.Camera
-                       && _config.Camera;
+            var mine = request.Uri.StartsWith(_client.Origin + "/", StringComparison.OrdinalIgnoreCase);
+            var allowed = mine && request.PermissionKind == CoreWebView2PermissionKind.Camera;
 
             request.State = allowed ? CoreWebView2PermissionState.Allow : CoreWebView2PermissionState.Deny;
-
-            // Not saved in the profile: the answer is whatever config says *now*, so
-            // turning the camera off takes effect without clearing browser state.
             request.SavesInProfile = false;
             request.Handled = true;
 
@@ -101,54 +97,64 @@ public partial class MainWindow : Window
                       $"{(allowed ? "allowed" : "denied")}");
         };
 
-        _sockets = new WebSocketFaceServer();
-        var socketUp = _sockets.Start(_config.FacePort, _config.RemoteAccess);
-
-        _hub = new FaceHub(new WebViewFaceTransport(Face), socketUp ? _sockets : null);
-        _session = new OctaviaSession(_config, _hub);
-
-        // The page is told where to connect and with what token. Without these it
-        // silently falls back to postMessage, which still works but cannot be shared.
-        var address = socketUp
-            ? $"https://{FaceHost}/index.html?port={_sockets.Port}&token={_sockets.Token}"
-            : $"https://{FaceHost}/index.html";
-
-        Face.CoreWebView2.Navigate(address);
+        Log.Write($"client attaching to {_client.Origin}");
+        Face.CoreWebView2.Navigate(_client.PageUrl());
         WatchForFace();
     }
 
-    /// How long the face gets to say `ready` before the host stops believing in it.
-    /// `ready` is sent when the socket opens, not when the scene finishes building, so
-    /// this is many times longer than it should ever need — the cost of being wrong here
-    /// is hiding a working face, so it is deliberately generous.
+    /// How long the page gets to load before the client stops believing in it.
+    ///
+    /// **It now means something different, and something narrower.** It used to mean "her
+    /// renderer never reported in", because this process was also the host and knew whether
+    /// `ready` had arrived. The client cannot know that any more — `ready` goes to a server
+    /// it has no channel to. What it can still see is whether *its own page* got as far as
+    /// running `bridge.js`, which is the fault this was built to catch: a JavaScript parse
+    /// error is invisible to `dotnet build` and leaves a dead face and a green log.
     private static readonly TimeSpan FaceGrace = TimeSpan.FromSeconds(30);
 
-    /// A JavaScript parse error in `wwwroot` is invisible to `dotnet build` and to the
-    /// test harness: the build goes green and the face is simply dead. The page cannot
-    /// report it either, because the file that never parsed never runs the error handler.
-    /// The one thing the host can observe is that `ready` never arrived — so it watches
-    /// for that, and says so somewhere that does not depend on the renderer working.
-    /// See ROADMAP.md stage 10a.
     private void WatchForFace()
     {
         var timer = new System.Windows.Threading.DispatcherTimer { Interval = FaceGrace };
 
-        timer.Tick += (_, _) =>
+        timer.Tick += async (_, _) =>
         {
             timer.Stop();
-            if (_session?.FaceSpoke != false) return;
 
-            Log.Error($"the face never sent 'ready' within {FaceGrace.TotalSeconds:0}s - " +
+            var alive = await Ask("typeof window.OctaviaFace === 'object'");
+            if (alive == "true") return;
+
+            Log.Error($"the page never finished loading within {FaceGrace.TotalSeconds:0}s — " +
                       "its scripts most likely failed to parse; open the browser console");
 
             ShowFallback(
-                "Octavia's face did not start.\n\nThe window loaded but her renderer never " +
-                "reported in, which usually means one of her script files has a syntax error. " +
-                "Her log has the detail, and the tray menu can still save a diagnostics bundle.");
+                "Octavia's face did not start.\n\nThe window loaded but her page never " +
+                "finished, which usually means one of her script files has a syntax error, " +
+                $"or that nothing is serving her at {_client.Origin}.");
         };
 
         timer.Start();
     }
+
+    /// Runs a snippet in the page and hands back its JSON result, or null if it could not
+    /// be run at all. Every call into the renderer goes through here so that a page which
+    /// is not there yet is a null rather than an exception on a timer thread.
+    private async Task<string?> Ask(string script)
+    {
+        try
+        {
+            return Face.CoreWebView2 is null ? null : await Face.CoreWebView2.ExecuteScriptAsync(script);
+        }
+        catch (Exception ex)
+        {
+            Log.Write($"page script failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// The tray and the hotkey reach her the only way this process can: through the face it
+    /// is already showing. See `window.OctaviaFace` in `bridge.js`.
+    private void Tell(string type) =>
+        _ = Ask($"window.OctaviaFace && window.OctaviaFace.send({{ type: '{type}' }})");
 
     private void ShowFallback(string message)
     {
@@ -157,18 +163,23 @@ public partial class MainWindow : Window
         Fallback.Visibility = Visibility.Visible;
     }
 
-    internal void ToggleListening() => _session?.ToggleListening();
-
-    /// Reachable from the tray as well as the face, because the times you most need a
-    /// diagnostics bundle are the times the face is the thing that broke.
-    internal void SaveDiagnostics() => _session?.SaveDiagnosticsAsync().Forget("saving diagnostics");
+    internal void ToggleListening() => Tell("listen");
 
     /// A crash the user never sees is a crash that gets reported as "it just sits there".
-    internal void ReportCrash(Exception ex) => _hub?.Send(new
+    /// This one is the *client's* — hers arrive as notices from the server like any other.
+    internal void ReportCrash(Exception ex)
     {
-        type = "notice",
-        text = $"Something went wrong: {ex.Message}. It is in the log — use Diagnostics to package it."
-    });
+        var text = System.Text.Json.JsonSerializer.Serialize(
+            $"Something went wrong in her window: {ex.Message}. It is in the log.");
+
+        _ = Ask($"window.OctaviaFace && window.OctaviaFace.notify({text})");
+    }
+
+    /// Reachable from the tray as well as the face, because the times you most need a
+    /// diagnostics bundle are the times the face is the thing that broke. The server writes
+    /// it and says where in a notice — there is no dialog to show, and could not be: the
+    /// process that writes the file may not be on this machine.
+    internal void SaveDiagnostics() => Tell("saveDiagnostics");
 
     internal void Surface()
     {
@@ -184,9 +195,9 @@ public partial class MainWindow : Window
 
         _hwnd.AddHook(OnWindowMessage);
 
-        if (!Hotkey.TryParse(_config.Hotkey, out var hotkey))
+        if (!Hotkey.TryParse(_hotkeyText, out var hotkey))
         {
-            Log.Write($"hotkey '{_config.Hotkey}' is not a combination I understand");
+            Log.Write($"hotkey '{_hotkeyText}' is not a combination I understand");
             return;
         }
 
@@ -227,10 +238,6 @@ public partial class MainWindow : Window
             if (_hotkeyRegistered) Native.UnregisterHotKey(_hwnd.Handle, HotkeyId);
             _hwnd.RemoveHook(OnWindowMessage);
         }
-
-        _session?.Dispose();
-        _hub?.Dispose();
-        _sockets?.Dispose();
     }
 }
 ```

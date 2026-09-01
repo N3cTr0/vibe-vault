@@ -142,9 +142,20 @@ Holding the button now opens her ears. A held button is an explicit request to b
 
 **Confirmed fixed from the handset, and it left one thing behind.** The first press of a cold session loses the ~3 seconds of audio streamed while Whisper loads, because nothing acknowledges the floor and frames arriving before it is granted are dropped. Open as [[Roadmap]] item 11, and the reason it is worth doing rather than living with is in [[The Ears]]: silence would be legible, and a truncated sentence is not.
 
+## And the host room is about to need a better definition *(v0.26.0)*
+
+[[A Server, And Clients]] took the being out of the window. `RoomId.Host` still means *"the room the process is running in"*, and while the server runs on the machine with the microphone, the speakers and the loopback, that is **correct rather than merely convenient** — it really is standing in a room, and nothing about rooms changed.
+
+It stops being true the moment the box moves to a cupboard. `listen`, `setMicrophone`, `setOutput` and the music analyser would then be commands about a place nobody is in, and the host room would contain a face — the desktop client — that is not in it.
+
+> **The answer is already written, one level down.** The client becomes a privileged face that *lends the server its devices*: `senses: ["mic", "camera", "speakers", "loopback"]`. That is [[Lending A Renderer The Device's Senses]] with *renderer* swapped for *server* and *embedder* swapped for *the client on the machine with the hardware*. A seam built for one problem answering a second one is the best evidence available that it was the right seam.
+
+Deliberately not built in the same change set: splitting the process and redefining the host room together would have meant neither could be tested alone. Open as Stage 15 item 3. Until it lands, **run the client on the server's machine, or use the neural voice** — her voice plays through the server's sound card for the host room, and SAPI cannot be streamed.
+
 ## Links
 
 - [[Stage 14 - Two Rooms]] — the specification this was built from
+- [[A Server, And Clients]] — what the host room has to mean once she is a separate process
 - [[Conventions & Security Model]] — the authority table as a security posture
 - [[Face Protocol]] — `room`, `senses`, `controls` on the wire
 - [[The Attention Gate]] — one per room, with no shared statics

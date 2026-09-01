@@ -106,7 +106,7 @@ foreach ($f in ($files | Sort-Object FullName)) {
 }
 
 # --- _Code Index.md (live count / date / version) ---
-$csproj  = [IO.File]::ReadAllText((Join-Path $repo 'src\Octavia.App\Octavia.App.csproj'))
+$csproj  = [IO.File]::ReadAllText((Join-Path $repo 'Directory.Build.props'))
 $version = [regex]::Match($csproj, '<Version>([^<]+)</Version>').Groups[1].Value
 $today   = (Get-Date).ToString('d MMMM yyyy')
 $index = "---`nproject: Octavia`ntags: [octavia, code]`n---`n`n# Code Snapshot Index`n`n" +

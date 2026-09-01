@@ -27,7 +27,7 @@ source-path: tools\serve-face.ps1
 #>
 param(
     [int]$Port = 8999,
-    [string]$Root = (Join-Path $PSScriptRoot '..\src\Octavia.App\wwwroot')
+    [string]$Root = (Join-Path $PSScriptRoot '..\src\Octavia.Core\wwwroot')
 )
 
 $ErrorActionPreference = 'Stop'

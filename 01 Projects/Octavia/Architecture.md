@@ -5,6 +5,11 @@ tags: [octavia, architecture]
 
 # Architecture
 
+> **Since v0.26.0 the host is its own process.** `Octavia.Core` is her, `Octavia.Server.exe`
+> runs her with no window, and `Octavia.exe` is a client that contains none of her. The rule
+> below did not change to allow that — **the rule is what allowed it**, and the split was
+> mostly a matter of moving files. See [[A Server, And Clients]].
+
 ## The rule
 
 **The face is a renderer; the host is the being.**
@@ -25,9 +30,9 @@ Whisper replaced the Windows recognizer without the face noticing ([[The Ears]])
 ## Layout
 
 ```
-Octavia.exe (WPF)
-├── Core/         config + profiles, DPAPI secret store, paths, logging, hotkey,
-│                 McpServer (the config shape), Forget()
+Octavia.Core.dll — her, and nothing that draws
+├── Core/         config + profiles, DPAPI secret store, paths, logging,
+│                 McpServer (the config shape)
 ├── Brain/        IBrain -> ClaudeBrain | LocalBrain; Conversation; Speech helpers;
 │   │             Moods; Persona; Situation; AttentionGate
 │   └─ Tools/     ITool, McpClient (stdio JSON-RPC), ToolRegistry (+ the risk policy)
@@ -38,14 +43,21 @@ Octavia.exe (WPF)
 ├── Voice/        IVoice -> SapiVoice | NeuralVoice; PiperStore
 ├── Audio/        Fft, VisemeReader — lip sync read out of the waveform
 ├── Diagnostics/  SelfTest, SystemReport, DiagnosticsBundle
-├── Face/         IFaceTransport -> FaceHub -> WebViewFaceTransport + WebSocketFaceServer
+├── Face/         IFaceTransport -> FaceHub -> WebSocketFaceServer
 │                 StaticFiles (serves wwwroot and avatars over HTTP), RemoteKey
+├── Being.cs      config + socket + hub + session. The whole of what a server is
 └── wwwroot/      face.js (loop + performance), environment.js (room), bust.js,
                   vrm-avatar.js, headphones.js (the prop), camera.js, watch.js,
                   dev.js, bridge.js (protocol), face.css, index.html, lib/
+
+Octavia.Server.exe   Program.cs — load, open the socket, wait for ctrl+c
+Octavia.exe          App (tray, single instance), MainWindow (WebView2, hotkey),
+                     ClientConfig, Hotkey, Native. No session, and a check says so.
 ```
 
 `OctaviaSession` is the only place that knows about all of them. It is deliberately the one file with wide knowledge; everything else is narrow.
+
+**Her page lives with the core, not with the client.** It is the *server* that serves it, so a client holds no copy — which is what keeps one renderer in one place however many faces attach, and is why upgrading her page does not mean upgrading anything else.
 
 ## The four interfaces
 
@@ -56,12 +68,16 @@ These are the whole design. Each was introduced *before* it had a second impleme
 | `IBrain` | `ClaudeBrain`, `LocalBrain` | What she thinks with — *not* what it thinks about; the history is passed in, since v0.24.0 |
 | `ISpeechRecognizer` | `WhisperRecognizer`, `SystemSpeechRecognizer` | What she hears with |
 | `IVoice` | `SapiVoice`, `NeuralVoice` | What she speaks with |
-| `IFaceTransport` | `FaceHub` over `WebViewFaceTransport` + `WebSocketFaceServer` | How the face is reached |
+| `IFaceTransport` | `FaceHub` over `WebSocketFaceServer` | How the face is reached |
 | `ITool` | `McpClient` via `ToolRegistry` | What she can *do* — an integration is a server, not a branch |
 
 **`IFaceTransport` learned to address one face in v0.21.0**, and it is worth saying what did *not* change: `Send(message, to)` defaults `to` to null, and null still means everyone. The session learns that faces are **distinguishable**, not how any of them connected — so the rule at the top of this note still holds exactly as written. `FaceId` is opaque; nothing can be recovered from one about a transport.
 
 That distinction is what made the change small enough to be safe. See [[Changelog]] 0.21.0.
+
+**In v0.26.0 it went from merging two transports to adapting one.** `WebViewFaceTransport` — a `postMessage` channel to the page hosted inside the host's own process — was deleted with the process that answered it. `FaceHub` is kept rather than collapsed into the socket server, because *merging transports is what it is for* and the second one is already specified: [[A Server, And Clients]] item 3 has the client lending the server its devices, and that arrives here as a peer of the socket rather than a special case inside it.
+
+> One consequence worth knowing: `BuiltInFace` is now always null, and honestly so. It meant "the renderer that is always there", and with a server there is no such thing — every face comes and goes over a socket.
 
 **In v0.24.0 it learned to address a set of them**, and the same care applies: `SendMany` and `SendAudio` take a list of `FaceId`, never a room. The session knows which faces are in a room; the transport is told *who* and never *why*. See [[One Being, Many Rooms]].
 

@@ -110,7 +110,7 @@ foreach ($n in $notes) {
 # changed her appearance and was never photographed cannot be reconstructed later from
 # a diff, and the changelog describing it is no substitute for seeing her. So this
 # reports rather than fails: it is a reminder to look, not a rule about every version.
-$csproj  = Join-Path $repo 'src\Octavia.App\Octavia.App.csproj'
+$csproj  = Join-Path $repo 'Directory.Build.props'
 $version = ([xml](Get-Content -LiteralPath $csproj -Raw)).Project.PropertyGroup.Version |
            Where-Object { $_ } | Select-Object -First 1
 

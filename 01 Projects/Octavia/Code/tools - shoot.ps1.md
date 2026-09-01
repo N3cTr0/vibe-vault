@@ -20,8 +20,8 @@ source-path: tools\shoot.ps1
   A set taken at a consistent size can be flipped through; one taken at whatever size the
   window happened to be cannot.
 
-  The version is read from Octavia.App.csproj, so the file name cannot drift from the
-  release it documents.
+  The version is read from Directory.Build.props - one number for the whole of her since
+  Stage 15 split her across three projects - so the file name cannot drift from the release.
 
   She must already be running - this does not launch her, because what is worth
   photographing is usually a state you have just driven her into by hand.
@@ -81,7 +81,7 @@ $repo = Split-Path $PSScriptRoot -Parent
 
 # The version comes from the project file, never from a parameter: a screenshot filed
 # under the wrong release is worse than no screenshot.
-$csproj  = Join-Path $repo 'src\Octavia.App\Octavia.App.csproj'
+$csproj  = Join-Path $repo 'Directory.Build.props'
 $version = ([xml](Get-Content -LiteralPath $csproj -Raw)).Project.PropertyGroup.Version |
            Where-Object { $_ } | Select-Object -First 1
 

@@ -122,8 +122,15 @@ internal static class EmbedderChecks
         using var view = new WebView2 { Dock = System.Windows.Forms.DockStyle.Fill };
         form.Controls.Add(view);
 
+        /* A real socket, because after Stage 15 that is the only way into this page.
+
+           These checks used to be the host: `PostWebMessageAsJson` a `hello` in, read what
+           came back off `WebMessageReceived`. That channel is gone, so the harness speaks
+           the protocol instead — which is what a phone and the desktop client both do, and
+           therefore a fairer test than the one it replaces. */
+        using var host = new PageHost();
+
         var done = new ManualResetEventSlim(false);
-        var fromFace = new List<string>();
 
         form.Shown += async (_, _) =>
         {
@@ -134,19 +141,19 @@ internal static class EmbedderChecks
 
                 await view.EnsureCoreWebView2Async(environment);
 
-                /* **Two origins, and the difference is the point.** `https://octavia.face` is
-                   what the built-in page gets and is a secure context; `http://octavia.face`
-                   is what a browser on the LAN gets and is not, so `getUserMedia` is absent
-                   there exactly as it is on a real handset. Reproduced rather than
-                   simulated — and the check below asserts which one it actually got, so a
-                   run that passes for the wrong reason says so. */
+                /* **Two origins, and the difference is the point.**
+
+                   The desktop client loads her page from the server over loopback, and
+                   loopback HTTP *is* a secure context — so `getUserMedia` exists there. A
+                   phone loads the same page from the same server over the LAN, where it is
+                   not, and `getUserMedia` is simply absent.
+
+                   Loopback cannot be made insecure, so the LAN case keeps a virtual host to
+                   get a non-loopback hostname and reaches the real socket with `?port=`. The
+                   check below asserts which context it actually got, so a run that passes
+                   for the wrong reason says so. */
                 view.CoreWebView2.SetVirtualHostNameToFolderMapping(
                     FaceHost, root, CoreWebView2HostResourceAccessKind.Allow);
-
-                view.CoreWebView2.WebMessageReceived += (_, e) =>
-                {
-                    lock (fromFace) fromFace.Add(e.WebMessageAsJson);
-                };
 
                 /// `ExecuteScriptAsync` hands back the completion value JSON-encoded, so a
                 /// string arrives wrapped and escaped and has to be unwrapped once. Anything
@@ -169,7 +176,11 @@ internal static class EmbedderChecks
                    testing the wrong page entirely. */
                 string? injected = null;
 
-                async Task Load(string scheme, string? inject)
+                /// The LAN: a non-loopback hostname, so no secure context, reaching the real
+                /// socket with `?port=`.
+                string Lan() => $"http://{FaceHost}/index.html{host.Query}";
+
+                async Task Load(string url, string? inject)
                 {
                     if (injected is not null)
                     {
@@ -187,9 +198,13 @@ internal static class EmbedderChecks
                           String((e.error && e.error.message) || e.message || '')));
                         """ + (inject ?? ""));
 
-                    lock (fromFace) fromFace.Clear();
-                    view.CoreWebView2.Navigate($"{scheme}://{FaceHost}/index.html");
-                    await Task.Delay(4500);
+                    host.Clear();
+                    view.CoreWebView2.Navigate(url);
+
+                    // The face has to reach the socket before there is anything to say to
+                    // it, and `ready` is the first thing it says once it has.
+                    host.Wait("ready", TimeSpan.FromSeconds(20));
+                    await Task.Delay(1200);
                 }
 
                 // A `hello` complete enough that the page's handler runs the whole way
@@ -231,7 +246,7 @@ internal static class EmbedderChecks
 
                 async Task Say(string controls, bool camera)
                 {
-                    view.CoreWebView2.PostWebMessageAsJson(Hello(controls, camera));
+                    host.Send(Hello(controls, camera), "hello");
                     await Task.Delay(600);
                 }
 
@@ -248,7 +263,7 @@ internal static class EmbedderChecks
                         """);
 
                 // ---- a handset: an embedder, outside the host room ------------------
-                await Load("http", Embedder);
+                await Load(Lan(), Embedder);
                 await Say("room", camera: true);
 
                 Check("the LAN origin really is insecure",
@@ -300,8 +315,7 @@ internal static class EmbedderChecks
 
                 // The whole reason the button is hidden without an embedder: `listen` drives
                 // the host machine's microphone, and a room face must never send it.
-                string sent;
-                lock (fromFace) sent = string.Join(" ", fromFace);
+                var sent = host.Heard();
                 Check("none of that sent `listen` to the host",
                     !sent.Contains("\"listen\""), sent);
 
@@ -337,7 +351,7 @@ internal static class EmbedderChecks
                     "the marker stayed up over a camera that had stopped");
 
                 // ---- a plain browser on the LAN: no embedder ------------------------
-                await Load("http", null);
+                await Load(Lan(), null);
                 await Say("room", camera: true);
 
                 Check("with no embedder the microphone button stays hidden",
@@ -353,7 +367,7 @@ internal static class EmbedderChecks
                     await Eval("JSON.stringify(window.__octaviaErrors || [])"));
 
                 // ---- the desktop: host room, unchanged ------------------------------
-                await Load("https", null);
+                await Load(host.Url, null);
                 await Say("host", camera: false);
 
                 Check("the host room still has its microphone button",
@@ -364,11 +378,11 @@ internal static class EmbedderChecks
                     (await Eval("document.getElementById('talk').getAttribute('aria-label')")) == "Toggle listening",
                     await Eval("document.getElementById('talk').getAttribute('aria-label')"));
 
-                lock (fromFace) fromFace.Clear();
+                host.Clear();
                 await Eval("document.getElementById('talk').click(); 'ok'");
                 await Task.Delay(400);
 
-                lock (fromFace) sent = string.Join(" ", fromFace);
+                sent = host.Heard();
                 Check("...and still sends `listen`", sent.Contains("\"listen\""), sent);
             }
             catch (Exception ex)

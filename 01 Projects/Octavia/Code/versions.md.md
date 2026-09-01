@@ -18,6 +18,81 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.26.0 — 2026-09-02
+
+**Stage 15: she is a server now, and the things that look at her are clients.** One process
+became three assemblies — `Octavia.Core` (her), `Octavia.Server.exe` (a headless host) and
+`Octavia.exe` (a window). Specced first, in the vault as *Stage 15 — A server, and clients*.
+
+**Nothing on the wire changed.** That was the claim Stage 3 made and this is the bill coming
+due on it: the Android client connects to the new server unmodified, and the desktop client
+is now a face exactly like it.
+
+### Most of it was already built, twice, under other names
+
+The finding that made this one change set rather than three:
+
+- **The session never knew WPF existed.** Three references to a UI framework in 9,361 lines,
+  and only one of them inside `OctaviaSession` — `SaveDiagnosticsAsync`, which had to be
+  answered rather than moved.
+- **`FaceHub(page, sockets)` already took a nullable page.** A server is that argument being
+  null. It was not a refactor, it was a call site.
+- **`RoomChecks` had been running her headless for a version already** — a real
+  `OctaviaSession` against a recording transport, no window, fifty assertions. That harness
+  *is* a server minus a listener.
+
+### What had to be answered
+
+**`saveDiagnostics` could not keep its file dialog.** A dialog needs a dispatcher and
+somebody looking at it, and the host may now be running where there is neither — so the one
+control that exists for when she is broken would have been broken by moving her. It writes
+into `data\diagnostics\` and answers with the path, which is *better*: the machine that needs
+diagnosing is usually not the one you are standing at.
+
+**The page lost its second transport.** `postMessage` existed only for the WebView2 page
+hosted inside her own process. Left in, `send` would have reported success into a void — and
+it was suppressing the *"lost the connection"* notice for exactly the face that now needs one.
+
+**So the page had to learn to reconnect.** While she *was* the window, a dead socket meant a
+dead application and there was nothing to reconnect to. A server restarts on its own. There is
+a persistent bar now — *lost her — reconnecting* — and a backoff from 500 ms to 15 s, and
+`ready` is re-announced on **every** open, because a reconnected face is a new face to the
+host: new `FaceId`, no room, no senses, nothing remembered.
+
+**`Hotkey` and `StartMinimised` went to `client.json`.** They always described a key
+combination registered with *this* Windows session and whether *this* window starts in the
+tray; neither means anything to a server. Carried over from `config.json` on first run, so
+nobody loses a hotkey they chose.
+
+### The checks changed more than the code did
+
+Both page-driving suites had been *pretending to be the host over `postMessage`*. With that
+channel gone they speak the protocol instead, through a real `WebSocketFaceServer` — which is
+a fairer test than the one it replaces, and immediately proved its worth: it is why the
+"reconnected faces must re-announce" rule was found rather than shipped.
+
+**`EarsTest -- split` is new** and checks the boundary as *text*: the client never constructs
+a session or a brain, the core never reaches for a file dialog or `Application.Current`, the
+page has one transport and reconnects, and one version covers all three assemblies. A
+compiler cannot express those, because all three assemblies legitimately see each other's
+internals. Broken on purpose first — four went red, sixteen came back green.
+
+272 assertions pass, and the renderer conformance check passes against the server.
+
+### What this deliberately does not do
+
+**The host room still means "the room the server is standing in"**, and while the server runs
+on the machine with the devices that is *correct* rather than merely convenient. It breaks
+when the box moves to a cupboard — and paying for it in the same change set would have meant
+neither half could be tested alone. Open as item 3, along with a portable core (item 2), the
+server as a service (item 4), and bundles over HTTP (item 5).
+
+The practical consequence today: **run the client on the server's machine, or use the neural
+voice.** Her voice plays through the server's sound card for the host room, and SAPI cannot
+be streamed.
+
+---
+
 ## 0.25.1 — 2026-09-01
 
 **A room face could never start her ears**, so the microphone button restored yesterday could

@@ -10,39 +10,67 @@ source-path: README.md
 # Octavia
 
 A talking avatar with a language model behind her — a local one by default, Claude when
-you ask for it. A .NET desktop host owns the microphone, the voice, the API key and the
-conversation; a WebView2 renders the face and does nothing else.
+you ask for it. A headless .NET server owns the microphone, the voice, the API key and the
+conversation; clients render her face and do nothing else.
 
 ## Why it is split this way
 
 The face is a web page because that is the fastest thing to iterate on, and because the
 bust should be replaceable — a rigged glTF head, or a panel on a wall tablet — without
 touching anything that thinks. Everything a browser structurally cannot do lives in the
-host instead: an always-on process, a tray icon, a global hotkey, system audio capture,
-and an API key that never reaches the page.
+server instead: an always-on process, system audio capture, and an API key that never
+reaches the page.
 
 ```
-Octavia.exe (WPF)
+Octavia.Core.dll — her
 ├── Brain/       Claude or a local model, streamed a sentence at a time
 ├── Senses/      microphone level (NAudio) + VAD + speech recognition
 │   └── Music/   WASAPI loopback and the beat detection it feeds
 ├── Voice/       Windows speech or a neural engine, behind IVoice
 ├── Audio/       FFT and the lip sync read out of the waveform
 ├── Diagnostics/ self-test, system report, and the bundle you can send
-├── Face/        the message channel every renderer speaks
+├── Face/        the socket every renderer speaks over, and the page it serves
 └── wwwroot/     the renderer: room, avatar, and console
+
+Octavia.Server.exe   a console host: opens the socket and stays out of the way
+Octavia.exe          the Windows client: a window, a tray icon, a hotkey
 ```
 
 Every subsystem sits behind an interface — `IBrain`, `ISpeechRecognizer`, `IVoice`,
-`IFaceTransport` — so each is a swap rather than a rewrite. Host and face speak JSON over
-a loopback WebSocket (see `PROTOCOL.md`), which is why *anything* that speaks it is a
-legal face: the built-in page, a browser on a wall tablet, or an Unreal application later.
+`IFaceTransport` — so each is a swap rather than a rewrite. Server and face speak JSON over
+a WebSocket (see `PROTOCOL.md`), which is why *anything* that speaks it is a legal face: the
+Windows client, a browser on a wall tablet, the Android client, or an Unreal application
+later.
+
+**The client contains none of her**, and a check enforces it: no session, no brain, no ears,
+no voice. It is a browser that knows where she lives, which is exactly what the Android
+client has always been — and why that client needed no changes when this landed.
 
 ## Running her
+
+Two things now, in this order:
+
+```bash
+dotnet run --project src/Octavia.Server
+```
 
 ```bash
 dotnet run --project src/Octavia.App
 ```
+
+The server prints the address a face may attach at. The client finds a server on this
+machine with no configuration at all; point it somewhere else with `--server`:
+
+```bash
+Octavia.exe --server 10.1.1.50:8848 --key ABCDE-FGHIJ-KLMNP-QRSTU
+```
+
+A browser is a face too — open the address the server printed, or `?room=study` for a room
+of its own.
+
+> **Run the client on the machine the server is on**, unless you are using the neural voice.
+> Her voice plays through the *server's* sound card for the host room; a Windows (SAPI) voice
+> cannot be streamed to a client at all. See Stage 15 item 3 in `ROADMAP.md`.
 
 She runs on a local model by default, so there is nothing to pay for and no key to paste —
 see [Profiles](#profiles). To use Claude instead, switch to the `cloud` profile and put a
@@ -67,16 +95,26 @@ Build a portable copy that carries its own .NET:
 
 ```
 rmdir /s /q C:\Projects\Octavia\dist
+dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
+
+**The server first and the client second**, into the same folder. Both carry `Octavia.Core`,
+so the order only decides which copy of the shared files wins, and they are identical — but
+publishing the client first and the server second would leave the *client's* `wwwroot` in
+place, which is the same files today and would silently stop being so the moment one of them
+stopped shipping the page.
 
 The `rmdir` is not optional politeness: publish overwrites but never deletes, so a
 renamed or dropped file lives on in `dist` forever. A stale `lib\three.min.js` survived
 the whole three.js upgrade that way.
 
-Copy the whole `dist` folder — `Octavia.exe` and the `wwwroot` beside it. The face is
-not embedded in the exe on purpose: you can edit the bust on the target machine and just
-reload. About 310 MB.
+Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, and the `wwwroot`
+beside them. The face is not embedded in either exe on purpose: you can edit the bust on
+the target machine and just reload.
+
+**Only the server needs to go on the machine she lives on.** A client is small and needs
+nothing but a network route and the remote key.
 
 If the target already has the **.NET 10 Desktop Runtime**, drop `--self-contained true`
 and the two `PublishSingleFile` switches for a few MB instead.
@@ -136,22 +174,29 @@ defined is now a warning in the log naming the ones that are.
 Three ways to pick one, highest wins:
 
 ```
-Octavia.exe --profile dev
-set OCTAVIA_PROFILE=dev && dotnet run --project src/Octavia.App
+Octavia.Server.exe --profile dev
+set OCTAVIA_PROFILE=dev && dotnet run --project src/Octavia.Server
 ```
 
 ...and the `Profile` key in the file if neither is given. **A desktop shortcut can pass
 an argument but cannot set an environment variable, which is why `--profile` exists** —
-a launcher that names its profile cannot drift when the config file changes. The tray
-tooltip and the face's status panel both show which one is live, and the log records
-the profile *and where the choice came from*.
+a launcher that names its profile cannot drift when the config file changes. The server
+prints it at startup, the face's status panel shows it, and the log records the profile
+*and where the choice came from*.
+
+`--profile` belongs to the **server**, which is the only thing that has a brain to choose.
+The client's tray tooltip names the server it is attached to instead, because the profile
+and the brain belong to a process it cannot see until `hello` arrives — and a tooltip that
+guessed would be wrong exactly when it mattered.
 
 Profiles are applied in memory only — saving carries runtime changes back to the
 un-overlaid settings, so the file keeps describing both machines. Add your own by
 editing the `Profiles` block.
 
-She is single-instance: launching a second copy surfaces the first rather than starting
-a new one, so `--profile` cannot switch a running Octavia. Quit her from the tray first.
+Both halves are single-instance, separately. A second **client** surfaces the first rather
+than opening a window nobody asked for; a second **server** refuses and says so, because two
+of her would fight over one port, one data folder and one sound card. So `--profile` cannot
+switch a running server — stop it first.
 
 ## Where her data lives
 
@@ -191,11 +236,11 @@ megabytes of downloaded artefacts, none of it source.
 | `VoiceName` | first installed | The Windows voice. Settings → Voice |
 | `NeuralVoiceName` | `en_GB-jenny_dioco-medium` | The Piper voice, kept separately so switching engines loses neither |
 | `VoiceRate` | `0` | -10 to 10 |
-| `Hotkey` | `Ctrl+Alt+O` | Ctrl+Alt+Space is usually taken by an IME |
+| `Hotkey` | `Ctrl+Alt+O` | *Moved to `client.json` in v0.26.0; the copy here is read once to carry it over* |
 | `MinConfidence` | `0.35` | Raise it if she answers the television, lower it if she ignores you |
 | `MinUtteranceChars` | `2` | Shorter transcripts are treated as noise |
 | `ListenOnStart` | `false` | See the cost note below |
-| `StartMinimised` | `false` | Start hidden in the tray |
+| `StartMinimised` | `false` | *Moved to `client.json` in v0.26.0, same as `Hotkey`* |
 | `AvatarFile` | *(empty)* | A `.vrm` in `<data>\avatars`; empty means the bust. Settings → Appearance |
 | `RoomHour` | `-1` | Pin the room's lighting to an hour 0–23; negative follows the clock |
 | `Music` | `true` | Whether she hears what the machine plays. Off closes the device |
@@ -207,6 +252,23 @@ megabytes of downloaded artefacts, none of it source.
 | `DevPanel` | *(unset)* | Follows the profile — on for `dev`, off for `live` |
 | `LogLevel` | `info` | `debug` when reproducing a fault; `warn` / `error` to quieten her |
 | `FacePort` | `8848` | `0` picks any free port |
+
+### The client's own settings
+
+`<data>\client.json`, written on first run and never read by the server:
+
+| Key | Default | Notes |
+|---|---|---|
+| `Server` | `127.0.0.1:8848` | `host:port`, or just `host` for her usual port. `--server` wins |
+| `Key` | *(empty)* | The remote key. Empty means read `remote.key` beside it, which is right whenever the client and the server share a machine. `--key` wins |
+| `Room` | *(empty)* | Empty is the host room. `--room` wins |
+| `Hotkey` | `Ctrl+Alt+O` | Ctrl+Alt+Space is usually taken by an IME |
+| `StartMinimised` | `false` | Start hidden in the tray |
+
+**It is deliberately not her config.** Her settings describe a microphone, a brain, a voice
+and a set of tool servers, and a client owns none of those — reading them would invite a
+client on another machine to believe things about hardware it cannot see. The two files are
+separate because the two machines might be.
 
 ## Her face
 
@@ -229,9 +291,8 @@ It is a config key too, if you prefer:
 { "AvatarFile": "octavia.vrm" }
 ```
 
-Leave it empty for the bust. The host maps that folder to a read-only
-`https://octavia.avatar` origin — the face never reads arbitrary paths — and offers the
-URL in `hello`. If the file is missing or will not load, she stays a bust and says so in
+Leave it empty for the bust. The server serves that folder read-only at `/avatars/` — the
+face never reads arbitrary paths — and offers the URL in `hello`. If the file is missing or will not load, she stays a bust and says so in
 the log rather than showing nothing.
 
 VRM models come from **VRoid Studio** (free, design her yourself), a commission, or any
@@ -326,7 +387,8 @@ all that comes back.
 result: settings, transports, renderer, microphone signal, speech model, voice and brain.
 Every failing line names what to try. It is free — the self-test never calls a paid model.
 
-**Save diagnostics** (Health → Save, or the tray) writes one zip wherever you choose:
+**Save diagnostics** (Health → Save, or the tray) writes one zip into
+`<data>\diagnostics\` and tells you the path in a notice:
 
 ```
 README.txt    what is inside, and what to check before sending it
@@ -339,13 +401,18 @@ logs/         octavia.log and its rolled predecessors
 tells the reader to look before sending it on. The API key is not in it — it stays
 DPAPI-sealed outside the bundle and is never written to the log.
 
-When she is too broken to show her own UI, take the bundle without her:
+It used to raise a Save dialog, which could not survive the server moving out of the window:
+a dialog needs a dispatcher and somebody looking at it, and the one control that exists for
+when she is broken would have been broken by moving her. The path travels back over the
+socket instead, so whoever asked is told even from another room.
+
+When she is too broken to start at all, take the bundle without her:
 
 ```bash
-Octavia.exe --diagnostics C:\Users\you\Desktop\octavia.zip
+Octavia.Server.exe --diagnostics C:\Users\you\Desktop\octavia.zip
 ```
 
-That runs no window and no session; the machine, the settings and the logs are still
+That runs no socket and no session; the machine, the settings and the logs are still
 what explain why she will not start.
 
 `octavia.log` has levels and rolls at 1 MB, keeping three predecessors, so it stays
@@ -422,6 +489,7 @@ dotnet run --project tools/EarsTest              # full suite
 dotnet run --project tools/EarsTest -- mic       # capture-device diagnostic
 dotnet run --project tools/EarsTest -- music     # what she makes of what is playing
 dotnet run --project tools/EarsTest -- gate      # how well the attention gate judges
+dotnet run --project tools/EarsTest -- split     # the server/client boundary, checked as text
 ```
 
 The suite synthesizes speech, runs it through Silero VAD and Whisper, asserts that
@@ -429,6 +497,12 @@ silence transcribes to nothing, exercises the streaming `<think>` filter and mar
 flattener, checks config-profile precedence, the face protocol and the diagnostics
 bundle, and probes whatever local model server is configured. The exit code is the
 failure count.
+
+`-- split` checks the server/client boundary as *text*, against the source rather than the
+build: that the client never constructs a session or a brain, that the core never reaches
+for a file dialog or `Application.Current`, that the page has one transport and reconnects,
+and that one version covers all three assemblies. A compiler cannot express those rules,
+because all three legitimately see each other's internals.
 
 The config and diagnostics checks redirect themselves with `OCTAVIA_CONFIG` and
 `OCTAVIA_LOG`, so running the suite never disturbs the real settings or log.

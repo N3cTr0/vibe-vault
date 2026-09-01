@@ -146,6 +146,7 @@ internal static class SyntaxChecks
         using var view = new WebView2 { Dock = System.Windows.Forms.DockStyle.Fill };
         form.Controls.Add(view);
 
+        using var host = new PageHost();
         var done = new ManualResetEventSlim(false);
 
         form.Shown += async (_, _) =>
@@ -156,22 +157,6 @@ internal static class SyntaxChecks
                     userDataFolder: Path.Combine(Path.GetTempPath(), "octavia-syntaxcheck"));
 
                 await view.EnsureCoreWebView2Async(environment);
-
-                // The same virtual https origin the app uses, so the page is a secure context
-                // and the CSP behaves identically. A file:// load would not be a fair test.
-                view.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                    FaceHost, root, CoreWebView2HostResourceAccessKind.Allow);
-
-                view.CoreWebView2.WebMessageReceived += (_, e) =>
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(e.WebMessageAsJson);
-                        if (doc.RootElement.TryGetProperty("type", out var t) && t.GetString() == "ready")
-                            bridgeReady = true;
-                    }
-                    catch { /* not ours */ }
-                };
 
                 await view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
                     """
@@ -194,6 +179,8 @@ internal static class SyntaxChecks
                     // The page loads its modules after navigation completes, and bridge.js
                     // sends `ready` only once its transport settles. Give both a moment.
                     await Task.Delay(3500);
+
+                    bridgeReady = host.Heard().Contains("\"type\":\"ready\"");
 
                     try
                     {
@@ -227,7 +214,15 @@ internal static class SyntaxChecks
                     done.Set();
                 };
 
-                view.CoreWebView2.Navigate($"https://{FaceHost}/index.html");
+                /* Served by a real socket over loopback, which is what the desktop client
+                   now does — and loopback HTTP is a secure context, so the page gets the
+                   same CSP and the same `getUserMedia` availability the virtual `https`
+                   origin used to give it.
+
+                   It has to be a real server rather than a virtual host, because `ready` is
+                   the thing being checked and `ready` is sent from the socket's `open`
+                   handler. A page with nothing to connect to correctly says nothing. */
+                view.CoreWebView2.Navigate(host.Url);
             }
             catch (Exception ex)
             {

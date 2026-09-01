@@ -9,44 +9,39 @@ source-path: src\Octavia.App\Octavia.App.csproj
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    The Windows client: a window, a WebView2, a tray icon and a hotkey.
+
+    It holds no session, no brain, no ears and no voice. It is a browser that knows where
+    she lives and how to introduce itself - which is precisely what the Android client has
+    always been, and the reason this stage could be a move rather than a rewrite.
+
+    It keeps the name, the icon and the manifest because it is still the thing a person
+    double-clicks. It simply stopped containing her.
+  -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <RootNamespace>Octavia</RootNamespace>
     <AssemblyName>Octavia</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\octavia.ico</ApplicationIcon>
+    <!-- `Native.cs` registers the global hotkey through LibraryImport, which generates it. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>0.25.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The WindowsDesktop implicit-using set omits these two. -->
-    <Using Include="System.IO" />
-    <Using Include="System.Net.Http" />
-    <InternalsVisibleTo Include="EarsTest" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="wwwroot\**" />
-    <Content Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
     <None Remove="Assets\**" />
     <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Anthropic" Version="12.44.0" />
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
+    <!--
+      For `Log`, `Paths` and `RemoteKey` - not for her. Nothing here constructs an
+      `OctaviaSession`, and a check asserts that it never starts doing so again.
+    -->
+    <ProjectReference Include="..\Octavia.Core\Octavia.Core.csproj" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
-    <PackageReference Include="NAudio" Version="3.0.1" />
-    <PackageReference Include="System.Speech" Version="10.0.11" />
-    <PackageReference Include="Whisper.net" Version="1.9.1" />
-    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
-    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.1" />
   </ItemGroup>
 
 </Project>

@@ -64,6 +64,16 @@ That produced the stage's best bug. Synthesis takes a moment to produce its firs
 
 A sound card is fed continuously, and `BufferedWaveProvider` returns silence when it has nothing. So the reader analysed that silence and sent a viseme **twelve times a second, forever** — every one of them saying "mouth shut". Visemes are now sent only when the mouth actually changes.
 
+## Which sound card she comes out of *(v0.26.0)*
+
+[[A Server, And Clients]] moved the being into its own process, and her voice went with it — so **she plays through the *server's* sound card**, for the host room, exactly as she always did. The Windows client hears her because it is standing in the same room, not because anything was streamed to the window.
+
+That is fine while both halves are on one machine and it is the sharp edge of the split when they are not. A client in another building would leave the server talking aloud at an empty desk, and a **Windows voice cannot follow it**: SAPI cannot be streamed at all, so `audioAvailable` is false and a remote room is *told* — she can be read and not heard — rather than her falling back to speaking into an empty house.
+
+> **So the neural voice stopped being an upgrade and became the way she talks**, for any arrangement where the client is not on the server's machine. The rest waits on Stage 15 item 3, which has the client lending the server its speakers; see [[One Being, Many Rooms]].
+
+The exemption that went with it: the host used to refuse to stream audio to the page it hosted, because that page shared this machine's speakers and streaming would have been her talking over herself. There is no such page now.
+
 ## Still true from v0.1.0
 
 The SAPI path still reports real viseme events, mapped to jaw openness *and* to a VRM mouth shape — see [[The Avatar Interface]]. And `Settle()` still clamps its queue counter after a `Hush`, because SAPI's cancellation events fire once per cancelled sentence and used to drive it negative.

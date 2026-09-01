@@ -16,6 +16,13 @@ using Application = System.Windows.Application;
 
 namespace Octavia;
 
+/// The client's shell: one window, one tray icon, one instance.
+///
+/// **What is no longer here is the point of Stage 15.** There is no config load, no socket
+/// server, no session, no brain and no diagnostics command — all of that went to
+/// `Octavia.Server`, which can now be on another machine entirely. What is left is the part
+/// that has to be on *this* one: a window, a tray, and a hotkey registered with this
+/// Windows session.
 public partial class App : Application
 {
     private const string MutexName = @"Local\Octavia.SingleInstance";
@@ -26,7 +33,7 @@ public partial class App : Application
     private RegisteredWaitHandle? _surfaceWait;
     private NotifyIcon? _tray;
     private MainWindow? _window;
-    private OctaviaConfig _config = new();
+    private ClientConfig _client = new();
     /// True when startup bailed out before building anything, so OnExit tears down
     /// only what actually exists.
     private bool _exitedEarly;
@@ -35,28 +42,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var requestedProfile = ValueArgument(e.Args, "--profile", "-p");
-
-        // Before the single-instance check on purpose: this has to work when she is
-        // already running, and — more to the point — when she is too broken to start.
-        var bundlePath = ValueArgument(e.Args, "--diagnostics");
-        if (bundlePath is not null)
-        {
-            WriteBundleAndExit(bundlePath, requestedProfile);
-            return;
-        }
-
         _onlyOne = new Mutex(true, MutexName, out var isFirst);
         if (!isFirst)
         {
-            // She is already running, probably hidden in the tray. Bring that one
-            // forward rather than exiting silently and looking broken.
+            // She is already on screen, probably hidden in the tray. Bring that one forward
+            // rather than exiting silently and looking broken.
             _exitedEarly = true;
-            if (requestedProfile is not null)
-            {
-                Log.Write($"already running, so profile '{requestedProfile}' was ignored; " +
-                          "quit her from the tray first to switch profiles");
-            }
 
             if (EventWaitHandle.TryOpenExisting(SurfaceSignalName, out var running))
             {
@@ -76,27 +67,35 @@ public partial class App : Application
 
         WatchForCrashes();
 
-        _config = OctaviaConfig.Load(requestedProfile);
-        Log.Write($"Octavia starting {SystemReport.Version}; data in {Paths.DataDir}");
+        _client = ClientConfig.Load();
 
-        _window = new MainWindow(_config);
+        // A shortcut can pass an argument but cannot set an environment variable, which is
+        // why the command line is where a launcher says which server it wants.
+        if (ValueArgument(e.Args, "--server", "-s") is { Length: > 0 } server) _client.Server = server;
+        if (ValueArgument(e.Args, "--key") is { Length: > 0 } key) _client.Key = key;
+        if (ValueArgument(e.Args, "--room", "-r") is { Length: > 0 } room) _client.Room = room;
+
+        Log.Write($"Octavia client starting {SystemReport.Version}; her server is {_client.Origin}");
+
+        _window = new MainWindow(_client, _client.Hotkey);
         BuildTray();
 
-        if (_config.StartMinimised) _window.Hide();
+        if (_client.StartMinimised) _window.Hide();
         else _window.Show();
     }
 
-    /// Three ways she can fail without anyone finding out. Swallowing the first one and
-    /// carrying on — which is what she used to do — hides exactly the faults worth
-    /// seeing, so each is now written down, and the UI thread's is shown to the person
-    /// in front of her.
+    /// Three ways this window can fail without anyone finding out. Swallowing the first one
+    /// and carrying on — which is what it used to do — hides exactly the faults worth
+    /// seeing, so each is now written down.
+    ///
+    /// Her *own* faults are the server's to catch and always were; this watches the shell.
     private void WatchForCrashes()
     {
         DispatcherUnhandledException += (_, args) =>
         {
             Log.Error("unhandled on the UI thread", args.Exception);
-            // Still handled: she is a companion, not a batch job, and dying on one bad
-            // frame helps nobody. The difference is that it is now visible.
+            // Still handled: a companion that dies on one bad frame helps nobody. The
+            // difference is that it is now visible.
             args.Handled = true;
             _window?.ReportCrash(args.Exception);
         };
@@ -116,35 +115,7 @@ public partial class App : Application
         };
     }
 
-    /// Writes a bundle with no window and no session, then leaves. The one thing a
-    /// person can still do when she will not start at all — the environment, the
-    /// settings and the logs are exactly what explains why.
-    private void WriteBundleAndExit(string path, string? requestedProfile)
-    {
-        _exitedEarly = true;
-
-        try
-        {
-            _config = OctaviaConfig.Load(requestedProfile);
-            // On the thread pool, not here: blocking the dispatcher thread on a task
-            // whose continuations are posted back to it is a deadlock, and a headless
-            // command that hangs forever is worse than one that fails.
-            Task.Run(() => DiagnosticsBundle.WriteAsync(path, _config, HostSnapshot.Stopped))
-                .GetAwaiter().GetResult();
-            Console.WriteLine($"Diagnostics written to {path}");
-        }
-        catch (Exception ex)
-        {
-            Log.Error("headless diagnostics failed", ex);
-            Console.Error.WriteLine($"Could not write diagnostics: {ex.Message}");
-        }
-
-        Shutdown();
-    }
-
-    /// --name value, --name=value, or an alias such as -p. A desktop shortcut can pass
-    /// an argument but cannot set an environment variable, which is why the command
-    /// line is where a launcher states what it wants.
+    /// --name value, --name=value, or an alias such as -s.
     private static string? ValueArgument(string[] args, string name, string? alias = null)
     {
         for (var i = 0; i < args.Length; i++)
@@ -165,7 +136,7 @@ public partial class App : Application
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("Show Octavia", null, (_, _) => _window?.Surface());
-        menu.Items.Add($"Listen  ({_config.Hotkey})", null, (_, _) => _window?.ToggleListening());
+        menu.Items.Add($"Listen  ({_client.Hotkey})", null, (_, _) => _window?.ToggleListening());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Save diagnostics...", null, (_, _) => _window?.SaveDiagnostics());
         menu.Items.Add("Open data folder", null, (_, _) =>
@@ -176,7 +147,10 @@ public partial class App : Application
         _tray = new NotifyIcon
         {
             Icon = TrayIcon(),
-            Text = $"Octavia — {_config.Profile} ({_config.Brain})",
+            // Where she is, not what she is running. The profile and the brain belong to a
+            // process this one cannot see until `hello` arrives, and a tooltip that guessed
+            // would be wrong exactly when it mattered.
+            Text = $"Octavia — {_client.Origin}",
             Visible = true,
             ContextMenuStrip = menu
         };
@@ -240,7 +214,7 @@ public partial class App : Application
         _surfaceWait?.Unregister(null);
         _surfaceSignal?.Dispose();
         _onlyOne?.Dispose();
-        Log.Write("Octavia stopped");
+        Log.Write("Octavia client stopped");
         base.OnExit(e);
     }
 }

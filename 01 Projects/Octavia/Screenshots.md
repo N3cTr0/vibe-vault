@@ -37,6 +37,30 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.26.0 — the client on her server, mid-conversation
+
+![[v0.26.0 - the client on her server, mid-conversation.png]]
+
+**There is nothing of her in this window.** No session, no brain, no ears, no voice — it is a WebView2 pointed at `http://127.0.0.1:8848`, holding a socket like any other face. It is worth photographing precisely *because* it looks the same as v0.25.1: an architecture change that shows on screen would have been a worse one.
+
+Her mouth is open on a viseme and the state pill says `SPEAKING`, which is the part that had to be proved rather than argued: the visemes and the PCM still leave the same buffer at the same instant, and now they cross a socket to get here.
+
+**The turn on screen was driven by a different face entirely** — `attach-face.ps1`, in the same room — which is the other half of the claim. The client is not privileged; it is one renderer among however many are attached, and rooms still decide who sees what.
+
+`BRAIN qwen2.5:7b-cpu (local)` and `EARS not started` are the server's facts, arriving in `hello` from another process.
+
+## v0.26.0 — the client with her server stopped
+
+![[v0.26.0 - the client with her server stopped.png]]
+
+**The shot that mattered most, and the one that could not exist before this release.** While she *was* the window, a dead socket meant a dead application — there was nothing to reconnect to and nothing to say. Now the server restarts on its own, and a face that quietly stopped being connected would look exactly like one that had not.
+
+So the bar is **persistent**, not a notice: notices fade after seven seconds, and this is a condition rather than an event. `LOST HER — RECONNECTING`, with the amber dot, and a backoff from 500 ms to 15 s underneath it.
+
+The placard still shows her last known state, which is honest — the client is reporting what it was told, not guessing at what is true now.
+
+Restarting the server brought this window back on its own, with a new `FaceId` and a fresh `ready`. **That re-announcement is the rule easiest to get wrong**: a reconnected face is a *new* face to the host, so a page that announced only once would find itself silently back in the host room with no camera. See [[A Server, And Clients]].
+
 ## v0.25.1 — idle, her ears shut and her microphone button offered anyway
 
 ![[v0.25.1 - idle, her ears shut and her microphone button offered anyway.png]]
