@@ -1212,6 +1212,50 @@ is quietly incomplete is worse than one that is honestly small.
 > three faces, with the two origins reproduced rather than simulated. Four mechanisms broken
 > on purpose first.
 
+### 11. The first press of a cold session loses its opening words — **open**
+
+*Reported 09/01/2026 from the handset, against v0.25.1. Recorded rather than fixed; nothing
+in this repo has been touched for it.*
+
+v0.25.1 made holding the button open her ears, which is right and confirmed working from the
+phone — `micAccepted: True` on a fresh session, and the placard went from `EARS not started`
+to `EARS Whisper large-v3-turbo` without anybody going near the desk. But opening Whisper
+takes time — **measured at about 3 seconds with `large-v3-turbo` on CPU** — and the audio
+streamed during it is thrown away:
+
+```csharp
+_face.AudioReceived += (from, pcm) =>
+{
+    if (_floor == from) _faceMic?.Push(pcm, pcm.Length);   // OctaviaSession.cs:121
+};
+```
+
+The client opens its microphone and starts streaming the instant it sends `talking(true)`,
+because **there is no acknowledgement that the floor was granted** — so every frame that
+arrives before `_floor = from` is dropped, silently.
+
+> **This is worse than the failure it sits next to, and that is the whole reason it matters.**
+> Letting go while the model loads yields *silence*, which is legible: nothing happened, and
+> you press again. This one yields a **plausible, truncated sentence** — press, start
+> speaking immediately, and the opening words are gone with nothing to say so. She answers
+> the wrong question and everything appears to work.
+
+It cannot be fixed from the client, which has no signal to wait for. Two host-side shapes:
+
+- **Buffer frames from `_pressing`** and hand them to `_faceMic` when it opens. No protocol
+  change, no new message, and the client needs no edit at all. Needs a bound — a stuck press
+  must not grow it without limit; 16 kHz mono 16-bit is ~32 KB/s, so a few seconds is cheap
+  and a cap is one line.
+- **Acknowledge `talking`**, so the client streams only once the floor is granted. Correct,
+  and costs a message and a round trip on every press.
+
+The first looks right: it is smaller, it is invisible to every existing client, and the
+latency it hides is real rather than added.
+
+**Only the first press of a session is affected.** Once the recogniser exists,
+`TakeFloorAsync` reaches `_floor = from` without ever awaiting, so a warm press takes the
+floor on the calling thread and there is no window at all.
+
 ### Order
 
 1 → 3 → 2 → 6 → 4 → 5 → 7, with 8 folded in as the document is touched. Audio *out* before
@@ -1219,9 +1263,10 @@ audio *in*: it is the smaller change, it is independently useful, and it makes a
 looking at before it is worth talking to.
 
 **How it actually went:** 1 → 3 → 2 → 9 → 10, with 9 taking 4, 5 and 7 with it and 10
-falling out of 9. Item 6 (echo) stands as decided — push-to-talk, and always-on listening in
-a remote room is still out of scope. It is now the *only* thing between the phone and the
-desktop feeling identical, which is a much sharper way to hold it than it was.
+falling out of 9. **Open: 6 and 11.** Item 6 (echo) stands as decided — push-to-talk, and
+always-on listening in a remote room is still out of scope; it is the only thing between the
+phone and the desktop *feeling* identical, which is a much sharper way to hold it than it was.
+Item 11 is a real fault rather than a deferred choice, and is the one to do first.
 
 ## Standing constraints
 

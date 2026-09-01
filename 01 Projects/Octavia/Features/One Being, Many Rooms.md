@@ -140,6 +140,8 @@ Holding the button now opens her ears. A held button is an explicit request to b
 
 **`micAccepted` also meant the wrong thing** — "already open" rather than "will accept" — so a handset was told its button could only fail, hid it correctly, and the fault read as a client bug.
 
+**Confirmed fixed from the handset, and it left one thing behind.** The first press of a cold session loses the ~3 seconds of audio streamed while Whisper loads, because nothing acknowledges the floor and frames arriving before it is granted are dropped. Open as [[Roadmap]] item 11, and the reason it is worth doing rather than living with is in [[The Ears]]: silence would be legible, and a truncated sentence is not.
+
 ## Links
 
 - [[Stage 14 - Two Rooms]] — the specification this was built from

@@ -74,6 +74,27 @@ both halves of the fix turns the first two red.
 
 Fifty assertions there now. The suite passes end to end.
 
+### Confirmed from the handset, and one thing left
+
+*Added after release, 09/01/2026.* Verified from the phone: `micAccepted: True` on a fresh
+session, and holding the button opened her ears without anybody touching the desk — the
+placard went from `EARS not started` to `EARS Whisper large-v3-turbo`.
+
+**The first press of a cold session still loses its opening words.** Opening Whisper takes
+about 3 seconds with `large-v3-turbo` on CPU, and the client starts streaming the moment it
+sends `talking(true)` because nothing acknowledges the floor — so every frame before
+`_floor = from` is dropped at `OctaviaSession.cs:121`.
+
+It is worse than the failure beside it. Letting go mid-load yields **silence**, which is
+legible. This yields a **plausible, truncated sentence**: press, speak immediately, and the
+opening words are gone with nothing to say so — she answers the wrong question and everything
+looks fine.
+
+Recorded as ROADMAP item 11 and deliberately not fixed in this release. The likely shape is
+buffering frames from `_pressing` until `_faceMic` exists: no protocol change, no client edit,
+and it hides latency that is real rather than adding any. Only the first press is affected —
+a warm press reaches `_floor = from` without ever awaiting.
+
 ---
 
 ## 0.25.0 — 2026-09-01

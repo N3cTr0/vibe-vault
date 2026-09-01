@@ -48,6 +48,14 @@ A held button is an explicit request to be transcribed, which is exactly the mea
 
 > **`UseSource` starts what it is given**, which makes the obvious release path a trap: handing the ears back the local microphone when a face lets go would open the desk's microphone *because a phone released a button*. When nobody is listening at the desk the recogniser is stopped instead, and there is a check that fails if the local device opens during a remote press.
 
+#### And it left one fault behind, which is still open
+
+Confirmed working from the handset — but **the first press of a cold session loses its opening words**. Opening Whisper takes about three seconds with `large-v3-turbo` on CPU, and the client starts streaming the instant it sends `talking(true)`, because nothing acknowledges that the floor was granted. Every frame before `_floor = from` is dropped.
+
+> **It is worse than the failure sitting next to it, and that is why it matters.** Letting go mid-load produces *silence*, which is legible: nothing happened, press again. This produces a **plausible, truncated sentence** — she answers the wrong question and everything appears to have worked.
+
+Recorded as [[Roadmap]] item 11, not yet built. The likely shape is buffering frames from the pressing face until `_faceMic` exists: no protocol change, no client edit, and the latency it hides is real rather than added. Only the first press is affected — once the recogniser exists, taking the floor never awaits.
+
 ### Two things it would be easy to get wrong
 
 Both were flagged in the spec, both were real, and both would have looked like something else entirely.
