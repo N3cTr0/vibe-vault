@@ -118,6 +118,12 @@ Three design decisions:
 
 The button only appears when `hello` says the host would grant the permission, so it cannot exist in a state where it could only fail.
 
+**That was half a test until v0.24.1.** `hello.camera` is the *room's* answer to "may she look at all"; it is not this renderer's answer to "could I, physically". On a plain `http://<lan-ip>` origin `navigator.mediaDevices` is undefined, so a remote face was offered a button whose only outcome was `Cannot read properties of undefined (reading 'getUserMedia')`. It now asks both.
+
+**And in v0.25.0 the button came back on the handset**, because a page embedded in something that has a camera can borrow it: the embedder computes the gaze on its side and drives `window.Face.look(x, y)`, nothing crosses the socket, and the marker stays in the page. See [[Lending A Renderer The Device's Senses]].
+
+> **A still and a watch want the same camera**, and this is written into [[Face Protocol]] because any renderer that does both has it. `look` can arrive mid-gaze; a renderer that binds the device exclusively will kill the watcher and leave her staring at the last place she saw somebody. Pause, take the still, resume — and clear the gaze in between so she is not frozen mid-glance while the shutter goes. This page has the mild version today: `watch.js` holds its own stream while `camera.js` opens a second one.
+
 ## Whose camera, and whose decision *(v0.24.0)*
 
 Two things moved when she gained rooms.

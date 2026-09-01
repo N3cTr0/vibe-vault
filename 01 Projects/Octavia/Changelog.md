@@ -16,6 +16,133 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.25.0 — 2026-09-01
+
+**A renderer can borrow the senses of whatever it is embedded in.** Stage 14 item 10, built
+from `Stage 14 - Lending A Renderer The Device's Senses.md`, written on the Android side.
+
+The ask: *"I want us to somehow put back the microphone button on the phone and wire it in
+correctly. I don't like the key button press — the UI should feel the same on the phone and
+the host. Also, if I switch on the camera will her face and eyes follow me?"* Two requests,
+one seam.
+
+### What item 9 left behind
+
+Two controls hidden on a face outside the host room, both for good reasons:
+
+- The **microphone**, because it sends `listen`, which drives the *host machine's*
+  microphone — the whole point of the authority table.
+- The **watch button**, because `navigator.mediaDevices` does not exist outside a secure
+  context, so on a plain `http://<lan-ip>` origin it could only throw. That was 0.24.1.
+
+Both correct, and together they left a handset **less capable than the machine it stands in
+for** — on a device that has a microphone and a camera, and whose native client already owns
+both. The way in was a hardware volume key, which works and is not what anybody wants to look
+at.
+
+### Why neither could be fixed on the wire
+
+**The microphone.** The floor is a `FaceId`:
+
+```csharp
+if (_floor == from) _faceMic?.Push(pcm, pcm.Length);
+```
+
+The face that presses must be the face that streams. The Android app is **two** faces — a
+native connection that owns the microphone and a WebView panel that draws her page — so a
+button in the panel taking the floor would have the host dropping the native client's audio
+as coming from somebody who does not hold it. Making the floor room-scoped instead would let
+*any* face in a room feed her ears, which is a worse rule than the one there is.
+
+**The camera.** Watching is renderer-local by design and `PROTOCOL.md` is emphatic about it:
+nothing — no frame, no coordinate, no flag — crosses the socket. That is right and is not
+touched here. The problem was only that "the page" is the wrong place to get the pixels when
+the page is embedded in something that has a camera and its own origin is not secure.
+
+### The seam
+
+```js
+window.OctaviaEmbedder = {
+  senses: ['mic', 'camera'],
+  talking(held) {},
+  watch(on) {},
+};
+```
+
+Five changes in `bridge.js`, **no protocol change**, and a browser tab behaves exactly as it
+did. It is deliberately not an Android interface — the page special-casing one client is how
+a renderer stops being a renderer.
+
+Two decisions worth writing down:
+
+**A borrowed camera is not claimed to the host.** `senses` in `ready` still reports only what
+*this page* can do. The embedder lends gaze, not stills, so a panel that claimed a camera
+would be sent a `look` it cannot answer — and on a handset would take that frame away from
+the native client, which can. It looks like an oversight and is the opposite; there is a
+check that goes red if anyone "fixes" it.
+
+**The privacy marker stays in the page.** One marker, in the place a person already looks. An
+embedder drawing its own would be two things to trust rather than one.
+
+### The one place the interface cannot match the host
+
+The desktop's microphone button is a **toggle**: `listen` opens her microphone and leaves it
+open, and the attention gate decides what was addressed to her. A remote room cannot have that
+yet — an open microphone beside a speaker playing her voice, across a network with latency
+each way, is the echo problem item 6 deferred, and Android's `AcousticEchoCanceler` is
+per-device and not dependable.
+
+So: **same button, same place, same look, held rather than toggled.** That is the whole of the
+difference and it is said in the code rather than hidden. Making it a toggle needs real echo
+cancellation and item 7's per-room gate actually built; if the difference is unacceptable the
+answer is not a smarter button, it is doing item 6 properly.
+
+### Every way a press can end
+
+A held button that never releases holds her ears until the host's sixty-second floor timeout,
+so `pointerup`, `pointerleave`, `pointercancel`, `blur` and `visibilitychange` all release,
+and the release is idempotent. Dragging off cancels, which is what a person expects; the
+system taking the gesture — a scroll, a call arriving — cancels; backgrounding the app
+cancels.
+
+### Checked in the real engine, because all of it lives in the page
+
+`EarsTest -- embedder` drives the actual page in WebView2 and injects the embedder with
+`AddScriptToExecuteOnDocumentCreated`, which is where a WebView host puts it. Twenty-one
+assertions across three faces: a handset with an embedder, a plain browser on the LAN with
+none, and the desktop in the host room.
+
+**The two origins are reproduced rather than simulated.** `https://octavia.face` is a secure
+context and `http://octavia.face` is not, so `getUserMedia` is genuinely absent on the second
+exactly as it is on a handset — and the first assertion checks *which one it got*, so a run
+that passes because the simulation broke says so instead.
+
+Four mechanisms broken on purpose to watch the right checks go red:
+
+| Broken | What went red |
+|---|---|
+| the borrowed-microphone gate | *a borrowed microphone brings the button back* |
+| `pointerleave` / `pointercancel` removed | both release checks |
+| a borrowed camera claimed in `senses` | *a borrowed camera is not claimed to the host* |
+| the borrowed-camera watch gate | *a borrowed camera brings the watch button back* |
+
+Two bugs in the harness itself, both worth the note: `AddScriptToExecuteOnDocumentCreated`
+**accumulates**, so without removing the previous script the handset's embedder would have
+been injected into the "plain browser" run and the two checks proving a browser tab is left
+alone would have passed while testing the wrong page entirely. And `ExecuteScriptAsync`
+returns the completion value, which is not always a string — `window.__calls = []` evaluates
+to `[]` and threw halfway through, reported as the checks failing to start.
+
+### Also
+
+`PROTOCOL.md` gains the embedder contract — marked *not part of this protocol*, because
+nothing here crosses the socket — and a note that **a still and a watch want the same
+camera**. `look` can arrive while a watcher runs; a renderer that binds the device
+exclusively will kill the watcher mid-gaze and leave her staring at the last place she saw
+somebody. The built-in page has the mild version of this today.
+
+---
+
 ## 0.24.1 — 2026-09-01
 
 **A button offered where it could only throw, and a blocker that never existed.** Both found

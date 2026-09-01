@@ -37,6 +37,16 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.25.0 — the host room, whose buttons item 10 does not touch
+
+![[v0.25.0 - the host room, whose buttons item 10 does not touch.png]]
+
+**Identical to the shot below it, and that is half the claim.** Item 10 gives a *remote* face its microphone and camera back by borrowing them from whatever it is embedded in. The desktop is in the host room, has no embedder, and is a secure context — so all three of its console buttons behave exactly as they did: the microphone still **toggles** `listen` rather than being held, the eye still opens this machine's camera, and the page never looks for an embedder that is not there.
+
+The two shots differ in nothing, which is what "a browser tab behaves exactly as today" has to look like. The interesting picture is the one that cannot be taken here — the handset, where the same two buttons are back and the microphone is press-and-hold.
+
+**`PROFILE cloud` and a green `BRAIN claude-sonnet-5` again**, for the reason set out in v0.24.1: it is worth re-photographing a fact the record got wrong for four versions.
+
 ## v0.24.1 — on the cloud profile, with the key that was always there
 
 ![[v0.24.1 - on the cloud profile, with the key that was always there.png]]

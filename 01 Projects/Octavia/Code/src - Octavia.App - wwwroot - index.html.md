@@ -88,7 +88,7 @@ source-path: src\Octavia.App\wwwroot\index.html
 
   <div id="console">
     <div class="row">
-      <button id="talk" title="Listen (Ctrl+Alt+O)" aria-label="Toggle listening" data-host-only>
+      <button id="talk" title="Listen (Ctrl+Alt+O)" aria-label="Toggle listening">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
           <rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3.5"/>
         </svg>

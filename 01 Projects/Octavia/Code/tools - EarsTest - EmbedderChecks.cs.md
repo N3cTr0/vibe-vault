@@ -1,0 +1,401 @@
+---
+project: Octavia
+tags: [octavia, code]
+source-path: tools\EarsTest\EmbedderChecks.cs
+---
+
+# tools\EarsTest\EmbedderChecks.cs
+
+```csharp
+// Stage 14 item 10 — a renderer borrowing the senses of whatever it is embedded in.
+//
+// Item 9 hid two controls on a face outside the host room, both for good reasons: the
+// microphone sends `listen`, which drives the *host machine's* microphone, and the watch
+// button needs `getUserMedia`, which does not exist outside a secure context. Both were
+// right and both left a handset — which has a microphone and a camera — offered neither.
+//
+// Neither is fixable on the wire. The floor is a `FaceId`, so the panel cannot press while
+// the native connection streams; and watching is renderer-local by design and should stay
+// there. So the page looks for `window.OctaviaEmbedder` and borrows.
+//
+// **Every acceptance criterion for this lives in the page**, so this drives the real page in
+// the real engine rather than asserting anything about C#. The embedder is injected with
+// `AddScriptToExecuteOnDocumentCreatedAsync`, which is where a WebView host would put it.
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
+using Octavia.Core;
+
+internal static class EmbedderChecks
+{
+    private const string FaceHost = "octavia.face";
+    private static readonly TimeSpan Budget = TimeSpan.FromSeconds(60);
+
+    internal readonly record struct Finding(string Name, bool Ok, string Detail);
+
+    public static int Run()
+    {
+        var failures = 0;
+
+        void Report(Finding f)
+        {
+            Console.WriteLine($"  {(f.Ok ? "ok  " : "FAIL")} {f.Name}{(f.Ok ? "" : $" — {f.Detail}")}");
+            if (!f.Ok) failures++;
+        }
+
+        var root = Paths.FaceRoot;
+        if (!Directory.Exists(root))
+        {
+            Report(new Finding("wwwroot is where it should be", false, root));
+            return failures;
+        }
+
+        List<Finding> findings;
+        try
+        {
+            findings = Drive(root);
+        }
+        catch (Exception ex)
+        {
+            // A machine with no WebView2 runtime cannot run this, and that is not a failure
+            // of the face. Say so plainly rather than reporting a fault that is not there.
+            Console.WriteLine($"  ..   skipped: WebView2 would not start ({ex.GetType().Name}: {ex.Message})");
+            return failures;
+        }
+
+        foreach (var f in findings) Report(f);
+        return failures;
+    }
+
+    private static List<Finding> Drive(string root)
+    {
+        List<Finding>? outcome = null;
+        Exception? failure = null;
+
+        var thread = new Thread(() =>
+        {
+            try { outcome = Pump(root); }
+            catch (Exception ex) { failure = ex; }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.IsBackground = true;
+        thread.Start();
+
+        if (!thread.Join(Budget + TimeSpan.FromSeconds(30)))
+            throw new TimeoutException("the WebView2 thread never finished");
+
+        if (failure is not null) throw failure;
+        return outcome ?? throw new InvalidOperationException("no result");
+    }
+
+    /// A handset: an embedder lending both senses, on a face outside the host room.
+    private const string Embedder = """
+        window.__calls = [];
+        window.OctaviaEmbedder = {
+          senses: ['mic', 'camera'],
+          talking(on) { window.__calls.push('talking:' + on); },
+          watch(on) { window.__calls.push('watch:' + on); }
+        };
+        """;
+
+    private static List<Finding> Pump(string root)
+    {
+        var findings = new List<Finding>();
+
+        void Check(string name, bool ok, string detail = "") =>
+            findings.Add(new Finding(name, ok, detail));
+
+        using var form = new System.Windows.Forms.Form
+        {
+            // Off-screen rather than hidden: a hidden WebView2 does not run WebGL or
+            // requestAnimationFrame, so the scene would fail to build for reasons that have
+            // nothing to do with this code. The same rule as SyntaxChecks.
+            StartPosition = System.Windows.Forms.FormStartPosition.Manual,
+            Location = new System.Drawing.Point(-32000, -32000),
+            ShowInTaskbar = false,
+            Width = 900,
+            Height = 700
+        };
+
+        using var view = new WebView2 { Dock = System.Windows.Forms.DockStyle.Fill };
+        form.Controls.Add(view);
+
+        var done = new ManualResetEventSlim(false);
+        var fromFace = new List<string>();
+
+        form.Shown += async (_, _) =>
+        {
+            try
+            {
+                var environment = await CoreWebView2Environment.CreateAsync(
+                    userDataFolder: Path.Combine(Path.GetTempPath(), "octavia-embeddercheck"));
+
+                await view.EnsureCoreWebView2Async(environment);
+
+                /* **Two origins, and the difference is the point.** `https://octavia.face` is
+                   what the built-in page gets and is a secure context; `http://octavia.face`
+                   is what a browser on the LAN gets and is not, so `getUserMedia` is absent
+                   there exactly as it is on a real handset. Reproduced rather than
+                   simulated — and the check below asserts which one it actually got, so a
+                   run that passes for the wrong reason says so. */
+                view.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    FaceHost, root, CoreWebView2HostResourceAccessKind.Allow);
+
+                view.CoreWebView2.WebMessageReceived += (_, e) =>
+                {
+                    lock (fromFace) fromFace.Add(e.WebMessageAsJson);
+                };
+
+                /// `ExecuteScriptAsync` hands back the completion value JSON-encoded, so a
+                /// string arrives wrapped and escaped and has to be unwrapped once. Anything
+                /// that is not a string — `window.__calls = []` evaluates to `[]` — is
+                /// returned as it came, rather than throwing halfway through the run and
+                /// reporting it as the checks failing to start.
+                async Task<string> Eval(string js)
+                {
+                    var raw = await view.CoreWebView2.ExecuteScriptAsync(js);
+                    try { return JsonSerializer.Deserialize<string>(raw) ?? ""; }
+                    catch (JsonException) { return raw ?? ""; }
+                }
+
+                /* Loads the page fresh with — or without — an embedder in front of it.
+
+                   The previous script is **removed** rather than merely superseded.
+                   `AddScriptToExecuteOnDocumentCreated` accumulates: without the removal the
+                   handset's embedder would still be injected into the "plain browser" run,
+                   and the two checks that prove a browser tab is left alone would pass while
+                   testing the wrong page entirely. */
+                string? injected = null;
+
+                async Task Load(string scheme, string? inject)
+                {
+                    if (injected is not null)
+                    {
+                        view.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(injected);
+                        injected = null;
+                    }
+
+                    view.CoreWebView2.Navigate("about:blank");
+                    await Task.Delay(400);
+
+                    injected = await view.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
+                        """
+                        window.__octaviaErrors = [];
+                        window.addEventListener('error', e => window.__octaviaErrors.push(
+                          String((e.error && e.error.message) || e.message || '')));
+                        """ + (inject ?? ""));
+
+                    lock (fromFace) fromFace.Clear();
+                    view.CoreWebView2.Navigate($"{scheme}://{FaceHost}/index.html");
+                    await Task.Delay(4500);
+                }
+
+                // A `hello` complete enough that the page's handler runs the whole way
+                // through. Anything it does not name is guarded on the page.
+                string Hello(string controls, bool camera) => JsonSerializer.Serialize(new
+                {
+                    type = "hello",
+                    protocol = 1,
+                    room = controls == "host" ? "host" : "phone",
+                    controls,
+                    hasKey = true,
+                    model = "stub",
+                    profile = "test",
+                    ears = "not started",
+                    voice = "Amy",
+                    voices = Array.Empty<object>(),
+                    voiceEngine = "neural",
+                    listening = false,
+                    avatarFile = "",
+                    avatars = Array.Empty<string>(),
+                    roomHour = -1,
+                    music = false,
+                    musicAvailable = false,
+                    camera,
+                    cameraDevice = "",
+                    stats = true,
+                    whisperCompute = "auto",
+                    toolServers = Array.Empty<object>(),
+                    audioAvailable = true,
+                    audioRate = 22050,
+                    audioBits = 16,
+                    audioChannels = 1,
+                    micAccepted = true,
+                    dev = false,
+                    state = "idle",
+                    emotion = "neutral",
+                    emotionWeight = 0.0
+                });
+
+                async Task Say(string controls, bool camera)
+                {
+                    view.CoreWebView2.PostWebMessageAsJson(Hello(controls, camera));
+                    await Task.Delay(600);
+                }
+
+                async Task<string> Calls() => await Eval("JSON.stringify(window.__calls)");
+
+                async Task Press(string action) =>
+                    await Eval($$"""
+                        (() => {
+                          const b = document.getElementById('talk');
+                          b.dispatchEvent(new PointerEvent('{{action}}',
+                            { bubbles: true, cancelable: true, pointerId: 1 }));
+                          return 'ok';
+                        })()
+                        """);
+
+                // ---- a handset: an embedder, outside the host room ------------------
+                await Load("http", Embedder);
+                await Say("room", camera: true);
+
+                Check("the LAN origin really is insecure",
+                    await Eval("String(window.isSecureContext)") == "false",
+                    "the check would prove nothing if it were secure");
+
+                Check("a borrowed microphone brings the button back",
+                    await Eval("String(!document.getElementById('talk').hidden)") == "true",
+                    "the microphone button stayed hidden on a face that has one");
+
+                Check("...and says it is held rather than toggled",
+                    (await Eval("document.getElementById('talk').getAttribute('aria-label')")) == "Hold to talk",
+                    await Eval("document.getElementById('talk').getAttribute('aria-label')"));
+
+                Check("a borrowed camera brings the watch button back",
+                    await Eval("String(!document.getElementById('watch').hidden)") == "true",
+                    "hidden, on a device holding a camera");
+
+                await Press("pointerdown");
+                Check("pressing takes the floor through the embedder",
+                    (await Calls()).Contains("talking:true"),
+                    await Calls());
+
+                Check("...and the button shows it is held",
+                    await Eval("document.getElementById('talk').getAttribute('aria-pressed')") == "true",
+                    "aria-pressed did not follow the finger");
+
+                await Press("pointerup");
+                Check("releasing releases",
+                    (await Calls()).Contains("talking:false"),
+                    await Calls());
+
+                /* The failure this must not have. A held button that never releases holds
+                   her ears until the host's sixty-second floor timeout, and every way a
+                   press can end has to lead to the same place. */
+                await Eval("window.__calls = []");
+                await Press("pointerdown");
+                await Press("pointerleave");
+                Check("dragging off the button releases too",
+                    (await Calls()).Contains("talking:false"),
+                    await Calls());
+
+                await Eval("window.__calls = []");
+                await Press("pointerdown");
+                await Press("pointercancel");
+                Check("the system taking the gesture releases too",
+                    (await Calls()).Contains("talking:false"),
+                    await Calls());
+
+                // The whole reason the button is hidden without an embedder: `listen` drives
+                // the host machine's microphone, and a room face must never send it.
+                string sent;
+                lock (fromFace) sent = string.Join(" ", fromFace);
+                Check("none of that sent `listen` to the host",
+                    !sent.Contains("\"listen\""), sent);
+
+                // Borrowed senses are this renderer's own business. Claiming a camera to the
+                // host would have `look` sent to a panel that cannot take a still — and on a
+                // handset it would take that frame away from the native client, which can.
+                Check("a borrowed camera is not claimed to the host",
+                    sent.Contains("\"ready\"") && !sent.Contains("\"camera\""),
+                    sent.Length > 0 ? sent : "no ready was seen at all");
+
+                // ---- watching, through the embedder ---------------------------------
+                await Eval("window.__calls = []");
+                await Eval("document.getElementById('watch').click(); 'ok'");
+                await Task.Delay(600);
+
+                Check("watching borrows the camera too",
+                    (await Calls()).Contains("watch:true"),
+                    await Calls());
+
+                Check("...and the page keeps the privacy marker",
+                    await Eval("String(!document.getElementById('watching').hidden)") == "true",
+                    "the marker never came up, so nothing says the camera is live");
+
+                await Eval("document.getElementById('watch').click(); 'ok'");
+                await Task.Delay(400);
+
+                Check("pressing again stops it",
+                    (await Calls()).Contains("watch:false"),
+                    await Calls());
+
+                Check("...and the marker goes down with it",
+                    await Eval("String(document.getElementById('watching').hidden)") == "true",
+                    "the marker stayed up over a camera that had stopped");
+
+                // ---- a plain browser on the LAN: no embedder ------------------------
+                await Load("http", null);
+                await Say("room", camera: true);
+
+                Check("with no embedder the microphone button stays hidden",
+                    await Eval("String(document.getElementById('talk').hidden)") == "true",
+                    "a browser tab was offered a button that sends `listen`");
+
+                Check("with no embedder the watch button stays hidden",
+                    await Eval("String(document.getElementById('watch').hidden)") == "true",
+                    "a control that could only throw");
+
+                Check("and nothing threw",
+                    await Eval("String((window.__octaviaErrors || []).length)") == "0",
+                    await Eval("JSON.stringify(window.__octaviaErrors || [])"));
+
+                // ---- the desktop: host room, unchanged ------------------------------
+                await Load("https", null);
+                await Say("host", camera: false);
+
+                Check("the host room still has its microphone button",
+                    await Eval("String(!document.getElementById('talk').hidden)") == "true",
+                    "item 10 took the desktop's button away");
+
+                Check("...and it still toggles rather than holds",
+                    (await Eval("document.getElementById('talk').getAttribute('aria-label')")) == "Toggle listening",
+                    await Eval("document.getElementById('talk').getAttribute('aria-label')"));
+
+                lock (fromFace) fromFace.Clear();
+                await Eval("document.getElementById('talk').click(); 'ok'");
+                await Task.Delay(400);
+
+                lock (fromFace) sent = string.Join(" ", fromFace);
+                Check("...and still sends `listen`", sent.Contains("\"listen\""), sent);
+            }
+            catch (Exception ex)
+            {
+                Check("the checks ran at all", false, $"{ex.GetType().Name}: {ex.Message}");
+            }
+            finally
+            {
+                done.Set();
+            }
+        };
+
+        form.Show();
+
+        var deadline = DateTime.UtcNow + Budget;
+        while (!done.IsSet && DateTime.UtcNow < deadline)
+        {
+            System.Windows.Forms.Application.DoEvents();
+            Thread.Sleep(25);
+        }
+
+        if (!done.IsSet)
+            findings.Add(new Finding("the checks finished", false,
+                $"nothing reported back within {Budget.TotalSeconds:0}s"));
+
+        form.Close();
+        return findings;
+    }
+}
+```

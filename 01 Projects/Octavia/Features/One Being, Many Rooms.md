@@ -113,6 +113,16 @@ Each of the four mechanisms was broken on purpose first, to watch the right chec
 
 **Nothing is now owed on either side.** The in-process check still asserts the *choice of face* — the part a handset cannot easily prove, since it needs a second face in the room that deliberately has no camera — and it runs on a local brain, which is why it asserts the rule rather than driving a turn.
 
+## The thing this cost, and how it was paid *(v0.25.0)*
+
+Hiding the two host-only controls was right and it had a price nobody costed at the time: a handset ended up **less capable than the machine it was standing in for**, on a device that has a microphone and a camera and whose native client already owns both.
+
+Neither could be given back on the wire. The floor is a `FaceId`, so the WebView panel cannot press while the native connection streams — and making the floor room-scoped instead would let any face in a room feed her ears, which is a worse rule than the one there is. Watching is renderer-local by design and should stay there.
+
+So the page borrows from whatever it is embedded in. See [[Lending A Renderer The Device's Senses]] — and note that a **borrowed camera is deliberately not claimed to the host**, because `senses` routes `look` and the embedder lends gaze rather than stills.
+
+> **The lesson is about the shape of the fix, not the fix.** Item 9's guard was correct and produced a real capability gap two versions later. A rule that says *no* to a whole class of face will strand something legitimate inside that class, and the answer is a seam that lets the legitimate case identify itself — not a hole in the rule.
+
 ## Links
 
 - [[Stage 14 - Two Rooms]] — the specification this was built from

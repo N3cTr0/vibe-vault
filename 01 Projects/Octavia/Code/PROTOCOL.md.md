@@ -294,6 +294,17 @@ computed inside the page, the gaze moves, and nothing — no frame, no coordinat
 crosses the socket. The host cannot start it, stop it, or know it is happening. A face
 that offers it must make it person-started and visibly marked for as long as it runs.
 
+> **A still and a watch want the same camera, and this bites any renderer that does both.**
+> `look` can arrive at any moment, including while a watcher is running. The built-in page
+> has this today in a mild form — `watch.js` holds its own `getUserMedia` stream while
+> `camera.js` opens a second one, which a desktop browser allows — but a renderer that binds
+> the device exclusively (Android's CameraX `unbindAll()` is the example) will kill the
+> watcher mid-gaze and leave her staring at the last place she saw somebody.
+>
+> A renderer that watches **and** answers `look` must pause the watcher, take the still, and
+> resume — and set the gaze to nothing in between, so she is not frozen mid-glance while the
+> shutter goes.
+
 ### The face vocabulary
 
 `emotion.value` is one of **`neutral`, `happy`, `angry`, `sad`, `relaxed`, `surprised`**.
@@ -438,6 +449,45 @@ a renderer with no controls is a perfectly legal face.
 **Rates:** `viseme` arrives at phoneme rate and `level` at about 20 Hz while listening;
 both are lossy by nature, so a renderer that misses one should use the next rather than
 buffering. `music { beat: true }` is the exception — it is rare, and it is worthless late.
+
+### Embedding a renderer, and lending it the device's senses (v0.25.0)
+
+**Not part of this protocol** — nothing here crosses the socket, and the host neither knows
+nor can know. It is written down here because it is the contract between the shipped page and
+whatever is hosting it, and the next renderer will want the same seam.
+
+A face can be **less capable than the device it is standing in for**. A handset has a
+microphone and a camera; the page inside it has neither, because it was served over plain
+HTTP on the LAN — no secure context, so no `getUserMedia` — and because it cannot take the
+floor, the floor being a `FaceId` held by the *native* connection rather than by the panel.
+Neither gap is fixable on the wire.
+
+So the page looks for an embedder and borrows:
+
+```js
+window.OctaviaEmbedder = {
+  senses: ['mic', 'camera'],   // what this embedder can actually lend; read once, on load
+  talking(held) {},            // take/release the floor on the embedder's own connection
+  watch(on) {},                // start/stop local gaze; it calls window.Face.look(x, y) itself
+};
+```
+
+- **Absent is the normal case.** A browser tab has no embedder and behaves exactly as it did.
+- **`talking` is press-and-hold**, and that is the one place the interface cannot match the
+  host, which is said out loud rather than papered over: `listen` is a *toggle* because the
+  attention gate decides what was addressed to her, and a remote room cannot have an open
+  microphone beside a speaker playing her voice until echo cancellation is real work rather
+  than a deferred item. Same button, same place, held rather than toggled.
+- **`watch` does not make the page a camera.** The embedder lends *gaze*, not stills, so a
+  face with a borrowed camera still reports `senses: []` in `ready` — claiming one would send
+  `look` to a panel that cannot answer, and on a handset would take that frame away from the
+  native client, which can.
+- **The privacy marker stays in the page.** One marker, where a person already looks; an
+  embedder drawing its own would be two things to trust instead of one.
+- **Inject it over an origin-restricted channel.** The page arrives over plain HTTP, so
+  anything that could inject script into it could otherwise open the microphone. On Android
+  that means `WebViewCompat.addWebMessageListener` with an allow-list, never
+  `addJavascriptInterface`.
 
 ## Planned additions (still version 1)
 

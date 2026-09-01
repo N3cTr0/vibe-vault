@@ -1184,15 +1184,42 @@ is quietly incomplete is worse than one that is honestly small.
 > was added for. Host and handset agree to the byte at 97 KB, and `setCamera` stayed per-room
 > throughout with one `warn` line naming the room. See v0.24.1 in [[Changelog]].
 
+### ~~10. Lending a renderer the device's senses~~ *(done 09/01/2026, v0.25.0)*
+
+> **Landed**, from [[Stage 14 - Lending A Renderer The Device's Senses]] — the third spec
+> written on the Android side and the first one produced by *this* side's own work: item 9's
+> authority table and 0.24.1's secure-context fix were both right, and between them they left
+> a handset offered neither a microphone nor a camera on a device that has both.
+>
+> **Neither was fixable on the wire**, which is what makes the seam interesting. The floor is
+> a `FaceId`, so the WebView panel cannot press while the native connection streams; and
+> watching is renderer-local by design and should stay there. So the page looks for
+> `window.OctaviaEmbedder` and borrows — five changes in `bridge.js`, no protocol change, and
+> a browser tab behaves exactly as it did.
+>
+> **A borrowed camera is not claimed to the host.** `senses` still reports what *this page*
+> can do, because the embedder lends gaze rather than stills; claiming one would send `look`
+> to a panel that cannot answer and, on Android, take that frame from the native client that
+> can. There is a check that goes red if anyone tidies it.
+>
+> **The one honest difference:** the microphone button is press-and-hold on a room face and a
+> toggle on the host. That is item 6 showing through — always-on listening in a remote room
+> needs real echo cancellation — and it is stated in the code rather than papered over.
+>
+> Twenty-one assertions in `EarsTest -- embedder`, driving the real page in WebView2 across
+> three faces, with the two origins reproduced rather than simulated. Four mechanisms broken
+> on purpose first.
+
 ### Order
 
 1 → 3 → 2 → 6 → 4 → 5 → 7, with 8 folded in as the document is touched. Audio *out* before
 audio *in*: it is the smaller change, it is independently useful, and it makes a tablet worth
 looking at before it is worth talking to.
 
-**How it actually went:** 1 → 3 → 2 → 9, with 9 taking 4, 5 and 7 with it. Item 6 (echo)
-stands as decided — push-to-talk, and always-on listening in a remote room is still out of
-scope.
+**How it actually went:** 1 → 3 → 2 → 9 → 10, with 9 taking 4, 5 and 7 with it and 10
+falling out of 9. Item 6 (echo) stands as decided — push-to-talk, and always-on listening in
+a remote room is still out of scope. It is now the *only* thing between the phone and the
+desktop feeling identical, which is a much sharper way to hold it than it was.
 
 ## Standing constraints
 

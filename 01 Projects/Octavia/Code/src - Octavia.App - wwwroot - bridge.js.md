@@ -44,6 +44,38 @@ const room = params.get('room');
    and qualifies; the same file served over plain `http://<lan-ip>` does not, and claiming
    a camera there would have the host asking for a frame that can never arrive. */
 const canOpenACamera = window.isSecureContext;
+
+/* Whatever this renderer is running inside, if it is running inside anything.
+
+   A browser tab has no embedder and never will; an Android WebView, an iOS one or an
+   Unreal shell can each provide one. **Absent is the normal case and stays the quiet one**
+   — with no embedder every line below is inert and the page behaves exactly as it did.
+
+   It exists because a face can be *less capable than the device it is standing in for*. A
+   handset has a microphone and a camera; the page inside it, served over plain HTTP on the
+   LAN, has neither — no secure context for `getUserMedia`, and no way to take the floor,
+   because the floor is a FaceId and the native connection is a different face. Neither is
+   fixable on the wire. So the renderer borrows.
+
+   Deliberately **not** an Android interface. The page special-casing one client is how a
+   renderer stops being a renderer. See `Stage 14 - Lending A Renderer The Device's Senses`.
+
+   Read once. An embedder is injected at document start, before any page script, so there
+   is nothing to wait for; one that appeared later would be describing a device this page
+   had already told the host it did not have. */
+const embedder = window.OctaviaEmbedder ?? null;
+
+const lent = new Set(
+  embedder && Array.isArray(embedder.senses) ? embedder.senses : []);
+
+/* What this face tells the *host* it can do, and it deliberately does **not** include what
+   an embedder lends.
+
+   That looks like an oversight and is the opposite. `senses` routes `look`, which is
+   answered by `camera.js` taking a still — and the embedder interface lends *watching*, not
+   stills. A panel that claimed a camera here would be asked for a frame it cannot produce,
+   and on Android it would take that frame away from the native client, which can. Borrowed
+   senses are for this renderer's own controls; they are not a claim made to the host. */
 const senses = canOpenACamera ? ['camera'] : [];
 
 /* Where the socket is.
@@ -342,6 +374,16 @@ function applyControls(value) {
   // and a class rule would win against the attribute.
   document.querySelectorAll('[data-host-only]')
           .forEach(node => { node.style.display = hidden ? 'none' : ''; });
+
+  /* The microphone is not one of them, and it is the only control with three answers
+     rather than two. In the host room it toggles `listen` as it always has. In any other
+     room it is hidden — *unless* an embedder lends a microphone, in which case it comes
+     back as press-and-hold. See the note on `holdToTalk`. */
+  talkBtn.hidden = hidden && !lent.has('mic');
+
+  const holding = hidden && lent.has('mic');
+  talkBtn.title = holding ? 'Hold to talk' : 'Listen (Ctrl+Alt+O)';
+  talkBtn.setAttribute('aria-label', holding ? 'Hold to talk' : 'Toggle listening');
 }
 
 function applyHello(msg) {
@@ -443,7 +485,9 @@ function applyHello(msg) {
     window.Face.setHour(msg.roomHour >= 0 ? msg.roomHour : null);
   }
 
-  el('talk').setAttribute('aria-pressed', String(!!msg.listening));
+  // Only in the host room. Elsewhere this button is held rather than toggled, and its
+  // pressed state belongs to the finger on it rather than to her microphone.
+  if (controls === 'host') talkBtn.setAttribute('aria-pressed', String(!!msg.listening));
 
   // A face that attached mid-session has missed whatever she is currently doing and
   // wearing, and neither is re-sent until it next changes.
@@ -461,8 +505,9 @@ function applyHello(msg) {
 
      The setting itself stays visible on such a face on purpose: it belongs to the room, and
      in that room the native client is the one that answers `look`. */
-  watchBtn.hidden = !msg.camera || !canOpenACamera;
-  if ((!msg.camera || !canOpenACamera) && watcher) toggleWatch();
+  const couldWatch = canOpenACamera || lent.has('camera');
+  watchBtn.hidden = !msg.camera || !couldWatch;
+  if ((!msg.camera || !couldWatch) && watcher) toggleWatch();
 
   offerDev(!!msg.dev);
   adoptAvatar(msg.avatar);
@@ -504,6 +549,7 @@ connectSocket();
    starts it, and nothing about it crosses the protocol — the gaze is computed here and
    dies here. The host learns nothing, which is the point. */
 let watcher = null;
+const talkBtn = el('talk');
 const watchBtn = el('watch');
 
 async function toggleWatch() {
@@ -515,15 +561,36 @@ async function toggleWatch() {
     return;
   }
 
+  const live = on => {
+    document.body.classList.toggle('watching', on);
+    el('watching').hidden = !on;
+  };
+
   try {
-    const { createWatcher } = await import('./watch.js');
-    const next = createWatcher({
-      onGaze: (x, y) => window.Face.look(x, y),
-      onLive: live => {
-        document.body.classList.toggle('watching', live);
-        el('watching').hidden = !live;
-      }
-    });
+    /* A borrowed camera wins over this page's own. On a handset the page has no camera at
+       all — plain HTTP, no secure context — and where both exist the embedder is the one
+       holding the device the person is looking at.
+
+       The embedder drives `window.Face.look(x, y)` itself and stops with `look(null)`; it
+       computes the gaze on its side and **nothing crosses the socket either way**, which is
+       the same promise `watch.js` makes and the reason the host is never told this mode
+       exists at all.
+
+       The marker stays here on purpose. One privacy marker, in the page, where a person
+       already looks — an embedder drawing its own instead would be two things to trust
+       rather than one. */
+    const next = lent.has('camera')
+      ? {
+          // Awaited, so an embedder that opens its camera asynchronously can fail loudly
+          // rather than leaving the marker up over a camera that never started.
+          start: async () => { await embedder.watch(true); live(true); },
+          stop: () => { embedder.watch(false); live(false); }
+        }
+      : (await import('./watch.js')).createWatcher({
+          onGaze: (x, y) => window.Face.look(x, y),
+          onLive: live
+        });
+
     await next.start();
     watcher = next;
     watchBtn.setAttribute('aria-pressed', 'true');
@@ -620,7 +687,56 @@ textIn.addEventListener('keydown', e => {
 // `listen` toggles the **host machine's** microphone, which is why it is guarded here as
 // well as hidden: a phone at the gym pressing this would open a microphone in an empty
 // house. The host refuses it too; this stops the request being made at all.
-el('talk').addEventListener('click', () => { if (controls === 'host') send({ type: 'listen' }); });
+//
+// On a room face the click does nothing and the pointer handlers below take over.
+talkBtn.addEventListener('click', () => { if (controls === 'host') send({ type: 'listen' }); });
+
+/* Press-and-hold, for a room face with a borrowed microphone.
+
+   **The one place the interface cannot match the host, and it is worth saying rather than
+   hiding.** The desktop's button is a *toggle*: `listen` opens her microphone and leaves it
+   open, and the attention gate decides what was addressed to her. A remote room cannot have
+   that yet — an open microphone beside a speaker playing her voice, across a network with
+   latency each way, is the echo problem Stage 14 item 6 deferred. So: same button, same
+   place, same look, held rather than toggled. Making it a toggle needs real echo
+   cancellation, not a smarter button.
+
+   The embedder owns the socket that streams, so the page never sees a sample — it only says
+   when. That is also why this cannot be done on the wire: the floor is a FaceId, and the
+   native connection is a different face from this panel. */
+let holdingFloor = false;
+
+function holdToTalk(on) {
+  if (!lent.has('mic') || controls === 'host') return;
+  if (holdingFloor === on) return;
+
+  holdingFloor = on;
+  talkBtn.setAttribute('aria-pressed', String(on));
+
+  try {
+    embedder.talking(on);
+  } catch (err) {
+    holdingFloor = false;
+    talkBtn.setAttribute('aria-pressed', 'false');
+    notify('The microphone could not be reached.');
+    send({ type: 'faceError', text: `talking failed: ${err && err.message || err}` });
+  }
+}
+
+/* Every way a press can end, and they all release.
+
+   A held button that never releases holds her ears until the host's sixty-second timeout,
+   which is the failure this cannot be allowed to have. `pointerup` is the ordinary one;
+   `pointerleave` makes dragging off cancel, which is what a person expects; `pointercancel`
+   covers the system taking the gesture away, which on a phone is a scroll or a call
+   arriving. `blur` and `visibilitychange` cover the app going to the background mid-press.
+   `holdToTalk` is idempotent, so the overlap costs nothing. */
+talkBtn.addEventListener('pointerdown', e => { e.preventDefault(); holdToTalk(true); });
+talkBtn.addEventListener('pointerup', () => holdToTalk(false));
+talkBtn.addEventListener('pointerleave', () => holdToTalk(false));
+talkBtn.addEventListener('pointercancel', () => holdToTalk(false));
+window.addEventListener('blur', () => holdToTalk(false));
+document.addEventListener('visibilitychange', () => { if (document.hidden) holdToTalk(false); });
 hushBtn.addEventListener('click', () => send({ type: 'hush' }));
 el('forget').addEventListener('click', () => send({ type: 'forget' }));
 
