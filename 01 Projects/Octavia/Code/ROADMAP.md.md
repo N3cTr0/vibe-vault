@@ -245,7 +245,7 @@ left guessing.
 >
 > | Option | Emits | Vendor | Note |
 > |---|---|---|---|
-> | [Epic's Audio-Driven Animation](https://dev.epicgames.com/documentation/metahuman/audio-driven-animation) | MetaHuman rig directly | **neutral** | In MetaHuman Animator since UE 5.6. Epic's own hardware guidance lists an RX 5500 XT. Nothing extra to install. |
+> | [Epic's Audio-Driven Animation](https://dev.epicgames.com/documentation/metahuman/audio-driven-animation) | MetaHuman rig directly | **neutral** | In MetaHuman Animator since UE 5.6. Epic's own hardware guidance lists an RX 5500 XT. Nothing extra to install. **⚠ Offline — see the correction below.** |
 > | [NeuroSync](https://neurosync.info/) | 61 ARKit + 7 emotion | neutral | Transformer, streams to UE5 over LiveLink. **CC BY-NC 4.0** — fine personally, not commercially. |
 > | [fotonlabs/unreal-audio2lipsync](https://huggingface.co/fotonlabs/unreal-audio2lipsync) | 52 ARKit @ 60 fps | neutral | Straight into the MetaHuman face rig. |
 > | Audio2Face-3D | ARKit | **NVIDIA only** | Best-known, and the one that costs you the choice. |
@@ -253,6 +253,51 @@ left guessing.
 > **The first option is the answer if she is going to be a MetaHuman anyway**: Epic's own
 > audio-driven animation is built into the tool that renders her, vendor-neutral, and needs
 > no second inference stack sharing the card.
+>
+> ### Correction, 09/02/2026 — that option is *offline*, and the note above was wrong
+>
+> **Audio-Driven Animation bakes an Animation Sequence from a `SoundWave` asset.** It is an
+> editor workflow, not a runtime one, and Epic's own documentation draws the line explicitly:
+> even setting a Performance asset to the *Realtime Audio Solver* "is still an offline
+> process and is not the same as generating animation in real time". Octavia needs the live
+> path — sentences arriving as PCM while she speaks — so this was picked for the wrong job.
+>
+> **The live path exists and is a different feature**: the **MetaHuman Audio Live Link
+> Source** (UE 5.6+, MetaHuman Live Link plugin). It got materially better in **MetaHuman
+> 5.8**, which shipped a new real-time audio model with procedural blinks and *automatic
+> emotion detection from the audio* — worth noting, because `emotion` is currently read from
+> her text locally, and a solver inferring it from the sound is a second opinion on the same
+> question.
+>
+> **The catch is architectural, not technical.** The Audio Live Link Source consumes a
+> **Windows audio capture device**. Her voice reaches a face as **PCM over a WebSocket**.
+> Those do not meet, and no amount of GPU fixes it. Three bridges, cheapest first:
+>
+> 1. **Ship the `viseme` message.** She has computed real-time visemes off `MouthTap` since
+>    Stage 6 — openness plus one of five shapes, ~40 Hz, in step with what you hear, already
+>    crossing the protocol and already proven by two renderers. **A MetaHuman can consume
+>    that on day one.** It is coarser than 52 ARKit curves and it costs nothing, adds no
+>    dependency, and needs no new hardware. Then the animation source is upgraded behind an
+>    unchanged protocol — which is the exact swap this stage claims to be about.
+> 2. **A runtime lip-sync plugin** that takes streamed buffers from any source (the FAB
+>    *Runtime MetaHuman Lip Sync* is the obvious one) — PCM in, ARKit out, in-process.
+> 3. **A virtual audio cable**, so the Live Link Source sees a device. Zero code, and it
+>    pins the renderer to whichever machine is playing her voice — which the device rule
+>    below now forbids anyway.
+>
+> **The lesson is the one already in the vault**, arriving a third time: a plausible option
+> was written down as a finding after a single reading, and it stood for two days shaping a
+> hardware decision. What falsifies it is one sentence of Epic's own docs.
+>
+> ### AMD, and one concrete report
+>
+> Epic's recommended spec lists AMD explicitly (RX 6800 XT, 8 GB VRAM), MetaHuman Animator
+> needs DX12, and AMD supports it — so nothing here contradicts the RX 9070 XT plan. But
+> there is now a real report of **UE 5.8 + MetaHuman Animator on an RX 6600 crashing with
+> "GPU Crashed or D3D Device Removed"**, diagnosed as a TDR timeout and worked around with
+> registry TDR delays, disabling HAGS, or forcing DX11. One report, RDNA2, unconfirmed on
+> RDNA4 — not a reason to change the card, and the first concrete AMD-specific MetaHuman
+> problem worth knowing about before spending the money.
 >
 > So the card choice is about *rendering* and about local inference, not about whether this
 > stage is possible. AMD notes: [`Whisper.net.Runtime.Vulkan`](https://www.nuget.org/packages/Whisper.net.Runtime.Vulkan)
@@ -1304,22 +1349,57 @@ Whisper.net and ONNX are cross-platform, and NAudio and `System.Speech` sit behi
 **So a Linux server is one image decoder and one `Octavia.Windows` project away**, and that is
 the prize worth naming: an always-on box in a cupboard wants to be Linux.
 
-### 3. What the host room means when the server has no devices — **open**
+### 3. The server holds no device — **decided 09/02/2026, open**
 
-`RoomId.Host` means "the room the process is running in". While the server runs on the machine
-with the microphone and the speakers that is *correct*, not merely convenient — it really is
-standing in a room. Move it to a cupboard and the definition evaporates: `listen`,
-`setMicrophone`, `setOutput` and the loopback become commands about a place nobody is in.
+> **The owner's rule, and it settles this rather than opening it:**
+>
+> *"The server will always be the most powerful PC I have at the time. The client should
+> always be the one passing the devices to the server. The server should have no hook on any
+> device."*
+>
+> *"The phone sends its mic/camera/etc to the server — the Windows client should be doing the
+> same thing."*
 
-Two answers, and one of them is already written down. **(a)** Abolish the host room; every
-face is a room and the local-device features die with the desk. **(b)** The Windows client
-becomes a privileged face that **lends the server its devices** — `senses: ["mic", "camera",
-"speakers", "loopback"]` — and the server routes device-shaped work to it.
+So the answer is not (a) or (b) from the earlier draft. It is **the phone's design becomes
+the only design**, and the desktop's privileges are *deleted* rather than generalised.
 
-> **(b) is `window.OctaviaEmbedder` moved up one level.** Item 10 established that a renderer
-> may borrow the senses of whatever it is embedded in; this is the same sentence with
-> *renderer* swapped for *server*. That it falls out of a seam that already exists is the
-> strongest evidence available that the architecture is right.
+That is a simplification, and the tell is that it needs no new concept: `talking`, `sight`
+and the floor are already how a face lends a device. **The desktop stops being a special case
+and becomes a face that happens to be on the same box.** Whether it is or not becomes a
+deployment coincidence rather than something the code believes.
+
+It also resolves the tension the split created. The server wants the strong machine because
+Whisper, the local model and the voice all live there; a MetaHuman renderer wants a strong
+GPU and is a *client*. In practice the same box runs both — and under this rule that costs
+nothing, because nothing in the code assumes it.
+
+**What moves out of the server:** `LocalMicSource`, `MicLevelMeter`, `AudioDevices`,
+`LoopbackListener` and `MusicWatcher`, and playback of her voice. What stays is compute and
+state: the brain, Whisper, the gate, the rooms, the tools, the config.
+
+Four consequences that make this bigger than it looks, and each should be costed before
+starting:
+
+- **`music` has to travel upstream, and that is the first protocol change since Stage 3.**
+  "What this machine is playing" becomes "what the *client's* machine is playing", which is
+  more correct for a companion in a room. Streaming loopback audio to the server would be
+  absurd, so the client runs the beat detection locally and sends a `music` message *up* —
+  which is the standing constraint working exactly as written: reflex-speed things stay local
+  to the renderer.
+- **`SapiVoice` has to change or go.** It synthesises *to a sound card*, so a server with no
+  device hook has nothing for it to do. It can be pointed at a stream instead — that is a
+  supported thing SAPI does — but the current implementation cannot survive as written, and
+  the neural voice becomes the default in practice rather than by preference.
+- **The authority table shrinks and splits.** `setMicrophone` and `setOutput` become *client*
+  settings — which device this client lends — and stop being host-only because there is no
+  host device to protect. `listen` becomes "stream my microphone continuously", which is a
+  room concern. Only `setWhisperCompute`, `openDataFolder` and `saveDiagnostics` stay
+  server-side, because those really are about the machine she runs on.
+- **Item 6 stops being optional.** Always-on listening from a client with speakers in the same
+  room is the echo problem, and today the desktop escapes it only because the server owns both
+  the microphone and the mute. Once the desktop streams like a phone it inherits the phone's
+  problem. It is more tractable than the general case — the server knows when it is speaking
+  and the round trip on a LAN is milliseconds — but it is no longer somebody else's item.
 
 **Until this is built: run the client on the server's machine, or use the neural voice.** Her
 voice plays through the server's sound card for the host room, and SAPI cannot be streamed to

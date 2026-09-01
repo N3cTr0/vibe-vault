@@ -148,9 +148,19 @@ Holding the button now opens her ears. A held button is an explicit request to b
 
 It stops being true the moment the box moves to a cupboard. `listen`, `setMicrophone`, `setOutput` and the music analyser would then be commands about a place nobody is in, and the host room would contain a face — the desktop client — that is not in it.
 
-> **The answer is already written, one level down.** The client becomes a privileged face that *lends the server its devices*: `senses: ["mic", "camera", "speakers", "loopback"]`. That is [[Lending A Renderer The Device's Senses]] with *renderer* swapped for *server* and *embedder* swapped for *the client on the machine with the hardware*. A seam built for one problem answering a second one is the best evidence available that it was the right seam.
+### And the rule that settles it *(decided 09/02/2026)*
 
-Deliberately not built in the same change set: splitting the process and redefining the host room together would have meant neither could be tested alone. Open as Stage 15 item 3. Until it lands, **run the client on the server's machine, or use the neural voice** — her voice plays through the server's sound card for the host room, and SAPI cannot be streamed.
+> *"The server will always be the most powerful PC I have at the time. The client should always be the one passing the devices to the server. **The server should have no hook on any device.** … The phone sends its mic/camera/etc to the server — the Windows client should be doing the same thing."*
+
+So it is not "the desktop becomes a privileged face that lends its devices". It is **the phone's design becomes the only design**, and the desktop's privileges are *deleted* rather than generalised.
+
+The tell that this is the right shape is that it needs no new concept — `talking`, `sight` and the floor are already how a face lends a device. The desktop stops being a special case and becomes a face that happens to be on the same box, which turns "are they on one machine?" from something the code believes into a deployment coincidence.
+
+It also resolves the tension the split created: the server wants the strong machine for Whisper and the local model, while a MetaHuman renderer wants a strong GPU and is a *client*. In practice one box runs both — and under this rule that costs nothing.
+
+**Four things that make it bigger than it looks**, all recorded in `ROADMAP.md` Stage 15 item 3: `music` has to travel *upstream*, which would be the first protocol change since Stage 3; `SapiVoice` synthesises to a sound card and cannot survive as written; the authority table shrinks to things that are genuinely about the server's machine; and [[The Ears|item 6]] — echo cancellation — stops being optional, because the desktop inherits the phone's problem the moment it streams like one.
+
+Deliberately not built in the same change set: splitting the process and redefining the host room together would have meant neither could be tested alone. Until it lands, **run the client on the server's machine, or use the neural voice** — her voice plays through the server's sound card for the host room, and SAPI cannot be streamed.
 
 ## Links
 
