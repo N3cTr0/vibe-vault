@@ -43,7 +43,8 @@ const room = params.get('room');
    outside one. The built-in page is served from the virtual `https://octavia.face` origin
    and qualifies; the same file served over plain `http://<lan-ip>` does not, and claiming
    a camera there would have the host asking for a frame that can never arrive. */
-const senses = window.isSecureContext ? ['camera'] : [];
+const canOpenACamera = window.isSecureContext;
+const senses = canOpenACamera ? ['camera'] : [];
 
 /* Where the socket is.
 
@@ -449,10 +450,19 @@ function applyHello(msg) {
   if (msg.state) applyState(msg.state);
   if (msg.emotion) window.Face.setEmotion(msg.emotion, msg.emotionWeight ?? 0);
 
-  // The button only exists where the host would grant the permission behind it. A
-  // button that always shows and usually fails would teach people it is broken.
-  watchBtn.hidden = !msg.camera;
-  if (!msg.camera && watcher) toggleWatch();
+  /* Two questions, and it took a handset to notice they were different.
+
+     `msg.camera` is the **room's** answer to "may she look at all". `canOpenACamera` is
+     *this renderer's* answer to "could I, physically". Watching is renderer-local — the
+     motion centroid never leaves the page — so it needs both, and it used to ask only the
+     first. On a plain `http://<lan-ip>` origin `navigator.mediaDevices` is undefined, so a
+     remote face was offered a button whose only possible outcome was
+     `Cannot read properties of undefined (reading 'getUserMedia')`.
+
+     The setting itself stays visible on such a face on purpose: it belongs to the room, and
+     in that room the native client is the one that answers `look`. */
+  watchBtn.hidden = !msg.camera || !canOpenACamera;
+  if ((!msg.camera || !canOpenACamera) && watcher) toggleWatch();
 
   offerDev(!!msg.dev);
   adoptAvatar(msg.avatar);
@@ -648,7 +658,12 @@ async function listCameras() {
 
   el('cameraHint').textContent = found.length
     ? 'Which one she looks through.'
-    : 'A browser will not name the cameras until she has been allowed to look once. Ask her something that needs eyes, allow it, then come back.';
+    : canOpenACamera
+      ? 'A browser will not name the cameras until she has been allowed to look once. Ask her something that needs eyes, allow it, then come back.'
+      // The same distinction as the watch button. An empty list here has two very different
+      // causes, and telling somebody on a phone to "allow it once" sends them looking for a
+      // permission prompt that can never appear.
+      : 'This face cannot open a camera at all — it was loaded over plain HTTP, and a browser only offers cameras to a secure origin. The setting still applies to this room; whichever face here owns a camera answers.';
 }
 
 cameraChk.addEventListener('change', () => send({ type: 'setCamera', value: cameraChk.checked }));

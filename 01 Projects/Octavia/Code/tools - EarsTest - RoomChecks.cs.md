@@ -164,9 +164,14 @@ internal static class RoomChecks
                 "nothing in the log says where the camera came on");
 
             // --- 7. look goes to the half of the phone that has a camera --
-            /* Asserted against the rule rather than through a turn: `MaybeLookAsync` needs
-               the Claude brain and there is no key on this machine — the same gap item 1
-               recorded honestly rather than counting as done.
+            /* Asserted against the rule rather than through a turn, because these checks run
+               on a local brain and `MaybeLookAsync` requires the Claude one.
+
+               This comment used to say "and there is no key on this machine", inherited from
+               item 1's landed note. **That was never true** — the key was there, the default
+               profile is simply local. The round trip was walked from a handset on
+               `--profile cloud` the same day, and this stays as the cheap check that the
+               *choice of face* is right, which is the part a phone cannot easily prove.
 
                It matters concretely on Android. The native client owns the camera and the
                WebView panel cannot open one at all, because `getUserMedia` needs a secure

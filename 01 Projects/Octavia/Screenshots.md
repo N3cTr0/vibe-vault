@@ -37,6 +37,25 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.24.1 — on the cloud profile, with the key that was always there
+
+![[v0.24.1 - on the cloud profile, with the key that was always there.png]]
+
+**This shot exists to falsify a sentence.** For four versions the record said there was no API key on this machine, and that claim held Stage 14's camera test open and half-excused deferring the tool loop. The placard reads `BRAIN claude-sonnet-5` on `PROFILE cloud`, and — the part that actually settles it — **the dot beside it is green**. That dot is `hasKey`, which is `SecretStore.ReadApiKey()` returning a non-empty string, so the key is not merely present as a file but decrypts under this account. It cost nothing to check and no call was made. See [[Changelog]] 0.24.1.
+
+Compare it with the v0.24.0 shot above: same window, `BRAIN qwen2.5:7b-cpu (local)` there against `claude-sonnet-5` here. **That is the entire difference, and it was a command-line flag.**
+
+**Three buttons instead of two.** The eye is back, because `Camera` is `true` in config — which is itself worth reading. Her log for the day names the room on every change:
+
+```
+12:10:40  warn   camera enabled in room 'phone'
+12:13:24  info   camera disabled in room 'phone'
+12:47:45  warn   camera enabled in room 'phone'
+14:02:15  warn   camera enabled in room 'host'
+```
+
+Every `phone` line is in-memory only and died with the process; only the `host` one reached `config.json`. That is the per-room rule from v0.24.0 behaving exactly as designed, visible in the log without anybody instrumenting it — and it is also why **the camera is currently switched on at the desk**. It was a deliberate act at 14:02 and has been left rather than quietly undone, but by this project's own standard — off by default, the only sense that is — it should be turned off when nobody is testing.
+
 ## v0.24.0 — idle, with a phone in its own room
 
 ![[v0.24.0 - idle, with a phone in its own room.png]]

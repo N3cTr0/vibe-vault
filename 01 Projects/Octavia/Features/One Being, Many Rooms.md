@@ -109,7 +109,9 @@ Each of the four mechanisms was broken on purpose first, to watch the right chec
 
 **And then a real one turned up.** Three seconds after the first build with rooms in it started, a handset at `10.1.1.181` authorised with the remote key and both of its connections — the native client, which asked for audio and skipped visemes, and its WebView panel — landed in room `phone` together. The Android side had been sending `ready.room` against the spec before the host understood the field, so until that build it was simply ignored. **Acceptance criterion 8 was confirmed on real hardware without anybody arranging it**, which is a better result than the check that asserts the same thing. See [[Screenshots]] v0.24.0.
 
-**Not proven:** criterion 7 end to end. `look` needs the Claude brain and there is no key on this machine, so the *choice of face* is asserted directly against the rule and the round trip is still owed — the same gap item 1 recorded honestly rather than counting as done. See [[Eyes]].
+**And criterion 7 closed on hardware too**, the same day, from the Android side. A probe face joined room `phone` declaring `senses: []`, leaving the native client as the only camera there — so `look: asking face a85b541d in room 'phone'` → `sight: 1280x960, brightness 0.57` → `got a frame, 97 KB`, and the WebView panel was never asked. It had been held open here on an inherited belief that there was no API key on this machine, which was **false**; the default profile is simply a local brain. See [[Eyes]] and [[Changelog]] 0.24.1.
+
+**Nothing is now owed on either side.** The in-process check still asserts the *choice of face* — the part a handset cannot easily prove, since it needs a second face in the room that deliberately has no camera — and it runs on a local brain, which is why it asserts the rule rather than driving a turn.
 
 ## Links
 

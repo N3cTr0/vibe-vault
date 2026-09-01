@@ -18,6 +18,117 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.24.1 — 2026-09-01
+
+**A button offered where it could only throw, and a blocker that never existed.** Both found
+from the Android side driving v0.24.0 from a real handset.
+
+### The watch button asked the wrong question
+
+`bridge.js` gated it on the host's setting alone:
+
+```js
+watchBtn.hidden = !msg.camera;
+```
+
+`msg.camera` is the **room's** answer to "may she look at all". It is not this renderer's
+answer to "could I, physically" — and on a plain `http://<lan-ip>` origin
+`navigator.mediaDevices` is undefined, because a browser only offers cameras to a secure
+context. So a remote face got a control whose only possible outcome was
+`face error: watch failed: Cannot read properties of undefined (reading 'getUserMedia')`.
+
+The test was already sitting nine lines up the same file, computed in v0.24.0 for `senses`
+and then not reused. It is named now — `canOpenACamera` — and the button asks both questions.
+
+**The setting itself stays visible on such a face**, deliberately: it belongs to the *room*,
+and in that room the native client is the one that answers `look`. Watching is renderer-local
+— the motion centroid never crosses the socket — so it is the only one of the two that needs
+this page to own a camera.
+
+The camera picker's empty-list hint was wrong in the same way, telling somebody on a phone to
+"allow it once" and come back, which sends them looking for a permission prompt that can
+never appear. It now names the real reason.
+
+### There was never a missing API key
+
+Stage 14 item 1 recorded, in v0.21.0:
+
+> two real cameras were never opened, because `MaybeLookAsync` requires the Claude brain and
+> there is no key on this machine
+
+The first clause is true and is the whole answer. **The second was never true.**
+`data\apikey.dat` decrypts under this account to a 108-character `sk-ant-…`, and the `cloud`
+profile sets `Brain: claude`; `home` — the default — sets `Brain: local`, which is why `look`
+never fired. It needed a profile, not a secret.
+
+It traces to a note from the 08/30 machine move saying the key had been left behind and
+needed re-pasting. That was true when written. It was re-pasted the same day and the note was
+never updated, and the stale sentence then propagated into **three** roadmap entries: the
+"there is a camera now" note, item 1's landed note, and — inherited in good faith — item 9's
+reason for holding criterion 7 open.
+
+All three are struck. So is the tool loop's second excuse in stage 12, which read "there is no
+API key on this machine to verify it against"; that one deferred real work for two versions on
+a false premise. **Its first reason still stands** — the loop changes the path every turn
+takes — but it can now be written and watched to run.
+
+### Criterion 7, closed on hardware
+
+Driven from the Android side against v0.24.0. A probe face joined room `phone` declaring
+`senses: []`, leaving the native client as the only camera in the room:
+
+```
+look: asking face a85b541d in room 'phone'
+sight: 1280x960, brightness 0.57, spread 0.190
+look: got a frame, 97 KB
+```
+
+and in the handset's own log, `CameraStill: one frame, 97 KB`. The WebView panel — `9e649919`
+— was never asked, which is precisely what `senses` was added for, and the alternative was a
+coin flip. She described the frame correctly. `setCamera` behaved per-room throughout:
+`camera=false` on connect, `true` after asking, one `warn` line naming the room.
+
+**Stage 14 item 9 is fully closed**, all ten criteria, and item 1's carried-forward gap with
+it.
+
+### The lesson, which is one this project has already paid for once
+
+Yesterday a vault note claiming the camera "has not been opened" was corrected because the
+config disproved it, and the lesson written down was *a note that records a setting records a
+moment, not a fact*. This is the same failure one layer up: a note recorded a **transient
+task** — "the key needs re-pasting" — and it hardened into a permanent property of the
+machine. Nobody re-tested it, because it read as a finding rather than as a to-do.
+
+A claim about the environment should carry the command that proves it. "There is no key" is
+unfalsifiable prose; `--profile cloud` starting on `brain: claude-sonnet-5` is a check.
+
+**Verified here rather than inherited in the other direction**, which is the same mistake
+pointing the other way: she was started on `--profile cloud`, the log says
+`brain: claude-sonnet-5`, and the brain pill is **green** — that dot is `hasKey`, so the key
+decrypts under this account rather than merely existing as a file. No call was made.
+
+### A thing the log gave up for free
+
+Reading the day's camera lines to caption the screenshot showed the v0.24.0 per-room rule
+working, unprompted and unaided:
+
+```
+12:10:40  warn   camera enabled in room 'phone'
+12:13:24  info   camera disabled in room 'phone'
+12:47:45  warn   camera enabled in room 'phone'
+14:02:15  warn   camera enabled in room 'host'
+```
+
+Every `phone` line lived in memory and died with the process; only the `host` one reached
+`config.json`. Naming the room in that warn line cost four words and turned "is the camera on,
+and who turned it on" into something answerable by reading.
+
+It also surfaced that **the camera is currently enabled at the desk** — deliberately, at
+14:02, and left rather than quietly switched off here. Worth turning off when nobody is
+testing.
+
+---
+
 ## 0.24.0 — 2026-09-01
 
 **Two rooms.** Built from `Stage 14 - Two Rooms.md`, a specification written on the Android
@@ -130,10 +241,14 @@ The conversations in the check run between two **non-host** rooms on purpose: he
 silenced in any room but the host's, so the suite proves the routing without the machine
 talking out loud on every run.
 
-**Criterion 7 is the exception and is said out loud.** `look` needs the Claude brain and there
-is no key on this machine, so the *choice of face* is asserted directly against the rule and
-the end-to-end half is still owed — the same gap item 1 recorded honestly rather than counting
-as done.
+~~**Criterion 7 is the exception and is said out loud.** `look` needs the Claude brain and
+there is no key on this machine, so the *choice of face* is asserted directly against the rule
+and the end-to-end half is still owed — the same gap item 1 recorded honestly rather than
+counting as done.~~
+
+**Closed the same day, and the reason given here was false** — see 0.24.1. There was a key all
+along; `home` is simply a local brain. The round trip walked from a handset on `--profile
+cloud`, and the in-process assertion of the *choice of face* stands beside it.
 
 **Criterion 8 checked itself.** Three seconds after the first build with rooms in it started, a
 real handset at `10.1.1.181` authorised with the remote key and both of its connections — the
@@ -153,7 +268,8 @@ the wait before she had said a word.
 
 - **A Settings row that displays the remote key**, unchanged from 0.23.1. `EarsTest --
   remotekey show` is still the only way to read it.
-- **Criterion 7 end to end**, which needs a key.
+- ~~**Criterion 7 end to end**, which needs a key.~~ Closed in 0.24.1, from a handset. It
+  never needed a key; it needed `--profile cloud`.
 - **The Windows Firewall being off entirely.** Unrelated to this, and still worth undoing in
   favour of a scoped inbound LAN rule.
 
@@ -481,9 +597,15 @@ files, all host-side; `wwwroot` is untouched.
 | `FaceStatus` and the diagnostics count unchanged | Untouched in the diff |
 
 **The gap: two real cameras were never opened.** `MaybeLookAsync` requires the Claude brain
-and there is no key on this machine, so the camera path cannot run end to end here. The
+and ~~there is no key on this machine~~, so the camera path cannot run end to end here. The
 routing is proven at the transport level and by the `sight` guard firing live; the camera
-itself is not. Worth re-checking on a machine with a key before trusting it completely.
+itself is not. ~~Worth re-checking on a machine with a key before trusting it completely.~~
+
+> **Closed 09/01/2026 in 0.24.1, and the reason above was false.** There was a key the whole
+> time — the default `home` profile is simply a local brain, which is the first half of that
+> sentence and all of the explanation. This is the sentence that cost four versions: item 9
+> inherited it in good faith as the reason its own criterion 7 could not be walked, and
+> nobody re-tested the claim because it read as a finding rather than as a to-do.
 
 *The silence assertion — "the face that was not addressed received nothing" — first killed
 the very face it was proving had been left alone. **Cancelling a `ReceiveAsync` aborts a
@@ -1096,8 +1218,12 @@ deliberate. See ROADMAP.md.
   attached. 11 new checks drive the real client against a real child process.
 
 The brain-side tool loop is **not** written: it changes the working conversation path and
-there is no API key here to verify it against. Writing it blind and calling it done would
+~~there is no API key here to verify it against~~. Writing it blind and calling it done would
 repeat precisely the mistake v0.12.0 spent its length undoing.
+
+> **The second reason was never true** *(struck 09/01/2026, see 0.24.1)*. There is a key and
+> `--profile cloud` reaches Claude. The first reason stands on its own and is the real one;
+> this one deferred work on a false premise for two versions.
 
 ### Stage 13 — away
 

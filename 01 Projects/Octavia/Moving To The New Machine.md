@@ -142,8 +142,17 @@ tracked files, with `data\` and `dist\` correctly excluded.
   themselves, but **the `.vrm` avatar does not** — and it is the subject of the top
   outstanding bug, so the texture work is blocked until it is re-supplied. She falls back
   to the plaster bust meanwhile, which is the shipped default.
-- **The API key needs pasting into Settings** — expected, and it is why `apikey.dat` was
-  left behind.
+- ~~**The API key needs pasting into Settings** — expected, and it is why `apikey.dat` was
+  left behind.~~ **Done, 08/30/2026.** It was pasted the same day and this line was not
+  updated — and it went on to do real damage. Written as a standing fact rather than a
+  finished task, it was read months later as "there is no key on this machine", and that
+  claim propagated into three ROADMAP entries and held Stage 14's camera test open for four
+  versions. It is the single most expensive stale sentence in this vault so far. See
+  [[Changelog]] 0.24.1 and [[Lessons Learned]].
+  - The rule that falls out of it: **a to-do written in the present tense becomes a fact.**
+    "The key needs pasting" and "there is no key" are the same words to a later reader.
+    Anything in a move checklist should be tickable, dated when done, and ideally carry the
+    command that proves it — here, `--profile cloud` starting on `brain: claude-sonnet-5`.
 - The old VM is on **`H:` → `\\10.1.1.40\c`**, but a mapped drive does not cross the
   elevation boundary, so an elevated Claude session cannot see it and the share prompts for
   credentials. Copy from an ordinary non-elevated session instead.

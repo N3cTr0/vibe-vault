@@ -89,7 +89,9 @@ A spare USB one, plugged into the host. It enumerates as a generic UVC `USB Vide
 
 The lesson is small and worth keeping: **a note that records a setting records a moment, not a fact.** The state that outlived the sentence was the one written down beside it.
 
-One thing that still gates a genuine end-to-end test regardless of hardware: `MaybeLookAsync` returns early unless the brain is `ClaudeBrain`, and there is no API key here. On the `home` profile `look` never fires at all, so the eye button appears and toggles but nothing opens. That is a limitation worth knowing before concluding the camera is broken.
+~~One thing that still gates a genuine end-to-end test regardless of hardware: `MaybeLookAsync` returns early unless the brain is `ClaudeBrain`, and there is no API key here. On the `home` profile `look` never fires at all, so the eye button appears and toggles but nothing opens.~~
+
+**Corrected 09/01/2026.** Half of that was right and the wrong half was the load-bearing one. `MaybeLookAsync` does return early unless the brain is `ClaudeBrain`, and on `home` — which is `Brain: local` — `look` never fires. But **there was never a missing key**: `data\apikey.dat` decrypts under this account, and `--profile cloud` starts her on `claude-sonnet-5`. It needed a profile, not a secret, and saying otherwise held the camera's end-to-end test open for four versions. See [[Changelog]] 0.24.1.
 
 **Its microphone became the default input.** It is now the only capture device Windows lists, and `MicrophoneDevice` is empty — which means "follow the default" — so her ears moved off the Jabra boom without anyone choosing that. `EarsTest -- mic` reports `SIGNAL PRESENT (peak 0.100)`: she can hear, but a camera mic across the desk is not a boom at the mouth. See [[The Ears]] and [[Moving To The New Machine]].
 
@@ -128,7 +130,17 @@ On Android this is not a nicety. The native client owns the camera and the WebVi
 
 **And "may she look at all" became a question about a place.** `setCamera` is per room: the gym phone and the desk answer it separately, and only the host room's answer is written to `config.json`, because that file belongs to this machine. Enabling is still logged at **warn** and the line now names the room — a camera coming on in someone's home should leave a mark that says *where*. See [[One Being, Many Rooms]].
 
-Still unproven, and for the same reason as everything else on this page: `MaybeLookAsync` needs the Claude brain and there is no key here, so the choice of face is asserted directly against the rule and the round trip is owed.
+**Proven end to end, 09/01/2026, from the [[Octavia Android]] side** — and it closed the gap that had stood since v0.21.0. A probe face joined room `phone` declaring `senses: []`, leaving the native handset client as the only camera in that room, so the WebView panel was never asked:
+
+```
+look: asking face a85b541d in room 'phone'
+sight: 1280x960, brightness 0.57, spread 0.190
+look: got a frame, 97 KB
+```
+
+The phone's own log agrees to the byte — `CameraStill: one frame, 97 KB` — and she described the frame correctly. `setCamera` behaved per-room throughout: `false` on connect, `true` after asking, one `warn` line naming the room, and off again afterwards.
+
+**That is the whole of `senses` earning its place.** Without it the host picks between the native client and a WebView panel that cannot open a camera at all, on a coin flip.
 
 ## The protocol
 

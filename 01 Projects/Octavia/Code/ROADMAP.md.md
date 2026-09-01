@@ -401,11 +401,19 @@ Whisper at all, which is a battery argument on a machine that is plugged in.
 > camera cannot be tested here" is no longer true, and this is unblocked whenever it is
 > worth doing.
 >
-> **It has not been opened.** `Camera` is `false` in config and should stay there until
+> ~~**It has not been opened.** `Camera` is `false` in config and should stay there until
 > somebody chooses otherwise; what is verified is that the device exists, not that a frame
 > comes back. Two things still gate a real end-to-end test: `MaybeLookAsync` requires the
 > **Claude brain**, and there is no API key on this machine — so `look` never fires on the
-> `home` profile regardless of hardware.
+> `home` profile regardless of hardware.~~
+>
+> **Struck 09/01/2026. Half of that was wrong and the wrong half did the damage.** The
+> camera *has* since been opened — a 1280×960 frame at brightness 0.57, off a handset. And
+> there was never a missing key: `data\apikey.dat` decrypts under this account, and the
+> `cloud` profile sets `Brain: claude`. **`look` never fires on `home` because `home` is a
+> local brain**, which is the first clause of that sentence and the whole of the answer. The
+> second clause was a guess that read like a finding, and it stood for four versions. See
+> v0.24.1 in [[Changelog]].
 
 ## Stage 10 — The interface she is operated through
 
@@ -802,8 +810,15 @@ Done, and proven against a real child process speaking real JSON-RPC:
 **Not done: the brain-side tool loop.** Collecting `tool_use` blocks out of a streaming
 response, running them, appending `tool_result` and re-requesting. It was left rather than
 written blind for two reasons — it changes the main conversation path that currently works,
-and there is no API key on this machine to verify it against. Writing it untested and
+and ~~there is no API key on this machine to verify it against~~. Writing it untested and
 calling it done would repeat exactly the mistake this version spent its time undoing.
+
+> **One of those two reasons was never true** *(corrected 09/01/2026)*. There is a key, and
+> `--profile cloud` reaches Claude; the belief that there was not came from a stale note
+> after the machine move and propagated into three roadmap entries. **The first reason still
+> stands entirely** — this changes the path every turn takes — but the second no longer
+> excuses anything, and "we cannot verify it" was doing most of the work in that sentence.
+> Whoever picks this up can now write it *and watch it run*.
 
 **When it is written**, the safe shape is: build the request identically when the registry
 is empty, so a machine with no servers configured is byte-for-byte unaffected.
@@ -980,10 +995,17 @@ talking to, and it currently cannot tell them apart at all.
 > host-side files. Items 2–7 were deliberately not started; the Android side is planning
 > around that split.
 >
-> **One gap worth carrying forward:** two real cameras were never opened, because
+> ~~**One gap worth carrying forward:** two real cameras were never opened, because
 > `MaybeLookAsync` requires the Claude brain and there is no key on this machine. The routing
 > is proven at the transport level and the `sight` guard was watched firing live, but the
-> camera path itself is unexercised end to end. Re-check on a machine with a key.
+> camera path itself is unexercised end to end. Re-check on a machine with a key.~~
+>
+> **Closed 09/01/2026, from the Android side, and the stated reason was wrong.** There was no
+> missing key — only a `home` profile on a local brain. `look` → `sight` walked end to end
+> under item 9: `look: asking face a85b541d in room 'phone'` → `sight: 1280x960, brightness
+> 0.57, spread 0.190` → `got a frame, 97 KB`, matching `CameraStill: one frame, 97 KB` in the
+> handset's own log. **This sentence is why it took four versions**: it named a blocker that
+> did not exist, item 9 inherited it in good faith, and nobody re-tested the claim.
 
 `IFaceTransport` is broadcast-only in both directions: `Send(object message)` goes to
 everyone, and `event Action<JsonElement>? MessageReceived` says **who sent nothing at all**.
@@ -1154,9 +1176,15 @@ is quietly incomplete is worse than one that is honestly small.
 >
 > All ten acceptance criteria are asserted in `EarsTest -- rooms`, in-process, against a
 > recording transport and a stub local model — and each of the four mechanisms was broken on
-> purpose first to watch the right checks go red. **Criterion 7 is the exception**: `look`
-> needs the Claude brain and there is no key here, so the *choice of face* is asserted
-> directly and the end-to-end half is still owed, exactly as item 1 recorded the same gap.
+> purpose first to watch the right checks go red.
+>
+> **All ten are also closed on real hardware**, from the Android side against this build.
+> Criterion 7 was the one held open here, on the inherited belief that there was no API key;
+> that belief was false and the round trip walked immediately on `--profile cloud`. A probe
+> face joined room `phone` declaring `senses: []`, leaving the native client as the only
+> camera in the room — so the WebView panel was never asked, which is exactly what `senses`
+> was added for. Host and handset agree to the byte at 97 KB, and `setCamera` stayed per-room
+> throughout with one `warn` line naming the room. See v0.24.1 in [[Changelog]].
 
 ### Order
 
