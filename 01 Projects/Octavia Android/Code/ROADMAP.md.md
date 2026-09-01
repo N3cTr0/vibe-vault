@@ -419,6 +419,53 @@ sending `listen` by hand, and no `set*` case in `OctaviaSession` looks at who se
 - **Knowing the other room exists.** Whether she should is a genuinely interesting question
   and a completely separate one.
 
+## Stage 6 — The same face, with this device's senses *(scoped 09/01/2026)*
+
+0.7.2 made the app look like the host. Item 9 then hid two of her controls on a room face,
+correctly — the microphone because it drove the *host's*, the watch button because
+`getUserMedia` does not exist on a plain `http://` origin. The result is a handset that has a
+microphone and a camera, is a face in its own right, and is offered **neither**. Its way in is
+a volume key, which works and is not what anybody wants to look at.
+
+**Specified** in the vault at
+`01 Projects\Octavia\Stage 14 - Lending A Renderer The Device's Senses.md`.
+
+**Neither can be fixed on the wire, which is why this needs a seam rather than a message.**
+The floor is a `FaceId` and audio is only accepted from the holder, so the panel cannot press
+while the native client streams — they are two different faces. And watching is deliberately
+outside the protocol: the gaze is computed in the renderer and never crosses the socket, which
+is right and stays.
+
+So her page gains an optional `window.OctaviaEmbedder`. Absent — a browser tab — nothing
+changes. Present, a room face gets its buttons back and calls into whatever is hosting it.
+
+### What lands here
+
+- **Inject the embedder over `WebViewCompat.addWebMessageListener`**, with an origin
+  allow-list. **Not `addJavascriptInterface`**: that exposes the object to every script in the
+  WebView, and this page arrives over plain HTTP on the LAN, so anything able to inject script
+  into it could open the microphone. Needs `androidx.webkit`, and a feature check — where the
+  listener is unsupported, inject nothing and the buttons stay hidden, which is today's
+  behaviour and not a failure.
+- **`talking(held)`** onto the existing `startTalking`/`stopTalking`, on the native socket.
+- **`watch(on)`** with CameraX `ImageAnalysis`. The Y plane of `YUV_420_888` **is** the
+  greyscale `watch.js` builds by hand from RGB, so this is a smaller job than the original:
+  same 64×36 grid, same `CELL_STEP` and `ENOUGH`, same 0.25 smoothing, same mirroring and
+  0.8/0.55 spans, ~8 Hz, pushed back in with `evaluateJavascript("window.Face.look(x,y)")`.
+- **Pause watching around a `look`.** `CameraStill` calls `provider.unbindAll()`, which would
+  kill a running watcher and leave her staring at the last place she saw somebody. Pause,
+  `Face.look(null)`, take the still, resume.
+- **Keep the volume key.** It costs nothing and it works with the screen off.
+
+### The one thing that cannot match, and should not be faked
+
+The host's microphone button is a **toggle** — `listen` opens her ears and the attention gate
+decides what was meant for her. A remote room cannot have that until echo cancellation exists,
+which her item 6 deferred on purpose and Android's `AcousticEchoCanceler` does not reliably
+provide. So: same button, same place, same look, **held rather than toggled**. Making it a
+toggle without doing item 6 would mean she hears her own voice through the phone's speaker and
+transcribes it.
+
 ## Stage 4 — The house
 
 `hello` gains whatever Stage 12 gives it, and this app shows it. Not designed yet, because
