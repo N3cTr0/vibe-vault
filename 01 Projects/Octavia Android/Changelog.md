@@ -16,6 +16,165 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.7.1 — 2026-09-01
+
+**Off the cable. She is reached over WiFi now, and WireGuard is deferred rather than
+skipped** — the phone will not leave the house for a long while, and on the same LAN a VPN
+buys nothing. It remains the answer for *away*, which is what her Stage 13 designed it for.
+
+What it actually took was much less than assumed: `RemoteAccess: true`, the phone pointed at
+`10.1.1.21`, and the durable remote key instead of the per-run token — which the host
+**refuses from anything but loopback** by design, so the LAN forces the better credential.
+No firewall rule, because the Windows Firewall on this machine is off entirely (worth
+knowing: the remote key is then the only gate on the LAN, where the roadmap assumed a
+subnet-scoped rule behind it).
+
+Proven with the USB tunnel **removed**: `adb reverse --list` empty, and her log reading
+`remote face authorised from 10.1.1.181` for both this client and its WebView panel.
+
+### The fix here
+
+`FacePanel` hardcoded `?token=`, but the credential may be the remote key — and a *token* is
+refused off-loopback. Over a USB tunnel every connection is loopback, so `?token=` worked
+right up until the phone moved to WiFi, and then the panel alone was refused while the
+native socket was fine. `credentialParam` is now shared between the two rather than
+duplicated, which is what should have happened when it was first written.
+
+### A bug in her repo, and it is a bad one
+
+**The durable remote key can never authenticate.** `RemoteKey.Value` accepts a stored key
+only `if (existing.Length >= 24)`, but `Regenerate()` produces four groups of five joined by
+three dashes — **exactly 23 characters**. The guard can never pass, so every read regenerates
+the key and rewrites the file.
+
+The consequence is that a remote face presents a key, `Matches()` reads `Value`, `Value`
+mints a *new* key, and the comparison fails. Proven directly:
+
+```
+before:  BE6VG-HR9Z7-7BQAH-GEJR7
+after:   BMKN8-E5MJV-FHJJY-F3J6A     ← after one connection attempt
+changed: True
+```
+
+and the log for each attempt:
+
+```
+remote key written
+refused a face from 10.1.1.181: bad or missing remote key
+```
+
+Writing a **24**-character key by hand makes it work immediately and permanently
+(`remote face authorised from 10.1.1.181`), which is the diagnosis confirmed from the other
+side. **Latent since v0.14.0** because nothing had ever exercised it — everything until now
+went over loopback with the per-run token.
+
+The fix is one character. **Note that fixing it will regenerate the key**, so this device
+needs re-pairing afterwards; the hand-written 24-character key currently in `data\remote.key`
+is a workaround, not a value to keep.
+
+**Fixed the same night, in her v0.23.1** — and not by changing 24 to 23, which was the point
+of reporting it that way. The length is now *derived* (`Groups * GroupSize`) and compared
+after normalising away dashes and case, so the reader and the writer cannot drift apart
+again, and a round-trip check in `EarsTest` fails loudly if they ever do. The guard is a
+floor rather than an equality on purpose: a key typed in by hand is a legitimate thing to
+find in a plain-text file, and silently overwriting one would unpair every device without
+saying so. It also now warns when it does replace a key.
+
+Confirmed from this side: her `data\remote.key` was last written at 02:23 and survived a full
+0.23.1 run with a face attached — under the old code, the first read would have rewritten it.
+
+**This device was therefore unpaired, and re-pairing was the first thing the next morning.**
+The new key is in her `data\remote.key` — read it with `dotnet run --project tools/EarsTest
+-- remotekey show`, since nothing in her Settings displays it yet. It is not written down
+here; a live credential does not belong in a repo, private or not.
+
+**Re-paired 09/01/2026, and this is the first end-to-end proof the remote key has ever
+worked.** Everything before it was inference from a file that stopped changing; her log now
+reads `remote face authorised from 10.1.1.181` for a device that was handed a key it did not
+mint. The dead credential on the handset was `BMKN8-…`, **24 characters** — the hand-typed
+workaround, still sitting in `shared_prefs` exactly as predicted, which is the diagnosis
+closing from the other end.
+
+`remotekey show` is safe to run against the live key: it returns on `RemoteKey.Value` before
+any of the test harness starts, so there is no redirected data dir involved, and the file's
+mtime does not move when you read it. Under the old code that same read would have rewritten
+it — which is a neat way to check the fix on any machine.
+
+### Also worth passing on
+
+Since route A, `Authorised()` runs on **every static asset GET**, so a single page load from
+a remote face writes ~15 `remote face authorised from …` lines into her log. Harmless, but
+it will bury everything else on a wall tablet that reloads.
+
+## 0.7.0 — 2026-09-01
+
+**Her face renders on the tablet.** MINOR — the question deferred three times since the
+route A/B decision, finally answered, and the answer is yes.
+
+This is *her* renderer, unmodified — the room, the light rig, the VRM, the lip sync, the
+console chrome — served over HTTP by her own socket since her v0.20.0. Not a
+reimplementation, which is the entire point of having chosen (A).
+
+### It is not merely present, it is smooth
+
+```
+Total frames rendered: 1786      Janky frames: 1 (0.06%)
+50th percentile: 14ms            99th percentile: 17ms
+50th gpu percentile: 4ms         90th gpu percentile: 5ms
+TOTAL PSS: 424 MB                GL mtrack 225 MB, EGL 41 MB
+```
+
+Essentially locked to the display refresh with the GPU idling at 4 ms a frame.
+
+**424 MB resident also settles why the J7 Pro was excluded** rather than merely doubted: a
+192 MB heap and 2.87 GB of RAM were never going to hold this. `largeHeap` is now on, and on
+the 11T Pro that means 512 MB rather than 256.
+
+### The WebView is a face in its own right
+
+`bridge.js` addresses the origin it was served from, so the panel opens **its own** socket
+and attaches separately from the native connection. Her log shows three faces from two
+devices:
+
+```
+face ff4edfd0 connected (1 attached)   her own desktop page
+face de953daf connected (2 attached)   this client — asked for: audio, skipping viseme, level
+face ff481a04 connected (3 attached)   the WebView in this app
+```
+
+That is clean rather than merely tolerable: the panel never asks for `audio`, so there is no
+doubling, and the native side keeps the microphone, the floor and her voice. It is destroyed
+when hidden, not hidden — a WebGL context and a VRM are not things to leave running behind a
+collapsed panel.
+
+**`Show her face` is off by default**, because not every device that should hear her can draw
+her.
+
+### One real defect
+
+**Her page assumes a wide viewport.** In a tall narrow panel the status placard overlaps her
+head and the top of it is clipped. Nothing is broken — it is the 10-foot desktop layout
+meeting a phone — but it is the thing to fix before this is pleasant rather than impressive.
+
+### Also verified, now the host has a microphone
+
+A USB camera with a built-in microphone was attached to the PC, which fixed both host-side
+faults at once. With `MusicFromRoom: true` restored — the workaround from 0.6.0 removed —
+`micAccepted` goes true on its own and her ears open cleanly:
+`ears open: Whisper large-v3-turbo (local)`.
+
+That made **her acceptance criterion 6 testable for the first time**, and it passes:
+
+```
+01:59:51  ears listening to a face (de953daf) / face de953daf has the floor
+01:59:52  music (room): 138 bpm (confidence 0.48)     ← during the hold
+02:00:00  face de953daf released the floor
+```
+
+One second into the phone holding the floor, the room analyser reported a beat **from the
+desk microphone**. Speech moves rooms; her sense of what is playing here does not. Had the
+source been swapped wholesale that line would have gone silent, or reported the phone's room.
+
 ## 0.6.0 — 2026-09-01
 
 **She hears the phone.** MINOR — a new subsystem, and the last one before this client is a

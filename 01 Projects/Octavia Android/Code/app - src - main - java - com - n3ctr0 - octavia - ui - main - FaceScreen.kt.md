@@ -74,6 +74,7 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
 
     var draft by remember { mutableStateOf("") }
     var settingsOpen by remember { mutableStateOf(!settings.configured) }
+    var faceShown by remember { mutableStateOf(settings.showFace) }
     val listState = rememberLazyListState()
 
     // Follow the tail. A transcript that has to be dragged to the bottom after every answer
@@ -93,6 +94,20 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
         }
 
         LinkLine(state, viewModel)
+
+        /* Her renderer, served by her own socket. Given more of the screen than the
+           transcript because when it is on, it is the point of the device — and it is only
+           built when shown, so nothing below pays for it otherwise. */
+        if (faceShown && state.link == FaceSocket.Link.Up) {
+            FacePanel(
+                config = settings,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(2f)
+                    .clip(RoundedCornerShape(12.dp)),
+            )
+            Spacer(Modifier.padding(vertical = 4.dp))
+        }
 
         LazyColumn(
             state = listState,
@@ -142,7 +157,7 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
         SetupDialog(
             settings = settings,
             onDismiss = { settingsOpen = false },
-            onSave = { settingsOpen = false; viewModel.reconnect() },
+            onSave = { settingsOpen = false; faceShown = settings.showFace; viewModel.reconnect() },
         )
     }
 }
@@ -319,6 +334,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
     var port by remember { mutableStateOf(settings.port.toString()) }
     var credential by remember { mutableStateOf(settings.credential) }
     var playAudio by remember { mutableStateOf(settings.playAudio) }
+    var showFace by remember { mutableStateOf(settings.showFace) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -354,6 +370,19 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                     }
                     Switch(checked = playAudio, onCheckedChange = { playAudio = it })
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Show her face", fontSize = 14.sp)
+                        Text(
+                            "Her own renderer, served by her socket. The expensive part of " +
+                                "the page — an older handset may not manage it.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Switch(checked = showFace, onCheckedChange = { showFace = it })
+                }
             }
         },
         confirmButton = {
@@ -362,6 +391,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                 settings.port = port.toIntOrNull() ?: 8848
                 settings.credential = credential
                 settings.playAudio = playAudio
+                settings.showFace = showFace
                 onSave()
             }) { Text("Connect") }
         },

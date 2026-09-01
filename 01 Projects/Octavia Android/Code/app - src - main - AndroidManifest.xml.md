@@ -19,6 +19,8 @@ source-path: app\src\main\AndroidManifest.xml
 
     <application
         android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

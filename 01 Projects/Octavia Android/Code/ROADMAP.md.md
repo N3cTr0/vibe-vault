@@ -208,6 +208,25 @@ back, with her log reading `face connected over socket (2 attached)`. The develo
 USB — so her socket stays on `127.0.0.1`, `RemoteAccess` stays off, and no firewall rule or
 elevation is involved. Wireguard replaces only the address.
 
+**Superseded 09/01/2026 — the cable is gone, and it is plain WiFi rather than a VPN.** She
+will not leave the house for a long while, and on the same LAN a VPN buys nothing: the
+operating mode is `RemoteAccess: true`, the phone pointed at `10.1.1.21`, and the **durable
+remote key** — which the host requires off-loopback anyway, since it refuses the per-run
+token from any non-loopback address. That also ends the token churn that un-paired this
+device on every restart of hers.
+
+No firewall rule was needed because this machine's Windows Firewall is off entirely, which is
+worth knowing rather than relying on: the remote key is then the only gate on the LAN, where
+the plan assumed a subnet-scoped rule behind it.
+
+Moving off loopback exercised the remote key for the first time and found it could never
+authenticate anybody; her v0.23.1 fixed it, which regenerated the key, so this device had to
+be re-paired — done 09/01/2026, and the first time the remote key has ever authorised
+anything. `versions.md` under 0.7.1 has the whole account.
+
+**WireGuard is deferred, not abandoned** — still the right answer for *away*, and nothing
+here forecloses it. Only the address changes.
+
 **Hardened and closed in 0.4.0.** The gap named here — untested across a locked screen, a
 doze or a lost transport — has been tested on the J7 Pro and two real faults came out of it:
 a 401 was being retried forever against a credential that could never work, and the socket
@@ -236,7 +255,23 @@ The smallest thing that proves the whole chain: pair, connect, type, get an answ
 This is deliberately the boring version, and it is where the real risks are: WireGuard
 routing, the firewall rule, key normalisation, the socket surviving a locked screen.
 
-## Stage 2 — Her face
+## Stage 2 — Her face — ✅ **done in 0.7.0**
+
+**It renders, and it is smooth.** 1786 frames with 1 janky (0.06%), 14 ms at the 50th
+percentile, the GPU idling at 4 ms. 424 MB resident, which is also why the J7 Pro was right
+to be excluded rather than merely doubted.
+
+The WebView attaches as a face in its own right — `bridge.js` addresses the origin it was
+served from — so this app puts two faces on the network: the native one that owns the
+microphone, the floor and her voice, and the panel that only draws. The panel never asks for
+`audio`, so nothing doubles.
+
+**One defect left:** her page assumes a wide viewport, so on a tall narrow panel the status
+placard overlaps her head and the top is clipped. The 10-foot layout meeting a phone.
+
+The original scope follows.
+
+
 
 The WebView, once stage 0a is settled.
 

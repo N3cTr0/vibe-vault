@@ -56,6 +56,17 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(PLAY_AUDIO, false)
         set(value) = prefs.edit().putBoolean(PLAY_AUDIO, value).apply()
 
+    /**
+     * Whether to render her face in a WebView.
+     *
+     * Off by default because it is the expensive thing on the page — a VRM, a room shader
+     * and a WebGL context — and because not every device that should hear her can draw her.
+     * The J7 Pro is the case in point: 192 MB of heap and a single-core Mali.
+     */
+    var showFace: Boolean
+        get() = prefs.getBoolean(SHOW_FACE, false)
+        set(value) = prefs.edit().putBoolean(SHOW_FACE, value).apply()
+
     val configured: Boolean get() = host.isNotBlank() && credential.isNotBlank()
 
     private companion object {
@@ -63,6 +74,7 @@ class Settings(context: Context) {
         const val PORT = "port"
         const val CREDENTIAL = "credential"
         const val PLAY_AUDIO = "playAudio"
+        const val SHOW_FACE = "showFace"
     }
 }
 ```

@@ -92,16 +92,25 @@ class FaceSocket(private val listener: Listener) {
     var protocol: Int = 0
         private set
 
-    /**
-     * The per-run token is 32 hex characters; the remote key is four groups of five from an
-     * alphabet with no `0`/`O` or `1`/`I` in it. They go in different query parameters and
-     * the host treats them very differently — the token is refused from anything but
-     * loopback — so telling them apart matters more than one field looks like it should.
-     */
-    private fun credentialParam(credential: String): String {
-        val trimmed = credential.trim()
-        val isToken = trimmed.length == 32 && trimmed.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
-        return if (isToken) "token=$trimmed" else "key=$trimmed"
+    companion object {
+        /**
+         * The per-run token is 32 hex characters; the remote key is groups of five from an
+         * alphabet with no `0`/`O` or `1`/`I` in it. They go in **different query
+         * parameters** and the host treats them very differently — the token is refused
+         * from anything but loopback — so telling them apart matters more than one text
+         * field looks like it should.
+         *
+         * Shared rather than duplicated because the WebView panel needs exactly the same
+         * decision when it loads her page, and getting it wrong there produced a refusal
+         * that looked like the *host's* fault: over a USB tunnel everything is loopback and
+         * a token works, so `?token=` was fine right up until the phone moved to WiFi.
+         */
+        fun credentialParam(credential: String): String {
+            val trimmed = credential.trim()
+            val isToken = trimmed.length == 32 &&
+                trimmed.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+            return if (isToken) "token=$trimmed" else "key=$trimmed"
+        }
     }
 
     /** Whether to ask for her voice. Off unless this is the device meant to make noise —
