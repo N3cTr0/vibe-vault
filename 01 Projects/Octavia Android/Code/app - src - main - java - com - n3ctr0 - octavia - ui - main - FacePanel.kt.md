@@ -53,7 +53,7 @@ import com.n3ctr0.octavia.web.EmbedderBridge
 fun FacePanel(
     config: Settings,
     senses: DeviceSenses?,
-    onTalking: (Boolean) -> Unit,
+    onTalking: suspend (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()

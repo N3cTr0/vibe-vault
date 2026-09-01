@@ -45,11 +45,15 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var model: FaceViewModel
     private lateinit var senses: DeviceSenses
+    private lateinit var talk: suspend (Boolean) -> Unit
     private lateinit var askMic: ActivityResultLauncher<String>
     private lateinit var askCamera: ActivityResultLauncher<String>
 
     /** The `look` that is waiting to hear whether it may open the camera. */
     private var cameraAsked: CancellableContinuation<Boolean>? = null
+
+    /** The press that is waiting to hear whether it may open the microphone. */
+    private var micAsked: CancellableContinuation<Boolean>? = null
 
     /** Whether the floor is currently held. `ACTION_DOWN` repeats while a key is held, so
      *  without this every repeat would take the floor again. */
@@ -71,7 +75,10 @@ class MainActivity : ComponentActivity() {
                 FaceViewModel(settings) as T
         })[FaceViewModel::class.java]
 
-        askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+        askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            micAsked?.resume(granted)
+            micAsked = null
+        }
 
         askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             // Resumed rather than dropped: `look` is waiting on this, and a refusal is an
@@ -88,6 +95,20 @@ class MainActivity : ComponentActivity() {
         senses = DeviceSenses(applicationContext) { askForCamera() }
 
         model.eyes = { senses.takeStill() }
+
+        /* Her page's microphone button, and the permission it needs.
+           **Built here rather than in the screen** because pressing it may have to raise a
+           prompt, and only an activity can. The volume key asked for the microphone from
+           the first version; the button restored in 0.9.0 did not, so on a fresh install it
+           could only ever fail — the exact "a control that could only fail" that
+           `micAccepted` exists to prevent, reintroduced by a different door. */
+        talk = { held ->
+            if (!held) model.stopTalking()
+            else {
+                if (!askForMic()) throw IllegalStateException("the microphone was not allowed on this device")
+                model.startTalking()?.let { why -> throw IllegalStateException(why) }
+            }
+        }
 
         enableEdgeToEdge()
 
@@ -117,7 +138,7 @@ class MainActivity : ComponentActivity() {
                     // No inset padding: the face is meant to reach the edges. What still
                     // needs to clear the bars — the dialog — handles its own spacing rather
                     // than the whole screen paying for it.
-                    FaceScreen(state, settings, model, senses, Modifier.fillMaxSize())
+                    FaceScreen(state, settings, model, senses, talk, Modifier.fillMaxSize())
                 }
             }
         }
@@ -180,6 +201,21 @@ class MainActivity : ComponentActivity() {
      * unprompted by the *person* — she asked, not them — which is exactly why the live
      * marker goes up before this and not after.
      */
+    /** The same, for the microphone. Both buttons ask when they are reached for. */
+    private suspend fun askForMic(): Boolean {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            == PackageManager.PERMISSION_GRANTED
+        ) return true
+
+        if (micAsked != null) return false
+
+        return suspendCancellableCoroutine { cont ->
+            micAsked = cont
+            cont.invokeOnCancellation { micAsked = null }
+            askMic.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     private suspend fun askForCamera(): Boolean {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             == PackageManager.PERMISSION_GRANTED

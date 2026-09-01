@@ -45,7 +45,7 @@ class EmbedderBridge(
     private val origin: String,
     private val scope: CoroutineScope,
     private val senses: List<String>,
-    private val onTalking: (Boolean) -> Unit,
+    private val onTalking: suspend (Boolean) -> Unit,
     private val onWatch: suspend (Boolean) -> Unit,
 ) {
 
@@ -115,7 +115,7 @@ class EmbedderBridge(
             // Idempotent on purpose: her page releases the floor on pointerup, pointerleave,
             // pointercancel, blur, visibilitychange and its socket closing, so `false`
             // arrives far more often than `true` does.
-            "talking" -> {
+            "talking" -> scope.launch {
                 try {
                     onTalking(arg)
                     answer(reply, id, null)

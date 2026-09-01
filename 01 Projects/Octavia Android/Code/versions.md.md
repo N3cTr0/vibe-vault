@@ -18,6 +18,61 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.9.1 — 2026-09-01
+
+**Her page's microphone button never asked for the microphone.** The volume key has asked
+since 0.7.2; the button restored in 0.9.0 went straight to `AudioRecord` and got
+`microphone did not initialise`. On a fresh install that is a control that could only fail —
+the exact thing `micAccepted` exists to prevent, reintroduced through a different door one
+version after being fixed.
+
+Found by accident: the permission had been wiped by an instrumented run, and chasing *why*
+the button failed turned up a hole rather than a stale grant.
+
+Both paths ask now. `onTalking` is supplied by the activity, because raising a prompt is
+something only an activity can do, and is suspending and throwing so a refusal reaches the
+page instead of being swallowed.
+
+### Her ears now open from the phone, which is what 0.25.1 was for
+
+Their fix, confirmed from this side against a fresh session:
+
+```
+micAccepted : True          ← was False whenever ears were shut
+ears        : not started
+```
+
+and, on a press:
+
+```
+face … pressed and her ears were shut; opening them
+whisper running on Cpu, 8 threads
+ears open: Whisper large-v3-turbo (local)
+face … has the floor, in room 'phone'
+```
+
+The placard on the handset now reads `EARS Whisper large-v3-turbo` where it read
+`EARS not started` all morning, and nobody went to the desk.
+
+### The cold-start gap, measured
+
+**Pressed 17:03:32, floor granted 17:03:35 — about three seconds** while
+`large-v3-turbo` loaded on the CPU.
+
+This client opens its microphone and begins streaming the instant it sends `talking(true)`,
+because there is nothing to wait for: **the protocol has no acknowledgement that the floor
+was granted.** Frames sent before it are dropped at `OctaviaSession.cs:121` —
+`if (_floor == from) _faceMic?.Push(...)`.
+
+So the first press of a cold session loses about three seconds of speech, silently. That is
+worse than the release-during-load case the repo side already described, because it does not
+produce silence — it produces a plausible, truncated sentence. Someone pressing and speaking
+immediately gets their opening words eaten and no sign that it happened.
+
+**It cannot be fixed here** without a signal that does not exist. The cheap fix is host-side
+and needs no protocol change: buffer frames from the face in `_pressing` and hand them to
+`_faceMic` when it opens. Raised rather than worked around.
+
 ## 0.9.0 — 2026-09-01
 
 **Her buttons are back, and they drive this device.** Against host v0.25.0, which added the
