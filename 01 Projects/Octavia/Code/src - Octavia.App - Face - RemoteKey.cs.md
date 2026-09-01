@@ -26,9 +26,38 @@ namespace Octavia.Face;
 /// Tailscale or Wireguard, never a forwarded port. See ROADMAP.md stage 13.
 internal static class RemoteKey
 {
-    private static string Path => System.IO.Path.Combine(Paths.DataDir, "remote.key");
+    // Base32-ish over an unambiguous alphabet: this gets read off a screen and typed on
+    // a phone, so 0/O and 1/I/l must not both exist in it.
+    private const string Alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+    /* The shape lives here once, and everything else is *derived* from it. Until v0.23.1
+       the reader wanted 24 characters and the writer made 23 — four groups of five and
+       three dashes — so no generated key could ever satisfy the guard. Every read of
+       Value therefore threw the stored key away and minted a new one, and no remote face
+       could ever authenticate: it offered a key, Matches read Value, Value replaced it,
+       and the comparison was against a secret one microsecond old.
+
+       The bug was not the number. It was that a human worked the number out by hand from
+       a format defined somewhere else, so the two halves could drift apart silently. A
+       constant that is computed cannot drift, and the round-trip check in EarsTest fails
+       loudly if this ever stops being true. */
+    private const int Groups = 4;
+    private const int GroupSize = 5;
+    private const int Chars = Groups * GroupSize;
+
+    private static string Path => Paths.RemoteKeyFile;
+
+    /// Dashes, spaces and the case a phone keyboard produces are presentation, not
+    /// secret. Both the length guard and the comparison go through here, so they cannot
+    /// disagree about what part of the string actually matters.
+    private static string Normalise(string s) =>
+        s.Replace("-", "").Replace(" ", "").ToUpperInvariant();
 
     /// The current key, creating one on first use.
+    ///
+    /// Deliberately re-read from disk rather than cached: a key edited by hand takes
+    /// effect at once, and the round-trip check is then testing the file rather than a
+    /// field that would agree with itself no matter what was written.
     public static string Value
     {
         get
@@ -38,7 +67,16 @@ internal static class RemoteKey
                 if (File.Exists(Path))
                 {
                     var existing = File.ReadAllText(Path).Trim();
-                    if (existing.Length >= 24) return existing;
+
+                    /* Length *after* normalising, and only a floor. A key somebody typed
+                       in by hand is a legitimate thing to find here — the file is plain
+                       text on purpose — and rejecting one would overwrite it silently,
+                       which unpairs every device without ever saying so. Too short to be
+                       a secret is the only thing worth refusing. */
+                    if (Normalise(existing).Length >= Chars) return existing;
+
+                    Log.Warn("the stored remote key is too short to be one; minting a new one — " +
+                             "every paired device will need the new key");
                 }
             }
             catch (Exception ex)
@@ -55,14 +93,12 @@ internal static class RemoteKey
     /// phone means rolling this and re-entering it on the ones you still have.
     public static string Regenerate()
     {
-        // Base32-ish over an unambiguous alphabet: this gets read off a screen and typed
-        // on a phone, so 0/O and 1/I/l must not both exist in it.
-        const string alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-        var bytes = RandomNumberGenerator.GetBytes(20);
-        var key = string.Concat(bytes.Select(b => alphabet[b % alphabet.Length]));
+        var bytes = RandomNumberGenerator.GetBytes(Chars);
+        var key = string.Concat(bytes.Select(b => Alphabet[b % Alphabet.Length]));
 
         // Grouped, because a twenty-character string with no shape in it is read wrongly.
-        var grouped = string.Join("-", Enumerable.Range(0, 4).Select(i => key.Substring(i * 5, 5)));
+        var grouped = string.Join("-",
+            Enumerable.Range(0, Groups).Select(i => key.Substring(i * GroupSize, GroupSize)));
 
         try
         {
@@ -83,10 +119,9 @@ internal static class RemoteKey
     {
         if (string.IsNullOrWhiteSpace(offered)) return false;
 
-        static byte[] Normalise(string s) =>
-            System.Text.Encoding.UTF8.GetBytes(s.Replace("-", "").Replace(" ", "").ToUpperInvariant());
+        static byte[] Bytes(string s) => System.Text.Encoding.UTF8.GetBytes(Normalise(s));
 
-        return CryptographicOperations.FixedTimeEquals(Normalise(offered), Normalise(Value));
+        return CryptographicOperations.FixedTimeEquals(Bytes(offered), Bytes(Value));
     }
 }
 ```

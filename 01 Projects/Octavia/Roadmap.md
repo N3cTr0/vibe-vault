@@ -890,6 +890,14 @@ wrong order produces a phone app that can only be used on the sofa it was built 
    sufficient — inbound TCP on the face port from anything but loopback is blocked by
    default, so `RemoteAccess` alone will look broken. One inbound rule, scoped to the LAN
    subnet rather than Any.
+
+   > **As it actually stands, 09/01/2026.** `RemoteAccess` is **on**, she answers on
+   > `10.1.1.21:8848`, and the Windows firewall on this machine is **off entirely** — so
+   > the remote key is the only thing between the LAN and her microphone. Until v0.23.1
+   > that key could never match, which meant the socket was open and nothing could get in:
+   > accidentally fail-closed. It is a real lock now, which makes the firewall being off a
+   > choice worth revisiting rather than a harmless one. A scoped inbound rule is still the
+   > right shape; turning the whole firewall off to get one port is not.
 4. **A protocol subset for a phone.** A phone does not want visemes at 60 Hz. `hello`
    already carries capabilities; the client should be able to say what it wants and be
    sent only that. This is a protocol change and belongs in PROTOCOL.md before any client

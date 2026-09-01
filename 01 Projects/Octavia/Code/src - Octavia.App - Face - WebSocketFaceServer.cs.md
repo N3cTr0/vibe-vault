@@ -565,6 +565,33 @@ internal sealed class WebSocketFaceServer : IDisposable
         return (token, key);
     }
 
+    /* Which addresses have already been announced as authorised.
+
+       Authorised() runs on *every* request, and since the assets went behind the same
+       gate a single page load is the document plus a dozen scripts, styles and models —
+       so one reload wrote fifteen identical "remote face authorised" lines, and a wall
+       tablet that reloads all day would bury everything else.
+
+       Successes only. **Refusals are deliberately never deduplicated**: a hundred bad
+       keys from one address is a different event from one bad key, and collapsing them
+       into a single line would throw away the only signal that says so. Repeated failure
+       is the thing worth being noisy about; repeated success is the thing worth saying
+       once. (Nor do refusals flood the way successes do — a 401 on the document means
+       the browser never asks for the assets.) */
+    private readonly HashSet<string> _admitted = [];
+
+    /// True the first time this address is let in. Per-run and deliberately forgetful:
+    /// after a restart, a device getting in is news again.
+    private bool FirstAdmission(IPAddress? from)
+    {
+        lock (_admitted)
+        {
+            // A valve, not a policy: a misconfigured LAN cannot grow this without bound.
+            if (_admitted.Count > 64) _admitted.Clear();
+            return _admitted.Add($"{from}");
+        }
+    }
+
     private bool Authorised((string? Token, string? Key) offered, IPAddress? from)
     {
         var (token, key) = offered;
@@ -590,7 +617,7 @@ internal sealed class WebSocketFaceServer : IDisposable
 
         if (RemoteKey.Matches(key))
         {
-            Log.Write($"remote face authorised from {from}");
+            if (FirstAdmission(from)) Log.Write($"remote face authorised from {from}");
             return true;
         }
 

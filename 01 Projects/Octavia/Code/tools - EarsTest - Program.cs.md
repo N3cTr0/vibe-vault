@@ -19,6 +19,20 @@ if (args.Length > 0 && args[0] == "music") { await MusicProbe.RunAsync(args.Leng
 if (args.Length > 0 && args[0] == "beats") { Environment.Exit(MusicChecks.Run()); }
 if (args.Length > 0 && args[0] == "gate") { await GateProbe.RunAsync(); return; }
 if (args.Length > 0 && args[0] == "syntax") { Environment.Exit(SyntaxChecks.Run()); }
+// `remotekey` checks it, `remotekey show` prints it, `remotekey roll` replaces it. Nothing
+// in Settings displays the key yet, so without these the only way to read the secret a
+// phone has to be told is to open data\remote.key by hand.
+if (args.Length > 0 && args[0] == "remotekey")
+{
+    if (args.Length > 1 && args[1] == "show") { Console.WriteLine(Octavia.Face.RemoteKey.Value); return; }
+    if (args.Length > 1 && args[1] == "roll")
+    {
+        Console.WriteLine(Octavia.Face.RemoteKey.Regenerate());
+        Console.WriteLine("every paired device must be told this one.");
+        return;
+    }
+    Environment.Exit(RemoteKeyChecks.Run());
+}
 if (args.Length > 0 && args[0] == "models")
 {
     await ModelProbe.RunAsync(args.Length > 1 ? args[1..] : ["llama3.2:3b-cpu"]);
@@ -128,6 +142,10 @@ failures += MusicChecks.Run();
 Console.WriteLine();
 Console.WriteLine("attention gate:");
 failures += GateChecks.Run();
+
+Console.WriteLine();
+Console.WriteLine("the remote key:");
+failures += RemoteKeyChecks.Run();
 
 Console.WriteLine();
 Console.WriteLine("face protocol:");

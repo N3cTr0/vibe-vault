@@ -291,6 +291,13 @@ carried in a URL, and it is scoped to a process on this machine. The remote key 
 and is presented as `?key=...`. Regenerating it revokes every device at once, which is
 the whole revocation story: there is no per-device list.
 
+> **The key path did not work at all until v0.23.1.** A length guard no generated key could
+> satisfy meant every read of the key replaced it, so a remote face was always compared
+> against a secret a microsecond old. It went unseen for nine versions because the phone
+> reached her over `adb reverse` — loopback, and therefore the token. The first WiFi
+> connection hit it immediately. Anything written against the remote key before 0.23.1 was
+> written against a path nothing had ever walked.
+
 **The key is one shared secret in front of a microphone and, later, a house.** That is
 enough behind Tailscale or Wireguard, where "every interface" means the tailnet and the
 LAN. It is *not* enough behind a forwarded port, and the host logs a warning saying so

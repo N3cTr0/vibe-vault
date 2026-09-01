@@ -29,6 +29,12 @@ Her Stage 13 says so explicitly: the app needs an Android SDK and a device to te
 
 **The development loop needs nothing exposed:** `adb reverse tcp:8848 tcp:8848` points the handset's own loopback at the host's, over USB. Her socket stays bound to `127.0.0.1`, `RemoteAccess` stays off, no Windows firewall rule and no elevation — and because the connection arrives from loopback, the per-run token works. Wireguard and the remote key replace only the address.
 
+> **"Replace only the address" was hiding a broken lock, found 09/01/2026 the first night the phone came over WiFi.** The remote key could never match — `RemoteKey.Value` accepted a stored key only at 24 characters or more, and a generated one is 23 (four groups of five, three dashes), so every read minted a replacement and the phone's key was compared against a secret a microsecond old. Every remote connection got a **401**. It survived from her v0.14.0 to her **v0.23.1** precisely because `adb reverse` is loopback: the token path was the only one anyone had ever walked.
+>
+> Fixed her side in **v0.23.1** — the length is now derived from the format rather than counted by hand, and measured after normalisation. Two checks cover it: a round-trip in `RemoteKeyChecks`, and `the remote key opens a socket` in `FaceProtocolChecks`, which returns 401 against the old code.
+>
+> **Two things the client side needs to know.** The key on the host was **rolled on 09/01/2026**, so the handset must be re-paired with the new one — read it with `dotnet run --project tools/EarsTest -- remotekey show`, since nothing in her Settings displays it yet. And a hand-written 24-character workaround that had been put in `data\remote.key` to get past the guard is gone; do not carry it forward.
+
 Three decisions from Stage 1 worth keeping:
 
 - **`org.json`, not a generated parser.** The protocol requires a face to ignore types and fields it does not recognise; defensive `opt*` reads say that directly, where a schema-bound parser turns her adding a field into this app crashing. **OkHttp is the only third-party dependency** — Android has no WebSocket client, and hand-rolling RFC 6455 to avoid one library is a poor trade.

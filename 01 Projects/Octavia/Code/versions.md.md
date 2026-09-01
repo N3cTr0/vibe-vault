@@ -18,6 +18,65 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.23.1 — 2026-09-01
+
+**The remote key could never let anybody in.** One character, latent since 0.14.0, found
+the first night a phone came in over WiFi instead of `adb reverse`.
+
+`RemoteKey.Value` returned a stored key only if it was **24 characters or more**.
+`Regenerate()` makes four groups of five joined by three dashes — **23**. The guard could
+therefore never pass, so every read of `Value` discarded the saved key and minted a new
+one. A remote face offered its key, `Matches` read `Value`, `Value` replaced the secret,
+and the comparison ran against a key that had existed for a microsecond. It failed every
+time, and the file changed on every attempt.
+
+Nine versions of nobody noticing, because **nothing ever exercised it**: the phone reached
+her over `adb reverse`, which is loopback, and loopback uses the per-run token. The key
+path had never once been walked until the handset moved to WiFi.
+
+**The fix is not 24 → 23.** That is the same bug with a different number, and it comes
+back the next time the grouping changes. The number was hand-computed from a format
+defined elsewhere, so the two halves could drift apart in silence. Now `Groups`,
+`GroupSize` and `Chars = Groups * GroupSize` are declared once and the generator and the
+guard both derive from them, and the guard measures the **normalised** string — dashes,
+spaces and case are presentation, so the length test and the comparison can no longer
+disagree about which characters are the secret.
+
+The floor is a *minimum*, not an exact shape. A key typed in by hand is a legitimate thing
+to find in that file — it is plain text on purpose — and rejecting one would overwrite it
+silently, which unpairs every device without ever saying so.
+
+### The check that would have caught it, and the one that proves the fix
+
+`RemoteKeyChecks`: **mint a key, read it back, assert it is the same string.** Nine of its
+assertions fail against 0.23.0. It is deliberately the dullest possible test, and it is the
+one that mattered — the code was covered by nothing because nothing had ever compared a key
+against *itself*.
+
+`Value` is re-read from disk rather than cached, partly so a hand-edited key takes effect at
+once and partly so that check is testing the file instead of a field that would agree with
+itself no matter what was written.
+
+Proven by breaking it on purpose: setting `Groups = 5` leaves the round trip and the
+authentication **green** — the original failure cannot return — while the two shape
+assertions go red, so changing the format stays a deliberate act.
+
+### Also
+
+- **One log line per admitted address, not fifteen.** `Authorised()` runs on every request,
+  and since the assets went behind the same gate a single page load wrote a dozen identical
+  `remote face authorised from …` lines. A wall tablet that reloads would have buried
+  everything else. Deduped per address, per run — after a restart, a device getting in is
+  news again. **Successes only:** the first cut of this deduped refusals too, which was
+  wrong. A hundred bad keys from one address is a different event from one bad key, and
+  collapsing them discards the only signal that says so. Repeated failure is the thing
+  worth being noisy about.
+- `OCTAVIA_REMOTE_KEY` joins `OCTAVIA_CONFIG` and `OCTAVIA_LOG`, so a check can mint and
+  re-read a key without unpairing every device that trusts the real one.
+- `EarsTest remotekey show` / `roll`. Nothing in Settings displays the key, despite a source
+  comment claiming it does, so reading the secret a phone must be told meant opening
+  `data\remote.key` by hand.
+
 ## 0.23.0 — 2026-09-01
 
 **A microphone somewhere else.** MINOR: a refactor of how she hears, not plumbing. Stage 14

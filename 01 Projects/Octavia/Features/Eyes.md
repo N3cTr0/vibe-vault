@@ -85,7 +85,9 @@ Measured on the same scene, before and after: brightness **0.15 → 0.18**. A re
 
 A spare USB one, plugged into the host. It enumerates as a generic UVC `USB Video Device`, status OK, and carries a microphone of its own. Every note that said the camera path could not be tested on this machine is out of date.
 
-**It has not been opened**, and that is the correct state: `Camera` stays `false` until somebody switches it on in Settings. What has been verified is that the device is present — not that a frame comes back, which is a different claim and needs someone to grant the permission.
+**It has since been opened, and turned off again** *(corrected 09/01/2026)*. This note first said it had not been, which was true when written and was not true for long. The evidence is in her config: `CameraDevice` held `USB Video Device (046d:0805)` — a Logitech, and a label with a vendor:product id in it. A browser gives a page no device labels at all until the camera permission has been granted, and the picker is filled by the face rather than the host, so a populated label is proof the device was actually opened at least once. Both fields are now back to `false` and empty.
+
+The lesson is small and worth keeping: **a note that records a setting records a moment, not a fact.** The state that outlived the sentence was the one written down beside it.
 
 One thing that still gates a genuine end-to-end test regardless of hardware: `MaybeLookAsync` returns early unless the brain is `ClaudeBrain`, and there is no API key here. On the `home` profile `look` never fires at all, so the eye button appears and toggles but nothing opens. That is a limitation worth knowing before concluding the camera is broken.
 

@@ -37,6 +37,12 @@ internal static class Paths
             ? custom
             : Path.Combine(DataDir, "config.json");
     public static string KeyFile => Path.Combine(DataDir, "apikey.dat");
+    /// OCTAVIA_REMOTE_KEY points the remote key at another file, so a check can mint one
+    /// and read it back without unpairing every device that trusts the real one.
+    public static string RemoteKeyFile =>
+        Environment.GetEnvironmentVariable("OCTAVIA_REMOTE_KEY") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(DataDir, "remote.key");
     /// OCTAVIA_LOG writes the log somewhere else — the test harness points it at a
     /// temporary file so a check can exercise rotation without destroying the real one.
     public static string LogFile =>

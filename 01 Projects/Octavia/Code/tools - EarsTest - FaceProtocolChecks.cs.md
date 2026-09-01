@@ -63,6 +63,53 @@ internal static class FaceProtocolChecks
             Check("missing token refused", true);
         }
 
+        /* --- the remote key, through the real socket --------------------------------
+
+           A loopback client may present the remote key instead of the token, and that is
+           there precisely so this path can be walked without a second machine. Nothing
+           walked it until v0.23.1, and it had been broken since v0.14.0: a key was minted
+           fresh on every read, so the offered one was compared against a secret that had
+           existed for a microsecond.
+
+           `RemoteKeyChecks` proves the key round-trips. This proves the *server* accepts
+           one, which is the part a phone actually depends on. Against a scratch file, so
+           running the checks never unpairs a real device. */
+        var savedKeyPath = Environment.GetEnvironmentVariable("OCTAVIA_REMOTE_KEY");
+        var scratchKey = Path.Combine(Path.GetTempPath(), $"octavia-proto-{Guid.NewGuid():N}.key");
+        Environment.SetEnvironmentVariable("OCTAVIA_REMOTE_KEY", scratchKey);
+
+        try
+        {
+            var key = RemoteKey.Value;
+
+            using var byKey = new ClientWebSocket();
+            using var giveUp = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await byKey.ConnectAsync(new Uri($"ws://127.0.0.1:{server.Port}/?key={key}"), giveUp.Token);
+            Check("the remote key opens a socket", byKey.State == WebSocketState.Open, byKey.State.ToString());
+            await byKey.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", Cancel());
+        }
+        catch (Exception ex)
+        {
+            Check("the remote key opens a socket", false, ex.Message);
+        }
+
+        try
+        {
+            using var wrong = new ClientWebSocket();
+            using var giveUp = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await wrong.ConnectAsync(new Uri($"ws://127.0.0.1:{server.Port}/?key=ABCDE-FGHJK-MNPQR-STUVW"), giveUp.Token);
+            Check("a wrong remote key is refused", false, "it was accepted");
+        }
+        catch (Exception)
+        {
+            Check("a wrong remote key is refused", true);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OCTAVIA_REMOTE_KEY", savedKeyPath);
+            try { File.Delete(scratchKey); } catch { /* a temp file that outlives the run is harmless */ }
+        }
+
         // --- two legitimate faces ---------------------------------------------------
         using var faceA = new ClientWebSocket();
         using var faceB = new ClientWebSocket();

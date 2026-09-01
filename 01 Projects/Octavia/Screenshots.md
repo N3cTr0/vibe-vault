@@ -37,6 +37,14 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.23.1 — the remote key fix
+
+![[v0.23.1 - idle on 0.23.1, the remote key fix.png]]
+
+**Nothing moved, and that is the point of taking it.** A one-character authentication fix should change no pixels, and this confirms it changed none: idle, the stats placard reading `PROFILE home` and `BRAIN qwen2.5:7b-cpu (local)`, both console buttons where they were.
+
+Two things are worth reading *out* of it rather than into it. `EARS not started` — `ListenOnStart` is off, so this is the resting state, not a fault. And still **no eye button**, because `Camera` went back to `false` after being switched on and off again; see the correction in [[Eyes]].
+
 ## v0.21.2 — the camera gets a switch
 
 ![[v0.21.2 - the camera finally has a switch in Settings.png]]
