@@ -129,9 +129,15 @@ class FaceSocket(private val listener: Listener) {
      *
      * `senses` is what stops `look` being sent to the half of this app that cannot answer
      * it — the WebView panel is a face in its own right and has no camera it can open.
+     *
+     * **Null and empty are different answers and must not be conflated.** An *absent*
+     * `senses` means a face written before the field existed, which the host treats as a
+     * candidate of last resort for `look` — that is what keeps older renderers working. An
+     * empty list is a face saying it has nothing, and is never asked. So this is nullable,
+     * and a client that knows what it can do says so even when the answer is "nothing".
      */
     private var room: String = ""
-    private var senses: List<String> = emptyList()
+    private var senses: List<String>? = null
 
     fun connect(
         host: String,
@@ -139,7 +145,7 @@ class FaceSocket(private val listener: Listener) {
         credential: String,
         wantAudio: Boolean,
         room: String = "",
-        senses: List<String> = emptyList(),
+        senses: List<String>? = null,
     ) {
         wanted = true
         attempt = 0
@@ -186,7 +192,7 @@ class FaceSocket(private val listener: Listener) {
                     .put("type", "ready")
                     .put("faceBuilt", true)
                 if (room.isNotBlank()) ready.put("room", room)
-                if (senses.isNotEmpty()) ready.put("senses", org.json.JSONArray(senses))
+                senses?.let { ready.put("senses", org.json.JSONArray(it)) }
                 webSocket.send(ready.toString())
             }
 

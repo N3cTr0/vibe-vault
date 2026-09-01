@@ -16,6 +16,65 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.8.1 — 2026-09-01
+
+**Her side landed — host v0.24.0, `846b772` — and this client was already speaking the
+protocol.** The handset connected three seconds after the first build with rooms in it
+started, and both of its connections landed in room `phone` together. `ready.room` had been
+going out since 0.8.0 against a host that ignored it. Acceptance criterion 8 confirmed
+without anyone arranging it.
+
+### The one real fix
+
+**`senses` was expressed by omission, and omission now means something else.** This client
+sent the field only when the list was non-empty. But an *absent* `senses` tells the host
+"written before this field existed", which makes that face a candidate of last resort for
+`look` — the rule that keeps older renderers working. An *empty* one says "I have nothing"
+and is never asked. Conflating them meant a face that declared nothing could still be asked
+for a frame. It is nullable now, and a client that knows what it can do says so even when
+the answer is nothing.
+
+Nothing was needed for the WebView panel: her page already computes
+`window.isSecureContext ? ['camera'] : []`, so served over plain `http://` it declares an
+empty list honestly, and `applyControls` hides the host-only rows on `controls: "room"`.
+
+### Verified against the running host, from this side
+
+Two faces, two rooms, one question through her local brain — so it cost nothing:
+
+```
+PHONE room:  caption[You] → turn[you] → thinking → caption[Octavia]: pineapple
+             → speaking → turn[octavia] → idle
+HOST  room:  (nothing)
+```
+
+That is criteria 2 and 4. Also confirmed directly rather than through her page:
+
+- `hello` echoes `room='phone'` and `controls='room'`
+- `listen` and `setOutput` from room `phone` are **refused**, with
+  *"That belongs to the machine she runs on."* and one line in her log per room per kind.
+  The guard is real, not just a hidden button — criterion 1
+- `forget` is allowed, answers `cleared`, and is scoped to the room
+- On the phone, her page's **microphone button is simply gone**, which is `applyControls`
+  doing the courtesy half
+
+### Two things for her repo
+
+1. **The watch button is offered where it cannot work.** Her log has `face error: watch
+   failed: Cannot read properties of undefined (reading 'getUserMedia')` from this device.
+   `watchBtn.hidden = !msg.camera`, but on a plain `http://` origin `navigator.mediaDevices`
+   is undefined — the same non-secure-context fact that `senses` is already computed from
+   three lines away. It wants the same `isSecureContext` test.
+2. **`level` and `music` stopping at the host room is right**, and this client never drew
+   either — it has opted out of `level` in `subscribe` since 0.3.0 and has no meter.
+
+### Still owed
+
+Criterion 7, the `look` → `sight` round trip, on both sides. It needs her on the Claude brain
+and she is running on `qwen2.5:7b-cpu`. `hello` already reports `camera=true` for room
+`phone`, and the camera itself is proven on this device by the instrumented tests in 0.8.0 —
+what is unexercised is her choosing this face and the frame going back.
+
 ## 0.8.0 — 2026-09-01
 
 **She can see through this device.** `look` → one still → `sight`, natively, which is the

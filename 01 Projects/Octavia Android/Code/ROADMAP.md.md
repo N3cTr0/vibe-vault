@@ -384,7 +384,14 @@ sending `listen` by hand, and no `set*` case in `OctaviaSession` looks at who se
 > item 9 is being implemented in it. It also needs her `Camera` setting on and her Claude
 > brain.
 >
-> What remains here is `controls: "room"`, which cannot be built until `hello` carries it.
+> **Her half landed in host v0.24.0 and this client already fitted it** (0.8.1). Both
+> connections join room `phone`; `hello` echoes the room and `controls`; host-only messages
+> are refused with a notice; a turn in room `phone` reaches the host room not at all.
+> `controls: "room"` needed nothing here after all — the host-only controls are on *her*
+> page, and her page hides them itself.
+>
+> **Only criterion 7 is still owed**, on both sides: `look` → `sight` needs her Claude brain,
+> and she runs on the local one.
 
 - **Name the room, from both connections.** The native socket and the WebView panel are one
   room and must stay in step, so the panel's URL carries `?room=` alongside its credential.
