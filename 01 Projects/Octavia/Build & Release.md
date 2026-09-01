@@ -13,20 +13,36 @@ dotnet run --project src\Octavia.App
 
 Runs from `src\Octavia.App\bin\Debug\net10.0-windows10.0.19041.0\Octavia.exe`. She hides to the tray on close — quit from the tray menu, or the next build fails with a file lock (`MSB3027`, "the file is locked by: Octavia").
 
-## The desktop shortcut
+## The desktop shortcuts
 
-`<Desktop>\Octavia.lnk` → that same **Debug** exe, with arguments `--profile dev`.
+**Two of them since v0.26.0**, and the order matters — the server has to be up before the client has anything to attach to.
 
-*Recreated 08/30/2026 on the new PC.* Note the Desktop is OneDrive-redirected there, so it
-is `C:\Users\N3cTr0\OneDrive\Desktop`, not `C:\Users\N3cTr0\Desktop` — that path does not
-exist. Take it from `[Environment]::GetFolderPath('Desktop')` rather than assuming.
+| Shortcut | Runs | Arguments |
+|---|---|---|
+| `Octavia Server.lnk` | `Octavia.Server.exe` | `--profile home` |
+| `Octavia.lnk` | `Octavia.exe` (the client) | *(none)* |
 
-Two deliberate choices:
+Made by `tools\make-shortcuts.ps1`, which overwrites, so running it twice is safe. Re-run it after moving the repo or changing which rig the icons should name.
 
-- **It points at the Debug build, not `dist`.** The Debug exe is rewritten by every build, so the shortcut is always the latest Octavia and can never go stale. `dist` is for handing to someone else.
-- **It names its profile.** Without `--profile dev` the shortcut inherits whatever `config.json` says, which the app itself rewrites — so the icon's brain could change without anyone touching the icon. See [[Profiles & Configuration]].
+```
+pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1 -ProfileName cloud
+pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1 -Dist -Minimised
+```
 
-A second shortcut with `--profile cloud` is the way to keep both brains one double-click away. Since v0.19.3 the *unadorned* shortcut is also safe: the base brain is local, so a shortcut with no `--profile` at all still gets a working assistant rather than one waiting for an API key.
+*It is a script rather than a manual step because the paths here have cost time twice.* The Desktop is OneDrive-redirected on this machine, so `C:\Users\N3cTr0\Desktop` **does not exist** — take it from `[Environment]::GetFolderPath('Desktop')`. And the client's *assembly* is `Octavia.exe` while its project is `Octavia.App`, which is also why `InternalsVisibleTo` needed the former.
+
+Three deliberate choices:
+
+- **They point at the Debug build, not `dist`.** The Debug exes are rewritten by every build, so the icons are always the latest Octavia and can never go stale. `dist` is for handing to someone else. `-Dist` switches them.
+- **The server names its profile.** Without `--profile` it inherits whatever `config.json` says, which she rewrites herself — so the icon's brain could change without anyone touching the icon. See [[Profiles & Configuration]]. A second shortcut with `--profile cloud` keeps both brains one double-click away.
+- **The client does not.** A profile is a brain, a Whisper model and a set of tool servers, and the client has none of those.
+
+> **The split silently broke the old shortcut**, and it is worth recording as a shape rather than an incident. `Octavia.lnk` had pointed at the client exe with `--profile dev` since the machine move — after v0.26.0 that argument reached a process which does not parse it, and the icon opened a client with no server to talk to. Nothing errored. **An argument that stops being understood is not an error, it is silence**, and a shortcut is exactly the place nobody re-reads. Hence the script.
+
+The server's console window opens normally rather than minimised, because the first thing anybody does with a new server is watch it start — and that window is also how you stop it. `-Minimised` for an always-on arrangement.
+
+The server exe wears her icon too, borrowed from the client's assets rather than copied: it is *her* mark, not either executable's, and a generic console icon beside an Octavia one reads as two unrelated programs.
 
 ## Command line
 

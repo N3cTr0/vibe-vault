@@ -68,6 +68,16 @@ Octavia.exe --server 10.1.1.50:8848 --key ABCDE-FGHIJ-KLMNP-QRSTU
 A browser is a face too — open the address the server printed, or `?room=study` for a room
 of its own.
 
+**For desktop icons**, which is how you will actually start her:
+
+```
+pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1
+```
+
+That writes `Octavia Server.lnk` and `Octavia.lnk`. It overwrites, so re-run it after moving
+the repo. `-ProfileName cloud` for a second server icon on the hosted brain, `-Dist` to point
+them at a published build, `-Minimised` to keep the server's console out of the way.
+
 > **Run the client on the machine the server is on**, unless you are using the neural voice.
 > Her voice plays through the *server's* sound card for the host room; a Windows (SAPI) voice
 > cannot be streamed to a client at all. See Stage 15 item 3 in `ROADMAP.md`.

@@ -18,6 +18,10 @@ source-path: src\Octavia.Server\Octavia.Server.csproj
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>Octavia.Server</AssemblyName>
+    <!-- Her mark, borrowed rather than copied. The icon belongs to *her*, not to either
+         executable, and a desktop shortcut showing a generic console window beside one
+         showing Octavia reads as two unrelated programs. -->
+    <ApplicationIcon>..\Octavia.App\Assets\octavia.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

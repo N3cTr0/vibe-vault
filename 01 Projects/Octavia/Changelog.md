@@ -77,6 +77,21 @@ internals. Broken on purpose first — four went red, sixteen came back green.
 
 272 assertions pass, and the renderer conformance check passes against the server.
 
+### Two icons, and the old one was quietly wrong
+
+`tools\make-shortcuts.ps1` writes `Octavia Server.lnk` and `Octavia.lnk`, because there are
+two executables now and the server has to be up first.
+
+**It found a fault it was written to prevent.** The existing `Octavia.lnk` had pointed at the
+client exe with `--profile dev` since the machine move. After the split that argument reached
+a process which does not parse it, and the icon opened a client with nothing to attach to —
+no error, no warning, nothing in the log. *An argument that stops being understood is not an
+error, it is silence*, and a shortcut is precisely the place nobody re-reads.
+
+The server's console opens normally rather than minimised (`-Minimised` to change it): the
+first thing anybody does with a new server is watch it start, and that window is also how you
+stop it. It wears her icon, borrowed from the client's assets rather than copied.
+
 ### What this deliberately does not do
 
 **The host room still means "the room the server is standing in"**, and while the server runs
