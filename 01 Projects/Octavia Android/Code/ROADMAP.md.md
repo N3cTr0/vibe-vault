@@ -340,11 +340,60 @@ this client behaves, so they are worth knowing here:
   what Silero and Whisper want. Push-to-talk rather than always-on because a speaker and an
   open mic across a network is an echo problem that real cancellation has to solve, and that
   is its own piece of work.
-- **The camera**, which needs nothing new here — `camera.js` already opens it in the face,
-  and it was written for a wall tablet by name. It needs *her* to send `look` to one face
-  instead of broadcasting it.
+- **The camera**, which was written down here as needing nothing — *"`camera.js` already
+  opens it in the face, and it was written for a wall tablet by name"*. **That was wrong**,
+  and this document contradicts itself on it two pages earlier: `getUserMedia` does not run
+  on a plain `http://<lan-ip>` origin because it is not a secure context, so the WebView
+  panel cannot open a camera here at all. It has to be native, and that is Stage 5.
 - **Both open at once**, which already renders correctly today and will need testing for the
   things that are not rendering: whose turn it is, whose camera opened, where the voice went.
+
+## Stage 5 — Its own room *(scoped 09/01/2026)*
+
+The app renders her page full-screen as of 0.7.2, which makes it look like a peer. It is not
+one. It is a **window onto the desktop's conversation**: type here and the words appear on the
+desktop, her answer plays in both rooms, and her page's microphone button — the same page, on
+both devices — **toggles the microphone on the host machine**. Press it from the gym and a
+microphone opens in an empty house.
+
+The goal: *one brain, same avatar, same personality, different spaces.* What happens in one
+room does not reach the other face.
+
+**Most of this is her work, and it is specified** in the vault at
+`01 Projects\Octavia\Stage 14 - Two Rooms.md`, written from this side as items 1–3 were. It
+supersedes her item 5 and absorbs her item 7. The short version of what it asks for: a
+`RoomId` that a face names in `ready` (absent = the host room, so nothing existing changes),
+per-room conversation, state, emotion, captions and **voice**, and an authority table that
+refuses host-only messages from a face that is not in the host room.
+
+**The refusal is the important half.** Hiding the button is not a fix — nothing stops a face
+sending `listen` by hand, and no `set*` case in `OctaviaSession` looks at who sent it.
+
+### What lands in this repo
+
+- **Name the room, from both connections.** The native socket and the WebView panel are one
+  room and must stay in step, so the panel's URL carries `?room=` alongside its credential.
+  This is the second time that URL has mattered: 0.7.1 was `?token=` where `?key=` was needed.
+- **Declare senses** — `ready` gains `senses: ["mic", "camera"]`. Without it the host has an
+  even chance of sending `look` to the panel, which physically cannot answer it.
+- **The camera, natively.** CameraX, **one** still, the track stopped in the same breath, and
+  a live indicator that is unmistakable for exactly as long as it is open — the protocol
+  requires all four, and the last one is not decoration. Answer `sight` with an `image` or an
+  `error`, **never with silence**, or she waits twenty seconds for a frame that is not coming.
+- **Hide what this face may not drive**, when `hello` says `controls: "room"`.
+- `CAMERA` at runtime, and the same treatment `RECORD_AUDIO` got: asked when reached for, not
+  at startup.
+
+### What this does not get
+
+- **Always-on listening.** Push-to-talk stands. A speaker and an open microphone across a
+  network is an echo problem that needs real cancellation, and Android's
+  `AcousticEchoCanceler` is per-device and not dependable.
+- **Two conversations at once.** She attends one room at a time and refuses the other out
+  loud. One voice, one Whisper, one brain in flight — and a being that holds two conversations
+  simultaneously is a worse model of a person, not a better one.
+- **Knowing the other room exists.** Whether she should is a genuinely interesting question
+  and a completely separate one.
 
 ## Stage 4 — The house
 
