@@ -31,15 +31,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.n3ctr0.octavia.camera.CameraStill
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.theme.OctaviaTheme
 import com.n3ctr0.octavia.ui.main.FaceScreen
 import com.n3ctr0.octavia.ui.main.FaceViewModel
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var model: FaceViewModel
     private lateinit var askMic: ActivityResultLauncher<String>
+    private lateinit var askCamera: ActivityResultLauncher<String>
+
+    /** The `look` that is waiting to hear whether it may open the camera. */
+    private var cameraAsked: CancellableContinuation<Boolean>? = null
 
     /** Whether the floor is currently held. `ACTION_DOWN` repeats while a key is held, so
      *  without this every repeat would take the floor again. */
@@ -62,6 +70,23 @@ class MainActivity : ComponentActivity() {
         })[FaceViewModel::class.java]
 
         askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+        askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // Resumed rather than dropped: `look` is waiting on this, and a refusal is an
+            // answer she needs as much as a photograph.
+            cameraAsked?.let { it.resume(granted) }
+            cameraAsked = null
+        }
+
+        /* How she takes a picture from this device. Supplied here rather than built into
+           the ViewModel because a permission prompt has to be launched from an activity —
+           and because a `Context` in a ViewModel that outlives rotations is a leak waiting
+           to be written. */
+        val camera = CameraStill(applicationContext)
+        model.eyes = {
+            if (!askForCamera()) CameraStill.Shot.Failed("the camera was not allowed on this device")
+            else camera.take()
+        }
 
         enableEdgeToEdge()
 
@@ -140,6 +165,31 @@ class MainActivity : ComponentActivity() {
             }
         }
         return true
+    }
+
+    /**
+     * Ask for the camera, if it has not been granted already.
+     *
+     * **Asked on `look` rather than at startup**, the same as the microphone: a face that
+     * opens with two permission dialogs in front of it has made a worse first impression
+     * than one that asks when she reaches for something. The cost is that the prompt appears
+     * unprompted by the *person* — she asked, not them — which is exactly why the live
+     * marker goes up before this and not after.
+     */
+    private suspend fun askForCamera(): Boolean {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) return true
+
+        // A second `look` arriving mid-prompt would strand the first. She only ever has one
+        // outstanding, but this class should not depend on that staying true.
+        if (cameraAsked != null) return false
+
+        return suspendCancellableCoroutine { cont ->
+            cameraAsked = cont
+            cont.invokeOnCancellation { cameraAsked = null }
+            askCamera.launch(Manifest.permission.CAMERA)
+        }
     }
 
     /** A key held while the app goes away would otherwise leave her holding the floor. */

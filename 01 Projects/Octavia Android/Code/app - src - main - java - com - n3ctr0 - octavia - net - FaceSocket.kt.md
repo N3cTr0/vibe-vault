@@ -119,10 +119,33 @@ class FaceSocket(private val listener: Listener) {
     var wantAudio: Boolean = false
         private set
 
-    fun connect(host: String, port: Int, credential: String, wantAudio: Boolean) {
+    /**
+     * Which space this face is in, and what it can do, sent with `ready`.
+     *
+     * **Both are inert until her side grows rooms**, and that is safe by contract: within
+     * protocol version 1 a host must ignore fields it does not recognise, exactly as this
+     * client must. Sending them now means the day the host understands them, this device is
+     * already in the right room with its senses declared and needs no change.
+     *
+     * `senses` is what stops `look` being sent to the half of this app that cannot answer
+     * it — the WebView panel is a face in its own right and has no camera it can open.
+     */
+    private var room: String = ""
+    private var senses: List<String> = emptyList()
+
+    fun connect(
+        host: String,
+        port: Int,
+        credential: String,
+        wantAudio: Boolean,
+        room: String = "",
+        senses: List<String> = emptyList(),
+    ) {
         wanted = true
         attempt = 0
         this.wantAudio = wantAudio
+        this.room = room
+        this.senses = senses
         open(host, port, credential, ++generation)
     }
 
@@ -158,7 +181,13 @@ class FaceSocket(private val listener: Listener) {
                     .put("skip", org.json.JSONArray(skip))
                 if (wantAudio) subscribe.put("want", org.json.JSONArray(listOf("audio")))
                 webSocket.send(subscribe.toString())
-                webSocket.send(JSONObject().put("type", "ready").put("faceBuilt", true).toString())
+
+                val ready = JSONObject()
+                    .put("type", "ready")
+                    .put("faceBuilt", true)
+                if (room.isNotBlank()) ready.put("room", room)
+                if (senses.isNotEmpty()) ready.put("senses", org.json.JSONArray(senses))
+                webSocket.send(ready.toString())
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -266,6 +295,19 @@ class FaceSocket(private val listener: Listener) {
     /** One frame of microphone PCM. A binary frame is audio in both directions. */
     fun sendAudio(frame: ByteArray) {
         socket?.send(frame.toByteString(0, frame.size))
+    }
+
+    /**
+     * The answer to `look` — one base64 JPEG, or why there isn't one.
+     *
+     * **Exactly one of the two, and never neither.** The host holds a promise open for
+     * twenty seconds waiting for this; silence spends all twenty and then makes her answer
+     * blind anyway. A refused permission is an `error`, which is an answer.
+     */
+    fun sight(image: String?, error: String?) {
+        val message = JSONObject().put("type", "sight")
+        if (image != null) message.put("image", image) else message.put("error", error ?: "no picture")
+        socket?.send(message.toString())
     }
 
     fun noteProtocol(version: Int) {

@@ -10,6 +10,7 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FacePanel.kt
 package com.n3ctr0.octavia.ui.main
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -46,8 +47,17 @@ fun FacePanel(config: Settings, modifier: Modifier = Modifier) {
 
     /* Not `?token=` — the credential may be the durable remote key, and the host refuses a
        *token* from anything but loopback. Over a USB tunnel every connection is loopback so
-       the distinction never showed; it appeared the moment this moved to WiFi. */
-    val url = "http://${config.host}:${config.port}/?${FaceSocket.credentialParam(config.credential)}"
+       the distinction never showed; it appeared the moment this moved to WiFi.
+
+       `room` rides along because **this panel is a face in its own right**, with its own
+       socket to her. Without it the app's own two connections would sit in different spaces
+       and this would render the desktop's conversation while the native side held ours.
+       The page passes it on in `ready`; the host ignores it until her rooms work lands. */
+    val url = buildString {
+        append("http://${config.host}:${config.port}/?")
+        append(FaceSocket.credentialParam(config.credential))
+        if (config.room.isNotBlank()) append("&room=${Uri.encode(config.room)}")
+    }
 
     AndroidView(
         modifier = modifier,

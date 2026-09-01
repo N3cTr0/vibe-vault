@@ -14,8 +14,16 @@ source-path: app\src\main\AndroidManifest.xml
 
     <!-- Held only while the talk button is down. The microphone belongs to the app rather
          than to a WebView because getUserMedia will not run on a plain http LAN origin —
-         that is not a secure context. The camera will arrive the same way. -->
+         that is not a secure context. The camera arrived the same way. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Opened only on `look`, for one frame, never on a timer and never speculatively.
+         PROTOCOL.md makes all four of those promises on a face's behalf. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Not required: a device with no camera is still a perfectly good face. It answers
+         `look` with an error, which the protocol asks for and which is not a failure. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:allowBackup="true"

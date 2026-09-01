@@ -67,6 +67,24 @@ class Settings(context: Context) {
         get() = prefs.getBoolean(SHOW_FACE, false)
         set(value) = prefs.edit().putBoolean(SHOW_FACE, value).apply()
 
+    /**
+     * Which space this device is, as far as she is concerned.
+     *
+     * She is one being in several rooms: same brain, same avatar, same personality, separate
+     * conversations. What is said here should not appear on the desktop, and her answer here
+     * should not play through speakers in an empty house.
+     *
+     * **Both connections this app makes — the native socket and the WebView panel — must
+     * name the same room**, or its own face would be in a different space from itself.
+     *
+     * Her side does not understand this yet; see `Stage 14 - Two Rooms` in the vault. Until
+     * it does the field is ignored by the host, which the protocol requires and which is why
+     * it is safe to send now.
+     */
+    var room: String
+        get() = prefs.getString(ROOM, "phone") ?: "phone"
+        set(value) = prefs.edit().putString(ROOM, value.trim()).apply()
+
     val configured: Boolean get() = host.isNotBlank() && credential.isNotBlank()
 
     private companion object {
@@ -75,6 +93,7 @@ class Settings(context: Context) {
         const val CREDENTIAL = "credential"
         const val PLAY_AUDIO = "playAudio"
         const val SHOW_FACE = "showFace"
+        const val ROOM = "room"
     }
 }
 ```

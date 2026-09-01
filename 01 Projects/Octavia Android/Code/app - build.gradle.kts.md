@@ -21,6 +21,9 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        // The camera can only be proven on a real camera, so its check is an instrumented
+        // test rather than a unit test. Nothing ran on device before this.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -64,6 +67,8 @@ dependencies {
   // Arch Components
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
+  // viewModelScope, for the one thing this client does that is genuinely async: `look`.
+  implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
   // Compose
   implementation(libs.androidx.compose.ui)
@@ -84,6 +89,12 @@ dependencies {
   androidTestImplementation(libs.androidx.test.ext.junit)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.espresso.core)
+
+  // Her eyes, on this device. See PROTOCOL.md: a face on a plain http origin cannot use
+  // getUserMedia, so the camera is native and the WebView only draws.
+  implementation(libs.androidx.camera.core)
+  implementation(libs.androidx.camera.camera2)
+  implementation(libs.androidx.camera.lifecycle)
 
   // Her socket. See the note in libs.versions.toml for why this is the only one.
   implementation(libs.okhttp)

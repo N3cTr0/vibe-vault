@@ -10,10 +10,13 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FaceViewModel.kt
 package com.n3ctr0.octavia.ui.main
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.n3ctr0.octavia.audio.MicRecorder
 import com.n3ctr0.octavia.audio.VoicePlayer
+import com.n3ctr0.octavia.camera.CameraStill
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +51,10 @@ data class FaceState(
     val micAccepted: Boolean = false,
     /** Whether the button is down and this device holds her ears. */
     val talking: Boolean = false,
+    /** Whether the camera is open **right now**. The protocol requires a face to show this
+     *  unmistakably for as long as it is true, which is why it is state and not a local
+     *  variable inside the capture. */
+    val cameraLive: Boolean = false,
 )
 
 /**
@@ -67,9 +74,30 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      *  latency to a decision made at the other end. */
     private val mic = MicRecorder { frame -> socket.sendAudio(frame) }
 
+    /**
+     * How this face takes a picture, supplied by the activity.
+     *
+     * A lambda rather than a `CameraStill` held here, because taking one involves a
+     * permission prompt and that has to be launched from an `Activity`. It also keeps a
+     * `Context` out of a `ViewModel` that outlives rotations.
+     *
+     * Null means this face has no eyes, which is a legal face — `look` is then answered
+     * with an error rather than with silence.
+     */
+    var eyes: (suspend () -> CameraStill.Shot)? = null
+
     fun connect() {
         if (!settings.configured) return
-        socket.connect(settings.host, settings.port, settings.credential, settings.playAudio)
+        socket.connect(
+            settings.host, settings.port, settings.credential, settings.playAudio,
+            room = settings.room,
+            // Declared rather than assumed: this is the connection that owns the hardware.
+            // The WebView panel is a separate face and answers for neither.
+            senses = buildList {
+                add("mic")
+                if (eyes != null) add("camera")
+            },
+        )
     }
 
     fun reconnect() {
@@ -252,6 +280,41 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
             "needKey" -> _state.update { it.copy(needKey = true) }
 
             "cleared" -> _state.update { it.copy(lines = emptyList(), caption = "") }
+
+            "look" -> look()
+        }
+    }
+
+    /**
+     * She asked to see.
+     *
+     * **This always answers.** Every branch ends in a `sight`, because the host is holding a
+     * promise open for twenty seconds and silence spends all of it before she gives up and
+     * answers blind anyway. A refused permission is an `error` — an answer, not a failure.
+     *
+     * `cameraLive` brackets the whole thing rather than only the shutter: the permission
+     * prompt is part of "the camera is being opened", and the marker going up late would be
+     * a marker that lies.
+     */
+    private fun look() {
+        val takePicture = eyes
+        if (takePicture == null) {
+            socket.sight(null, "this face has no camera")
+            return
+        }
+
+        viewModelScope.launch {
+            _state.update { it.copy(cameraLive = true) }
+            try {
+                when (val shot = takePicture()) {
+                    is CameraStill.Shot.Image -> socket.sight(shot.base64, null)
+                    is CameraStill.Shot.Failed -> socket.sight(null, shot.why)
+                }
+            } catch (e: Exception) {
+                socket.sight(null, e.message ?: "the camera failed")
+            } finally {
+                _state.update { it.copy(cameraLive = false) }
+            }
         }
     }
 

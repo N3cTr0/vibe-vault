@@ -16,6 +16,90 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.8.0 — 2026-09-01
+
+**She can see through this device.** `look` → one still → `sight`, natively, which is the
+only way it could have worked: `getUserMedia` does not run on a plain `http://<lan-ip>`
+origin because that is not a secure context, so the WebView panel cannot open a camera at
+all. `ROADMAP.md` claimed under Stage 3 that the camera *"needs nothing new here"*. It was
+wrong, and it contradicted the same document two pages earlier.
+
+**This needs nothing from her repo.** `look` has named a single face since her v0.21.0, so a
+native `sight` answer works against the host as it stands today.
+
+`CameraStill` keeps the four promises `PROTOCOL.md` makes on a face's behalf: opened only on
+`look`, one frame with the camera stopped in the same breath, the fact that it is live shown
+unmistakably, and **always** an answer — an image or an error, never silence.
+
+The lifecycle is a private `LifecycleRegistry` that goes to `RESUMED` for the capture and
+`DESTROYED` straight after, because destroying it is what makes CameraX release the device.
+That makes "and stop it in the same breath" a property of an object's lifetime rather than a
+call somebody has to remember on every path out.
+
+No preview and no `camera-view`: a viewfinder would be drawn over her face, which is the
+wrong thing to be looking at, and `ImageCapture` binds fine without one. 1280×720 at quality
+80 lands at **83 KB**, so about 111 KB once base64'd.
+
+CameraX is AndroidX, like Compose and lifecycle, so the note on `okhttp` still stands — it
+remains the only *third-party* dependency.
+
+### What the tests found, which is the reason they exist
+
+**CameraX does not fail when it cannot open the camera. It retries, forever.** With the
+permission missing the log reads `OPENING --> REOPENING`, `Attempting camera re-open in
+700ms`, and `takePicture` is simply never called back. No exception, no error callback —
+**silence**, which is the one answer `look` must never get. The host would spend its full
+twenty seconds waiting and then answer blind anyway.
+
+The permission check had been left to the caller, which was wrong for a failure that
+presents as a hang rather than a throw. `CameraStill` now checks it itself and puts a
+12-second ceiling on the whole attempt, comfortably inside her twenty so the error still
+arrives as an error.
+
+This was found by the first three tests written in this repo that run on a real device, and
+it would not have been found by a fake: the interesting failures here are all device-shaped.
+One asserts it always answers, one that a picture is really a JPEG — checking `FFD8` at the
+front and `FFD9` at the tail, because reading `planes[0]` on the assumption that
+`ImageCapture` hands back encoded JPEG rather than YUV is the most likely thing in that file
+to be quietly wrong — and one that takes **two** shots in a row, which is the test for the
+camera actually being released between them.
+
+> **`connectedDebugAndroidTest` uninstalls the app when it finishes**, which wipes
+> `shared_prefs` and therefore un-pairs the device. The first run also failed three-for-three
+> on a permission granted by hand and then wiped by the test APK's install, which looked
+> exactly like broken camera code. The suite now grants its own permission through
+> `UiAutomation`; re-pair after running it.
+
+### Its own room, declared early
+
+`ready` now carries `room` and `senses: ["mic", "camera"]`, and the WebView panel's URL
+carries `?room=` beside its credential. **All of it is inert until her side grows rooms** —
+and that is safe by contract, since a host must ignore fields it does not recognise exactly
+as this client must. Sending it now means the day her side understands it, this device is
+already in the right room with its senses declared.
+
+`senses` is what stops `look` being sent to the half of this app that physically cannot
+answer it. The app makes **two** connections and only one of them has hardware.
+
+The room is a setting rather than a constant because *which space this is* is a fact about
+the device, not about the app. It defaults to `phone`.
+
+### One bug the screenshot caught
+
+Adding the room field pushed the Set up dialog past the height of a phone on its side, and
+its content is not scrollable — so in landscape the room field, both hints and both switches
+were **not drawn at all**, with one orphaned toggle floating over the credential box. It
+scrolls now. It would have been wrong in landscape before this version too; one more field
+is what made it visible.
+
+### Not verified
+
+**`look` end to end.** Her repo is mid-refactor on `Stage 14 - Two Rooms` — `RoomId.cs` and
+`Room.cs` are new and untracked and eleven files are modified — so she does not currently
+build, and nothing can ask this device to see. The camera is proven on the device by the
+tests above; the round trip is not. It also needs her `Camera` setting on and her Claude
+brain, neither of which is the case today.
+
 ## 0.7.2 — 2026-09-01
 
 **The app is a window onto her page now, not a second interface to her.** Every native

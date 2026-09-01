@@ -369,7 +369,22 @@ refuses host-only messages from a face that is not in the host room.
 **The refusal is the important half.** Hiding the button is not a fix — nothing stops a face
 sending `listen` by hand, and no `set*` case in `OctaviaSession` looks at who sent it.
 
-### What lands in this repo
+### What lands in this repo — ✅ **the client half is done in 0.8.0**
+
+> **Landed.** The camera is native and proven on the device; `room` and `senses` go out on
+> `ready`; the panel's URL carries `?room=`. All of the room plumbing is inert until her side
+> lands, which is safe by contract and means no second pass here when it does.
+>
+> **The find:** CameraX does not fail when it cannot open the camera — it retries forever, so
+> a missing permission is a **hang**, and a hang is silence, which is the one answer `look`
+> must never get. `CameraStill` checks the permission itself and caps the whole attempt at 12
+> seconds. Found by the first on-device tests in this repo.
+>
+> **Still unproven:** the `look` → `sight` round trip, because her repo does not build while
+> item 9 is being implemented in it. It also needs her `Camera` setting on and her Claude
+> brain.
+>
+> What remains here is `controls: "room"`, which cannot be built until `hello` carries it.
 
 - **Name the room, from both connections.** The native socket and the WebView panel are one
   room and must stay in step, so the panel's URL carries `?room=` alongside its credential.

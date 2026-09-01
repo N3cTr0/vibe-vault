@@ -9,9 +9,14 @@ source-path: app\src\main\java\com\n3ctr0\octavia\ui\main\FaceScreen.kt
 ```kotlin
 package com.n3ctr0.octavia.ui.main
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +86,8 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
             Disconnected(state, viewModel, onSetUp = { settingsOpen = true })
         }
 
+        if (state.cameraLive) CameraMarker()
+
         /* The way back to Set up. Bottom-right because that corner of her page is empty —
            her own controls sit top-left, top-right and bottom-left — so this steals touches
            from nothing. It has no appearance on purpose: it is a recovery path, not a
@@ -95,6 +107,43 @@ fun FaceScreen(state: FaceState, settings: Settings, viewModel: FaceViewModel, m
             settings = settings,
             onDismiss = { settingsOpen = false },
             onSave = { settingsOpen = false; faceShown = settings.showFace; viewModel.reconnect() },
+        )
+    }
+}
+
+/**
+ * The camera is open.
+ *
+ * **This is a promise the protocol makes on a face's behalf**, in those words: a conforming
+ * face *"shows that the camera is live, unmistakably, for as long as it is"*. So it is a
+ * border around the entire screen and a label, not a discreet dot — the whole point is that
+ * it cannot be mistaken for part of her page, and that nobody has to be looking at one
+ * particular corner to catch it.
+ *
+ * It covers the permission prompt as well as the shutter, because being asked for the
+ * camera is part of the camera being opened.
+ */
+@Composable
+private fun BoxScope.CameraMarker() {
+    Box(
+        Modifier
+            .matchParentSize()
+            .border(6.dp, Color(0xFFDC2626))
+    )
+    Box(
+        Modifier
+            .align(Alignment.TopCenter)
+            .padding(top = 28.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFFDC2626))
+            .padding(horizontal = 18.dp, vertical = 8.dp)
+    ) {
+        Text(
+            "CAMERA ON",
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
         )
     }
 }
@@ -153,6 +202,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
     var host by remember { mutableStateOf(settings.host) }
     var port by remember { mutableStateOf(settings.port.toString()) }
     var credential by remember { mutableStateOf(settings.credential) }
+    var room by remember { mutableStateOf(settings.room) }
     var playAudio by remember { mutableStateOf(settings.playAudio) }
     var showFace by remember { mutableStateOf(settings.showFace) }
 
@@ -160,7 +210,15 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
         onDismissRequest = onDismiss,
         title = { Text("Where she is") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            /* Scrollable, because this dialog is taller than a phone on its side. Landscape
+               gives it about 1080px and the content wants more, so without this the room
+               field, both hints and both switches are simply **not drawn** — with one
+               orphaned toggle floating over the credential box, which is what it looked
+               like when the room field was added and the shot was taken. */
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
                 OutlinedTextField(host, { host = it }, label = { Text("Host") }, singleLine = true)
                 OutlinedTextField(port, { port = it.filter(Char::isDigit) }, label = { Text("Port") }, singleLine = true)
                 OutlinedTextField(
@@ -172,6 +230,15 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                     "Her remote key is in Settings on the host and survives a restart. The " +
                         "per-run token is in her log and only works over loopback — which " +
                         "includes an adb reverse tunnel.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+
+                OutlinedTextField(room, { room = it }, label = { Text("Room") }, singleLine = true)
+                Text(
+                    "Which space this device is. She is one being in several rooms — same " +
+                        "brain, same face, separate conversations — so what is said here " +
+                        "stays here. Her side does not understand rooms yet.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -210,6 +277,7 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                 settings.host = host
                 settings.port = port.toIntOrNull() ?: 8848
                 settings.credential = credential
+                settings.room = room
                 settings.playAudio = playAudio
                 settings.showFace = showFace
                 onSave()
