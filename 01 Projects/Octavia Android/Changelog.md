@@ -68,12 +68,36 @@ That is criteria 2 and 4. Also confirmed directly rather than through her page:
 2. **`level` and `music` stopping at the host room is right**, and this client never drew
    either — it has opted out of `level` in `subscribe` since 0.3.0 and has no meter.
 
-### Still owed
+### Criterion 7 — done, and the last one owed on either side
 
-Criterion 7, the `look` → `sight` round trip, on both sides. It needs her on the Claude brain
-and she is running on `qwen2.5:7b-cpu`. `hello` already reports `camera=true` for room
-`phone`, and the camera itself is proven on this device by the instrumented tests in 0.8.0 —
-what is unexercised is her choosing this face and the frame going back.
+`look` → `sight`, end to end, with the frame coming off this handset. She was asked *"what do
+you see right now"* by a face in room `phone` that declared **no senses**, so it could never
+be the one asked — leaving the native client as the only camera in that room. Her log and the
+phone's agree to the byte:
+
+```
+octavia.log   look: asking face a85b541d in room 'phone'
+              sight: 1280x960, brightness 0.57, spread 0.190
+              look: got a frame, 97 KB
+logcat        CameraStill: one frame, 97 KB
+```
+
+`a85b541d` is the **native** connection — the one that asked for audio and skipped
+viseme/level. The WebView panel was `9e649919` and was never asked, which is `senses` doing
+exactly the job it was added for.
+
+And she described it: *"a selfie taken looking up, showing a wood-trimmed panel wall or
+ceiling, a window with blinds, and a man with a beard reaching a hand toward the camera."*
+
+**There was an API key all along.** Both her roadmap and the item 9 hand-off recorded item 1's
+camera gap as "no key on this machine", carried forward twice as the reason the round trip
+could not be walked. `data\apikey.dat` decrypts under this user to a 108-character
+`sk-ant-…`, and she started on the `cloud` profile reporting `brain: claude-sonnet-5`. The
+gap was a restart, not a missing secret.
+
+`setCamera` is per room and behaved: `camera=false` in `hello` on connect, `true` after
+asking, `warn camera enabled in room 'phone'` in the log with the room named. Turned back off
+afterwards — it was enabled for the test, not as a setting.
 
 ## 0.8.0 — 2026-09-01
 

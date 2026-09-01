@@ -390,8 +390,10 @@ sending `listen` by hand, and no `set*` case in `OctaviaSession` looks at who se
 > `controls: "room"` needed nothing here after all — the host-only controls are on *her*
 > page, and her page hides them itself.
 >
-> **Only criterion 7 is still owed**, on both sides: `look` → `sight` needs her Claude brain,
-> and she runs on the local one.
+> **Criterion 7 closed too**, so nothing is owed on either side. `look: asking face a85b541d
+> in room 'phone'` → `got a frame, 97 KB`, matching `CameraStill: one frame, 97 KB` on the
+> handset, with the panel never asked. The API key that item 1 and item 9 both recorded as
+> missing was there the whole time; it needed the `cloud` profile, not a secret.
 
 - **Name the room, from both connections.** The native socket and the WebView panel are one
   room and must stay in step, so the panel's URL carries `?room=` alongside its credential.

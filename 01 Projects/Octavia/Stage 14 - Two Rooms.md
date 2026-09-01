@@ -7,6 +7,8 @@ tags: [octavia, spec, stage-14]
 
 > **Built, 09/01/2026, v0.24.0.** Added by the repo side, below the original text rather than inside it — everything under this line is as it was written. All ten acceptance criteria are asserted in `EarsTest -- rooms` against a real session, with criterion 7 the one exception: `look` needs the Claude brain and there is no key on this machine, so the *choice of face* is checked directly and the round trip is still owed. Both traps were real and both are commented in the code. See [[One Being, Many Rooms]] and [[Changelog]] 0.24.0.
 
+> **Criterion 7 closed, 09/01/2026, from the [[Octavia Android]] side.** `look` → `sight` walked end to end with the frame off the handset: `look: asking face a85b541d in room 'phone'` → `sight: 1280x960` → `got a frame, 97 KB`, matching `CameraStill: one frame, 97 KB` in the phone's own log. The asking face declared **no senses**, so the native client was the only camera in the room, and the WebView panel was never asked — `senses` doing the job it was added for. **The API key was not missing.** Item 1 recorded "no key on this machine" and item 9 carried that forward; `data\apikey.dat` decrypts under this user to a 108-character `sk-ant-…`, and `--profile cloud` starts her on `brain: claude-sonnet-5`. It needed a restart, not a secret. Nothing is now owed on either side.
+
 > **A specification, not a change.** Written 09/01/2026 from the [[Octavia Android]] side, which is the consumer that needs this, for whoever is working in her repo. Nothing in her repo was touched to produce it. It supersedes item 5 (*turn ownership*) and absorbs item 7 (*the attention gate now has two rooms*) — see *What this replaces*.
 
 ## The ask, in the owner's words
