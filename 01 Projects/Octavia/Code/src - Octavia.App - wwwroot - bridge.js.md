@@ -162,6 +162,13 @@ function connectSocket() {
   socket.addEventListener('close', () => {
     const wasReady = socketReady;
     socketReady = false;
+
+    /* A held microphone must not survive this page losing its connection. The audio itself
+       goes out over the *embedder's* socket rather than this one, so it would keep streaming
+       from a panel whose button can no longer be trusted to report the release — and the
+       host would hold the floor until its sixty-second timeout. */
+    holdToTalk(false);
+
     // Only meaningful for a face outside the app; the built-in one dies with the host.
     if (wasReady && !embedded) notify('Lost the connection to Octavia.');
   });

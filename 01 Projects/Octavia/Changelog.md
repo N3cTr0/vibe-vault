@@ -100,10 +100,16 @@ answer is not a smarter button, it is doing item 6 properly.
 ### Every way a press can end
 
 A held button that never releases holds her ears until the host's sixty-second floor timeout,
-so `pointerup`, `pointerleave`, `pointercancel`, `blur` and `visibilitychange` all release,
-and the release is idempotent. Dragging off cancels, which is what a person expects; the
+so `pointerup`, `pointerleave`, `pointercancel`, `blur`, `visibilitychange` **and the socket
+closing** all release, and the release is idempotent. Dragging off cancels, which is what a person expects; the
 system taking the gesture — a scroll, a call arriving — cancels; backgrounding the app
 cancels.
+
+The socket one is worth saying separately, because it is the least obvious and the worst: the
+audio goes out over the **embedder's** connection, not this page's, so a panel that loses its
+own socket would keep streaming from a button whose release it can no longer be trusted to
+report. It is also the one release path with no check behind it — the harness has no socket —
+and that is said here rather than left to be discovered.
 
 ### Checked in the real engine, because all of it lives in the page
 
