@@ -8,7 +8,7 @@ tags: [octavia, moc]
 > An always-on desktop companion with a language model behind her — **a local one by default**, Claude when asked for: a .NET host owns the microphone, the voice, the API key and the conversation; a WebView2 renders her face and does nothing else. Built toward a fully animated — eventually photoreal — 3D face that hears you locally, reacts to music, and later sees and acts. **This note is the reference point for everything Octavia.**
 
 - **Repo:** `C:\Projects\Octavia` on **`N3CTR0-PC`** — git, with a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) (both since 08/30/2026). She moved off the [[Claude Dev VM]] that day; see [[Moving To The New Machine]].
-- **Current version:** 0.25.0 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.25.1 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
 - **A second face exists:** [[Octavia Android]], her phone/tablet client, in its own repo since 08/31/2026.
 - **Started:** 08/29/2026, from a single-file HTML prototype (`C:\Projects\talking-avatar.html`)
 - **Distribution:** self-contained single-file exe in `dist\` (see [[Build & Release]])

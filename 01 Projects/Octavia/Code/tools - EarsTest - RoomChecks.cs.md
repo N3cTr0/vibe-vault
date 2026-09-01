@@ -71,7 +71,12 @@ internal static class RoomChecks
                 ListenOnStart = false,
                 Camera = false,
                 Gate = "off",
-                WhisperCompute = "auto"
+                WhisperCompute = "auto",
+
+                // Whisper, and the smallest model, because one check really does open her
+                // ears — a room face taking the floor is what starts the recogniser now.
+                Recognizer = "whisper",
+                WhisperModel = "tiny.en"
             };
 
             var face = new RecordingFace();
@@ -258,6 +263,48 @@ internal static class RoomChecks
                 "cutting in cost the first room its answer");
 
             model.Hold = TimeSpan.Zero;
+
+            /* --- a room face can start her ears ---------------------------
+               Item 9 made `listen` host-only, correctly. What nobody noticed is that
+               `listen` was doing two jobs: opening this machine's microphone, which is a
+               host-room device, and starting the **recogniser**, which is being-wide — one
+               Whisper for every room. So the microphone button restored on the handset in
+               v0.25.0 could not work until somebody walked to the desk and pressed a
+               different button. Reported from the phone as `micAccepted: false`. */
+            face.Clear();
+            face.From(phone, new { type = "ready", faceBuilt = true, room = "phone", senses = new[] { "mic", "camera" } });
+
+            Check("her ears are offered before anything has started them",
+                face.Last(phone, "hello") is { } fresh && fresh.GetProperty("micAccepted").GetBoolean(),
+                "a handset was told its microphone button could only fail");
+
+            var modelFile = Octavia.Senses.WhisperModelStore.PathFor(config.WhisperModel);
+            if (File.Exists(modelFile))
+            {
+                /* The real thing, because the model is already on this machine — pressing
+                   the button on a session where nothing has ever listened. `tiny.en` is
+                   chosen for the suite's sake; the path is identical for any of them. */
+                face.From(phone, new { type = "talking", value = true });
+
+                var heard = await Wait(() =>
+                    Log.Tail(12).Any(line => line.Contains($"face {phone} has the floor")), 40000);
+
+                Check("holding the button opens her ears and takes the floor", heard,
+                    "the floor was never taken, so nothing the phone said could be heard");
+
+                face.From(phone, new { type = "talking", value = false });
+                await Wait(() => Log.Tail(6).Any(line => line.Contains("released the floor")));
+
+                // And it must not have opened the host's microphone on the way: `UseSource`
+                // starts what it is given, so the release path is where that would happen.
+                Check("...without opening this machine's microphone",
+                    !Log.Tail(30).Any(line => line.Contains("listening on '")),
+                    "a phone letting go of a button opened the desk's microphone");
+            }
+            else
+            {
+                Console.WriteLine($"  ..   skipped the live floor check: no {config.WhisperModel} model on this machine");
+            }
 
             // --- a face that leaves stops being addressable ---------------
             face.Leave(panel);

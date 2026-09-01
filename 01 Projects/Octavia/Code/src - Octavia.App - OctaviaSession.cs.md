@@ -45,7 +45,6 @@ internal sealed class OctaviaSession : IDisposable
     private readonly Brain.Tools.ToolRegistry _tools;
 
     private ISpeechRecognizer? _ears;
-    private bool _earsOpening;
     private CancellationTokenSource? _turn;
     private bool _responding;
     private bool _wantsToListen;
@@ -768,9 +767,14 @@ internal sealed class OctaviaSession : IDisposable
         // rate comes from the live voice's own model config, so it changes with the voice
         // — and `hello` is re-sent on every settings change, which carries the new rate
         // with it. A face must re-read this each time rather than caching it once.
-        // Whether the host will take audio *from* a face at all, so a client does not offer
-        // a microphone button that could only fail — the same courtesy `camera` already does.
-        micAccepted = _ears is WhisperRecognizer,
+        /* Whether the host will take audio *from* a face at all, so a client does not offer
+           a microphone button that could only fail — the same courtesy `camera` already does.
+
+           **"Will accept", not "has already started".** It used to report whether the
+           recogniser was open, which made it false on every fresh session and told a handset
+           its microphone button was useless — when in fact holding that button is what opens
+           her ears. A phone read it correctly and hid a control that would have worked. */
+        micAccepted = _ears is WhisperRecognizer || (_ears is null && WhisperWanted),
 
         audioAvailable = _voice.AudioFormat is not null,
         audioRate = _voice.AudioFormat?.Rate ?? 0,
@@ -998,110 +1002,157 @@ internal sealed class OctaviaSession : IDisposable
         else StartListening();
     }
 
+    /// Whether her ears *could* take a face's microphone, as opposed to whether they have
+    /// already been opened. `SystemSpeechRecognizer` is the machine's own and cannot be
+    /// handed a stream; Whisper can.
+    private bool WhisperWanted =>
+        string.Equals(_config.Recognizer, "whisper", StringComparison.OrdinalIgnoreCase);
+
+    /* Opening her ears, which is **not** the same act as listening with them.
+
+       `listen` used to do both jobs, and item 9 making it host-only turned that into a real
+       fault: a room face could never start the recogniser, so the microphone button restored
+       in v0.25.0 could not work until somebody pressed listen at the desk. Reported from the
+       handset as `micAccepted: false, ears: not started`.
+
+       The two jobs pull apart cleanly. **Opening the recogniser is being-wide** — it is the
+       same Whisper for every room, and a face taking the floor is an explicit request to be
+       transcribed. **Opening this machine's microphone is a host-room device** and stays
+       exactly where item 9 put it. */
+    private Task<ISpeechRecognizer?>? _opening;
+    private readonly object _earsGate = new();
+    private bool _roomMusicStarted;
+
+    private Task<ISpeechRecognizer?> EnsureEarsAsync()
+    {
+        if (_ears is not null) return Task.FromResult<ISpeechRecognizer?>(_ears);
+
+        // Two callers can arrive at once now — the desk pressing listen and a phone holding
+        // its button — and Whisper must be opened once, not twice.
+        lock (_earsGate)
+        {
+            if (_ears is not null) return Task.FromResult<ISpeechRecognizer?>(_ears);
+            return _opening ??= OpenAndWireAsync();
+        }
+    }
+
+    private async Task<ISpeechRecognizer?> OpenAndWireAsync()
+    {
+        try
+        {
+            var ears = await OpenEarsAsync();
+            ears.Recognized += OnHeard;
+
+            // The engine is this machine's, so its trouble is the host room's. What it is
+            // *hearing* is not: while a face holds the floor these words came off a phone,
+            // and a half-finished sentence belongs beside the mouth that said it.
+            ears.Trouble += text => Notice(Host, text);
+            ears.Hypothesised += partial =>
+                ToRoom(EarsRoom, new { type = "caption", who = "You", text = partial, tentative = true });
+
+            _ears = ears;
+            Log.Write($"ears open: {ears.EngineName}");
+            return ears;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("cannot open ears", ex);
+            Notice(Host, Explain(ex));
+            return null;
+        }
+        finally
+        {
+            lock (_earsGate) _opening = null;
+            Announce();
+        }
+    }
+
+    /// The host room's own microphone, handed to the ears. Skipped while a face holds the
+    /// floor: the desk starting to listen must not take the microphone out from under a
+    /// phone mid-sentence.
+    private void UseLocalMicrophone(ISpeechRecognizer ears)
+    {
+        if (ears is not WhisperRecognizer recogniser) return;
+
+        _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
+        if (_floor is null) recogniser.UseSource(_localMic);
+    }
+
     private void StartListening()
     {
         _wantsToListen = true;
 
-        if (_ears is not null)
-        {
-            EngageEars();
-            return;
-        }
-
-        if (_earsOpening) return;
-        _earsOpening = true;
-
         // Whisper's first listen may download the model; never block the message loop.
         _ = Task.Run(async () =>
         {
-            try
+            var ears = await EnsureEarsAsync();
+
+            if (ears is null)
             {
-                var ears = await OpenEarsAsync();
-                ears.Recognized += OnHeard;
-
-                /* One device, two listeners. The recogniser is handed the source rather
-                   than building its own, so the room-music analyser below can frame the
-                   same microphone independently — and so a face taking the floor moves
-                   only what she transcribes. */
-                if (ears is WhisperRecognizer recogniser)
-                {
-                    _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
-                    recogniser.UseSource(_localMic);
-                }
-
-                /* Room music. The microphone is already open and these are the very same
-                   frames the voice detector is reading, so hearing a speaker across the
-                   room costs one subscription and no extra capture. See ROADMAP.md 11a. */
-                if (_config.MusicFromRoom && ears is WhisperRecognizer whisper)
-                {
-                    /* The loopback wins when it has something.
-                       Both sources write to the same face state, so without a rule they
-                       fight: the tempo flickers between whatever this machine is playing
-                       and whatever is in the room, and neither reading is trustworthy.
-                       Loopback is the better witness — clean dynamics, no room, no gain
-                       control — so the microphone only speaks when it is silent. */
-                    _roomMusic.Changed += state =>
-                    {
-                        if (_music.State.Playing) return;
-                        _face.Send(new
-                        {
-                            type = "music",
-                            playing = state.Playing,
-                            bpm = state.Bpm,
-                            energy = state.Energy,
-                            beat = false
-                        });
-                    };
-                    _roomMusic.Beat += () =>
-                    {
-                        if (_music.State.Playing) return;
-                        _face.Send(new { type = "music", beat = true });
-                    };
-
-                    /* Bound to the **local microphone**, not to whatever the recogniser is
-                       currently consuming.
-
-                       This used to be `whisper.Audio += _roomMusic.Push`, which was exactly
-                       right while there was only one microphone in the world. Once a face
-                       can hand the ears a phone, that subscription would quietly follow it
-                       — and she would report the tablet's kitchen radio as the music around
-                       *her*. Everything would appear to work.
-
-                       So the local source keeps running and is framed separately for music
-                       even while a face holds the floor for speech. Speech moves rooms; her
-                       sense of what is playing here does not. The extra work is one
-                       byte-to-float loop over 16 kHz mono, which is nothing. */
-                    _roomMusic.StartFromFrames(SileroVad.SampleRate);
-                    _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
-                    _roomFramer.Frame += _roomMusic.Push;
-                    _localMic.Data += _roomFramer.Push;
-                    _localMic.Start();
-
-                    Log.Write("music: also listening for a beat in this room, through the local microphone");
-                }
-                // The engine is this machine's, so its trouble is the host room's. What it
-                // is *hearing* is not: while a face holds the floor these words came off a
-                // phone, and a half-finished sentence belongs beside the mouth that said it.
-                ears.Trouble += text => Notice(Host, text);
-                ears.Hypothesised += partial =>
-                    ToRoom(EarsRoom, new { type = "caption", who = "You", text = partial, tentative = true });
-                _ears = ears;
-                Log.Write($"ears open: {ears.EngineName}");
-                if (_wantsToListen) EngageEars();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("cannot open ears", ex);
-                Notice(Host, Explain(ex));
                 _wantsToListen = false;
                 if (Host.State is AgentState.Listening) SetState(Host, AgentState.Idle);
+                return;
             }
-            finally
-            {
-                _earsOpening = false;
-                Announce();
-            }
+
+            UseLocalMicrophone(ears);
+            StartRoomMusic(ears);
+
+            if (_wantsToListen) EngageEars();
         });
+    }
+
+    /// Room music. The microphone is already open and these are the very same frames the
+    /// voice detector is reading, so hearing a speaker across the room costs one
+    /// subscription and no extra capture. See ROADMAP.md 11a.
+    private void StartRoomMusic(ISpeechRecognizer ears)
+    {
+        if (_roomMusicStarted || !_config.MusicFromRoom) return;
+        if (ears is not WhisperRecognizer) return;
+
+        _roomMusicStarted = true;
+
+        /* The loopback wins when it has something.
+           Both sources write to the same face state, so without a rule they fight: the
+           tempo flickers between whatever this machine is playing and whatever is in the
+           room, and neither reading is trustworthy. Loopback is the better witness — clean
+           dynamics, no room, no gain control — so the microphone only speaks when it is
+           silent. */
+        _roomMusic.Changed += state =>
+        {
+            if (_music.State.Playing) return;
+            ToRoom(RoomId.Host, new
+            {
+                type = "music",
+                playing = state.Playing,
+                bpm = state.Bpm,
+                energy = state.Energy,
+                beat = false
+            });
+        };
+        _roomMusic.Beat += () =>
+        {
+            if (_music.State.Playing) return;
+            ToRoom(RoomId.Host, new { type = "music", beat = true });
+        };
+
+        /* Bound to the **local microphone**, not to whatever the recogniser is currently
+           consuming.
+
+           This used to be `whisper.Audio += _roomMusic.Push`, which was exactly right while
+           there was only one microphone in the world. Once a face can hand the ears a phone,
+           that subscription would quietly follow it — and she would report the tablet's
+           kitchen radio as the music around *her*. Everything would appear to work.
+
+           So the local source keeps running and is framed separately for music even while a
+           face holds the floor for speech. Speech moves rooms; her sense of what is playing
+           here does not. */
+        _roomMusic.StartFromFrames(SileroVad.SampleRate);
+        _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
+        _roomFramer.Frame += _roomMusic.Push;
+        _localMic.Data += _roomFramer.Push;
+        _localMic.Start();
+
+        Log.Write("music: also listening for a beat in this room, through the local microphone");
     }
 
     private async Task<ISpeechRecognizer> OpenEarsAsync()
@@ -1198,13 +1249,26 @@ internal sealed class OctaviaSession : IDisposable
     /// A phone in a pocket with a stuck button must not own her ears indefinitely.
     private static readonly TimeSpan FloorLimit = TimeSpan.FromSeconds(60);
 
+    /// Who is holding the button, as opposed to who has the floor. They differ only while
+    /// her ears are being opened — which can take a moment the first time — and the gap is
+    /// why this exists: a person who lets go during it must not have the floor handed to
+    /// them a second later.
+    private FaceId? _pressing;
+
     private void OnTalking(FaceId from, bool holding)
     {
-        if (holding) TakeFloor(from);
-        else if (_floor == from) ReleaseFloor("released");
+        if (holding)
+        {
+            _pressing = from;
+            TakeFloorAsync(from).Forget("taking the floor");
+            return;
+        }
+
+        if (_pressing == from) _pressing = null;
+        if (_floor == from) ReleaseFloor("released");
     }
 
-    private void TakeFloor(FaceId from)
+    private async Task TakeFloorAsync(FaceId from)
     {
         if (_floor is { } held)
         {
@@ -1234,11 +1298,41 @@ internal sealed class OctaviaSession : IDisposable
         // which by now is guaranteed to be this room's, because the refusal above ran first.
         if (RoomNamed(_attending).State is AgentState.Speaking or AgentState.Thinking) Hush();
 
+        /* **Holding the button opens her ears if nobody has.**
+
+           Until v0.25.1 this refused outright, and item 9 had quietly made that unreachable
+           for the only faces that need it: the recogniser is started by `listen`, `listen` is
+           host-only and rightly so, and therefore the microphone button restored on the
+           handset in v0.25.0 could not work until somebody walked to the desk and pressed a
+           different button. Reported from the phone as `micAccepted: false, ears: not
+           started`.
+
+           A held button is an explicit request to be transcribed, which is exactly the thing
+           `listen` was also being asked to mean. Opening the recogniser is being-wide — one
+           Whisper for every room. Opening *this machine's microphone* is not, and stays
+           where item 9 put it. */
+        if (_ears is not WhisperRecognizer)
+        {
+            if (!WhisperWanted)
+            {
+                _face.Send(new { type = "notice", text = "Her ears cannot take a microphone from another room." }, from);
+                Log.Write($"face {from} pressed, but the recogniser is not Whisper; refused");
+                return;
+            }
+
+            Log.Write($"face {from} pressed and her ears were shut; opening them");
+            await EnsureEarsAsync();
+        }
+
         if (_ears is not WhisperRecognizer recogniser)
         {
-            _face.Send(new { type = "notice", text = "Her ears are not open yet." }, from);
+            _face.Send(new { type = "notice", text = "Her ears would not start." }, from);
             return;
         }
+
+        // The first press may have spent a few seconds loading a model, and a person does not
+        // hold a button while nothing happens. If they let go, nothing is taken.
+        if (_pressing != from || _floor is not null) return;
 
         _floor = from;
         _faceMic = new FaceAudioSource($"a face ({from})");
@@ -1247,6 +1341,16 @@ internal sealed class OctaviaSession : IDisposable
         // this room and the other one. It keeps running for the room-music analyser, which
         // is a different question entirely. See the note on _localMic.
         recogniser.UseSource(_faceMic);
+
+        /* Then started, in that order and never the other way round: `Start` opens the local
+           microphone if it has not been given a source, which is the one thing a phone
+           pressing a button must never do.
+
+           `Unmute` because a held button is an explicit request to be heard, and the mute
+           left over from her last turn is only ever lifted when the *desk* is listening —
+           so without this the ears would be open, the source right, and nothing heard. */
+        recogniser.Unmute();
+        recogniser.Start();
         _faceMic.Start();
 
         _floorTimeout = new System.Threading.Timer(
@@ -1275,7 +1379,20 @@ internal sealed class OctaviaSession : IDisposable
         if (_ears is WhisperRecognizer recogniser)
         {
             recogniser.Flush();
-            if (_localMic is not null) recogniser.UseSource(_localMic);
+
+            if (_wantsToListen)
+            {
+                if (_localMic is not null) recogniser.UseSource(_localMic);
+            }
+            else
+            {
+                /* Nobody at the desk is listening, so the ears go quiet rather than being
+                   handed this machine's microphone. **`UseSource` starts what it is given**,
+                   so the obvious line here would open the host's microphone because a phone
+                   let go of a button — which is precisely the fault item 9 exists to
+                   prevent, arriving through a door item 9 did not fit a lock to. */
+                recogniser.Stop();
+            }
         }
 
         _faceMic?.Dispose();

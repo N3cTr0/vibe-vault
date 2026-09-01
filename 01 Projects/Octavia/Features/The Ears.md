@@ -42,6 +42,12 @@ Until Stage 14 item 2, `WhisperRecognizer` did not *consume* microphone audio �
 
 **Push-to-talk, and it removes work rather than adding it.** A held button has already answered *"was that addressed to me?"*, so [[The Attention Gate]] does not apply to that path. One talker at a time also means one Whisper — the earlier worry about two concurrent transcriptions on eight cores does not arise. And a released button is an *exact* end-of-utterance marker, so `Flush()` transcribes immediately instead of waiting 800 ms for the detector to guess.
 
+**And holding the button *opens* her ears** *(v0.25.1)*. This is the correction to a real bug, and the shape of it is worth keeping: `listen` was doing two jobs — opening this machine's microphone, which is a host-room device, and starting the **recogniser**, which is being-wide, one Whisper for every room. [[One Being, Many Rooms]] locked `listen` to the host room, correctly, and took the second job with it. So a room face could never start her ears at all, and the microphone button restored on the handset in v0.25.0 could not work until somebody pressed a different button at the desk.
+
+A held button is an explicit request to be transcribed, which is exactly the meaning `listen` was also carrying. The two are separated now: `EnsureEarsAsync` opens and wires the recogniser once for whoever asks, and `StartListening` adds this machine's microphone and the room-music analyser on top.
+
+> **`UseSource` starts what it is given**, which makes the obvious release path a trap: handing the ears back the local microphone when a face lets go would open the desk's microphone *because a phone released a button*. When nobody is listening at the desk the recogniser is stopped instead, and there is a check that fails if the local device opens during a remote press.
+
 ### Two things it would be easy to get wrong
 
 Both were flagged in the spec, both were real, and both would have looked like something else entirely.

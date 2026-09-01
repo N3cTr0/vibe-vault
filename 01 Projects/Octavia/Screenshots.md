@@ -37,6 +37,16 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.25.1 — idle, her ears shut and her microphone button offered anyway
+
+![[v0.25.1 - idle, her ears shut and her microphone button offered anyway.png]]
+
+**`EARS not started`, and the microphone button is there regardless.** That pairing is the whole fix. Her ears are *shut* — `ListenOnStart` is off, nothing has opened Whisper — and pressing that button is now what opens them, rather than something that requires them already open.
+
+Until v0.25.1 the same pairing was a lie on a handset. `listen` was doing two jobs: opening this machine's microphone, which is a host-room device, and starting the **recogniser**, which is being-wide. [[One Being, Many Rooms]] locked `listen` to the host room — correctly — and took the second job with it, so a room face could never start her ears at all. `micAccepted` compounded it by reporting "already started" instead of "will accept", so the phone hid a button that would have worked.
+
+The desktop could never show the symptom, which is the point worth remembering: this shot looks identical to the two before it, and the bug lived entirely in a face that is not this one.
+
 ## v0.25.0 — the host room, whose buttons item 10 does not touch
 
 ![[v0.25.0 - the host room, whose buttons item 10 does not touch.png]]

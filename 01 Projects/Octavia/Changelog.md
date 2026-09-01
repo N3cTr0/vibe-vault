@@ -16,6 +16,66 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.25.1 — 2026-09-01
+
+**A room face could never start her ears**, so the microphone button restored yesterday could
+not work until somebody walked to the desk and pressed a different button. Reported from the
+handset against v0.25.0, with the evidence on a live socket: `micAccepted: False`,
+`ears: not started`, `listening: False`.
+
+**This is item 9's bug, not item 10's**, and it had been sitting there since item 9 landed —
+invisible because until v0.25.0 no remote face had a microphone button to press.
+
+### `listen` was doing two jobs
+
+- **Opening this machine's microphone.** A host-room device. Item 9 made that host-only and
+  that is exactly right.
+- **Starting the speech recogniser.** *Being-wide* — it is the same Whisper for every room,
+  and a face taking the floor is an explicit request to be transcribed.
+
+Item 9 correctly locked the first and, without anybody noticing, took the second with it.
+`TakeFloor` required a running recogniser, only `listen` started one, and `listen` was now
+refused from the only rooms that needed it.
+
+They pull apart cleanly. `EnsureEarsAsync` opens and wires the recogniser exactly once,
+whoever asked; `StartListening` then adds the host's own microphone and the room-music
+analyser on top. **Holding the button opens her ears**, and the first press on a cold session
+may take a moment while a model loads — letting go during that takes nothing, which is why
+there is now a `_pressing` separate from `_floor`.
+
+### `micAccepted` meant the wrong thing
+
+It reported whether the recogniser was *already open*, which is false on every fresh session.
+So a handset was told its microphone button could only fail, hid it correctly, and the fault
+looked like a client bug. It now means **will accept** — the recogniser is Whisper, or is not
+open yet and would be.
+
+### Three things that would have gone wrong quietly
+
+**`UseSource` starts what it is given.** So the obvious line in `ReleaseFloor` — hand the ears
+back the local microphone — would have **opened the host's microphone because a phone let go
+of a button**. Exactly the fault item 9 exists to prevent, arriving through a door item 9 did
+not fit a lock to. When the desk is not listening the recogniser is stopped instead, and there
+is a check that fails if the desk's microphone opens during a remote press.
+
+**`Start` subscribed without detaching**, so a face taking the floor on ears the desk already
+had running would have processed every frame twice. One `-=` before the `+=`.
+
+**A mute outlives a turn.** `Unmute` only ever ran when the *desk* was listening, so after her
+first reply the ears would have been open, the source right, and nothing heard. Taking the
+floor now unmutes — a held button is an explicit request to be heard.
+
+### Checked
+
+Three new assertions in `EarsTest -- rooms`, and one of them really opens Whisper: the model
+is already on this machine, so a room face pressing the button on a session where nothing has
+ever listened is driven for real, and skipped with a note on a machine without it. Reverting
+both halves of the fix turns the first two red.
+
+Fifty assertions there now. The suite passes end to end.
+
+---
+
 ## 0.25.0 — 2026-09-01
 
 **A renderer can borrow the senses of whatever it is embedded in.** Stage 14 item 10, built

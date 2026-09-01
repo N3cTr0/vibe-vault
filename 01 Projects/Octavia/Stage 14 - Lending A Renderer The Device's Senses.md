@@ -7,6 +7,8 @@ tags: [octavia, spec, stage-14]
 
 > **Built, 09/01/2026, v0.25.0.** Added by the repo side above the original text, which is untouched below. Numbered 10, as suggested. All five page changes landed as specced, the trap is written into `PROTOCOL.md` rather than only into the client, and the press-and-hold difference is stated in the code rather than papered over. Acceptance 1–5 and 7 are asserted in `EarsTest -- embedder`, which drives the real page in WebView2 across three faces with the two origins reproduced rather than simulated; **acceptance 6 — a `look` arriving mid-watch — is the embedder's half and is owed from the client side.** See [[Lending A Renderer The Device's Senses]] and [[Changelog]] 0.25.0.
 
+> **Item 10's host half is closed, and it found one more of item 9's** *(09/01/2026, v0.25.1)*. The restored microphone button could not have worked: `listen` was starting the **recogniser** as well as this machine's microphone, and item 9 had locked both — so a room face could never open her ears, and `micAccepted` reported "already started" rather than "will accept". Both fixed; holding the button now opens them. Reported from the handset against v0.25.0 with `micAccepted: False, ears: not started` on a live socket, which is the kind of evidence that turns a guess into a fix. See [[Changelog]] 0.25.1.
+
 > **A specification, not a change.** Written 09/01/2026 from the [[Octavia Android]] side, which is the consumer that needs this, for whoever is working in her repo. Nothing in her repo was touched to produce it. It follows [[Stage 14 - Two Rooms]], which closed item 9 — number this whatever suits.
 
 ## The ask, in the owner's words

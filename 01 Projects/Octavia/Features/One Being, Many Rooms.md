@@ -123,6 +123,23 @@ So the page borrows from whatever it is embedded in. See [[Lending A Renderer Th
 
 > **The lesson is about the shape of the fix, not the fix.** Item 9's guard was correct and produced a real capability gap two versions later. A rule that says *no* to a whole class of face will strand something legitimate inside that class, and the answer is a seam that lets the legitimate case identify itself — not a hole in the rule.
 
+### And it stranded one more thing, invisibly *(v0.25.1)*
+
+`listen` was doing **two jobs**, and only one of them was a host-room concern:
+
+| Job | Whose |
+|---|---|
+| Open this machine's microphone | The **host room's** device. Locking it was right. |
+| Start the speech recogniser | **Being-wide** — the same Whisper for every room. |
+
+Item 9 locked the first and took the second with it. `TakeFloor` required a running recogniser, only `listen` started one, and `listen` was now refused from the only rooms that needed it — so **a room face could never start her ears**. It was invisible for two versions because no remote face had a microphone button to press until [[Lending A Renderer The Device's Senses]] gave it one back, and then it was reported from the handset immediately: `micAccepted: false, ears: not started`.
+
+Holding the button now opens her ears. A held button is an explicit request to be transcribed, which is precisely the meaning `listen` was also carrying.
+
+> **Three things would have gone wrong quietly while fixing it**, and all three are the same shape — a call that does more than its name. `UseSource` *starts* what it is given, so handing the ears back the local microphone on release would have opened the desk's microphone because a phone let go of a button. `Start` subscribed without detaching, so a face taking the floor on ears the desk already had would have processed every frame twice. And a mute set during her reply was only ever lifted when the *desk* was listening, so the second press would have been open, correctly sourced, and silent.
+
+**`micAccepted` also meant the wrong thing** — "already open" rather than "will accept" — so a handset was told its button could only fail, hid it correctly, and the fault read as a client bug.
+
 ## Links
 
 - [[Stage 14 - Two Rooms]] — the specification this was built from

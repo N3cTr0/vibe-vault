@@ -76,6 +76,11 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         ArmSilenceWatch();
 
         _source ??= new LocalMicSource(_device);
+
+        // Detached first, so starting something already started subscribes once rather than
+        // twice. Reachable since a face taking the floor calls this on ears the desk may
+        // already have running, and the symptom would be every frame processed twice.
+        _source.Data -= OnAudio;
         _source.Data += OnAudio;
         _source.Start();
     }
