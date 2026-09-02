@@ -189,6 +189,7 @@ The section above said a service runs as LocalSystem and therefore cannot read h
 |---|---|
 | Her key | **Decrypts.** Asked a question on the `cloud` profile, she reached Claude and answered — so DPAPI `CurrentUser` is readable by a service logged on as that user. |
 | Audio devices | **Enumerate**, microphones and outputs both, from session 0. |
+| Her ears | **Work.** Confirmed by the owner talking to her — *she can still hear me*. Stronger than it looks: enumerating a microphone proves nothing about capturing from one, and this is the half a session-0 caveat would most plausibly have broken. |
 | Her voice | *"turn in room 'host'; her voice plays on this machine"* is in the log, with no error behind it. |
 | Ears, voice, loopback, tools | Open exactly as they do from a console. |
 

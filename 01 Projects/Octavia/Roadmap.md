@@ -1619,10 +1619,15 @@ a client at all.
 > > **The fix was tried the same day, and it works** *(v0.30.1)*. The owner set the service
 > > to log on as their own account, and everything that was in doubt was measured rather than
 > > assumed: **her key decrypts** — she was asked a question on the `cloud` profile and Claude
-> > answered — the audio devices still enumerate, and *"her voice plays on this machine"* is
-> > in the log with no error behind it. So DPAPI `CurrentUser` is readable by a service
-> > logged on as that user, session 0 notwithstanding, and the note above became *"here is the
-> > fix"* instead of *"here are two things you might try"*.
+> > answered — and *"her voice plays on this machine"* is in the log with no error behind it.
+> > So DPAPI `CurrentUser` is readable by a service logged on as that user, session 0
+> > notwithstanding, and the note above became *"here is the fix"* instead of *"here are two
+> > things you might try"*.
+> >
+> > **Her ears work too, confirmed by the owner talking to her**: *"she can still hear me"*.
+> > That is a stronger fact than it looks — the audio devices merely *enumerating* from
+> > session 0 proves nothing about capture, and a microphone actually reaching Whisper
+> > through a service is the half that a session-0 caveat would most plausibly have broken.
 > >
 > > The cost is one that is worth writing down because it is silent: **a service logged on as
 > > an account stops starting when that account's password changes**, and says so in the
