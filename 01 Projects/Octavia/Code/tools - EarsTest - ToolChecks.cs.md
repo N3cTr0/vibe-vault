@@ -72,19 +72,19 @@ internal static class ToolChecks
         Check("an unlock demands confirming", danger?.Risk == ToolRisk.Confirm, $"{danger?.Risk}");
 
         var stateArgs = JsonDocument.Parse("""{"entity":"the hall lamp"}""").RootElement;
-        var answer = await registry.CallAsync("house__house_get_state", stateArgs);
+        var answer = (await registry.CallAsync("house__house_get_state", stateArgs)).Text;
         Check("a read runs and answers", answer.Contains("the hall lamp"), answer);
 
         // The rule that matters most: dangerous tools do not run on their own.
-        var unlock = await registry.CallAsync("house__house_unlock_door", stateArgs);
+        var unlock = (await registry.CallAsync("house__house_unlock_door", stateArgs)).Text;
         Check("an unlock is refused unconfirmed", !unlock.Contains("Unlocked"), unlock);
 
-        var confirmed = await registry.CallAsync("house__house_unlock_door", stateArgs, confirmed: true);
+        var confirmed = (await registry.CallAsync("house__house_unlock_door", stateArgs, confirmed: true)).Text;
         Check("an unlock runs once confirmed", confirmed.Contains("Unlocked"), confirmed);
 
         // A name nobody offers must be an answer, not an exception: the model has to be
         // able to be told it was wrong.
-        var missing = await registry.CallAsync("house__nonsense", stateArgs);
+        var missing = (await registry.CallAsync("house__nonsense", stateArgs)).Text;
         Check("an unknown tool answers rather than throws", missing.Contains("no tool"), missing);
 
         return failures;

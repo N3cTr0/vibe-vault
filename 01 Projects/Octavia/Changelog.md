@@ -16,6 +16,50 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.31.0 — 2026-09-02
+
+**She can see through the house's cameras.** `look_at_camera` fetches a UniFi Protect
+snapshot and hands it to the model as an image, and she describes what is in it.
+
+Both of the blockers that stopped this in v0.28.3 are gone: the brain-side tool loop landed
+in v0.29.0, and the owner switched a camera on.
+
+**The tool seam was text-only and is not any more.** `IToolProvider.CallAsync` returned a
+string, and `McpClient` carried a comment saying an image block *"would need the vision path
+and is left for whenever that matters"*. A camera is when it matters — the useful answer to
+*what is at the gate* is not a sentence about a JPEG. `ToolAnswer` carries text and an
+optional image, with an implicit conversion from string so every text-only path reads exactly
+as it did.
+
+**An image-bearing answer must also say in words what it captured.** That is a rule, not a
+nicety: `LocalBrain` has no eyes, so it takes the text and logs that it dropped a picture, and
+a local turn stays usable instead of blank. Only the first image in a result is kept — a tool
+returning twelve frames would otherwise put twelve full images into one turn.
+
+The picture goes *inside* the `tool_result`, not loose in the conversation, so *"this is what
+the camera saw when you asked"* stays attached to the asking. The words go after it, for the
+reason the existing camera path already gives: the question is about the picture, and a model
+reads blocks in the order it is handed them.
+
+**What she said on the first real look.** Asked to *"have a look outside and tell me what you
+can see"*, she answered that the Back Garden camera *"seems to have been moved or knocked,
+it's actually pointing at the inside of a room right now, showing a ceiling fan and a
+wardrobe"* — which the frame confirms exactly. She described what was there rather than what
+the camera was named, and flagged the mismatch unprompted. That is the whole argument for
+handing a model the picture instead of a description of one.
+
+Two refusals rather than one, because they are different problems: a camera nobody has heard
+of is a typo and lists the real names; a camera that exists but is unreachable is a fact about
+the house. `highQuality` is asked for and not required — this G5 Bullet answers *"Camera does
+not support full HD snapshot"* with a 400, so the standard frame is fetched instead.
+
+`EarsTest -- unifi` gained three assertions and adapts to the day: with a camera online there
+must be image bytes and the words must name the camera; with none, it says the snapshot went
+untested rather than failing. 11 checks there, 298 in the suite.
+
+---
+
+
 ## 0.30.1 — 2026-09-02
 
 **The service was set to log on as the user, and everything in doubt was measured.** v0.30.0

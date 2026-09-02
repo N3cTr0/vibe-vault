@@ -281,7 +281,17 @@ internal sealed class LocalBrain : IBrain
             parsed = JsonDocument.Parse("{}").RootElement.Clone();
         }
 
-        return await _tools!.CallAsync(name, parsed, confirmed: false, cancel);
+        var answer = await _tools!.CallAsync(name, parsed, confirmed: false, cancel);
+
+        /* The text only. **This brain has no eyes** — the same sentence `IBrain` already
+           uses about `Situation.Image` — so a picture would be bytes it cannot read and a
+           great many tokens it would pay for. That is why a tool answering with an image is
+           required to say in words what it captured: this path gets the words, and a turn
+           here is still a usable one rather than a blank stare. */
+        if (answer.HasImage)
+            Log.Write($"tool '{name}' returned an image; {_config.LocalModel} has no eyes, using its words");
+
+        return answer.Text;
     }
 
     /// Whatever text a chunk carried, with any tool-call fragments folded into `calls`.

@@ -566,7 +566,7 @@ list to every account on the machine.
 }
 ```
 
-`tools\unifi-mcp.ps1` is the first real one: five read-only tools over the UDM's own local
+`tools\unifi-mcp.ps1` is the first real one: six read-only tools over the UDM's own local
 Integration API, covering both UniFi Network and UniFi Protect. **No Home Assistant is
 involved** — the gateway answers this itself, with a key made in Settings → Control Plane →
 Integrations. `tools\mock-mcp.ps1` is the other, for proving the seam on a machine with no

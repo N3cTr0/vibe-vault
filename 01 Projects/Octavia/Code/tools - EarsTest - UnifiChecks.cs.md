@@ -65,7 +65,7 @@ internal static class UnifiChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("all five tools were listed", tools.Count == 5, $"{tools.Count}");
+        Check("all six tools were listed", tools.Count == 6, $"{tools.Count}");
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("unifi__")),
               string.Join(", ", tools.Select(t => t.Name)));
 
@@ -80,21 +80,55 @@ internal static class UnifiChecks
         Check("every tool is judged a read", wrong.Count == 0,
               string.Join(", ", wrong.Select(t => $"{t.Name} is {t.Risk}")));
 
-        var status = await registry.CallAsync("unifi__get_status", Empty());
+        var status = (await registry.CallAsync("unifi__get_status", Empty())).Text;
         Check("the gateway answers", status.Contains("client(s) connected"), Head(status));
 
-        var devices = await registry.CallAsync("unifi__list_devices", Empty());
+        var devices = (await registry.CallAsync("unifi__list_devices", Empty())).Text;
         Check("the hardware is named", devices.Contains("firmware"), Head(devices));
 
-        var cameras = await registry.CallAsync("unifi__list_cameras", Empty());
+        var cameras = (await registry.CallAsync("unifi__list_cameras", Empty())).Text;
         Check("Protect answers on the same key", cameras.Contains("camera"), Head(cameras));
 
         // A search that cannot match, so this asserts the empty answer rather than whatever
         // happens to be plugged in on the day.
-        var none = await registry.CallAsync(
-            "unifi__find_client", Args("""{"query":"zzz-nothing-is-called-this"}"""));
+        var none = (await registry.CallAsync(
+            "unifi__find_client", Args("""{"query":"zzz-nothing-is-called-this"}"""))).Text;
 
         Check("a search with no hits says so", none.Contains("Nothing connected matches"), Head(none));
+
+        /* The camera, which is the one tool whose answer is not words.
+
+           A name nobody has and a camera that is present but unreachable are different
+           problems with different answers, and both are asserted: the first is a typo and
+           the second is a fact about the house, so telling somebody "not reachable" for a
+           name that was never right would send them looking in the wrong place. */
+        var nobody = (await registry.CallAsync(
+            "unifi__look_at_camera", Args("""{"camera":"zzz-no-such-camera"}"""))).Text;
+
+        Check("an unknown camera is named as unknown",
+              nobody.Contains("no camera called"), Head(nobody));
+
+        /* Whether a picture comes back depends on what is plugged in today, so the check
+           adapts rather than demanding a camera: with one online there must be image bytes,
+           and with none there must be an explanation. Both are real answers; only silence
+           would be a failure. */
+        var inventory = (await registry.CallAsync("unifi__list_cameras", Empty())).Text;
+
+        if (FirstOnlineCamera(inventory) is { Length: > 0 } name)
+        {
+            var seen = await registry.CallAsync("unifi__look_at_camera", Args($$"""{"camera":"{{name}}"}"""));
+
+            Check($"looking through '{name}' returns a picture", seen.HasImage,
+                  seen.HasImage ? $"{seen.Image!.Length / 1365} KB of {seen.ImageMediaType}" : Head(seen.Text));
+
+            // The words matter as much as the picture: a brain with no eyes gets only these.
+            Check("...and says in words what it looked through",
+                  seen.Text.Contains(name, StringComparison.OrdinalIgnoreCase), Head(seen.Text));
+        }
+        else
+        {
+            Console.WriteLine("  ..     no camera is online, so the snapshot went untested");
+        }
 
         return failures;
     }
@@ -124,6 +158,15 @@ internal static class UnifiChecks
             return null;
         }
     }
+
+    /// The name of the first camera `list_cameras` reported as online, read out of the same
+    /// prose a model reads. Parsing her own output rather than calling Protect again keeps
+    /// the check honest: if the wording stops being readable, that is worth knowing too.
+    private static string FirstOnlineCamera(string inventory) =>
+        inventory.Split('\n')
+                 .Where(line => line.Contains(" - online"))
+                 .Select(line => line.Split(" (")[0].Trim())
+                 .FirstOrDefault() ?? "";
 
     private static JsonElement Empty() => Args("{}");
 

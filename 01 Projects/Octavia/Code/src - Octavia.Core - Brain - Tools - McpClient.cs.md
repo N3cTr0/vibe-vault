@@ -153,7 +153,7 @@ internal sealed class McpClient : IAsyncDisposable
         return ToolRisk.Act;
     }
 
-    public async Task<string> CallToolAsync(string bareName, JsonElement arguments, CancellationToken cancel = default)
+    public async Task<ToolAnswer> CallToolAsync(string bareName, JsonElement arguments, CancellationToken cancel = default)
     {
         var parameters = new JsonObject
         {
@@ -165,16 +165,44 @@ internal sealed class McpClient : IAsyncDisposable
 
         var result = await RequestAsync("tools/call", parameters, cancel);
 
-        // MCP returns content blocks; the text ones are what a model can use. An image
-        // block would need the vision path and is left for whenever that matters.
+        /* MCP returns content blocks. The text ones are what any model can use; an image is
+           taken too now, because a camera answers a question that no sentence about a JPEG
+           ever could. **Only the first image is kept** — a tool that returned twelve frames
+           would otherwise put twelve full-size images into one turn, which is a bill and a
+           context window rather than an answer. */
         if (result.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
         {
-            var text = content.EnumerateArray()
+            var blocks = content.EnumerateArray().ToList();
+
+            var text = blocks
                 .Where(b => b.TryGetProperty("type", out var t) && t.GetString() == "text")
                 .Select(b => b.TryGetProperty("text", out var v) ? v.GetString() : null)
                 .Where(v => !string.IsNullOrWhiteSpace(v));
 
             var joined = string.Join("\n", text);
+
+            var picture = blocks.FirstOrDefault(b =>
+                b.TryGetProperty("type", out var t) && t.GetString() == "image" &&
+                b.TryGetProperty("data", out _));
+
+            if (picture.ValueKind == JsonValueKind.Object)
+            {
+                var data = picture.GetProperty("data").GetString();
+                var kind = picture.TryGetProperty("mimeType", out var m) ? m.GetString() : null;
+
+                if (data is { Length: > 0 })
+                {
+                    Log.Write($"tool '{bareName}' returned an image ({data.Length / 1365} KB)");
+
+                    // The words matter as much as the picture: a brain with no eyes gets only
+                    // this, and "an image" is a worse answer than "the Back Garden camera".
+                    return new ToolAnswer(
+                        joined.Length > 0 ? joined : $"{bareName} returned an image.",
+                        data,
+                        kind is { Length: > 0 } ? kind : "image/jpeg");
+                }
+            }
+
             if (joined.Length > 0) return joined;
         }
 

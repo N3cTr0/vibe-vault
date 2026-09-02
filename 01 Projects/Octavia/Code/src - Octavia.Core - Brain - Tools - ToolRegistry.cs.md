@@ -35,7 +35,7 @@ internal sealed class McpToolProvider(McpClient client) : IToolProvider
         }
     }
 
-    public async Task<string> CallAsync(string name, JsonElement arguments, CancellationToken cancel = default)
+    public async Task<ToolAnswer> CallAsync(string name, JsonElement arguments, CancellationToken cancel = default)
     {
         // Names are prefixed on the way out so two servers may both offer "get_state";
         // the server itself only knows the bare name.
@@ -113,7 +113,7 @@ internal sealed class ToolRegistry : IAsyncDisposable
     /// `confirmed` is set only when the person has said yes *in this conversation*, and
     /// the caller is responsible for having actually asked. Defaulting it to false is
     /// deliberate: a new call site that forgets gets the safe behaviour.
-    public async Task<string> CallAsync(
+    public async Task<ToolAnswer> CallAsync(
         string name, JsonElement arguments, bool confirmed = false, CancellationToken cancel = default)
     {
         var tool = (await ListAsync(cancel)).FirstOrDefault(t => t.Name == name);

@@ -60,7 +60,12 @@ internal static class ToolLoopProbe
         string[] questions =
         [
             "What hardware is on my network right now?",
-            "Are any of my cameras online?"
+            "Are any of my cameras online?",
+
+            // The one that needs eyes. Phrased as a person would ask it, so the model has to
+            // decide a camera is wanted, pick the one that is actually reachable, and then
+            // describe what came back rather than describe having fetched something.
+            "Have a look outside and tell me what you can see."
         ];
 
         if (!localOnly)

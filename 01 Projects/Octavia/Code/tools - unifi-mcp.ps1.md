@@ -198,6 +198,54 @@ function Get-Cameras {
 }
 
 <#
+  A snapshot, as an MCP image block.
+
+  Two refusals rather than one, because they are different problems with different answers:
+  a camera nobody has heard of is a typo, and a camera that is present but unreachable is a
+  fact about the house. Saying "not reachable" for both would send her looking for a name
+  that was never wrong.
+
+  `highQuality` is asked for and *not* required. This G5 Bullet answers
+  "Camera does not support full HD snapshot" with a 400, so the standard frame is fetched
+  instead - written this way because the next camera may well support it and nobody should
+  have to come back here.
+#>
+function Get-CameraView([string]$query) {
+  if (-not $query) { return @{ text = 'Say which camera to look through.' } }
+
+  $cameras = Invoke-Unifi 'cameras' $protect
+  $hit = @($cameras | Where-Object { $_.name -like "*$query*" }) | Select-Object -First 1
+
+  if (-not $hit) {
+    $names = ($cameras | ForEach-Object { $_.name }) -join ', '
+    return @{ text = "There is no camera called '$query'. There is: $names." }
+  }
+
+  if ($hit.state -ne 'CONNECTED') {
+    return @{ text = "The $($hit.name) camera is $($hit.state.ToLower()) and cannot be reached, so there is nothing to see through it." }
+  }
+
+  $url = "$protect/cameras/$($hit.id)/snapshot"
+  $bytes = $null
+
+  foreach ($attempt in @("$($url)?highQuality=true", $url)) {
+    try {
+      $bytes = Invoke-WebRequest -Uri $attempt -Method Get -SkipCertificateCheck -TimeoutSec 30 `
+        -Headers @{ 'X-API-KEY' = $apiKey } | Select-Object -ExpandProperty Content
+      break
+    }
+    catch { continue }
+  }
+
+  if (-not $bytes) { return @{ text = "The $($hit.name) camera did not return a picture." } }
+
+  @{
+    text  = "Looking through the $($hit.name) camera, just now."
+    image = [Convert]::ToBase64String($bytes)
+  }
+}
+
+<#
   Descriptions are read by the risk heuristic in `McpClient.RiskOf` as well as by the
   model, and it checks its dangerous words first. Every one of these is a read and must
   classify as one, so the wording deliberately avoids the vocabulary that would make it
@@ -232,6 +280,15 @@ $tools = @(
     name        = 'list_cameras'
     description = 'List the UniFi Protect cameras and whether each one is currently reachable. Use this to say what she can and cannot see.'
     inputSchema = @{ type = 'object'; properties = @{} }
+  },
+  @{
+    name        = 'look_at_camera'
+    description = 'Look through one UniFi Protect camera and see what is there now. Give the camera name, or part of it. Returns a picture.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{ camera = @{ type = 'string'; description = 'Camera name, or part of one, such as Front Door' } }
+      required   = @('camera')
+    }
   }
 )
 
@@ -274,6 +331,8 @@ while ($true) {
       # Failures come back as text rather than as a JSON-RPC error, because the seam says
       # so and the reason is good: a model told "the gateway did not answer" can say that
       # out loud, where an error only ends the turn with nothing to relay.
+      $picture = $null
+
       try {
         $text = switch ($name) {
           'list_devices' { Get-Devices }
@@ -281,6 +340,11 @@ while ($true) {
           'get_status' { Get-Status }
           'find_client' { Find-Client $callArgs.query }
           'list_cameras' { Get-Cameras }
+          'look_at_camera' {
+            $seen = Get-CameraView $callArgs.camera
+            $picture = $seen.image
+            $seen.text
+          }
           default { "No such tool: $name" }
         }
       }
@@ -288,9 +352,16 @@ while ($true) {
         $text = "The UniFi gateway could not be reached: $($_.Exception.Message)"
       }
 
+      # The words always, the picture only when there is one - and the text first, so a
+      # reader of the raw protocol sees what happened before several hundred KB of base64.
+      $content = @(@{ type = 'text'; text = $text })
+      if ($picture) {
+        $content += @{ type = 'image'; data = $picture; mimeType = 'image/jpeg' }
+      }
+
       Send-Message @{
         jsonrpc = '2.0'; id = $message.id
-        result  = @{ content = @(@{ type = 'text'; text = $text }) }
+        result  = @{ content = $content }
       }
     }
 

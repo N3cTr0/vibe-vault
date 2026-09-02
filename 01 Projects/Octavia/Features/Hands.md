@@ -149,3 +149,38 @@ The section above ended by naming the gap, and the gap was the one that mattered
 **A machine with no tool servers must not start sending a `tools` key.** Some servers refuse it outright when the model has no tool template, so *identical when there is nothing to offer* is a stricter requirement here than for the hosted brain. Met the same way: two request shapes, not one with a conditional key.
 
 **A 7B model embellishes.** Asked about the hardware it added *"with their firmware versions up to date"*, which no tool said and nothing checked. The loop was working perfectly; the embellishment is downstream of it. **The reliability of a tool call is not the reliability of the sentence built from it** — which is an argument for keeping anything dangerous behind confirmation no matter how good the plumbing gets, and the reason `confirmed` staying false costs so little today.
+
+## She can see through the house's cameras *(v0.31.0)*
+
+*`look_at_camera` fetches a UniFi Protect snapshot and hands it to the model as a picture. Both blockers named in the v0.28.3 note are gone: the loop landed in v0.29.0, and the owner switched a camera on.*
+
+> **Q.** Have a look outside and tell me what you can see.
+> **A.** That's odd, the Back Garden camera seems to have been moved or knocked, it's actually pointing at the inside of a room right now, showing a ceiling fan and a wardrobe. And the Front Door camera is offline, so I can't check that one at all.
+
+The frame confirms it exactly — a lit ceiling fan, a wooden wardrobe, exposed roof beams. **She described what was there rather than what the camera was called**, and flagged the mismatch unprompted. That is the whole argument for handing a model the picture instead of a description of one, and it arrived on the first attempt.
+
+### The seam was text-only, and is not any more
+
+`IToolProvider.CallAsync` returned a `string`, and [[Architecture|McpClient]] carried a comment saying an image block *"would need the vision path and is left for whenever that matters"*. A camera is when it matters: the useful answer to *what is at the gate* is not a sentence about a JPEG.
+
+`ToolAnswer` carries text and an optional image, with an **implicit conversion from `string`** so every text-only path in the codebase reads exactly as it did.
+
+Three rules came with it, each earning its place:
+
+- **An image-bearing answer must also say in words what it captured.** Not a nicety — [[The Brain|LocalBrain]] has no eyes, takes the text and logs that it dropped a picture, so a local turn stays usable instead of blank.
+- **Only the first image is kept.** A tool returning twelve frames would otherwise put twelve full images into one turn, which is a bill and a context window rather than an answer.
+- **The picture goes inside the `tool_result`**, not loose in the conversation, so *"this is what the camera saw when you asked"* stays attached to the asking. A frame floating in the history becomes a photograph with no caption the moment a second one arrives.
+
+### Two refusals, because they are two problems
+
+A camera nobody has heard of is a **typo**, and the tool lists the real names. A camera that exists but is unreachable is a **fact about the house**. Saying *"not reachable"* for both would send somebody looking for a name that was never wrong.
+
+`highQuality` is asked for and not required: this G5 Bullet answers *"Camera does not support full HD snapshot"* with a 400, so the standard frame is fetched instead — written that way because the next camera may well support it.
+
+### What the local brain did
+
+Declined honestly rather than bluffing: *"I can't look outside yet, but I can check the cameras. Which camera would you like me to check?"* Not ideal — it had a tool it could have called — but not a lie either, which is the failure mode that would have mattered.
+
+### Proven
+
+`EarsTest -- unifi` gained three assertions and **adapts to the day**: with a camera online there must be image bytes and the words must name that camera; with none online it says the snapshot went untested rather than failing. It finds the camera by parsing `list_cameras`' own prose, so if that wording stops being readable the check notices too.

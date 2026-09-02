@@ -999,9 +999,33 @@ and a snapshot returns `503` rather than an image, so the state is real rather t
 flag. `list_cameras` therefore reports what is reachable rather than what exists, because
 "she has cameras" and "she can see anything" are separate claims.
 
-**Not built: the snapshot tool.** Protect returns a JPEG and MCP can carry an image, but the
-brain-side loop does not exist *and* neither camera is online. Two blockers, and writing it
-against neither would be guessing — the mistake this stage's notes have recorded three times.
+~~**Not built: the snapshot tool.**~~ **Built 09/02/2026, v0.31.0**, once both blockers went:
+the loop landed in v0.29.0, and the owner switched a camera on. `look_at_camera` returns an
+MCP image block, and she describes what is in it.
+
+**The seam was text-only and is not any more.** `IToolProvider.CallAsync` returned a string,
+and `McpClient` carried a comment saying an image block *"would need the vision path and is
+left for whenever that matters"*. A camera is when it matters, because the useful answer to
+*what is at the gate* is not a sentence about a JPEG. `ToolAnswer` carries text and an
+optional image; every text-only path reads exactly as it did, through an implicit conversion.
+
+**An image-bearing answer must still say in words what it captured**, which is a rule rather
+than a nicety: `LocalBrain` has no eyes, so it takes the text and logs that it dropped a
+picture — a local turn stays usable instead of blank. Only the first image is kept; a tool
+returning twelve frames would otherwise put twelve into one turn, which is a bill rather than
+an answer.
+
+> **What she said on the first real look.** Asked to *"have a look outside and tell me what
+> you can see"*, she reported that the Back Garden camera *"seems to have been moved or
+> knocked, it's actually pointing at the inside of a room right now, showing a ceiling fan
+> and a wardrobe"* — which the frame confirms exactly.
+>
+> She described **what was there rather than what the camera was called**, and flagged the
+> mismatch herself. That is the entire argument for handing a model the picture instead of a
+> description of the picture, and it arrived unprompted on the first attempt.
+
+The local brain declined honestly rather than bluffing — *"I can't look outside yet, but I can
+check the cameras. Which camera would you like me to check?"* Not ideal, and not a lie either.
 
 **Network and Protect are one server, not two**, which departs from "each integration
 independently broken-able" above. They are two applications on one appliance behind one

@@ -231,9 +231,34 @@ internal sealed class ClaudeBrain : IBrain
                    not, and pretending otherwise is how a door gets unlocked. */
                 var answer = await _tools.CallAsync(call.Name, arguments, confirmed: false, cancel);
 
-                // One result per call, in the same message: the API rejects a follow-up
-                // where any tool_use has no matching tool_result.
-                answers.Add(new ToolResultBlockParam { ToolUseID = call.Id, Content = answer });
+                /* One result per call, in the same message: the API rejects a follow-up
+                   where any tool_use has no matching tool_result.
+
+                   A tool that returned a picture puts it *inside* its own result, rather
+                   than as a loose image somewhere in the conversation. That is what keeps
+                   "this is what the camera saw when you asked" attached to the asking — a
+                   frame floating in the history would be a photograph with no caption the
+                   moment a second one arrived. The words go after the image for the reason
+                   `Turn` gives: the question is about the picture, and a model reads the
+                   blocks in the order it is given them. */
+                answers.Add(answer.HasImage
+                    ? new ToolResultBlockParam
+                    {
+                        ToolUseID = call.Id,
+                        Content = new ToolResultBlockParamContent(new List<Block>
+                        {
+                            new ImageBlockParam
+                            {
+                                Source = new Base64ImageSource
+                                {
+                                    Data = answer.Image!,
+                                    MediaType = answer.ImageMediaType ?? "image/jpeg"
+                                }
+                            },
+                            new TextBlockParam { Text = answer.Text }
+                        })
+                    }
+                    : new ToolResultBlockParam { ToolUseID = call.Id, Content = answer.Text });
             }
 
             messages.Add(new MessageParam { Role = Role.Assistant, Content = reached });
