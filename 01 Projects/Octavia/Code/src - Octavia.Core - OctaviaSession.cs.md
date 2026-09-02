@@ -562,7 +562,23 @@ internal sealed class OctaviaSession : IDisposable
            Checked before the authority table rather than inside it, because the table answers
            "may this room drive that hardware" and this is no longer a question about
            hardware. */
-        if (kind == "listen" && room.Id != RoomId.Host)
+        /* **Stage 15 item 3, as far as one condition can carry it.** The rule above said
+           `listen` should mean only the second thing *"once the server holds no device at
+           all"*. It now means the second thing whenever the asking face **has a microphone of
+           its own**, wherever it is standing — including the desk.
+
+           So the desktop stops being a room and starts being a face that happens to be on the
+           same box, which is the whole of the owner's rule. The server's own microphone is
+           what a face with no device falls back to, rather than the first thing reached for;
+           the hook is still there and is no longer the default path to it.
+
+           `senses` is the signal because it is the honest one: a face that says it has a
+           microphone is a face that will stream when asked, and one that says nothing gets
+           the old behaviour unchanged. */
+        var streamsItsOwn = _senses.TryGetValue(inbound.From, out var declared) &&
+                            declared.Contains("mic");
+
+        if (kind == "listen" && (room.Id != RoomId.Host || streamsItsOwn))
         {
             ToggleRoomListening(inbound.From, room);
             return;

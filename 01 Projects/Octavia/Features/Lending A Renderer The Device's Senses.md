@@ -103,3 +103,29 @@ Four mechanisms were broken on purpose to watch the right checks go red: the bor
 - [[One Being, Many Rooms]] — item 9, whose guards created the gap this fills
 - [[Eyes]] — watching, the marker, and the still/watch conflict
 - [[The Ears]] — the floor, and why it is a face rather than a room
+
+## And then the page became its own embedder *(v0.34.0)*
+
+*Stage 15 item 3, the microphone half. This note's seam turned out to have one more level in it.*
+
+The interface above says **a renderer may be embedded in something that has senses, and can borrow them**. A browser tab is embedded in nothing, so it borrowed nothing and was deaf: its only microphone was the *server's*, reached with `listen` — which is precisely the device hook the owner's rule removes.
+
+So when nothing lends this page a microphone and the page can open one itself, **it fills the role**. `lent`, the hold, the toggle, `senses`, every release path — all unchanged, and none of them can tell the difference.
+
+> **The desktop stops being a special case by becoming an ordinary face, rather than by having its special case generalised.** That was the argument for item 3 when it was decided; it is now a diff.
+
+Nothing on the wire changed. `talking` takes the floor and a binary frame from a face is microphone audio, 16 kHz 16-bit mono, fixed by contract since Stage 3 — see [[Face Protocol]]. The desktop is not a new kind of client. It is finally the same kind as the phone.
+
+**One asymmetry is deliberate**: `senses` now claims a microphone where a borrowed camera still does not. A borrowed camera cannot answer `look`, so claiming one misroutes a still. A microphone this page owns can do the only thing the claim means — stream when asked — so saying so is what lets the host stop reaching for its own device.
+
+### Three faults, each of which would have been silent
+
+| | |
+|---|---|
+| The client allowed **camera only** | It denied her own page the device this exists to give it. She would have used the server's microphone for ever, with nothing saying why. |
+| The fallback tested *"can try"*, not *"succeeded"* | A desk whose microphone was denied or unplugged would have gone silent — worse than what it replaced. It falls back on the failure now, not at the button. |
+| **`getUserMedia` does not always answer** | Denied it rejects, absent it rejects, but a permission prompt nobody looks at never settles. Measured in a headless renderer where the button did nothing at all, for ever. Two-second deadline. |
+
+### What is still the server's
+
+Her voice still plays through the server's sound card, and `music` still comes from the server's loopback. That second one is **different in kind**: a page cannot capture loopback at all, so it needs the client *shell* rather than the renderer — the first part of item 3 that is not simply more of the same shape. See [[A Server, And Clients]].

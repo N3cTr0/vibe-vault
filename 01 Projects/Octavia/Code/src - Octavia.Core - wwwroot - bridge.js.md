@@ -69,10 +69,103 @@ const canOpenACamera = window.isSecureContext;
    Read once. An embedder is injected at document start, before any page script, so there
    is nothing to wait for; one that appeared later would be describing a device this page
    had already told the host it did not have. */
-const embedder = window.OctaviaEmbedder ?? null;
+const embedder = window.OctaviaEmbedder ?? selfEmbedder();
 
 const lent = new Set(
   embedder && Array.isArray(embedder.senses) ? embedder.senses : []);
+
+/* **A page with no embedder can be its own** — Stage 15 item 3.
+
+   The interface says *"a renderer may be embedded in something that has senses, and can
+   borrow them"*. A browser tab is embedded in nothing and was therefore deaf: its only
+   microphone was the *server's*, reached with `listen`, which is the device hook the owner's
+   rule removes — *"the phone sends its mic to the server, the Windows client should be doing
+   the same thing."*
+
+   So when nobody lends this page a microphone and the page can open one itself, it fills the
+   role. Everything downstream — `lent`, the hold, the toggle, every release path — is
+   unchanged and does not know the difference, which is the strongest evidence the seam was
+   cut in the right place: **the desktop stops being a special case by becoming an ordinary
+   face**, rather than by having its special case generalised.
+
+   `mic.js` is imported on first use, so a face that never listens never loads it.
+
+   Absent stays absent: no secure context, no `getUserMedia`, no microphone — an `http://`
+   page on the LAN still has none of this, exactly as before. */
+function selfEmbedder() {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return null;
+
+  let device = null;
+  let wanted = false;
+
+  /// How long the device gets to open before this counts as not having one.
+  ///
+  /// **`getUserMedia` does not always answer.** Denied, it rejects; absent, it rejects; but a
+  /// permission prompt nobody is looking at simply never settles — which was measured here,
+  /// in a headless renderer that neither granted nor refused. Without a deadline the button
+  /// does nothing at all in that case, for ever, with no notice and no fallback: the exact
+  /// silent failure this whole path exists to avoid.
+  const OPEN_WITHIN_MS = 2000;
+
+  async function ensure() {
+    if (device) return device;
+
+    const { createMicrophone } = await import('./mic.js');
+
+    const opening = createMicrophone({
+      send: buffer => sendBinary(buffer),
+      onLevel: value => window.Face.setLevel(value),
+      onError: err => send({ type: 'faceError', text: `microphone: ${err && err.message || err}` })
+    });
+
+    device = await Promise.race([
+      opening,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('the microphone did not open')), OPEN_WITHIN_MS))
+    ]);
+
+    return device;
+  }
+
+  /* Streaming and *the floor* are two different things, and this is the one place the page
+     has to hold both. `talking` is what the host acts on; the samples are only wanted while
+     it is true, so the device starts before the claim and stops after the release. Doing it
+     the other way round loses the first syllable, which is the fault item 11 spent a version
+     removing at the desk. */
+  async function hold(on) {
+    const mic = await ensure();
+
+    if (on) { await mic.start(); send({ type: 'talking', value: true }); }
+    else { send({ type: 'talking', value: false }); if (!wanted) mic.stop(); }
+  }
+
+  async function listening(on) {
+    const mic = await ensure();
+    wanted = on;
+
+    if (on) await mic.start();
+    else mic.stop();
+
+    // No value: `listen` toggles, by contract, and inventing a field here would be a
+    // protocol change smuggled in as a convenience. The device is opened first either way,
+    // so the host never asks for samples that are not already coming.
+    send({ type: 'listen' });
+  }
+
+  return {
+    senses: ['mic'],
+    talking: held => hold(held),
+    listening: on => listening(on),
+
+    /// Called from the state handler so an open microphone does not hear her answer. The
+    /// browser's own canceller does most of this; muting is what makes its edges forgiving.
+    speaking: on => { if (device) device.mute(on); },
+
+    /// Its own flag, so `bridge.js` can tell "the page is the microphone" from "a shell
+    /// lends one" wherever the difference genuinely matters. It rarely does.
+    isSelf: true
+  };
+}
 
 /* What this face tells the *host* it can do, and it deliberately does **not** include what
    an embedder lends.
@@ -82,7 +175,16 @@ const lent = new Set(
    stills. A panel that claimed a camera here would be asked for a frame it cannot produce,
    and on Android it would take that frame away from the native client, which can. Borrowed
    senses are for this renderer's own controls; they are not a claim made to the host. */
-const senses = canOpenACamera ? ['camera'] : [];
+/* A microphone *is* claimed, where a borrowed camera is not, and the asymmetry is the
+   point rather than an inconsistency. `senses` exists so the host can route work to a face
+   that can do it. A borrowed camera cannot answer `look`, so claiming one would misroute a
+   still. A microphone this page owns can do the only thing a claimed microphone means —
+   stream audio when asked — so saying so is what lets the host stop reaching for its own
+   device. See Stage 15 item 3. */
+const senses = [
+  ...(canOpenACamera ? ['camera'] : []),
+  ...(embedder?.isSelf ? ['mic'] : [])
+];
 
 /* Where the socket is.
 
@@ -160,6 +262,16 @@ function send(message) {
      `talking` is a button that has since been let go of, and `ready` is re-sent on every
      open anyway. Holding them would make her answer questions nobody is still asking. */
   console.info('[not connected]', message);
+}
+
+/* Microphone audio, upstream.
+
+   **A binary frame from a face is microphone audio and nothing else** — no header, no type
+   tag, fixed by contract since Stage 3 and already what a handset sends. Dropped rather than
+   queued when there is no socket, for the same reason `send` drops: audio that arrives after
+   a reconnect is a sentence nobody is still saying. */
+function sendBinary(buffer) {
+  if (socketReady) socket.send(buffer);
 }
 
 function connectSocket() {
@@ -262,6 +374,15 @@ function receive(msg) {
   switch (msg.type) {
     case 'state':
       applyState(msg.value);
+
+      /* An open microphone must not hear her answer.
+         Item 6 put this on the client for the handset, because only the client knows when
+         its own speaker emitted. A page whose microphone is its own is in exactly that
+         position — the difference is that her voice comes out of the *server's* sound card,
+         a hop away, so `speaking` is the only notice it gets. It is a hop of microseconds on
+         the machine this actually runs on. */
+      if (embedder && typeof embedder.speaking === 'function')
+        embedder.speaking(msg.value === 'speaking');
       break;
 
     case 'level':
@@ -883,7 +1004,21 @@ textIn.addEventListener('keydown', e => {
 // house. The host refuses it too; this stops the request being made at all.
 //
 // On a room face the click does nothing and the pointer handlers below take over.
-talkBtn.addEventListener('click', () => { if (controls === 'host') send({ type: 'listen' }); });
+/* **The desktop prefers its own microphone now**, and falls back to the host's.
+
+   `listen` opens the *server's* device, which is the hook Stage 15 item 3 removes. When this
+   page has a microphone of its own — which on the desktop it does, being served over
+   loopback and therefore a secure context — the click goes through `toggleListening` like
+   any other face's, and the server's device is never asked for.
+
+   The fallback is not tidiness. A page can be refused the microphone by the person, by
+   policy, or by there being no capture device at all, and a client that went deaf rather
+   than using the server's would be a worse companion than the one this replaces. */
+talkBtn.addEventListener('click', () => {
+  if (controls !== 'host') return;
+  if (canToggleListening()) { toggleListening(); return; }
+  send({ type: 'listen' });
+});
 
 /* Press-and-hold, for a room face with a borrowed microphone.
 
@@ -901,7 +1036,12 @@ talkBtn.addEventListener('click', () => { if (controls === 'host') send({ type: 
 let holdingFloor = false;
 
 function holdToTalk(on) {
-  if (!lent.has('mic') || controls === 'host') return;
+  /* `controls === 'host'` used to disqualify a face from this entirely, because the desk's
+     button was a `listen` toggle and holding it meant nothing. A host-room face with its own
+     microphone is a face that can hold the floor like any other, so the test is now about
+     *having a microphone* rather than about which room it is standing in. */
+  if (!lent.has('mic')) return;
+  if (controls === 'host' && !embedder?.isSelf) return;
   if (holdingFloor === on) return;
 
   holdingFloor = on;
@@ -950,7 +1090,24 @@ function toggleListening() {
       talkBtn.setAttribute('aria-pressed', String(wanted));
     })
     .catch(err => {
-      notify(err && err.message || 'This device would not start listening.');
+      /* **The fallback belongs here, not at the button.**
+
+         Whether this page can *try* to open a microphone and whether it actually gets one
+         are different questions, and only the second one matters. Deciding at the click —
+         "there is a `listening` function, so use it" — leaves a desk whose microphone was
+         denied, unplugged or claimed by something else with no way to listen at all: worse
+         than the server's device it was replacing.
+
+         So the fallback is on the failure. A host-room face that could not open its own
+         microphone asks for hers, exactly as it did before Stage 15 item 3. Anywhere else
+         there is nothing to fall back to, and the notice is the whole answer. */
+      if (controls === 'host' && embedder?.isSelf) {
+        send({ type: 'listen' });
+        notify('Using her microphone: this one could not be opened.');
+      } else {
+        notify(err && err.message || 'This device would not start listening.');
+      }
+
       send({ type: 'faceError', text: `listening failed: ${err && err.message || err}` });
     });
 }

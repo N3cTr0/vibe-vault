@@ -1598,7 +1598,55 @@ Whisper.net and ONNX are cross-platform, and NAudio and `System.Speech` sit behi
 **So a Linux server is one image decoder and one `Octavia.Windows` project away**, and that is
 the prize worth naming: an always-on box in a cupboard wants to be Linux.
 
-### 3. The server holds no device — **decided 09/02/2026, open**
+### 3. The server holds no device — **the microphone half built 09/02/2026, v0.34.0**
+
+> **The desktop stopped using the server's microphone.** Her page opens its own, streams it
+> up, and the server routes that as room listening — so on the machine this actually runs on,
+> the first and largest of the server's device hooks is no longer the default path to
+> anything.
+>
+> **Nothing on the wire changed, again.** `talking` takes the floor and a binary frame from a
+> face is microphone audio, 16 kHz 16-bit mono, fixed by contract since Stage 3. The desktop
+> is not a new kind of client; it is finally the same kind as the phone.
+>
+> **The page became its own embedder, and that is the shape worth keeping.** Item 10 said *a
+> renderer may be embedded in something that has senses, and can borrow them*. A browser tab
+> is embedded in nothing and was therefore deaf. Now, when nothing lends it a microphone and
+> it can open one itself, it fills the role — and `lent`, the hold, the toggle and every
+> release path are unchanged and cannot tell the difference. **The desktop stops being a
+> special case by becoming an ordinary face, rather than by having its special case
+> generalised.** That was the argument for this item and it is now a diff.
+>
+> One server-side condition carries it: `listen` means *"transcribe what I am already
+> sending"* whenever the asking face declares a microphone, wherever it is standing —
+> including the desk. A face that declares none gets the old behaviour untouched.
+>
+> **`senses` now claims a microphone where a borrowed camera still does not**, and the
+> asymmetry is the point: a borrowed camera cannot answer `look`, so claiming one misroutes a
+> still, while a microphone this page owns can do the only thing the claim means.
+>
+> **Three faults found by building it**, each of which would have been silent:
+>
+> - The client's permission handler allowed **camera only**, so it denied her own page the
+>   device this exists to give it — she would have fallen back to the server's microphone for
+>   ever with nothing saying why.
+> - The fallback was decided on *being able to try* rather than on *succeeding*. A desk whose
+>   microphone was denied or unplugged would have gone silent — worse than what it replaced.
+> - **`getUserMedia` does not always answer.** Denied it rejects, absent it rejects, but a
+>   permission prompt nobody looks at never settles. Measured in a headless renderer, where
+>   the button did nothing at all, for ever. There is a two-second deadline now.
+>
+> **What is still open, and it is most of the list:**
+>
+> | | |
+> |---|---|
+> | Her voice | Still plays through the *server's* sound card. Downstream audio to a page is unwritten; the handset does it natively. |
+> | `music` | Still the server's loopback. **A page cannot capture loopback at all**, so this one genuinely needs the client shell, not the renderer — the first part of item 3 that is not simply more of the same. |
+> | `SapiVoice` | Unchanged, and still cannot be streamed. |
+> | `setMicrophone` / `setOutput` | Still host-only, still about the server's devices. |
+> | The device classes | `LocalMicSource`, `MicLevelMeter`, `AudioDevices`, `LoopbackListener` all still in the core, now as the fallback rather than the default. |
+
+### 3. The server holds no device — the original note *(decided 09/02/2026)*
 
 > **The owner's rule, and it settles this rather than opening it:**
 >

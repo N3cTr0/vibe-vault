@@ -70,7 +70,7 @@ source-path: src\Octavia.Core\Octavia.Core.csproj
          a fact a diagnostics bundle needs whether or not this machine draws anything. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <PackageReference Include="NAudio" Version="3.0.1" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="2.1.11" />
     <PackageReference Include="System.Speech" Version="10.0.11" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />

@@ -18,6 +18,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.34.0 — 2026-09-02
+
+**The desktop stopped using the server's microphone.** Her page opens its own, streams it up,
+and the server routes that as room listening — so the first and largest of the server's device
+hooks is no longer the default path to anything. Stage 15 item 3, the microphone half.
+
+**Nothing on the wire changed.** `talking` takes the floor and a binary frame from a face is
+microphone audio, 16 kHz 16-bit mono little-endian, fixed by contract since Stage 3. The
+desktop is not a new kind of client; it is finally the same kind as the phone.
+
+**The page became its own embedder**, and that is the shape worth keeping. Item 10 said *a
+renderer may be embedded in something that has senses, and can borrow them* — and a browser
+tab is embedded in nothing, so it was deaf. Now, when nothing lends it a microphone and it can
+open one itself, it fills the role. `lent`, the hold, the toggle and every release path are
+unchanged and cannot tell the difference. **The desktop stops being a special case by becoming
+an ordinary face, rather than by having its special case generalised.**
+
+One condition on the server carries it: `listen` means *"transcribe what I am already sending
+you"* whenever the asking face declares a microphone, wherever it is standing. A face that
+declares none gets the old behaviour untouched. `senses` claims a microphone where a borrowed
+camera still does not — a borrowed camera cannot answer `look` and claiming one misroutes a
+still, while a microphone this page owns can do the only thing the claim means.
+
+Echo is handled the way item 6 handled it on the handset: the browser's own canceller, which
+is the textbook case it was built for, plus muting on `state: speaking` with a 250 ms tail.
+
+**Three faults found by building it, each of which would have been silent:**
+
+- The client's permission handler allowed **camera only**, so it denied her own page the
+  device this exists to give it. She would have fallen back to the server's microphone for
+  ever with nothing saying why.
+- The fallback was decided on *being able to try* rather than on *succeeding*. A desk whose
+  microphone was denied or unplugged would have gone silent — worse than what it replaced. It
+  now falls back on the failure, not at the button.
+- **`getUserMedia` does not always answer.** Denied it rejects and absent it rejects, but a
+  permission prompt nobody looks at never settles — measured in a headless renderer where the
+  button did nothing at all, for ever. Two-second deadline.
+
+Also swapped ImageSharp 4.x for 2.1: the 4.x line prints a licence warning on every build and
+carries an obligation this project has no reason to take on. 2.1 is Apache 2.0 and the same
+numbers came out.
+
+**Most of item 3 is still open**, and one part of it turns out to be different in kind: her
+voice still plays through the server's sound card, and `music` still comes from the server's
+loopback — which **a page cannot capture at all**, so that piece needs the client shell rather
+than the renderer. `SapiVoice`, the device settings and the device classes are untouched.
+
+317 checks pass, including one that went red for the right reason and was rewritten to assert
+the fallback it exposed.
+
+---
+
+
 ## 0.33.0 — 2026-09-02
 
 **The core no longer needs WPF.** `Sight.Inspect` — which greys a camera still and measures

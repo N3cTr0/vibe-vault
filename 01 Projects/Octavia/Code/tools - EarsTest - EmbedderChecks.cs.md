@@ -404,10 +404,24 @@ internal static class EmbedderChecks
 
                 host.Clear();
                 await Eval("document.getElementById('talk').click(); 'ok'");
-                await Task.Delay(400);
 
+                // Longer than the others, because the click now tries to *open a microphone*
+                // before it decides anything, and being refused one is not instant.
+                await Task.Delay(4000);
+
+                /* **This asserts the fallback, and it did not used to.** Before Stage 15
+                   item 3 the desktop's button always sent `listen` — open the server's
+                   microphone. It now prefers its own, and only asks for hers when that
+                   fails.
+
+                   There is no capture device in this harness, so opening one fails and the
+                   fallback is exactly what runs. That makes this the check for the case that
+                   matters most: a desk whose microphone is denied, unplugged or already
+                   taken must not go silent. The path where the page *succeeds* needs a real
+                   microphone and is exercised by hand. */
                 sent = host.Heard();
-                Check("...and still sends `listen`", sent.Contains("\"listen\""), sent);
+                Check("...and falls back to `listen` when it has no microphone of its own",
+                    sent.Contains("\"listen\""), sent);
             }
             catch (Exception ex)
             {

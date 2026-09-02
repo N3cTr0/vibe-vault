@@ -88,8 +88,18 @@ public partial class MainWindow : Window
            on the origin I was told to load? Anything else is denied. */
         Face.CoreWebView2.PermissionRequested += (_, request) =>
         {
+            /* Camera and, since Stage 15 item 3, **microphone**.
+
+               The page opens its own microphone now and streams it up, instead of asking the
+               server to open the one on this machine — so a client that answered only for the
+               camera would deny her page the very device the change exists to give it, and
+               she would fall back to the server's microphone for ever without either of them
+               saying why. */
             var mine = request.Uri.StartsWith(_client.Origin + "/", StringComparison.OrdinalIgnoreCase);
-            var allowed = mine && request.PermissionKind == CoreWebView2PermissionKind.Camera;
+
+            var allowed = mine && request.PermissionKind is
+                CoreWebView2PermissionKind.Camera or
+                CoreWebView2PermissionKind.Microphone;
 
             request.State = allowed ? CoreWebView2PermissionState.Allow : CoreWebView2PermissionState.Deny;
             request.SavesInProfile = false;
