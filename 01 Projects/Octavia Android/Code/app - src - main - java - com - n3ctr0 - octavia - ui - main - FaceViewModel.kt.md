@@ -88,6 +88,16 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
 
     fun connect() {
         if (!settings.configured) return
+
+        /* Already attached, so leave it alone. Before "stay in the background" this could
+           not happen — every start followed a release. Now returning to the app finds a live
+           socket, and reconnecting it would take a new `FaceId`, re-announce, and re-enter
+           the room for no reason a person could see. `reconnect()` disconnects first, so the
+           Retry button and Set up still force a fresh one. */
+        if (_state.value.link == FaceSocket.Link.Up ||
+            _state.value.link == FaceSocket.Link.Connecting
+        ) return
+
         socket.connect(
             settings.host, settings.port, settings.credential, settings.playAudio,
             room = settings.room,

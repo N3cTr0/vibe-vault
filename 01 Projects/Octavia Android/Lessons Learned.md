@@ -89,6 +89,22 @@ That makes it a bad judge of the renderer decision and an *excellent* tester for
 
 **The lesson:** name which questions a test device can answer and which it cannot, before its verdict gets quoted for something it was never able to measure.
 
+## `am start` returns before the app exists, and the race looks like a broken feature
+
+Twice on 09/02/2026 the *stay in the background* service was diagnosed as not starting. Both times it started fine. `am start` is asynchronous: a back press issued straight after it lands before the activity exists and goes to the launcher instead — and on a fresh install `dexopt` keeps the process busy for another ten seconds after `Status: ok` is printed.
+
+The tell was in the log the whole time: `Background started FGS: Allowed`, at a timestamp *after* the point the feature had already been written off.
+
+**The lesson:** never drive a freshly launched app on a fixed sleep. `am start -W`, then poll `dumpsys activity activities` for `topResumedActivity` naming the app, then act. A fixed sleep is a test that fails at whatever rate the device happens to be slow, and it fails as a *product* bug rather than a test one — which is the expensive part.
+
+## A permission granted out of band is not a permission that was allowed
+
+`pm grant com.n3ctr0.octavia android.permission.POST_NOTIFICATIONS` returns silently and sets `granted=true`. The notification still never appeared, for half an hour, while the foreground service ran perfectly and reported `isForeground=true`.
+
+`dumpsys notification` said it plainly: `AppSettings: com.n3ctr0.octavia importance=NONE`. The runtime permission and the vendor's per-app notification channel are two different switches, and `pm grant` only moves one. Granting through the app's own prompt gave `importance=DEFAULT` and the notification appeared immediately.
+
+**The lesson:** when a permission is the *whole* feature, test it the way a person grants it. Convenience grants over `adb` are fine for permissions that merely unblock a code path, and actively misleading for the ones whose UI surface is the thing being built. Check `dumpsys notification | grep AppSettings` before believing the app is at fault.
+
 ## Links
 
 - [[Octavia Android]] · [[Architecture]] · [[Build & Release]] · [[Roadmap]]

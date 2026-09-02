@@ -88,7 +88,7 @@ class Watcher(private val context: Context) {
      * off and the interface says otherwise — which is the one thing a privacy marker must
      * never do.
      */
-    suspend fun start(onGaze: (Float, Float) -> Unit) = withContext(Dispatchers.Main) {
+    suspend fun start(lens: Lens, onGaze: (Float, Float) -> Unit) = withContext(Dispatchers.Main) {
         if (running) return@withContext
 
         val executor = ContextCompat.getMainExecutor(context)
@@ -100,11 +100,8 @@ class Watcher(private val context: Context) {
             }
         } ?: throw IllegalStateException("this device would not start its camera")
 
-        val selector = when {
-            cameras.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) -> CameraSelector.DEFAULT_FRONT_CAMERA
-            cameras.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) -> CameraSelector.DEFAULT_BACK_CAMERA
-            else -> throw IllegalStateException("no camera on this device")
-        }
+        val selector = cameras.selectorFor(lens)
+            ?: throw IllegalStateException("no camera on this device")
         val front = selector == CameraSelector.DEFAULT_FRONT_CAMERA
 
         val analysis = ImageAnalysis.Builder()

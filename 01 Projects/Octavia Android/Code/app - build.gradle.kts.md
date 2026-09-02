@@ -19,8 +19,13 @@ android {
         applicationId = "com.n3ctr0.octavia"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        /* Kept in step with `versions.md`, which is the record. It said 0.9.1 while every
+           APK ever built reported 1.0 — so a handset could not be asked what it was running,
+           and "is that the build with the fix?" had no answer but a reinstall.
+
+           The code is `major*10000 + minor*100 + patch`: monotonic, and readable back. */
+        versionCode = 1000
+        versionName = "0.10.0"
         // The camera can only be proven on a real camera, so its check is an instrumented
         // test rather than a unit test. Nothing ran on device before this.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

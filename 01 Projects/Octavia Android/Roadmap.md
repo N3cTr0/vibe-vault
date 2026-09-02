@@ -477,6 +477,37 @@ provide. So: same button, same place, same look, **held rather than toggled**. M
 toggle without doing item 6 would mean she hears her own voice through the phone's speaker and
 transcribes it.
 
+## Stage 7 — She stays when you look away *(scoped and done 09/02/2026, 0.10.0)*
+
+The last thing the Windows client could do that this one could not, once her Stage 15 made
+that client a socket face exactly like this one.
+
+**The gesture problem.** A full-screen app has no window chrome, so back was the only exit —
+and back finished the activity, taking the WebView, the ViewModel and the socket with it.
+*"I am done looking at this"* and *"end her"* were the same press. The desktop's equivalent
+puts her in the tray and she keeps running.
+
+### What landed — ✅ **done in 0.10.0**
+
+- **A setting, not the behaviour.** A tray icon costs a desktop nothing; on a handset the
+  same promise is a socket, a twenty-second ping and a radio that cannot sleep. Off by
+  default, so the device that was being frugal stays frugal.
+- **Back moves the task back** when it is on, and finishes as before when it is not.
+- **A foreground service** holds the process. It owns **no socket and no state** — two owners
+  of one connection would have dragged the reconnect and floor logic, the part that has
+  actually been debugged, along with it.
+- **The notification is the affordance**, not decoration: tapping it surfaces her, *Let her
+  go* is the tray's Quit. A background service with no way back to it is how an app becomes
+  something you force-stop.
+- **Her camera stops regardless.** The marker lives in her page and leaves with the screen;
+  a panel that now survives backgrounding could otherwise watch with its marker off-screen.
+
+### What this deliberately does not do
+
+**She cannot start anything while backgrounded** — no unprompted speaking, no wake word, no
+`look`. She keeps her room, her voice and her face identity, and that is all. Everything
+beyond it needs item 6 first, and would want a person's consent besides.
+
 ## Stage 4 — The house
 
 `hello` gains whatever Stage 12 gives it, and this app shows it. Not designed yet, because

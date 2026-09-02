@@ -34,6 +34,9 @@ class DeviceSenses(
     private val context: Context,
     /** Raises the runtime permission prompt. Suspends until a person answers. */
     private val askForCamera: suspend () -> Boolean,
+    /** Which camera to lend, **read at every use rather than held**, so changing it in Set up
+     *  takes effect on the next look without restarting the app. */
+    private val lens: () -> Lens = { Lens.Front },
 ) {
 
     private val still = CameraStill(context)
@@ -66,6 +69,9 @@ class DeviceSenses(
      * because the alternative is her waiting twenty seconds for a frame that is not coming.
      */
     suspend fun takeStill(): CameraStill.Shot = gate.withLock {
+        // Read once, so the shutter and the watcher it puts back cannot end up on different
+        // cameras because the setting changed in between.
+        val using = lens()
         val wasWatching = watcher.running
         if (wasWatching) {
             // Her gaze goes home before the camera does, so she is not frozen mid-glance
@@ -75,11 +81,11 @@ class DeviceSenses(
         }
 
         try {
-            still.take()
+            still.take(using)
         } finally {
             if (wasWatching) {
                 try {
-                    watcher.start { x, y -> onGaze?.invoke(x, y) }
+                    watcher.start(using) { x, y -> onGaze?.invoke(x, y) }
                 } catch (e: Exception) {
                     /* The page raised its marker when `watch(true)` resolved and has no way
                        to hear that the camera has since gone. It will show her watching
@@ -114,7 +120,7 @@ class DeviceSenses(
             if (!askForCamera()) throw IllegalStateException("the camera was not allowed on this device")
         }
 
-        watcher.start { x, y -> onGaze?.invoke(x, y) }
+        watcher.start(lens()) { x, y -> onGaze?.invoke(x, y) }
     }
 
     /**

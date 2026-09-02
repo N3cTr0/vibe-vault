@@ -25,6 +25,17 @@ source-path: app\src\main\AndroidManifest.xml
          `look` with an error, which the protocol asks for and which is not a failure. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Her tray icon. Only ever started when "Stay in the background" is switched on;
+         with it off, no service runs and leaving the app drops her socket as before.
+         `specialUse` rather than `dataSync` because this is not a sync and the six-hour
+         daily cap on that type would end her presence mid-afternoon with no explanation. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- The notification *is* the way back to her, so a refusal costs the way back rather
+         than an alert. Asked for at the moment the setting is switched on, not at launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:hardwareAccelerated="true"
@@ -44,6 +55,18 @@ source-path: app\src\main\AndroidManifest.xml
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".service.OctaviaService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the WebSocket connection to the user's own
+                    self-hosted Octavia server open while the app is in the background,
+                    so her voice keeps playing and she stays in her room. No socket is
+                    forwarded and no third-party service is contacted." />
+        </service>
     </application>
 
 </manifest>

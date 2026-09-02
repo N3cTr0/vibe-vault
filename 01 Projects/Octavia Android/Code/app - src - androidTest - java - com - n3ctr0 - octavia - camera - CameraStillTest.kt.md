@@ -63,7 +63,7 @@ class CameraStillTest {
      */
     @Test
     fun alwaysAnswers() = runBlocking {
-        val shot = withTimeout(15_000) { CameraStill(context).take() }
+        val shot = withTimeout(15_000) { CameraStill(context).take(Lens.Front) }
         assertTrue(
             "answered with neither an image nor a reason: $shot",
             shot is CameraStill.Shot.Image || shot is CameraStill.Shot.Failed,
@@ -81,7 +81,7 @@ class CameraStillTest {
      */
     @Test
     fun aPictureIsAJpeg() = runBlocking {
-        val shot = withTimeout(15_000) { CameraStill(context).take() }
+        val shot = withTimeout(15_000) { CameraStill(context).take(Lens.Front) }
         if (shot !is CameraStill.Shot.Image) return@runBlocking   // no camera on this device
 
         val bytes = Base64.decode(shot.base64, Base64.NO_WRAP)
@@ -104,10 +104,10 @@ class CameraStillTest {
      */
     @Test
     fun releasesTheCameraBetweenShots() = runBlocking {
-        val first = withTimeout(15_000) { CameraStill(context).take() }
+        val first = withTimeout(15_000) { CameraStill(context).take(Lens.Front) }
         if (first !is CameraStill.Shot.Image) return@runBlocking
 
-        val second = withTimeout(15_000) { CameraStill(context).take() }
+        val second = withTimeout(15_000) { CameraStill(context).take(Lens.Front) }
         assertTrue("the camera was not released after the first shot: $second",
             second is CameraStill.Shot.Image)
     }

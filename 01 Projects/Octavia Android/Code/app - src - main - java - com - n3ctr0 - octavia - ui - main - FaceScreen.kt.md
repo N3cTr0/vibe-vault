@@ -30,6 +30,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.n3ctr0.octavia.camera.DeviceSenses
+import com.n3ctr0.octavia.camera.Lens
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
 
@@ -80,6 +82,9 @@ fun FaceScreen(
     /** Her page's microphone button. Suspends because it may raise a permission prompt, and
      *  throws so a refusal reaches the page rather than being swallowed. */
     onTalking: suspend (Boolean) -> Unit,
+    /** Asks for the notification permission. Only an activity can, and the notification is
+     *  the only way back to her once she is in the background. */
+    onWantNotifications: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
@@ -129,6 +134,7 @@ fun FaceScreen(
     if (settingsOpen) {
         SetupDialog(
             settings = settings,
+            onWantNotifications = onWantNotifications,
             onDismiss = { settingsOpen = false },
             onSave = { settingsOpen = false; faceShown = settings.showFace; viewModel.reconnect() },
         )
@@ -222,13 +228,20 @@ private fun Disconnected(state: FaceState, viewModel: FaceViewModel, onSetUp: ()
 }
 
 @Composable
-private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () -> Unit) {
+private fun SetupDialog(
+    settings: Settings,
+    onWantNotifications: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit,
+) {
     var host by remember { mutableStateOf(settings.host) }
     var port by remember { mutableStateOf(settings.port.toString()) }
     var credential by remember { mutableStateOf(settings.credential) }
     var room by remember { mutableStateOf(settings.room) }
+    var camera by remember { mutableStateOf(Lens.of(settings.camera)) }
     var playAudio by remember { mutableStateOf(settings.playAudio) }
     var showFace by remember { mutableStateOf(settings.showFace) }
+    var stayConnected by remember { mutableStateOf(settings.stayConnected) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -262,7 +275,36 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                 Text(
                     "Which space this device is. She is one being in several rooms — same " +
                         "brain, same face, separate conversations — so what is said here " +
-                        "stays here. Her side does not understand rooms yet.",
+                        "stays here. Leaving it empty puts this device in the desktop's room.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+
+                /* Her page cannot offer this. It was loaded over plain http, so a browser
+                   will not enumerate cameras for it and her camera list reads "Not known
+                   yet" — while the device it would be choosing between belongs to this app
+                   anyway. Same conclusion her Stage 15 item 3 reaches for the microphone. */
+                Text("Camera", fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Lens.entries.forEach { option ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            RadioButton(
+                                selected = camera == option,
+                                onClick = { camera = option },
+                            )
+                            Text(
+                                if (option == Lens.Front) "Front" else "Back",
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "Which one she looks through, both for a glance and for following you. " +
+                        "A device with only one camera uses it either way.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -280,6 +322,28 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                         )
                     }
                     Switch(checked = playAudio, onCheckedChange = { playAudio = it })
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Stay in the background", fontSize = 14.sp)
+                        Text(
+                            "Her tray icon, as the desktop has. She keeps her room and her " +
+                                "voice when you look away, and a notification brings her " +
+                                "back or lets her go. Her camera stops either way.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Switch(
+                        checked = stayConnected,
+                        onCheckedChange = {
+                            stayConnected = it
+                            // Asked here rather than at launch: the notification only means
+                            // anything once this is on, and it is the only way back to her.
+                            if (it) onWantNotifications()
+                        },
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -302,8 +366,10 @@ private fun SetupDialog(settings: Settings, onDismiss: () -> Unit, onSave: () ->
                 settings.port = port.toIntOrNull() ?: 8848
                 settings.credential = credential
                 settings.room = room
+                settings.camera = camera.id
                 settings.playAudio = playAudio
                 settings.showFace = showFace
+                settings.stayConnected = stayConnected
                 onSave()
             }) { Text("Connect") }
         },

@@ -10,11 +10,17 @@ source-path: app\src\main\java\com\n3ctr0\octavia\MainActivity.kt
 package com.n3ctr0.octavia
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
@@ -30,10 +36,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.n3ctr0.octavia.camera.DeviceSenses
+import com.n3ctr0.octavia.camera.Lens
 import com.n3ctr0.octavia.data.Settings
+import com.n3ctr0.octavia.service.OctaviaService
 import com.n3ctr0.octavia.theme.OctaviaTheme
 import com.n3ctr0.octavia.ui.main.FaceScreen
 import com.n3ctr0.octavia.ui.main.FaceViewModel
@@ -45,9 +52,11 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var model: FaceViewModel
     private lateinit var senses: DeviceSenses
+    private lateinit var settings: Settings
     private lateinit var talk: suspend (Boolean) -> Unit
     private lateinit var askMic: ActivityResultLauncher<String>
     private lateinit var askCamera: ActivityResultLauncher<String>
+    private lateinit var askNotifications: ActivityResultLauncher<String>
 
     /** The `look` that is waiting to hear whether it may open the camera. */
     private var cameraAsked: CancellableContinuation<Boolean>? = null
@@ -62,7 +71,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val settings = Settings(applicationContext)
+        settings = Settings(applicationContext)
 
         /* The socket outlives a rotation, which is the whole reason it lives in a ViewModel
            rather than in a composable: reconnecting every time the screen turns would be
@@ -80,6 +89,10 @@ class MainActivity : ComponentActivity() {
             micAsked = null
         }
 
+        askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) Log.w("MainActivity", "notifications refused; she will stay connected but the way back is the app icon")
+        }
+
         askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             // Resumed rather than dropped: `look` is waiting on this, and a refusal is an
             // answer she needs as much as a photograph.
@@ -92,7 +105,11 @@ class MainActivity : ComponentActivity() {
            a ViewModel that outlives rotations is a leak waiting to be written.
            `DeviceSenses` owns the camera outright so a `look` and a watch cannot fight over
            it — see the note in that class. */
-        senses = DeviceSenses(applicationContext) { askForCamera() }
+        senses = DeviceSenses(
+            applicationContext,
+            askForCamera = { askForCamera() },
+            lens = { Lens.of(settings.camera) },
+        )
 
         model.eyes = { senses.takeStill() }
 
@@ -109,6 +126,35 @@ class MainActivity : ComponentActivity() {
                 model.startTalking()?.let { why -> throw IllegalStateException(why) }
             }
         }
+
+        /* Back stops being the way she dies.
+           Pressing it used to finish the activity, which took the WebView, the ViewModel and
+           the socket with it — there is no other exit from a full-screen app, so the *only*
+           gesture for "I am done looking at this" was the one that ended her. On the desktop
+           the equivalent gesture puts her in the tray.
+
+           Only when she is meant to stay. With the setting off, back finishes as before, so
+           nothing about the frugal device changes. */
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (settings.stayConnected) {
+                    moveTaskToBack(true)
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
+        /* *Let her go*, from the notification. It reaches here rather than being handled in
+           the service because the socket belongs to this activity — the service is a
+           lifetime anchor and a way back, and does not own the connection. */
+        ContextCompat.registerReceiver(
+            this,
+            releaseRequested,
+            IntentFilter(OctaviaService.ACTION_RELEASE),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         enableEdgeToEdge()
 
@@ -128,19 +174,74 @@ class MainActivity : ComponentActivity() {
                        than connected for the life of the ViewModel. A rotation does not
                        pass through STOP, so the socket still survives one; leaving the app
                        does, and then nothing is spent on a conversation nobody is reading. */
-                    LifecycleStartEffect(Unit) {
-                        model.connect()
-                        onStopOrDispose { model.release() }
-                    }
-
                     val state by model.state.collectAsStateWithLifecycle()
 
                     // No inset padding: the face is meant to reach the edges. What still
                     // needs to clear the bars — the dialog — handles its own spacing rather
                     // than the whole screen paying for it.
-                    FaceScreen(state, settings, model, senses, talk, Modifier.fillMaxSize())
+                    FaceScreen(
+                        state, settings, model, senses, talk,
+                        onWantNotifications = ::askForNotifications,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
+        }
+    }
+
+    /** The notification's *Let her go*: drop the connection and close, which is the tray's
+     *  Quit. Finishing is what releases the socket — `onStopOrDispose` runs on the way out
+     *  and, with the service already stopping, takes the frugal branch. */
+    private val releaseRequested = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Log.i("MainActivity", "let go from the notification")
+            model.release()
+            finish()
+        }
+    }
+
+    /**
+     * Connecting and letting go live here rather than in a `LifecycleStartEffect`.
+     *
+     * **They were composition effects and that was a real bug, not a tidiness point.** An
+     * effect only registers once composition has settled, so backgrounding the app before
+     * then — which is exactly what happens on the first launch after an install, while the
+     * WebView and dexopt are still going — left her with no service and no release: she was
+     * simply dropped, and the notification that says she is still there never appeared.
+     * `onStart`/`onStop` always run.
+     *
+     * `connect()` is idempotent, so returning to a live socket costs nothing.
+     */
+    override fun onStart() {
+        super.onStart()
+        model.connect()
+
+        // Coming back is the tray icon being clicked: the notification has done its job and
+        // should not sit there implying she is in the background while she is on screen.
+        OctaviaService.stop(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        /* Her eyes close whatever else happens. The marker that promises the camera is live
+           is drawn by her page, so it leaves with the screen — and watching that outlived
+           its marker would break a promise the protocol makes on every face's behalf.
+           Before "stay in the background" this was implicit, because leaving destroyed the
+           panel that owned the camera. */
+        senses.release()
+
+        // Her tray. Off, this is the behaviour every version up to 0.9.2 had.
+        if (settings.stayConnected) OctaviaService.start(this) else model.release()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Nothing is left holding the process open once the activity that owned the socket
+        // is gone; a notification outliving it would be a way back to nothing.
+        OctaviaService.stop(this)
+        try { unregisterReceiver(releaseRequested) } catch (e: IllegalArgumentException) {
+            Log.w("MainActivity", "receiver was already gone: ${e.message}")
         }
     }
 
@@ -214,6 +315,24 @@ class MainActivity : ComponentActivity() {
             cont.invokeOnCancellation { micAsked = null }
             askMic.launch(Manifest.permission.RECORD_AUDIO)
         }
+    }
+
+    /**
+     * Ask to post the notification that is the way back from the background.
+     *
+     * **A refusal is survivable and is not treated as one.** Android still runs the service
+     * and still shows *some* indication that an app is running in the background, so she
+     * stays connected either way — what is lost is the tap that brings her back and the
+     * button that lets her go, and for that the app icon and the setting are both still
+     * there. Nothing here blocks on the answer.
+     */
+    private fun askForNotifications() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) return
+
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private suspend fun askForCamera(): Boolean {

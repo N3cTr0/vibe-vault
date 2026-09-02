@@ -97,7 +97,7 @@ class CameraStill(private val context: Context) {
      * Returns rather than throws: every path out of here is an answer she can be given,
      * because the alternative is her waiting twenty seconds for a frame that is not coming.
      */
-    suspend fun take(): Shot = withContext(Dispatchers.Main) {
+    suspend fun take(lens: Lens): Shot = withContext(Dispatchers.Main) {
         /* Checked here as well as by the caller, because the failure mode when it is
            missing is a hang rather than an exception — see LIMIT. A guard that turns
            silence into a sentence is worth duplicating. */
@@ -129,17 +129,11 @@ class CameraStill(private val context: Context) {
             null
         } ?: return@withContext Shot.Failed("this device would not start its camera")
 
-        /* Front by default: the protocol's reasoning for putting the camera in the face is
-           that "the face is where the person is". On a handset that is the selfie camera,
-           and on a wall tablet it is the one pointed at the room. Falls back to the back
-           camera, because a device with only one is still a face.
-
-           Choosing per room is `setCameraDevice`, and belongs with the host's room work. */
-        val selector = when {
-            provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) -> CameraSelector.DEFAULT_FRONT_CAMERA
-            provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) -> CameraSelector.DEFAULT_BACK_CAMERA
-            else -> return@withContext Shot.Failed("no camera on this device")
-        }
+        /* The same lens her eyes follow — see `Lens`. Sharing the choice is the point: a
+           still on one camera while the watcher tracks the other would have her answering
+           about a room she is not looking at. */
+        val selector = provider.selectorFor(lens)
+            ?: return@withContext Shot.Failed("no camera on this device")
 
         val capture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)

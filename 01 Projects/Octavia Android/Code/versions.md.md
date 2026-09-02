@@ -18,6 +18,109 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.10.0 — 2026-09-02
+
+**Stage 7: she stays when you look away**, which is the last thing the Windows client could
+do that this one could not. Verified against her **v0.26.1 server**, the first version where
+she is a server and every face — the desktop included — is a client.
+
+### The split cost this client nothing, which was the claim
+
+Her Stage 15 turned one process into three: `Octavia.Core`, a headless `Octavia.Server.exe`,
+and a desktop client holding none of her. **This app connected to the new server with no
+changes at all**, which is Stage 3's promise coming due from the other side. Confirmed end to
+end before anything here was touched:
+
+- the desktop in room `host`, this handset's two faces both in room `phone`
+- a press took the floor **in the same second** — her v0.26.1 opens Whisper at boot, which
+  closes the ~3s cold-start loss measured from here in 0.9.1
+- watching started and `Face.look` reached her eyes
+- typing produced *"turn in room 'phone'; her voice goes only to that room, and this machine
+  stays silent"*
+
+### Back was the only way out, and it killed her
+
+There is no window chrome on a full-screen app, so *"I am done looking at this"* and *"end
+her"* were the same gesture: back finished the activity and took the WebView, the ViewModel
+and the socket with it. The desktop's equivalent gesture puts her in the tray.
+
+**Stay in the background** is that tray, and it is a setting rather than the behaviour
+because the two clients pay different prices. A tray icon on a desktop costs nothing; the
+same promise on a handset is a socket, a ping every twenty seconds and a radio that cannot
+fully sleep — which is exactly why leaving has dropped her since 0.3.0. Off by default, so
+the frugal device keeps being frugal.
+
+On, back moves the task back instead of finishing, a foreground service holds the process,
+and the notification is the affordance: tapping it surfaces her, *Let her go* is the tray's
+Quit. Without that action, "stay connected" would be a state with no exit that did not go
+through Android's own settings.
+
+**Her camera stops either way, and that is not a detail.** The marker promising the camera is
+live is drawn by her page, so it leaves with the screen. Before this, watching could not
+outlive the panel because backgrounding destroyed it; with the panel now surviving, a face
+could have watched with its marker off-screen — breaking a promise `PROTOCOL.md` makes on
+every face's behalf. `onStop` closes her eyes before anything else happens.
+
+`FaceViewModel.connect()` became idempotent at the same time. Returning to a live socket
+would otherwise take a new `FaceId`, re-announce and re-enter the room for no reason anybody
+could see.
+
+The service holds **no socket and no state**. Putting the connection in it was the obvious
+design and the wrong one: two owners of one connection, and the reconnect and floor logic —
+the part that has actually been debugged — would have had to move with it.
+
+### Which camera she looks through
+
+Her page offers a camera list and shows *"Not known yet"*, correctly: it was loaded over
+plain `http://` and a browser will not enumerate cameras for an insecure origin. The device
+belongs to this app, so the choice does too — the same conclusion her Stage 15 item 3 reaches
+for `setMicrophone` and `setOutput`. Front by default, and a device with one camera uses it
+either way rather than answering "no camera on this device" while holding one.
+
+Both the still and the watcher read it, so a glance and her eyes cannot end up on different
+cameras. Confirmed with `dumpsys media.camera`: *Device 0 is open. Facing: Back.*
+
+### Two stale sentences and a version that was never true
+
+The APK reported `1.0` while `versions.md` said 0.9.1, so a handset could not be asked what
+it was running. `versionCode` is now `major*10000 + minor*100 + patch`.
+
+Set up told the person *"Her side does not understand rooms yet"* and `Settings.kt` said the
+field was ignored by the host. Both stopped being true at her v0.24.0, on 09/01/2026 — and
+the setting they describe is the one that decides whether this handset lands in the desktop's
+conversation.
+
+Her icon replaced the Android Studio template robot, generated from the 256 frame of
+`octavia.ico` in her repo. **MIUI keeps showing the old one in the shade until a reboot**,
+which cost an hour of chasing a cached bitmap that no uninstall cleared.
+
+### What the device taught, twice
+
+Two apparent bugs were the harness, and both are worth writing down because both looked
+exactly like the feature failing:
+
+- **`am start` is asynchronous.** Pressing back straight after it lands before the activity
+  exists, so the keystroke goes to the launcher — and on a fresh install dexopt keeps the
+  process busy for ten seconds after `Status: ok`. Twice this read as "the service does not
+  start". `am start -W` plus polling for `topResumedActivity`, never a fixed sleep.
+- **`pm grant POST_NOTIFICATIONS` is not the same as allowing it.** It grants the permission
+  and leaves MIUI's channel at `importance=NONE`, so the service runs foreground and posts a
+  notification nobody can see. `dumpsys notification | grep AppSettings` says so plainly.
+  Granting through the app's own prompt gives `importance=DEFAULT`.
+
+### What is still not here
+
+**Always-on listening (`listen`) remains host-only**, refused from any room but `host`. It is
+her item 6 and needs real echo cancellation; her Stage 15 item 3 makes it a prerequisite for
+the *desktop* keeping it too, once that client streams its microphone like this one. It is
+the only thing left that the Windows client can do and this cannot.
+
+`setMicrophone`, `setOutput`, `setWhisperCompute`, `openDataFolder` and `saveDiagnostics` are
+also refused from a room, and three of those are due to be deleted rather than granted when
+item 3 lands and the server stops holding devices.
+
+---
+
 ## 0.9.1 — 2026-09-01
 
 **Her page's microphone button never asked for the microphone.** The volume key has asked
