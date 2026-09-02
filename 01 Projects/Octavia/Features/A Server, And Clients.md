@@ -197,3 +197,27 @@ The section above said a service runs as LocalSystem and therefore cannot read h
 The original wording was **overstated rather than wrong**. *"A service runs as LocalSystem"* is a default, not a rule — and stating a default as a constraint is how a fixable problem gets written down as a limitation and then believed. `--install` now recommends the verified fix, and mentions the environment variable second as the one that needs no password.
 
 > **One consequence, worth knowing because it is silent:** a service logged on as an account stops starting when that account's password changes, and says so in the Windows event log rather than in hers.
+
+## Item 3 is finished *(v0.38.0)*
+
+*Every remaining device class deleted, in one coordinated change — because all of it was reached through the same call sites, and doing it piecemeal would have left the middle states half-true.*
+
+Gone: `LocalMicSource`, `MicLevelMeter`, `AudioDevices`, `LoopbackListener`, both `MusicWatcher`s, `StartListening`, `StopListening`, `UseLocalMicrophone`, `StartRoomMusic`.
+
+**`listen` means one thing everywhere now** — *transcribe what I am already sending you*. The desk was the last special case, and it stopped being one by becoming an ordinary room; the hotkey and the tray open the host room rather than a device.
+
+**The authority table shrank by shrinking what it protects.** `setMicrophone`, `setOutput` and `setMusic` did not become permitted — they ceased to exist. `hello` stopped advertising this machine's capture and render endpoints too: offering a face a dropdown that changes the *wrong computer* is worse than offering none.
+
+### `music` — the first face→host message since Stage 3
+
+The only part of this rule that could not be solved by moving code. Everything else became *the page does it instead*: a page can open a microphone, and a page can play audio. **A page cannot capture loopback.** There is no browser API for *what is this machine playing* and there is not going to be one, so the sender has to be a shell with real audio access. **Nothing sends it yet.**
+
+It is also more correct than what it replaces. *What is playing* was always a fact about **a room with a person in it**, and it was being measured on whichever machine she happened to run on — a distinction with no consequence while those were the same box, and a nonsense the moment they were not.
+
+A report goes **stale rather than being cleared**. A client that closed its lid has stopped telling her things, which is not the same as telling her the music stopped.
+
+### Two things kept, and the difference is the point
+
+`MusicAnalyzer` stays: beat detection is **arithmetic, not a device**, and it is exactly what a client will run when it reports.
+
+`FaceAudioSource` turned out to be the only kind of microphone she needs — and **it was written for a handset several versions before this decision was made**. The seam was cut for a phone, and the phone's shape was the general one all along.

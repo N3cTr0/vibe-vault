@@ -126,7 +126,8 @@ internal static class SystemReport
 
             // The render endpoint matters now too: it is what she listens to for music,
             // and "she never dances" is usually this line saying NONE.
-            facts.Add(new Fact("Default output", Senses.Music.LoopbackListener.DefaultDevice() ?? "NONE"));
+            // The render endpoint is no longer hers to open; what she knows about music is
+            // whatever a client last reported. See MusicSummary.
             facts.Add(new Fact("Music listening", host.Music));
 
             if (standard is not null)

@@ -88,8 +88,11 @@ internal static class DiagnosticsChecks
             var stopped = await SelfTest.RunAsync(config, HostSnapshot.Stopped);
             Check("stopped bundle drops the transport check",
                 stopped.All(c => c.Name != "Face transport"), "it claimed the socket had not bound");
+            // "Microphone" was the other half of this until Stage 15 item 3 removed the
+            // device it asked about. The point stands and is now carried by the checks that
+            // are still about *her machine* rather than about a room's hardware.
             Check("stopped bundle still checks the machine",
-                stopped.Any(c => c.Name == "Microphone") && stopped.Any(c => c.Name == "Speech model"),
+                stopped.Any(c => c.Name == "Speech model") && stopped.Any(c => c.Name == "Data folder"),
                 "machine checks were skipped too");
 
             // --- the bundle ---------------------------------------------

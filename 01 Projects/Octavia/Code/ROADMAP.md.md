@@ -1634,7 +1634,16 @@ Whisper.net and ONNX are cross-platform, and NAudio and `System.Speech` sit behi
 **So a Linux server is one image decoder and one `Octavia.Windows` project away**, and that is
 the prize worth naming: an always-on box in a cupboard wants to be Linux.
 
-### 3. The server holds no device — **the microphone half built 09/02/2026, v0.34.0**
+### ~~3. The server holds no device~~ — **done 09/02/2026, v0.38.0**
+
+> **Finished.** The microphone (v0.34.0), her voice (v0.35.0), the sound card itself
+> (v0.36.0), SapiVoice (v0.37.0) and finally every remaining device class (v0.38.0). The
+> desktop is a face like any other, listen means one thing everywhere, and the authority
+> table shrank by shrinking what it protects rather than by permitting more.
+>
+> **music is the first face→host message since Stage 3** — the one part of this rule that
+> could not be solved by moving code, because a page cannot capture loopback and never will.
+> The sender has to be a shell with real audio access, and nothing sends it yet.
 
 > **The desktop stopped using the server's microphone.** Her page opens its own, streams it
 > up, and the server routes that as room listening — so on the machine this actually runs on,
@@ -1964,4 +1973,50 @@ the server and no help at all when it does not.
   leave the face untouched. If a stage wants to break that, the stage is mis-designed.
 - Native runtimes that link CUDA stay out-of-process where practical. One process
   should not host two of them.
+
+## Stage 16 — A voice she actually wants to hear *(asked for 09/02/2026)*
+
+> **The owner's words:** *"I need to search for a free or commercial voice for Octavia, the
+> one she has now I don't like."*
+
+She speaks with Piper's `en_US-amy-medium`, which was chosen in Stage 6 for being free,
+offline, fast on a CPU and **streamable** — the last of those is why it survived Stage 15
+item 3 when SAPI did not. Nobody ever chose it for how it sounds.
+
+**This is a research task before it is a code task**, and the research is the part with a
+decision in it. The seam is already there: `IVoice` hides the engine completely, and
+`OctaviaSession` never learns which one it got — so swapping is a swap, exactly as `IBrain`
+and `ISpeechRecognizer` are.
+
+### What the replacement has to keep
+
+Written down first, because a voice that sounds better and breaks one of these is not an
+upgrade — and two of them are constraints this project has already paid for once.
+
+| | |
+|---|---|
+| **Streamable** | Non-negotiable. Since v0.36.0 the server has no sound card, so a voice that can only reach a speaker reaches nobody. This is exactly what killed SAPI. |
+| **Real-time, sentence by sentence** | She starts speaking before the model has finished writing. A voice that needs the whole reply first would undo that, and it is the single biggest thing that makes her feel present rather than transactional. |
+| **A viseme source** | Her mouth is read from the waveform by `VisemeReader`. Anything producing PCM keeps this for free; anything producing an opaque stream does not. |
+| **Out of process, if it is neural** | The standing rule: a second CUDA-linked runtime beside Whisper's is not worth the milliseconds. Piper is a child process for exactly this reason. |
+| **Affordable at conversational volume** | She talks a great deal. A hosted voice billed per character is a very different proposition from one billed per session. |
+
+### The shape of the search
+
+- **Better Piper voices, first and cheapest.** `PiperStore.Catalogue` offers a shortlist and
+  the engine already switches at runtime. If one of the other voices is simply nicer, this
+  costs an afternoon and no architecture. **Rule it in or out before looking further.**
+- **Other local engines** — Kokoro, Piper's successors, anything ONNX. Keeps *free, offline
+  and private*, which is most of why she is built this way.
+- **Hosted voices** — ElevenLabs and the like. Almost certainly the best sound, and the place
+  to be careful: latency per sentence, cost at her volume, and **an outage becoming
+  muteness**. If one is chosen, `IVoice` should fall back rather than fail.
+- **Her own voice, eventually.** Piper can be fine-tuned, and the wake-word work is already
+  bringing a synthetic-sample pipeline into the project. Noted, not scheduled.
+
+### The part that cannot be researched
+
+**Which one is nicer is the owner's ear, not a specification.** So the deliverable of the
+research is a *shortlist he can listen to* — the same sentence in each candidate — rather
+than a recommendation argued from datasheets.
 ```

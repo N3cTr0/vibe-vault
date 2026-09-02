@@ -69,9 +69,10 @@ internal static class SourceChecks
         face.Push(new byte[64], 64);
         Check("stopping closes the tap again", got == 64, $"{got} bytes");
 
+        // The counterpart to this asserted that a `LocalMicSource` *was* continuous. There is
+        // no local microphone any more — Stage 15 item 3 — and `SpySource` below still covers
+        // both sides of the flag, which is what the distinction is actually for.
         Check("a face is not expected to be continuous", !face.ExpectsContinuousAudio);
-        using (var local = new LocalMicSource(null))
-            Check("a local microphone is", local.ExpectsContinuousAudio);
 
         /* --- trap 1, as a test ------------------------------------------------------
            Handing the ears a face **must not stop the source they were using**. The local

@@ -44,66 +44,15 @@ internal interface IAudioSource : IDisposable
     void Stop();
 }
 
-/// The microphone attached to this machine. Lifted out of `WhisperRecognizer` unchanged.
-internal sealed class LocalMicSource(string? device) : IAudioSource
-{
-    private WaveIn? _capture;
-    private bool _disposed;
+/* **`LocalMicSource` was here** — the microphone attached to the machine she runs on.
 
-    public event Action<byte[], int>? Data;
+   Removed with the rest of the server's devices in Stage 15 item 3. What replaced it is
+   `FaceAudioSource` below, which was written for a handset and turned out to be the only
+   kind of microphone she needs: it owns no hardware and opens nothing, and frames arrive
+   from whichever face is streaming. The desktop is one of those faces now.
 
-    public string Name { get; private set; } = "the Windows default";
-    public bool ExpectsContinuousAudio => true;
-
-    public void Start()
-    {
-        if (_capture is not null || _disposed) return;
-
-        _capture = new WaveIn
-        {
-            WaveFormat = new WaveFormat(SileroVad.SampleRate, 16, 1),
-            BufferMilliseconds = 32
-        };
-
-        var index = AudioDevices.WaveInIndex(device);
-        if (index >= 0)
-        {
-            _capture.DeviceNumber = index;
-            Name = WaveIn.GetCapabilities(index).ProductName;
-            Log.Write($"listening on '{Name}'");
-        }
-
-        _capture.DataAvailable += Forward;
-        _capture.StartRecording();
-    }
-
-    private void Forward(object? sender, WaveInEventArgs e) => Data?.Invoke(e.Buffer, e.BytesRecorded);
-
-    public void Stop()
-    {
-        var capture = _capture;
-        _capture = null;
-        if (capture is null) return;
-
-        try
-        {
-            capture.DataAvailable -= Forward;
-            capture.StopRecording();
-            capture.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Log.Write($"stopping the microphone failed: {ex.Message}");
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        Stop();
-    }
-}
+   Worth noticing that the replacement predates the decision by several versions. The seam
+   was cut for a phone, and the phone's shape was the general one. */
 
 /// A microphone on another device, pushed in over the socket a frame at a time.
 ///

@@ -130,8 +130,17 @@ internal static class RoomChecks
                machine she runs on" and is hers to protect; from a room it means "transcribe
                what I am already sending you", which is a claim about the sender's own device
                and has nothing here to refuse. It is checked on its own below. */
+            /* `setMicrophone`, `setOutput` and `setMusic` were in this list until Stage 15
+               item 3, and they are not refused now — they simply do not exist. The table
+               shrank because the things it was protecting did: what is left is what is
+               genuinely about the machine she runs on, and that is the point of the check.
+
+               Deliberately not replaced with an assertion that the old three are *ignored*.
+               "Unknown message does nothing" is already true of every string that is not a
+               message, and testing it here would read as though those three still meant
+               something. */
             foreach (var kind in new[]
-                     { "setMicrophone", "setOutput", "setMusic", "openDataFolder", "saveDiagnostics" })
+                     { "setWhisperCompute", "openDataFolder", "saveDiagnostics" })
             {
                 face.Clear();
                 face.From(phone, new { type = kind, value = "" });

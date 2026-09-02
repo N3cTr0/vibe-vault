@@ -75,7 +75,19 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         _wantListening = true;
         ArmSilenceWatch();
 
-        _source ??= new LocalMicSource(_device);
+        /* **No default source.** This used to open the machine's own microphone when nothing
+           had been handed to it, which was the sensible fallback while the server had one.
+
+           There is nothing to fall back to, and inventing one would be the exact failure
+           Stage 14 kept finding: `UseSource` *starts* what it is given, so a default here
+           would open a device because somebody let go of a button. Started with no source,
+           the recogniser simply waits — and the log says so, because ears that are running
+           and hearing nothing is precisely the state that looks like her ignoring you. */
+        if (_source is null)
+        {
+            Log.Write("ears started with no source; waiting for a face to stream one");
+            return;
+        }
 
         // Detached first, so starting something already started subscribes once rather than
         // twice. Reachable since a face taking the floor calls this on ears the desk may

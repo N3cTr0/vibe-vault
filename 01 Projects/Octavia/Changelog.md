@@ -16,6 +16,58 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.38.0 — 2026-09-02
+
+**The server holds no local device at all.** Stage 15 item 3 is finished. `LocalMicSource`,
+`MicLevelMeter`, `AudioDevices`, `LoopbackListener` and both `MusicWatcher`s are deleted,
+along with `StartListening`, `StopListening`, `UseLocalMicrophone` and `StartRoomMusic` — one
+coordinated change, because all of it was reached through the same call sites and doing it
+piecemeal would have left the middle states half-true.
+
+**`listen` means one thing everywhere now**: *transcribe what I am already sending you*. The
+desk was the last special case, and it stopped being one by becoming an ordinary room. The
+hotkey and the tray open the host room rather than a device.
+
+**The authority table shrank by shrinking what it protects**, which is the outcome the item
+predicted while it was still a paragraph. `setMicrophone`, `setOutput` and `setMusic` did not
+become permitted — they ceased to exist. What is left is `setWhisperCompute`,
+`openDataFolder` and `saveDiagnostics`, which really are about the machine she runs on.
+`hello` no longer advertises this machine's capture and render endpoints either: offering a
+face a dropdown that changes the *wrong computer* is worse than offering none.
+
+**`music` is the first face→host message added since Stage 3**, and the only part of this
+rule that could not be solved by moving code. Everything else became *the page does it
+instead* — a page can open a microphone and a page can play audio. **A page cannot capture
+loopback.** There is no browser API for *what is this machine playing* and there is not going
+to be one, so the sender has to be a shell with real audio access.
+
+It is also more correct than what it replaces. *What is playing* was always a fact about a
+room with a person in it, and it was being measured on whichever machine she happened to run
+on — a distinction with no consequence while those were the same box, and a nonsense the
+moment they were not. A report goes **stale rather than being cleared**: a client that closed
+its lid has stopped telling her things, which is not the same as telling her the music
+stopped.
+
+Two things kept rather than deleted, and the difference is the point. `MusicAnalyzer` stays —
+beat detection is arithmetic, not a device, and it is what a client will run when it reports.
+`FaceAudioSource` turned out to be the only kind of microphone she needs: **it was written for
+a handset several versions before this decision, and the handset's shape was the general one.**
+
+`WhisperRecognizer` no longer opens a default microphone when handed none. It waits, and says
+so in the log — ears that are running and hearing nothing is exactly the state that looks like
+her ignoring you.
+
+The self-test's microphone and music device checks went too. Both were good checks about the
+wrong machine; a self-test that confidently reports on the *server's* microphone is answering
+a question nobody asked.
+
+Verified end to end with no devices: she answers, her voice plays through the page, the page's
+microphone opens and streams, and the log records not one error. 307 checks pass, four of
+which were rewritten because they asserted a contract that no longer exists.
+
+---
+
+
 ## 0.37.0 — 2026-09-02
 
 **Her Windows voice is gone**, and it had already stopped being a voice. `SapiVoice`

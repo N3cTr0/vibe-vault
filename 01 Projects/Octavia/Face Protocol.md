@@ -135,7 +135,7 @@ message came from**, before acting.
 
 | Class | Messages | Rule |
 |---|---|---|
-| **Host only** | `listen`, `setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Acted on only from the `host` room. From anywhere else: refused, answered with a `notice`, logged once. |
+| **Host only** | `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Acted on only from the `host` room. From anywhere else: refused, answered with a `notice`, logged once. **Three device messages left this list in v0.38.0** — not by being allowed, but by ceasing to exist. What remains is what is genuinely about the machine she runs on. `listen` left it too, and means the same thing everywhere now: *transcribe what I am already sending you*. |
 | **Room** | `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | Acted on for the sending face's room only. |
 | **Being** | `setKey`, `setVoice`, `setVoiceEngine`, `setAvatar`, `setRoomHour`, `setStats` | Allowed from any room, and echoed to every room — every face is wearing the result. |
 
@@ -372,9 +372,10 @@ if the stream stops, rather than freezing the last value.
 | `setVoiceEngine` | `value`: `windows` \| `neural` | Choose the speech engine. The neural one may have to download before it can speak; she keeps talking with the old one until it is ready. |
 | `setAvatar` | `value` | Choose a character by file name; empty means the plaster bust. The host refuses a name that is not in its avatars folder. |
 | `setRoomHour` | `value`: 0–23, or −1 | Pin the room's lighting to an hour, or follow the clock. |
-| `setMusic` | `value`: bool | Whether she listens to the machine's output at all. False closes the loopback device rather than merely ignoring it. |
-| `setMicrophone` | `value` | Capture device by name, from `microphones[]`. Empty follows the Windows default. |
-| `setOutput` | `value` | Render device by name, from `outputs[]`. Empty follows the Windows default. This is what her music sense listens to, so it is not merely a playback preference. |
+| ~~`setMusic`~~ | — | **Gone, v0.38.0.** She had a loopback device to close; she has none. |
+| ~~`setMicrophone`~~ | — | **Gone, v0.38.0.** The microphone belongs to the face that streams it, so the device is that client's to choose. |
+| ~~`setOutput`~~ | — | **Gone, v0.38.0.** Her voice comes out of whichever face plays it, so the device is that client's to choose. |
+| `music` | `playing`: bool, `bpm`, `confidence`, `beat`: bool | **What is playing near this face**, reported upstream. The first face→host message added since Stage 3, and the only part of the device rule that could not be solved by moving code: **a page cannot capture loopback at all**, so the sender has to be a shell with real audio access. A **room** message rather than host-only — what is playing is a fact about the room that heard it. Relayed to the rest of that room, so a second face there can move to music it cannot itself hear. A report goes **stale rather than being cleared** when a client stops sending: it has stopped telling her things, which is not the same as telling her the music stopped. |
 | `setCamera` | `value`: bool | Whether she may open a camera **in the sending face's room**. "May she look at all" is a question about a place, not about her: a phone in a gym and a desk should be able to answer it differently. Off by default and the only sense that is; the host echoes it back as `camera` in `hello`, which is what un-hides the eye button. Only the host room's answer is written to the config file, because that file belongs to this machine. Enabling is logged at **warn** — a camera coming on in someone's home should leave a mark that is easy to find later. |
 | `setCameraDevice` | `value` | Which camera a `look` should open, by **label** rather than id — a device id is regenerated per origin and per permission grant, so it cannot be stored in a config file and still mean anything tomorrow. Empty lets the face choose. |
 | `setWhisperCompute` | `value`: `auto` \| a named backend | Which compute Whisper should use. `auto` is the default and the right answer on any machine nobody has measured. |

@@ -28,26 +28,33 @@ internal sealed class OctaviaSession : IDisposable
     private readonly IFaceTransport _face;
     private readonly IBrain _brain;
     private IVoice _voice;
-    private readonly MicLevelMeter _meter = new();
-    private readonly MusicWatcher _music = new();
+    /* **Stage 15 item 3, finished.** A `MicLevelMeter`, a `LocalMicSource`, two
+       `MusicWatcher`s and a `LoopbackListener` used to live here. All five were devices, and
+       the rule is that the server holds none: *"we don't want the server having access to any
+       local devices besides the GPU."*
 
-    /// A second analyser fed from the microphone, so a speaker in the room is not silence
-    /// to her. Only started when MusicFromRoom is on and her ears are open.
-    private readonly MusicWatcher _roomMusic = new() { Name = "room" };
+       What replaced each one is worth knowing, because none of it was simply deleted:
 
-    /// **One** local microphone, shared by the ears and the room-music analyser.
-    ///
-    /// Owned here rather than inside the recogniser precisely so the two can be separated:
-    /// a face taking the floor moves what she *transcribes* without moving what she hears
-    /// around her. Opening the device twice would be the obvious way to get this wrong.
-    private LocalMicSource? _localMic;
-    private readonly PcmFramer _roomFramer = new();
+       - **The microphone** is the asking face's now. A face streams its own audio and says so
+         with `senses`, which is what `listen` acts on — v0.34.0.
+       - **The level meter** is drawn by the face that owns the microphone, from samples it
+         already has, rather than measured here and sent back to it.
+       - **Music** is reported *upstream* by a client that can hear it. That is the first
+         protocol change since Stage 3, and it is the one piece of this rule that could not be
+         solved by moving code: **a page cannot capture loopback at all.**
+
+       What stays is compute: the brain, Whisper, the gate, the rooms, the tools. */
     private readonly Brain.Tools.ToolRegistry _tools;
+
+    /// What a client last told her is playing, and where it heard it.
+    ///
+    /// Reported rather than measured. Empty until something reports, and a client that goes
+    /// away leaves it stale rather than clearing it — see `MusicHeard`.
+    private MusicReport _musicHere = MusicReport.Silent;
 
     private ISpeechRecognizer? _ears;
     private CancellationTokenSource? _turn;
     private bool _responding;
-    private bool _wantsToListen;
     private bool _faceBuilt;
     private bool _faceSpoke;
 
@@ -100,8 +107,6 @@ internal sealed class OctaviaSession : IDisposable
         _config = config;
         _face = face;
         _tools = new Brain.Tools.ToolRegistry(config);
-        _meter.Device = config.MicrophoneDevice;
-        _music.Device = config.OutputDevice;
 
         // Started in the background: an MCP server that is slow to come up must not
         // delay her being able to talk, and one that never comes up must not stop it.
@@ -163,27 +168,18 @@ internal sealed class OctaviaSession : IDisposable
            `music` is the one the spec calls out by name, and it is the room-microphone trap
            from Stage 14 item 2 wearing different clothes: a tempo measured from the speakers
            under this desk means nothing at all to somebody holding a phone in a gym. */
-        _meter.LevelChanged += level =>
-        {
-            if (Math.Abs(level - _lastSentLevel) < 0.02f) return;
-            _lastSentLevel = level;
-            ToRoom(RoomId.Host, new { type = "level", value = level });
-        };
+        /* **The level and the music used to be measured here and sent out.** Both were read
+           from devices this process no longer has — a `MicLevelMeter` on the server's own
+           microphone, and a `MusicWatcher` on its loopback.
 
-        _music.Changed += state => ToRoom(RoomId.Host, new
-        {
-            type = "music",
-            playing = state.Playing,
-            bpm = state.Bpm,
-            energy = state.Energy,
-            beat = false
-        });
+           `level` is not sent at all now. The face that owns the microphone already has the
+           samples, and draws its own meter from them: a round trip to be told the loudness of
+           audio you are holding is the definition of reflex-speed work in the wrong place,
+           which is a standing constraint of this project and was being broken by the one
+           subsystem old enough to predate it.
 
-        // The beat is sent on its own and never coalesced with the state above: a beat
-        // that arrives 200 ms late is worse than one that never arrived at all.
-        _music.Beat += () => ToRoom(RoomId.Host, new { type = "music", beat = true });
-
-        if (_config.Music) StartMusic().Forget("starting to listen for music");
+           `music` still reaches every face in the room — it simply arrives from one of them
+           first. See `MusicHeard`. */
     }
 
     // ---- who is where -----------------------------------------
@@ -312,29 +308,46 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- what the machine is playing --------------------------
 
-    private async Task StartMusic()
+    /* **She is told what is playing; she no longer listens for it.**
+
+       This was two analysers, both reading devices the server no longer has: a
+       `LoopbackListener` tapping its own render endpoint, and a second one fed from its
+       microphone so a speaker across the room was not silence to her.
+
+       **This is the one part of the device rule that could not be solved by moving code.**
+       Everything else became "the page does it instead" — a page can open a microphone, and
+       a page can play audio. A page cannot capture loopback. There is no browser API for
+       *what is this machine playing*, and there is not going to be one. So `music` had to
+       become a message travelling **upstream**, which makes it the first protocol change
+       since Stage 3.
+
+       It is also more correct than what it replaces, which is the consolation. "What is
+       playing" was always a fact about *a room with a person in it*, and it was being
+       measured on the machine she happened to run on — a distinction with no consequence
+       while those were the same box, and a nonsense the moment they were not. */
+    private void MusicHeard(Room room, JsonElement message)
     {
-        if (!await _music.StartAsync())
+        var playing = message.TryGetProperty("playing", out var on) &&
+                      on.ValueKind is JsonValueKind.True;
+
+        _musicHere = new MusicReport(
+            playing,
+            message.TryGetProperty("bpm", out var bpm) && bpm.TryGetDouble(out var beats) ? beats : 0,
+            message.TryGetProperty("confidence", out var sure) && sure.TryGetDouble(out var c) ? c : 0,
+            room.Id.ToString(),
+            DateTimeOffset.UtcNow);
+
+        /* Passed on to the rest of the room, unchanged and without being re-broadcast to the
+           sender. A face that reported it already knows; a *second* face in the same room —
+           a wall tablet beside the desk — has no way to hear the music itself and should
+           still be able to move to it. */
+        ToRoom(room.Id, new
         {
-            // Not a failure worth interrupting for: plenty of machines have no render
-            // endpoint they can tap, and she works perfectly well without ever hearing
-            // one. It is in the self-test for whoever goes looking.
-            Log.Warn("music: nothing to listen to, so she will not hear what is playing");
-        }
-
-        // The answer arrives after the first hello, so the face is told again.
-        Announce();
-    }
-
-    private void SelectMusic(bool on)
-    {
-        _config.Music = on;
-        _config.Save();
-
-        Log.Write($"music listening {(on ? "on" : "off")}");
-
-        if (on) StartMusic().Forget("starting to listen for music");
-        else { _music.Stop(); Announce(); }
+            type = "music",
+            playing = _musicHere.Playing,
+            bpm = _musicHere.Bpm,
+            beat = message.TryGetProperty("beat", out var beat) && beat.ValueKind is JsonValueKind.True
+        });
     }
 
     // ---- her hands --------------------------------------------
@@ -370,53 +383,16 @@ internal sealed class OctaviaSession : IDisposable
     private static string Named(string? device) =>
         string.IsNullOrWhiteSpace(device) ? "the Windows default" : $"'{device}'";
 
-    /// Changing the microphone reopens the ears, because a capture device is chosen
-    /// when the stream opens and not afterwards. She keeps listening across the swap
-    /// if she was listening before it.
-    private void SelectMicrophone(string device)
-    {
-        _config.MicrophoneDevice = device;
-        _config.Save();
-        Log.Write($"microphone: {Named(device)}");
+    /* **`setMicrophone` and `setOutput` are gone**, with the devices they chose between.
 
-        _meter.Device = device;
-        if (_meter.IsRunning) { _meter.Stop(); _meter.Start(); }
+       They were host-only messages, which was the right protection while they drove hardware
+       on the machine she runs on. There is no such hardware now: the microphone belongs to
+       whichever face is streaming, and her voice comes out of whichever face is playing it,
+       so *which device* is a question for that client and its own operating system to answer.
 
-        /* The shared source is torn down too, or the ears would reopen onto the old device:
-           a capture device is chosen when the stream opens and not afterwards, and this one
-           outlives the recogniser precisely so the room-music analyser can keep it. */
-        _localMic?.Dispose();
-        _localMic = null;
-        _roomFramer.Frame -= _roomMusic.Push;
-
-        if (_ears is not null)
-        {
-            var wasListening = _wantsToListen;
-            StopListening();
-            _ears.Dispose();
-            _ears = null;
-            if (wasListening) StartListening();
-        }
-
-        Announce();
-    }
-
-    /// The loopback capture is pinned to one endpoint, so this restarts it rather than
-    /// letting it follow anything.
-    private void SelectOutput(string device)
-    {
-        _config.OutputDevice = device;
-        _config.Save();
-        Log.Write($"output: {Named(device)}");
-
-        _music.Device = device;
-        if (_config.Music)
-        {
-            _music.Stop();
-            StartMusic().Forget("restarting music after an output change");
-        }
-        else Announce();
-    }
+       The authority table shrinks to what is genuinely about her machine —
+       `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` — which is the shape Stage 15
+       item 3 predicted when it was still a paragraph. */
 
     /// Whisper.net binds its native library once per process, so this cannot take
     /// effect until she is restarted — and saying so is better than appearing to
@@ -519,8 +495,10 @@ internal sealed class OctaviaSession : IDisposable
     /// Acts on the machine she runs on. Only from a face in the host room.
     private static readonly HashSet<string> HostOnly =
     [
-        "listen", "setMicrophone", "setOutput", "setMusic",
-        "setWhisperCompute", "openDataFolder", "saveDiagnostics"
+        // `setMicrophone`, `setOutput` and `setMusic` were here until Stage 15 item 3. They
+        // protected devices on the machine she runs on, and there are none. What is left is
+        // what genuinely is about her machine.
+        "listen", "setWhisperCompute", "openDataFolder", "saveDiagnostics"
     ];
 
     /// Changes *her*, not a room, so any room may — and every room is told, because every
@@ -627,8 +605,10 @@ internal sealed class OctaviaSession : IDisposable
                 else Log.Warn("face ready but the scene did not build - check WebGL support and the browser console");
                 Announce();
 
-                // The host machine's ears, so only the host machine's face starts them.
-                if (_config.ListenOnStart && room.Id == RoomId.Host) StartListening();
+                // `ListenOnStart` opens *this face's room* now, not a device. A face that
+                // streams nothing simply has nothing transcribed, which is honest — the old
+                // version opened a microphone in what might be an empty house.
+                if (_config.ListenOnStart) ToggleRoomListening(inbound.From, room);
                 break;
 
             case "faceError":
@@ -727,16 +707,12 @@ internal sealed class OctaviaSession : IDisposable
                 Announce();
                 break;
 
-            case "setMusic":
-                SelectMusic(!message.TryGetProperty("value", out var m) || m.ValueKind != JsonValueKind.False);
-                break;
-
-            case "setMicrophone":
-                SelectMicrophone(Text(message, "value") ?? "");
-                break;
-
-            case "setOutput":
-                SelectOutput(Text(message, "value") ?? "");
+            /* **`music` arrives from a face now**, rather than being measured here — the
+               first face→host message added since Stage 3. It is a *room* message, not a
+               host-only one: what is playing is a fact about the room it was heard in, and
+               the room it was heard in is the one that reported it. */
+            case "music":
+                MusicHeard(room, message);
                 break;
 
             // The one sense that is off by default, and the only one that had no switch:
@@ -869,13 +845,13 @@ internal sealed class OctaviaSession : IDisposable
         /* Per face, because "is she listening" is a question about a *room*. The desk asks
            about this machine's microphone; a handset asks whether the stream it is sending
            is being transcribed. One flag answered both and was wrong for one of them. */
-        listening = room.Id == RoomId.Host ? _wantsToListen : _openRoom == room.Id,
+        listening = Open(room.Id),
         avatar = AvatarUrl(),
         avatarFile = _config.AvatarFile ?? "",
         avatars = Avatars(),
         roomHour = _config.RoomHour,
         music = _config.Music,
-        musicAvailable = _music.IsRunning,
+        musicAvailable = _musicHere.Known,
         camera = room.Camera,
         stats = _config.ShowStats,
 
@@ -897,14 +873,15 @@ internal sealed class OctaviaSession : IDisposable
         audioBits = _voice.AudioFormat?.Bits ?? 0,
         audioChannels = _voice.AudioFormat?.Channels ?? 0,
 
-        // Devices, so the drawer can offer a choice rather than inheriting whatever
-        // Windows calls default — which on a machine with streaming software installed
-        // is often a virtual endpoint that suits nothing. An empty value means "follow
-        // the default", and is always the first option.
-        microphones = AudioDevices.Capture().Select(d => new { value = d.Name, label = Label(d) }),
-        microphone = _config.MicrophoneDevice ?? "",
-        outputs = AudioDevices.Render().Select(d => new { value = d.Name, label = Label(d) }),
-        output = _config.OutputDevice ?? "",
+        /* **The device lists are gone** — Stage 15 item 3. `hello` used to carry this
+           machine's capture and render endpoints so the drawer could offer a choice, which
+           was right while she used them. Advertising the *server's* devices to a face that
+           will never touch them is worse than saying nothing: it is a dropdown that changes
+           the wrong machine.
+
+           A face picks its own, from the operating system it is actually running on. Her page
+           already does exactly that for cameras (`cameraDevice` below), which is the pattern
+           the microphone and the output should follow rather than a new idea. */
         cameraDevice = room.CameraDevice,
         whisperCompute = _config.WhisperCompute ?? "auto",
 
@@ -916,8 +893,6 @@ internal sealed class OctaviaSession : IDisposable
         dev = _config.DevPanel ?? string.Equals(_config.Profile, "dev", StringComparison.OrdinalIgnoreCase)
     };
 
-    private static string Label(AudioDevice device) =>
-        device.IsDefault ? $"{device.Name} (Windows default)" : device.Name;
 
     /// The character file, on the read-only origin the host maps to her avatars folder.
     /// Null means the bust, which is the answer whenever anything is missing.
@@ -1004,24 +979,32 @@ internal sealed class OctaviaSession : IDisposable
         BrainReady: _brain.IsReady || !_brain.NeedsApiKey,
         Ears: _ears?.EngineName ?? "not started",
         Voice: _voice.EngineName,
-        Listening: _wantsToListen,
+        Listening: _openFace is not null,
         FaceBuilt: _faceBuilt,
         Faces: _face.Status,
         Music: MusicSummary());
 
+    /// What she has been *told* is playing, and by whom.
+    ///
+    /// The old version named the output endpoint it was tapping, because *"she does not
+    /// dance"* was almost never the analyser and almost always the music going to a different
+    /// endpoint than the one she had. That advice has moved rather than gone: the equivalent
+    /// mystery now is *nothing is reporting*, so that is what this says first.
     private string MusicSummary()
     {
         if (!_config.Music) return "off";
-        if (!_music.IsRunning) return "no output device";
 
-        /* The device is named even when she *is* hearing something, because "she does
-           not dance" is almost never the analyser and almost always the music going to
-           a different endpoint than the one she tapped. Loopback hears one output; a
-           machine has four. Saying which turns a mystery into a dropdown. */
-        var state = _music.State;
-        return state.Playing
-            ? $"{state.Bpm:0} bpm now (confidence {state.Confidence:0.00}) on '{_music.DeviceName}'"
-            : $"listening to '{_music.DeviceName}', nothing playing through it";
+        if (!_musicHere.Known)
+            return "nothing has reported any; she is told what is playing, she cannot hear it";
+
+        // How old, because a client that stopped reporting leaves the last thing it said
+        // standing — and "playing" from four hours ago is a different claim from "playing".
+        var age = _musicHere.Age;
+        var when = age < TimeSpan.FromSeconds(30) ? "now" : $"{age.TotalMinutes:0} min ago";
+
+        return _musicHere.Playing
+            ? $"{_musicHere.Bpm:0} bpm {when} (confidence {_musicHere.Confidence:0.00}), from '{_musicHere.Source}'"
+            : $"'{_musicHere.Source}' says nothing is playing ({when})";
     }
 
     /// Answered to the room that asked. A report is a question about the machine, which any
@@ -1111,11 +1094,27 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- listening -------------------------------------------
 
+    /// The hotkey and the tray, which used to open the machine's microphone.
+    ///
+    /// They open the **host room** now, exactly as pressing the button on her page does. The
+    /// desk has no privileged microphone left to toggle, so there is nothing here that a
+    /// room face could not also ask for.
     public void ToggleListening()
     {
-        if (_wantsToListen) StopListening();
-        else StartListening();
+        var face = FacesIn(RoomId.Host).FirstOrDefault();
+
+        if (face != default && _rooms.TryGetValue(RoomId.Host, out var host))
+            ToggleRoomListening(face, host);
+        else
+            Log.Write("nothing is attached to the host room, so there is no microphone to open");
     }
+
+    /// Whether that room is the one currently left listening.
+    ///
+    /// `_openRoom` alone is not the answer: it is a plain `RoomId` that defaults to the host
+    /// room, so it names *which* room would be open rather than whether one is. `_openFace`
+    /// is the claim; this pairs them so no caller has to remember that again.
+    private bool Open(RoomId room) => _openFace is not null && _openRoom == room;
 
     /// Whether her ears *could* take a face's microphone, as opposed to whether they have
     /// already been opened. `SystemSpeechRecognizer` is the machine's own and cannot be
@@ -1136,7 +1135,7 @@ internal sealed class OctaviaSession : IDisposable
        exactly where item 9 put it. */
     private Task<ISpeechRecognizer?>? _opening;
     private readonly object _earsGate = new();
-    private bool _roomMusicStarted;
+
 
     /// Opens the recogniser before anybody asks, so the first person to speak is not paying
     /// for it. A server should be ready, not merely reachable.
@@ -1201,93 +1200,18 @@ internal sealed class OctaviaSession : IDisposable
         }
     }
 
-    /// The host room's own microphone, handed to the ears. Skipped while a face holds the
-    /// floor: the desk starting to listen must not take the microphone out from under a
-    /// phone mid-sentence.
-    private void UseLocalMicrophone(ISpeechRecognizer ears)
-    {
-        if (ears is not WhisperRecognizer recogniser) return;
+    /* **`StartListening`, `StopListening`, `UseLocalMicrophone` and `StartRoomMusic` all
+       lived here**, and all four opened a device on the machine she runs on.
 
-        _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
-        if (_floor is null) recogniser.UseSource(_localMic);
-    }
+       `listen` from the desk used to mean *"open my microphone"*. It means what it has always
+       meant everywhere else — *"transcribe what I am already sending you"* — and `EarsRoom`
+       resolves which room that is. There is no longer a host special case to keep; see
+       `ToggleRoomListening`, which is now the only path.
 
-    private void StartListening()
-    {
-        _wantsToListen = true;
-
-        // Whisper's first listen may download the model; never block the message loop.
-        _ = Task.Run(async () =>
-        {
-            var ears = await EnsureEarsAsync();
-
-            if (ears is null)
-            {
-                _wantsToListen = false;
-                if (Host.State is AgentState.Listening) SetState(Host, AgentState.Idle);
-                return;
-            }
-
-            UseLocalMicrophone(ears);
-            StartRoomMusic(ears);
-
-            if (_wantsToListen) EngageEars();
-        });
-    }
-
-    /// Room music. The microphone is already open and these are the very same frames the
-    /// voice detector is reading, so hearing a speaker across the room costs one
-    /// subscription and no extra capture. See ROADMAP.md 11a.
-    private void StartRoomMusic(ISpeechRecognizer ears)
-    {
-        if (_roomMusicStarted || !_config.MusicFromRoom) return;
-        if (ears is not WhisperRecognizer) return;
-
-        _roomMusicStarted = true;
-
-        /* The loopback wins when it has something.
-           Both sources write to the same face state, so without a rule they fight: the
-           tempo flickers between whatever this machine is playing and whatever is in the
-           room, and neither reading is trustworthy. Loopback is the better witness — clean
-           dynamics, no room, no gain control — so the microphone only speaks when it is
-           silent. */
-        _roomMusic.Changed += state =>
-        {
-            if (_music.State.Playing) return;
-            ToRoom(RoomId.Host, new
-            {
-                type = "music",
-                playing = state.Playing,
-                bpm = state.Bpm,
-                energy = state.Energy,
-                beat = false
-            });
-        };
-        _roomMusic.Beat += () =>
-        {
-            if (_music.State.Playing) return;
-            ToRoom(RoomId.Host, new { type = "music", beat = true });
-        };
-
-        /* Bound to the **local microphone**, not to whatever the recogniser is currently
-           consuming.
-
-           This used to be `whisper.Audio += _roomMusic.Push`, which was exactly right while
-           there was only one microphone in the world. Once a face can hand the ears a phone,
-           that subscription would quietly follow it — and she would report the tablet's
-           kitchen radio as the music around *her*. Everything would appear to work.
-
-           So the local source keeps running and is framed separately for music even while a
-           face holds the floor for speech. Speech moves rooms; her sense of what is playing
-           here does not. */
-        _roomMusic.StartFromFrames(SileroVad.SampleRate);
-        _localMic ??= new LocalMicSource(_config.MicrophoneDevice);
-        _roomFramer.Frame += _roomMusic.Push;
-        _localMic.Data += _roomFramer.Push;
-        _localMic.Start();
-
-        Log.Write("music: also listening for a beat in this room, through the local microphone");
-    }
+       **Room music went with the microphone that fed it.** Stage 11a fed a second analyser
+       from the same local capture, so a speaker across the room was not silence to her. It
+       was good work and it was reading a device. What is playing is reported upstream now by
+       something that can actually hear it. */
 
     private async Task<ISpeechRecognizer> OpenEarsAsync()
     {
@@ -1309,22 +1233,10 @@ internal sealed class OctaviaSession : IDisposable
         }
     }
 
-    private void EngageEars()
-    {
-        _ears?.Start();
-        _meter.Start();
-        if (Host.State is AgentState.Idle) SetState(Host, AgentState.Listening);
-        Announce();
-    }
-
-    private void StopListening()
-    {
-        _wantsToListen = false;
-        _ears?.Stop();
-        _meter.Stop();
-        if (Host.State is AgentState.Listening) SetState(Host, AgentState.Idle);
-        Announce();
-    }
+    // `EngageEars` and `StopListening` started and stopped the recogniser *and* a level
+    // meter on the machine's own microphone. `ToggleRoomListening` does the first half for
+    // whichever room asked; the second half belongs to the face that owns the microphone and
+    // is drawn there from samples it already has.
 
     private void OnHeard(string text, float confidence)
     {
@@ -1517,7 +1429,7 @@ internal sealed class OctaviaSession : IDisposable
 
             // The local microphone is muted for *speech* — she must not transcribe a blend of
             // this room and the other one. It keeps running for the room-music analyser, which
-            // is a different question entirely. See the note on _localMic.
+            // is a different question entirely.
             recogniser.UseSource(_faceMic);
         }
 
@@ -1572,11 +1484,9 @@ internal sealed class OctaviaSession : IDisposable
 
         /* The desk holds the recogniser's source while it is listening, and taking it would
            silently deafen somebody standing at the machine. Refused rather than stolen. */
-        if (_wantsToListen)
-        {
-            Notice(room, "She is listening at the desk. Stop that first.");
-            return;
-        }
+        // The desk used to hold the recogniser's source while it listened, and taking it
+        // would have deafened somebody standing there. The desk is a room like any other
+        // now, so the one-room-at-a-time rule above is the whole of the protection.
 
         OpenRoomListening(from, room).Forget("opening a room's ears");
     }
@@ -1632,11 +1542,9 @@ internal sealed class OctaviaSession : IDisposable
             // whoever speaks next. Same latch the floor uses, and for the same reason.
             if (recogniser.Flush()) _owed = (room, Deliberate: false);
 
-            if (_wantsToListen)
-            {
-                if (_localMic is not null) recogniser.UseSource(_localMic);
-            }
-            else recogniser.Stop();
+            // There is no desk microphone to fall back onto, so closing a room's stream
+            // stops the recogniser outright rather than re-pointing it at hardware.
+            recogniser.Stop();
         }
 
         // Only if the floor is not using it. A press taken while the room was open owns the
@@ -1679,10 +1587,6 @@ internal sealed class OctaviaSession : IDisposable
             if (_openFace is not null)
             {
                 // The stream never stopped; only the floor's claim on it did.
-            }
-            else if (_wantsToListen)
-            {
-                if (_localMic is not null) recogniser.UseSource(_localMic);
             }
             else
             {
@@ -1838,7 +1742,7 @@ internal sealed class OctaviaSession : IDisposable
         var cancel = _turn.Token;
 
         _ears?.Mute();
-        _meter.Stop();
+
 
         /* Where her voice comes out. Silencing this machine's speakers is the whole of
            acceptance criterion 3 and it is not cosmetic: before this, a question asked on a
@@ -1898,7 +1802,7 @@ internal sealed class OctaviaSession : IDisposable
                to an hour — must never reach this. The room can be told it is evening while
                she correctly says it is two in the morning. */
             var now = new Situation(
-                Persona.Now(DateTimeOffset.Now, _music.State.Playing, _music.State.Bpm),
+                Persona.Now(DateTimeOffset.Now, _musicHere.Playing, _musicHere.Bpm),
                 await MaybeLookAsync(room, userText, cancel));
 
             await foreach (var sentence in _brain.RespondAsync(room.History, userText, now, cancel))
@@ -1964,17 +1868,12 @@ internal sealed class OctaviaSession : IDisposable
            flag outliving the turn that set it — is still a real hazard elsewhere. */
         _voice.Aloud = false;
 
-        if (_wantsToListen)
-        {
-            _ears?.Unmute();
-            _meter.Start();
-        }
+        // A room that was left listening goes back to listening; nothing else does. The desk
+        // used to be the exception here because it owned a microphone, and it no longer is.
+        if (_openFace is not null) _ears?.Unmute();
 
-        /* The host room follows this machine's ears. Any other room simply goes quiet: its
-           microphone is push-to-talk and belongs to the client, so "listening" would be a
-           claim about a device this process does not own. */
-        SetState(Host, _wantsToListen ? AgentState.Listening : AgentState.Idle);
-        if (spokenIn.Id != RoomId.Host) SetState(spokenIn, AgentState.Idle);
+        SetState(spokenIn, Open(spokenIn.Id) ? AgentState.Listening : AgentState.Idle);
+        if (spokenIn.Id != RoomId.Host) SetState(Host, Open(RoomId.Host) ? AgentState.Listening : AgentState.Idle);
     }
 
     /// Sent only when it changes: an expression is a change of face, and repeating one
@@ -2000,7 +1899,9 @@ internal sealed class OctaviaSession : IDisposable
 
            A host concern, so it follows the room she is *attending* rather than any room
            that happens to change state — the loopback only ever hears this machine. */
-        if (room.Id == _attending) _music.Hold = state is AgentState.Speaking;
+        // `_music.Hold` paused the loopback analyser while she spoke, so her own voice was
+        // not mistaken for a beat. Nothing here hears her any more: whoever reports music is
+        // also whoever plays her, and knows perfectly well which is which.
 
         ToRoom(room.Id, new { type = "state", value = state.ToString().ToLowerInvariant() });
     }
@@ -2031,8 +1932,8 @@ internal sealed class OctaviaSession : IDisposable
         _turn?.Cancel();
         _turn?.Dispose();
         _ears?.Dispose();
-        _meter.Dispose();
-        _music.Dispose();
+
+
         foreach (var room in _rooms.Values) room.Dispose();
         _voice.Dispose();
         _brain.Dispose();
@@ -2043,8 +1944,8 @@ internal sealed class OctaviaSession : IDisposable
         // an orphaned process is worse than a two-second wait on the way out.
         _floorTimeout?.Dispose();
         _faceMic?.Dispose();
-        _localMic?.Dispose();
-        _roomMusic.Dispose();
+
+
         _tools.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

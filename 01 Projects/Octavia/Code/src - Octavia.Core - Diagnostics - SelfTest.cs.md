@@ -36,7 +36,7 @@ internal static class SelfTest
         // line for those in a bundle taken while she is stopped would only mislead.
         if (host.Running) checks.AddRange([Transport(host), Renderer(host)]);
 
-        checks.Add(await Microphone(config));
+
         checks.AddRange([SpeechModel(config), Voice(config, host), Avatar(config),
                          Music(config, host), Camera(config), Gate(config)]);
 
@@ -98,53 +98,17 @@ internal static class SelfTest
                 "The face loaded but three.js failed. Usually a graphics driver without " +
                 "WebGL support; the rest of her still works.");
 
-    /// The failure this one is really for: a capture device that opens successfully and
-    /// delivers pure digital silence, which looks identical to her ignoring you.
-    private static async Task<Check> Microphone(OctaviaConfig config)
-    {
-        try
-        {
-            var endpoints = AudioDevices.Capture();
-            if (endpoints.Count == 0)
-                return new Check("Microphone", false, "no active capture device",
-                    "Windows sees no microphone at all. Check it is plugged in and enabled " +
-                    "in Sound settings.");
+    /* **The microphone and music checks are gone** — Stage 15 item 3.
 
-            // The device she would actually open, not whichever one Windows calls
-            // default — those differ the moment MicrophoneDevice is set, and a check
-            // that measures the wrong device is worse than no check.
-            using var device = AudioDevices.Resolve(DataFlow.Capture, config.MicrophoneDevice);
-            if (device is null)
-                return new Check("Microphone", false,
-                    $"no capture device matching '{config.MicrophoneDevice}'",
-                    "Clear MicrophoneDevice to follow the Windows default, or pick one of: " +
-                    string.Join(", ", endpoints.Select(d => d.Name)));
+       Both asked Windows about devices on the machine she runs on, and both were good
+       checks: the microphone one existed for a capture device that opens successfully and
+       delivers pure digital silence, which looks identical to her ignoring you.
 
-            var peak = await SystemReport.PeakAsync(device, TimeSpan.FromSeconds(1.5));
-            var reading = peak.ToString("0.000", CultureInfo.InvariantCulture);
-
-            // Three outcomes, not two. The failure worth catching is a device that
-            // opens and delivers *digital* silence — which is a different thing from a
-            // quiet room, and reporting the two the same way is what made this check
-            // call a working headset dead. Any noise floor at all proves the path.
-            if (peak > 0.02f)
-                return new Check("Microphone", true, $"'{device.FriendlyName}' hearing speech (peak {reading})");
-
-            if (peak > 0.0005f)
-                return new Check("Microphone", true,
-                    $"'{device.FriendlyName}' open, room noise only (peak {reading}) — say something to see it rise");
-
-            return new Check("Microphone", false,
-                $"'{device.FriendlyName}' is digitally silent (peak {reading})",
-                "The device opened but delivered no signal whatsoever — not even a noise " +
-                "floor, which a working microphone always has. Check it is not muted and " +
-                "that its level is up in Sound settings.");
-        }
-        catch (Exception ex)
-        {
-            return new Check("Microphone", false, ex.Message, "The audio subsystem could not be queried.");
-        }
-    }
+       She has no capture device now, and no loopback. The equivalent failures have moved to
+       the face that owns the microphone — a browser reports its own permission and its own
+       silence — and a self-test that reported on the *server's* microphone would be answering
+       a question about the wrong machine, confidently. See `MusicSummary`, which says who
+       last reported and how long ago rather than which endpoint was tapped. */
 
     private static Check SpeechModel(OctaviaConfig config)
     {
@@ -287,22 +251,19 @@ internal static class SelfTest
         if (!config.Music)
             return new Check("Music", true, "not listening to what the machine plays (switched off)");
 
-        var device = Senses.Music.LoopbackListener.DefaultDevice();
-        if (device is null)
-            return new Check("Music", false, "no audio output device",
-                "Windows has nothing to play through, so there is nothing for her to hear. " +
-                "Over Remote Desktop this is normal unless audio is set to play on the remote PC.");
+        /* This used to name the output endpoint she had tapped, because *"she will not
+           dance"* was almost never the analyser and almost always the music going to a
+           different endpoint than the one she opened — loopback hears one output and a
+           machine has four.
 
-        /* `host.Music` names the endpoint she actually opened, which is not necessarily
-           the Windows default now that OutputDevice exists — and the gap between those
-           two is the whole of "she will not dance". Loopback taps one output; this
-           machine has four, and music played through any of the others is silence to
-           her. So the answer says where to play it rather than only what is wrong. */
-        return host.Running
-            ? new Check("Music", true, host.Music,
-                "If she is not moving to something you are playing, check this is the same " +
-                "device the music is coming out of — she hears one output, not the machine.")
-            : new Check("Music", true, $"would listen to '{device}'");
+           **She taps nothing now.** The advice moves rather than disappearing: the equivalent
+           mystery is that *nothing is reporting*, so `host.Music` says who last told her and
+           how long ago. A stale report is left standing on purpose — a client that closed its
+           lid has stopped telling her things, which is not the same as telling her the music
+           stopped. */
+        return new Check("Music", true, host.Music,
+            "She is told what is playing rather than hearing it. If she is not moving to " +
+            "something, check that a client capable of reporting it is running and connected.");
     }
 
     /// Reports the engine she is *actually* speaking with. Checking SAPI while the
