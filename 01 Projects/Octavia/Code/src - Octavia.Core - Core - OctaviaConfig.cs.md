@@ -151,6 +151,23 @@ internal sealed class OctaviaConfig
     public bool ListenOnStart { get; set; }
     public bool StartMinimised { get; set; }
 
+    /// Load the speech models when the server starts, rather than when somebody first asks
+    /// to be heard. **On by default**, and it is not merely a convenience.
+    ///
+    /// Opening Whisper takes about three seconds with `large-v3-turbo` on a CPU, and a face
+    /// that holds its microphone button begins streaming immediately — so the first press of
+    /// a cold session lost its opening words, and lost them *silently*, producing a plausible
+    /// truncated sentence rather than an obvious nothing. See ROADMAP.md stage 14 item 11.
+    ///
+    /// Paying that cost at startup, where nobody is talking, removes the window rather than
+    /// papering over it: with the recogniser already open, taking the floor never awaits.
+    ///
+    /// **This does not open a microphone.** Constructing the recogniser builds the voice
+    /// detector and the transcriber and touches no device; `Start` is what opens one, and
+    /// that still happens only when somebody listens or holds a button. Turn it off on a
+    /// machine where the memory matters more than the first sentence does.
+    public bool OpenEarsOnStart { get; set; } = true;
+
     /// debug / info / warn / error. Raise it to debug when reproducing a fault for a
     /// diagnostics bundle; info is what a working machine should be reading.
     public string LogLevel { get; set; } = "info";

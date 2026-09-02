@@ -7,6 +7,7 @@ source-path: src\Octavia.Server\Program.cs
 # src\Octavia.Server\Program.cs
 
 ```csharp
+using System.Runtime.InteropServices;
 using Octavia.Core;
 using Octavia.Diagnostics;
 
@@ -66,31 +67,69 @@ internal static class Program
         if (config.RemoteAccess) Console.WriteLine("  remote faces may attach with the remote key");
         Console.WriteLine("  ctrl+c to stop her");
 
+        // Arrives seconds later, after everything above: her models load in the background so
+        // the socket is reachable immediately. Printed when it lands rather than waited for.
+        Report(being.Ears);
+
         return WaitForStop();
     }
 
-    /// Blocks until Ctrl+C, and lets `using` unwind on the way out.
+    /// Says what her ears did, whenever they finish doing it.
     ///
-    /// `Cancel = true` so the runtime does *not* kill the process where it stands: her MCP
-    /// servers are child processes and her voice owns a sound card, and both are released in
-    /// `Dispose`. A server that leaves an orphaned `npx` behind every time it stops is a
-    /// server nobody can restart cleanly.
+    /// Un-awaited on purpose. Loading `large-v3-turbo` takes seconds, and a server that
+    /// printed nothing until its models were ready would look hung during the one part of
+    /// startup a person is actually watching — while the socket has been answering the whole
+    /// time. The log records it either way.
+    private static void Report(Task<string?> ears) => _ = ears.ContinueWith(finished =>
+    {
+        if (finished.IsFaulted)
+        {
+            Console.WriteLine($"  ears: would not open — {finished.Exception?.GetBaseException().Message}");
+            return;
+        }
+
+        if (finished.Result is { } engine) Console.WriteLine($"  ears: {engine}");
+    }, TaskScheduler.Default);
+
+    /// Blocks until she is asked to stop, and lets `using` unwind on the way out.
+    ///
+    /// **Every way of asking has to arrive here**, which is more than Ctrl+C. Her MCP servers
+    /// are child processes and her voice owns a sound card; since the ears now open at
+    /// startup she also holds about 1.6 GB of speech model. A stop that skips `Dispose`
+    /// leaves an orphaned `npx` behind and a server nobody can cleanly restart.
+    ///
+    /// `Console.CancelKeyPress` only ever covered Ctrl+C and Ctrl+Break. **Closing the
+    /// console window — now the obvious thing to do, since there is a desktop shortcut that
+    /// opens one — went down a different path entirely** and was never handled.
+    /// `PosixSignalRegistration` is the one API that covers all of them: on Windows .NET maps
+    /// SIGINT to Ctrl+C, SIGQUIT to Ctrl+Break and **SIGTERM to the window's close button**,
+    /// and the same three lines mean the right thing if she ever runs on Linux.
     private static int WaitForStop()
     {
         var stopping = new ManualResetEventSlim(false);
+        var unwound = new ManualResetEventSlim(false);
 
-        Console.CancelKeyPress += (_, e) =>
+        void Stop(PosixSignalContext context)
         {
-            e.Cancel = true;
+            // The runtime must not tear the process down where it stands, or Dispose never
+            // runs. Windows still allows only a few seconds after a window close, so the
+            // handler waits for the unwind rather than returning into a race with it.
+            context.Cancel = true;
             Console.WriteLine("stopping...");
             stopping.Set();
-        };
+            unwound.Wait(TimeSpan.FromSeconds(4));
+        }
 
-        // A service, a scheduled task or a terminal being closed asks this way instead.
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => stopping.Set();
+        using var interrupt = PosixSignalRegistration.Create(PosixSignal.SIGINT, Stop);
+        using var quit = PosixSignalRegistration.Create(PosixSignal.SIGQUIT, Stop);
+        using var terminate = PosixSignalRegistration.Create(PosixSignal.SIGTERM, Stop);
 
         stopping.Wait();
+
+        // Logged before `using` unwinds `Being`, so the line is on disk even if tearing the
+        // MCP servers down takes longer than Windows is prepared to wait.
         Log.Write("Octavia server stopped");
+        unwound.Set();
         return 0;
     }
 

@@ -1257,10 +1257,26 @@ is quietly incomplete is worse than one that is honestly small.
 > three faces, with the two origins reproduced rather than simulated. Four mechanisms broken
 > on purpose first.
 
-### 11. The first press of a cold session loses its opening words — **open**
+### ~~11. The first press of a cold session loses its opening words~~ — **closed 09/02/2026, v0.26.1**
 
-*Reported 09/01/2026 from the handset, against v0.25.1. Recorded rather than fixed; nothing
-in this repo has been touched for it.*
+> **Closed by removing the window rather than by buffering into it.** `OpenEarsOnStart`
+> loads the speech models when the server starts, where nobody is talking — so by the time
+> anyone holds a button the recogniser exists, `TakeFloorAsync` never awaits, and there is no
+> gap for frames to fall into. Verified: a `talking` on a fresh session takes the floor with
+> no *"her ears were shut; opening them"* line in the log, and `hello` reports
+> `ears Whisper large-v3-turbo (local)` on the very first connection.
+>
+> Both fixes recorded below — buffering the pressing face's frames, or acknowledging
+> `talking` — would have made the loss *survivable*. This makes it not happen. The residual
+> window is the first two seconds of the server's life, which nobody is speaking into.
+>
+> **It came from the owner asking for something else entirely** — *"when the server starts up,
+> the ears should auto start, no point in that only being activated when its needed"* — which
+> is the second time a convenience request has turned out to be the clean fix for a logged
+> fault. Worth noticing as a pattern: *a fault that needs a mechanism to survive it is often a
+> fault that should not be reachable.*
+
+*Reported 09/01/2026 from the handset, against v0.25.1. Fixed 09/02/2026.*
 
 v0.25.1 made holding the button open her ears, which is right and confirmed working from the
 phone — `micAccepted: True` on a fresh session, and the placard went from `EARS not started`
@@ -1307,11 +1323,16 @@ floor on the calling thread and there is no window at all.
 audio *in*: it is the smaller change, it is independently useful, and it makes a tablet worth
 looking at before it is worth talking to.
 
-**How it actually went:** 1 → 3 → 2 → 9 → 10, with 9 taking 4, 5 and 7 with it and 10
-falling out of 9. **Open: 6 and 11.** Item 6 (echo) stands as decided — push-to-talk, and
-always-on listening in a remote room is still out of scope; it is the only thing between the
-phone and the desktop *feeling* identical, which is a much sharper way to hold it than it was.
-Item 11 is a real fault rather than a deferred choice, and is the one to do first.
+**How it actually went:** 1 → 3 → 2 → 9 → 10 → 11, with 9 taking 4, 5 and 7 with it and 10
+falling out of 9. **Open: 6, and only 6.** It stands as decided — push-to-talk, and always-on
+listening in a remote room is still out of scope; it is the only thing between the phone and
+the desktop *feeling* identical, which is a much sharper way to hold it than it was.
+
+> **Stage 15 item 3 changes what item 6 costs.** Once the server holds no device and the
+> Windows client streams its microphone exactly as the phone does, the desktop inherits the
+> phone's echo problem — so item 6 stops being the last polish on a remote room and becomes a
+> prerequisite for the desktop keeping always-on listening at all. Do them together, or do 6
+> first.
 
 ## Stage 15 — A server, and clients *(specced and built 09/02/2026, v0.26.0)*
 

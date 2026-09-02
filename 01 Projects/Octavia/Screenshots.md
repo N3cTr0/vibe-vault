@@ -37,6 +37,16 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.26.1 — her ears open before anyone asks
+
+![[v0.26.1 - her ears open before anyone asks.png]]
+
+**`EARS Whisper large-v3-turbo (local)` on a fresh session, with nobody having pressed anything.** Every shot before this one said `EARS not started` until somebody asked her to listen — and v0.25.1's shot made a point of that pairing being *correct*.
+
+This is the pairing changing, and it closes [[Roadmap]] item 11. The first press of a cold session used to lose the seconds Whisper spent loading, silently, producing a truncated sentence rather than an obvious nothing. The models load at startup now, where nobody is talking, so there is no gap to fall into rather than a mechanism for surviving one.
+
+**It opens no microphone**, which is the distinction v0.25.1 drew and this depends on: building the recogniser touches no device, and `listen` or a held button is still what opens one. The mic button is unpressed here and her ears are open.
+
 ## v0.26.0 — the client on her server, mid-conversation
 
 ![[v0.26.0 - the client on her server, mid-conversation.png]]

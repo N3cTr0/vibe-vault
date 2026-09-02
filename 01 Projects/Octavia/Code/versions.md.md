@@ -18,6 +18,80 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.26.1 — 2026-09-02
+
+**Her ears open when the server starts**, and that closes Stage 14 item 11 — the last open
+fault in that stage.
+
+The ask was a convenience: *"when the server starts up, the ears should auto start, no point
+in that only being activated when its needed."* It turns out to be the clean fix for a logged
+bug, which is the second time that has happened. **A fault that needs a mechanism to survive
+it is often a fault that should not be reachable.**
+
+### Item 11, closed by removing the window rather than surviving it
+
+The first press of a cold session lost its opening words: Whisper takes a few seconds to load,
+a face streams the instant it asks for the floor, and frames arriving before `_floor = from`
+were dropped. The two fixes recorded for it — buffer the pressing face's frames, or
+acknowledge `talking` — would both have made the loss *survivable*. Loading the models at
+startup, where nobody is talking, means there is no gap to survive.
+
+Verified: `talking` on a fresh session takes the floor with no *"her ears were shut; opening
+them"* line, and `hello` reports `ears Whisper large-v3-turbo (local)` on the first
+connection. What is left is the first two seconds of the server's life.
+
+**It opens no microphone.** Constructing the recogniser builds the voice detector and the
+transcriber and touches no device; `Start` is what opens one, and that still needs `listen` or
+a held button. `OpenEarsOnStart` is on by default and costs about **1.6 GB resident from
+boot**, which is the honest price and is a config key for machines where it is the wrong
+trade.
+
+It lives in `Being` rather than the session, deliberately: a server should be *ready* rather
+than merely reachable, but that is a hosting decision, and the in-process checks build a real
+session dozens of times a run without wanting a 1.6 GB model each time.
+
+### The server never once shut down cleanly, and nothing said so
+
+Found while testing the above: **eight server starts in the log and not a single
+"Octavia server stopped"**. `Console.CancelKeyPress` only ever covered Ctrl+C and Ctrl+Break
+— and closing the console window, which is now the obvious thing to do since there is a
+desktop shortcut that opens one, went down a path nothing handled. Her MCP servers are child
+processes and she now holds 1.6 GB of speech model, so an exit that skips `Dispose` leaves
+both behind.
+
+`PosixSignalRegistration` covers all three: on Windows .NET maps SIGINT to Ctrl+C, SIGQUIT to
+Ctrl+Break and **SIGTERM to the window's close button**, and the same lines mean the right
+thing if she ever runs on Linux. The handler holds the signal until the unwind finishes rather
+than returning into a race with it.
+
+The proof is the log: *"Octavia server stopped"* now appears, having never appeared before.
+
+### She knows what day it is
+
+Asked the date, she was answering from her training data — months stale and stated with
+total confidence, which is the worst combination there is. A server knows what day it is, so
+it says so: `Situation` now carries the clock alongside the music, every turn.
+
+Three things about where it went:
+
+- **Not the system prompt**, which is the other obvious home and the wrong one. It is
+  identical every turn precisely so it can be cached; a clock in it would break that on every
+  question.
+- **Not the history.** `Situation` rides with the question and is never written down, which
+  matters more for a date than for music — a date kept in the conversation would still be
+  claimed as "today" an hour later, and by then it is wrong.
+- **`RoomHour` must never reach it.** That pins the room's *lighting* to an hour; the room
+  can be told it is evening while she correctly says it is two in the morning.
+
+The persona also gained one line — *"You are told the current date and time with each
+question. Use it, and never say you have no way of knowing what day it is"* — because a model
+handed the answer will still sometimes recite the disclaimer.
+
+Verified against the system clock: *"Today is Wednesday, 2 September 2026, and the time is
+2:07 AM."*
+
+---
+
 ## 0.26.0 — 2026-09-02
 
 **Stage 15: she is a server now, and the things that look at her are clients.** One process

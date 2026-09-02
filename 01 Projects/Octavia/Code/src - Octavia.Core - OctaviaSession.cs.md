@@ -1022,6 +1022,25 @@ internal sealed class OctaviaSession : IDisposable
     private readonly object _earsGate = new();
     private bool _roomMusicStarted;
 
+    /// Opens the recogniser before anybody asks, so the first person to speak is not paying
+    /// for it. A server should be ready, not merely reachable.
+    ///
+    /// Deliberately *not* called from the constructor: this is a hosting decision rather than
+    /// a session invariant, so `Being` makes it and the in-process checks — which build a real
+    /// session dozens of times a run — do not load a 1.6 GB model to assert a routing rule.
+    ///
+    /// Failure is already handled inside: `OpenAndWireAsync` logs, notices and returns null,
+    /// so a machine with no speech model still starts and simply cannot hear.
+    internal async Task<string?> WarmEarsAsync()
+    {
+        if (!_config.OpenEarsOnStart) return null;
+
+        Log.Write("opening her ears before anyone asks; the first press should not pay for it");
+        var ears = await EnsureEarsAsync();
+        if (ears is not null) Log.Write($"ears ready: {ears.EngineName}");
+        return ears?.EngineName;
+    }
+
     private Task<ISpeechRecognizer?> EnsureEarsAsync()
     {
         if (_ears is not null) return Task.FromResult<ISpeechRecognizer?>(_ears);
@@ -1559,8 +1578,12 @@ internal sealed class OctaviaSession : IDisposable
 
         try
         {
+            /* `DateTimeOffset.Now`, read here rather than anywhere earlier: the answer has to
+               be true at the moment she is asked, and `RoomHour` — which pins the *lighting*
+               to an hour — must never reach this. The room can be told it is evening while
+               she correctly says it is two in the morning. */
             var now = new Situation(
-                Persona.Music(_music.State.Playing, _music.State.Bpm),
+                Persona.Now(DateTimeOffset.Now, _music.State.Playing, _music.State.Bpm),
                 await MaybeLookAsync(room, userText, cancel));
 
             await foreach (var sentence in _brain.RespondAsync(room.History, userText, now, cancel))

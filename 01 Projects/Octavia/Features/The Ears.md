@@ -48,13 +48,23 @@ A held button is an explicit request to be transcribed, which is exactly the mea
 
 > **`UseSource` starts what it is given**, which makes the obvious release path a trap: handing the ears back the local microphone when a face lets go would open the desk's microphone *because a phone released a button*. When nobody is listening at the desk the recogniser is stopped instead, and there is a check that fails if the local device opens during a remote press.
 
-#### And it left one fault behind, which is still open
+### They open when the server does *(v0.26.1)*
+
+`OpenEarsOnStart` loads the speech models at startup rather than on the first request, and it closed the fault below.
+
+The ask was a convenience — *"when the server starts up, the ears should auto start, no point in that only being activated when its needed"* — and it turned out to be the clean fix for a logged bug. **A fault that needs a mechanism to survive it is often a fault that should not be reachable.**
+
+> **It opens no microphone**, and that distinction is exactly the one v0.25.1 drew. Constructing `WhisperRecognizer` builds the voice detector and the transcriber and touches no device; `Start` is what opens one, and that still needs `listen` or a held button. Warming her ears is being-wide; opening a microphone belongs to a room.
+
+It lives in `Being` rather than in the session, deliberately: *a server should be ready rather than merely reachable* is a hosting decision, and the in-process checks build a real session dozens of times a run without wanting a 1.6 GB model each time. That 1.6 GB resident from boot is the honest cost, and the reason it is a config key rather than a constant.
+
+#### And it left one fault behind — ~~still open~~ **closed 09/02/2026**
 
 Confirmed working from the handset — but **the first press of a cold session loses its opening words**. Opening Whisper takes about three seconds with `large-v3-turbo` on CPU, and the client starts streaming the instant it sends `talking(true)`, because nothing acknowledges that the floor was granted. Every frame before `_floor = from` is dropped.
 
 > **It is worse than the failure sitting next to it, and that is why it matters.** Letting go mid-load produces *silence*, which is legible: nothing happened, press again. This produces a **plausible, truncated sentence** — she answers the wrong question and everything appears to have worked.
 
-Recorded as [[Roadmap]] item 11, not yet built. The likely shape is buffering frames from the pressing face until `_faceMic` exists: no protocol change, no client edit, and the latency it hides is real rather than added. Only the first press is affected — once the recogniser exists, taking the floor never awaits.
+Recorded as [[Roadmap]] item 11, and **fixed the next day by removing the window rather than surviving it**. Both candidate fixes — buffering the pressing face's frames, or acknowledging `talking` — would have made the loss *survivable*. Opening the models at startup, where nobody is talking, means there is no gap to survive: `TakeFloorAsync` never awaits, and a `talking` on a fresh session takes the floor with no *"her ears were shut; opening them"* line in the log. What is left is the first two seconds of the server's life.
 
 ### Two things it would be easy to get wrong
 

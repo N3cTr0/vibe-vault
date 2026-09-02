@@ -30,12 +30,22 @@ internal sealed class Being : IDisposable
         Sockets = sockets;
         Hub = hub;
         Session = session;
+        Ears = session.WarmEarsAsync();
     }
 
     public OctaviaConfig Config { get; }
     public WebSocketFaceServer Sockets { get; }
     public FaceHub Hub { get; }
     public OctaviaSession Session { get; }
+
+    /// Completes with the engine's name once the speech models are loaded, or with null when
+    /// `OpenEarsOnStart` is off or they would not open.
+    ///
+    /// **Not awaited before the socket is serving.** A face that attaches during the load
+    /// gets a working Octavia who cannot hear yet, which is a far better first impression
+    /// than a server that appears not to have started — and `hello` carries `ears` and is
+    /// re-sent when they open, so the placard corrects itself with nobody reloading.
+    public Task<string?> Ears { get; }
 
     /// Where a face should point itself, loopback-shaped. A remote face uses the remote key
     /// against this machine's address instead; see `RemoteKey`.

@@ -250,6 +250,7 @@ megabytes of downloaded artefacts, none of it source.
 | `MinConfidence` | `0.35` | Raise it if she answers the television, lower it if she ignores you |
 | `MinUtteranceChars` | `2` | Shorter transcripts are treated as noise |
 | `ListenOnStart` | `false` | See the cost note below |
+| `OpenEarsOnStart` | `true` | Load the speech models when the server starts. Costs ~1.6 GB of RAM from boot and buys back the first sentence — see below |
 | `StartMinimised` | `false` | *Moved to `client.json` in v0.26.0, same as `Hotkey`* |
 | `AvatarFile` | *(empty)* | A `.vrm` in `<data>\avatars`; empty means the bust. Settings → Appearance |
 | `RoomHour` | `-1` | Pin the room's lighting to an hour 0–23; negative follows the clock |
@@ -549,6 +550,21 @@ face after ten seconds rather than failing invisibly.
 
 **Not started.** No wake word, no camera, no system-audio capture, no Home Assistant.
 See `ROADMAP.md`.
+
+## Her ears open before anyone asks
+
+`OpenEarsOnStart` is on by default, and it is not just convenience. Opening Whisper takes a
+few seconds with `large-v3-turbo` on a CPU, and a face that holds its microphone button
+starts streaming immediately — so the first press of a cold session used to lose its opening
+words, and lose them *silently*, producing a plausible truncated sentence rather than an
+obvious nothing. Paying that at startup, where nobody is talking, removes the window instead
+of hiding it.
+
+**It does not open a microphone.** Building the recogniser builds the voice detector and the
+transcriber and touches no device; `listen` or a held button is still what opens one.
+
+The cost is about **1.6 GB resident from boot** with `large-v3-turbo`. Turn it off on a
+machine where that matters more than the first sentence does.
 
 ## Two things to know before leaving her listening
 

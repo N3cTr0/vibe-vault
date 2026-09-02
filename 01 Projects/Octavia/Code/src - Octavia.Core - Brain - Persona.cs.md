@@ -26,6 +26,9 @@ internal static class Persona
         If a request is nearly intelligible, answer the likely meaning rather than complaining
         about the transcription. If it is genuinely garbled, say so in a few words.
 
+        You are told the current date and time with each question. Use it, and never say you
+        have no way of knowing what day it is.
+
         You do not yet have eyes, hands, or access to the house. If asked to do something you
         cannot do, say plainly that you can't do it yet.
         """;
@@ -35,11 +38,33 @@ internal static class Persona
     public static string Situated(string text, string? context, bool isCurrent) =>
         isCurrent && !string.IsNullOrWhiteSpace(context) ? $"{context}\n\n{text}" : text;
 
-    /// The line she is handed about the room. It says not to mention it unasked because
-    /// a model told "music is playing" will otherwise open every reply by saying so.
-    public static string? Music(bool playing, double bpm) => playing
-        ? $"[Happening now, not something to remark on unless you are asked: music is " +
-          $"playing on this machine{(bpm > 0 ? $", around {bpm:0} beats per minute" : "")}.]"
-        : null;
+    /// The line she is handed about what is true right now. It says not to mention it unasked
+    /// because a model told "music is playing" will otherwise open every reply by saying so.
+    ///
+    /// **The clock is in here on purpose, and it is the whole reason this is a list.** A
+    /// model has no present tense: asked the date it answers from its training data, which is
+    /// months stale and stated with complete confidence — the worst combination there is. A
+    /// server knows what day it is, so it says so, every turn.
+    ///
+    /// It rides with the question like everything else in `Situation` and is never written
+    /// into the history, which matters more here than for music: a date kept in the
+    /// conversation would still be claimed as "today" an hour later, and hours later it is
+    /// wrong. The system prompt would be the other obvious home and is the wrong one — it is
+    /// the same every turn precisely so it can be cached, and a clock in it would break that
+    /// on every question.
+    public static string? Now(DateTimeOffset when, bool playing, double bpm)
+    {
+        var facts = new List<string>
+        {
+            // Written the way she is asked to say it, with the day of the week, because
+            // "what day is it" is nearly always asking for that rather than the number.
+            $"today is {when:dddd d MMMM yyyy} and the time here is {when:h:mm tt}"
+        };
+
+        if (playing)
+            facts.Add($"music is playing on this machine{(bpm > 0 ? $", around {bpm:0} beats per minute" : "")}");
+
+        return $"[Happening now, not something to remark on unless you are asked: {string.Join("; ", facts)}.]";
+    }
 }
 ```

@@ -19,11 +19,23 @@ IBrain
 
 ## What is true right now
 
-`RespondAsync` takes an optional **`context`** — what is happening in the room rather than what was said. Today that is only whether music is playing and roughly how fast; the camera in Stage 9 will use the same seam.
+`RespondAsync` takes an optional **`context`** — what is happening in the room rather than what was said. Whether music is playing and roughly how fast, a still from the camera when a question needed one, and — since v0.26.1 — **the date and time**.
 
 Where it goes was the whole decision. Not the **system prompt**, because the cache breakpoint sits there and anything volatile above it would void the cache on every turn. Not the **history**, because it would still be claiming there is music an hour after it stopped. So it rides with the current user message only, and is never stored — `Persona.Situated` attaches it, and both brains use the same helper so the wording never depends on which one is running.
 
 It also tells her not to mention it unless asked. A model told "music is playing" will otherwise open every reply by saying so.
+
+### The clock, and why it belongs here rather than anywhere else *(v0.26.1)*
+
+**A model has no present tense.** Asked the date she answered from her training data — months stale and stated with complete confidence, which is the worst combination a system can produce. A server knows what day it is, so it says so, every turn.
+
+The seam was already the right one and the reasoning above transfers unchanged, but it bites harder for a clock than for music:
+
+- **Not the system prompt.** The line two sections down already warned that *"a timestamp in the system prompt would silently kill"* the cache breakpoint. It was written about a hypothetical and turned out to be about this.
+- **Not the history.** Music kept in the conversation is wrong an hour later; a date kept in the conversation is *confidently* wrong an hour later, and still called "today".
+- **Not `RoomHour`.** That pins the room's *lighting* to an hour for the look of the thing. The room can be lit like evening while she correctly says it is two in the morning, and conflating the two would make a cosmetic setting lie about the world.
+
+The persona gained one line with it — *"You are told the current date and time with each question. Use it, and never say you have no way of knowing what day it is"* — because a model handed the answer will still sometimes recite the disclaimer instead of reading it.
 
 Selected by `Brain: "local" | "claude"` in config, which the profiles set. **Local is the default since v0.19.3**, base setting included, so a mistyped profile lands on a brain that needs no key rather than one that refuses every turn — see [[Profiles & Configuration]].
 
