@@ -171,7 +171,11 @@ The tell that this is the right shape is that it needs no new concept — `talki
 
 It also resolves the tension the split created: the server wants the strong machine for Whisper and the local model, while a MetaHuman renderer wants a strong GPU and is a *client*. In practice one box runs both — and under this rule that costs nothing.
 
-**Four things that make it bigger than it looks**, all recorded in `ROADMAP.md` Stage 15 item 3: `music` has to travel *upstream*, which would be the first protocol change since Stage 3; `SapiVoice` synthesises to a sound card and cannot survive as written; the authority table shrinks to things that are genuinely about the server's machine; and [[The Ears|item 6]] — echo cancellation — stops being optional, because the desktop inherits the phone's problem the moment it streams like one.
+**Three things that make it bigger than it looks**, all recorded in `ROADMAP.md` Stage 15 item 3: `music` has to travel *upstream*, which would be the first protocol change since Stage 3; `SapiVoice` synthesises to a sound card and cannot survive as written; and the authority table shrinks to things that are genuinely about the server's machine.
+
+> **A fourth was listed here and has since been struck.** It said echo cancellation stopped being optional, because the desktop would inherit the phone's problem the moment it streamed like one. That was true when written and was overtaken within hours: item 6 landed in v0.28.0 and **put the echo answer on the client**, because only the client knows when its own speaker emitted her voice and when it stopped. Item 3 now inherits a solved problem rather than creating one. See [[Stage 14 - Always-On Listening In A Room]].
+>
+> Worth noticing *why* the two agree. The phone arrived at "the device is reasoned about by whoever holds it" out of necessity — the host simply cannot know when a remote speaker fell silent — and the owner stated the same thing as a principle on the same day. **When a constraint and an implementation reach the same shape independently, the shape is usually right.**
 
 Deliberately not built in the same change set: splitting the process and redefining the host room together would have meant neither could be tested alone. Until it lands, **run the client on the server's machine, or use the neural voice** — her voice plays through the server's sound card for the host room, and SAPI cannot be streamed.
 

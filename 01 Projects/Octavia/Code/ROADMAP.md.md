@@ -1155,7 +1155,7 @@ renderer, and she would have a different voice in every room.
 > arrangement on Android — a native client that owns the microphone and a WebView panel that
 > draws her page. See item 9.
 
-### 6. Echo, which the network makes worse
+### ~~6. Echo, which the network makes worse~~ *(done 09/02/2026, v0.28.0)*
 
 `Mute()`/`Unmute()` around her speech is what stops her transcribing herself, and it works
 because everything is in one process on one clock. A tablet with an open mic and a speaker
@@ -1166,6 +1166,21 @@ transcribe it.
 sidesteps the whole problem. Always-on listening there needs real echo cancellation — Android's
 `AcousticEchoCanceler` is per-device and not dependable — and should be its own piece of work.
 
+> **It was its own piece of work, and it is done.** Specced as *Stage 14 — Always-On Listening
+> In A Room* and built in v0.28.0: `_openFace`/`_openRoom` as a quieter claim than the floor,
+> a press that works on top of an open stream and hands back afterwards, and one room at a
+> time. Measured at 74 seconds of her own voice into an open microphone producing no utterance
+> at all. **This was the last item of Stage 14.**
+>
+> **The answer landed on the client, and that is the part worth keeping.** The host knows when
+> it *sent* her voice; it does not know when a handset's speaker emitted it, or stopped. The
+> client knows both exactly, because it owns the track — so the suppression lives there and
+> nothing about it crosses the socket.
+>
+> That is Stage 15 item 3's rule arrived at from the other end, by somebody solving a
+> different problem: **a device is best reasoned about by whoever holds it.** The owner stated
+> it as a principle on the same day this was built as a necessity.
+
 ### ~~7. The attention gate now has two rooms~~ — *absorbed into item 9*
 
 > Scoped rather than built out, which is what the spec asked for: one `AttentionGate` per
@@ -1173,6 +1188,14 @@ sidesteps the whole problem. Always-on listening there needs real echo cancellat
 > always-on listening, which on Android it does not have and is not getting here —
 > push-to-talk bypasses the gate entirely, because a held button has already answered the
 > question it asks.
+>
+> **That last clause stopped being true on 09/02/2026, and the scoping is what saved it.**
+> Item 6 gave a room always-on listening, so a phone's utterances now go through
+> `Consider()` and are judged by **that room's** gate. The per-room gate went from a
+> precaution to load-bearing in one release, and needed no work to get there — `EarsRoom`
+> already resolved an open room, and the `_owed` fix carries the speaker across the gap
+> between releasing and transcribing. *Scoping a singleton before you need to is cheap;
+> discovering you needed to is not.*
 
 ### 8. `PROTOCOL.md` had fallen behind the code — ✅ **fixed in 0.20.1**
 
@@ -1323,16 +1346,20 @@ floor on the calling thread and there is no window at all.
 audio *in*: it is the smaller change, it is independently useful, and it makes a tablet worth
 looking at before it is worth talking to.
 
-**How it actually went:** 1 → 3 → 2 → 9 → 10 → 11, with 9 taking 4, 5 and 7 with it and 10
-falling out of 9. **Open: 6, and only 6.** It stands as decided — push-to-talk, and always-on
-listening in a remote room is still out of scope; it is the only thing between the phone and
-the desktop *feeling* identical, which is a much sharper way to hold it than it was.
+**How it actually went:** 1 → 3 → 2 → 9 → 10 → 11 → 6, with 9 taking 4, 5 and 7 with it and
+10 falling out of 9. **Stage 14 is complete**, closed 09/02/2026 by the item everybody
+expected to defer indefinitely.
 
-> **Stage 15 item 3 changes what item 6 costs.** Once the server holds no device and the
-> Windows client streams its microphone exactly as the phone does, the desktop inherits the
-> phone's echo problem — so item 6 stops being the last polish on a remote room and becomes a
-> prerequisite for the desktop keeping always-on listening at all. Do them together, or do 6
-> first.
+> **And it made Stage 15 item 3 cheaper rather than dearer.** Yesterday's note here said the
+> opposite: that once the server held no device and the Windows client streamed like a phone,
+> the desktop would inherit the phone's echo problem, so item 6 became a prerequisite. That
+> reasoning was sound and the conclusion is now moot — **the echo answer already lives on the
+> client**, because only the client knows when its own speaker emitted. Item 3 inherits a
+> solved problem instead of creating one.
+>
+> The phone reached that by necessity and the owner stated it as a principle the same day.
+> When a constraint and an implementation arrive at the same shape independently, the shape
+> is probably right.
 
 ## Stage 15 — A server, and clients *(specced and built 09/02/2026, v0.26.0)*
 

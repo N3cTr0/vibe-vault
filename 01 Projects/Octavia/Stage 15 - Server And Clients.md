@@ -13,6 +13,15 @@ tags: [octavia, spec, stage-15]
 > prove it. Items 2–5 are open and recorded in `ROADMAP.md`. See
 > [[A Server, And Clients]] and [[Changelog]] 0.26.0.
 
+> **Item 3 was decided the same day, and item 6 made it cheaper** *(09/02/2026)*. The owner's
+> rule settles the question this spec left open: *"the server should have no hook on any
+> device… the phone sends its mic/camera/etc to the server, the Windows client should be
+> doing the same thing."* So the desktop's special case is **deleted** rather than
+> generalised. Hours later Stage 14 item 6 landed and put echo suppression **on the client**
+> — because only the client knows when its own speaker emitted — which is the same principle
+> reached by necessity from the other side. Item 3 now inherits a solved problem instead of
+> creating one. See `ROADMAP.md` Stage 15 item 3 and [[Stage 14 - Always-On Listening In A Room]].
+
 > **A specification written before the code**, 09/02/2026, in her own repo rather than
 > from the [[Octavia Android]] side. It follows [[Stage 14 - Lending A Renderer The Device's Senses]],
 > which closed item 10. The owner asked for the structure first — *"we can figure it all
@@ -213,7 +222,7 @@ Each is checkable from outside, and the ones marked ✽ are asserted in `EarsTes
 |---|---|---|
 | 1 | The split itself — three projects, a headless server, a thin client | *this stage* |
 | 2 | A portable core: decode a still without WPF, `Octavia.Windows` for NAudio and SAPI | open |
-| 3 | What the host room means when the server has no devices — the client lends its senses | open |
+| 3 | The server holds no device; every client passes its own up, the Windows one exactly as the phone does | **decided 09/02/2026**, open |
 | 4 | The server as a Windows Service, with the client starting it on demand | open |
 | 5 | Diagnostics bundles downloadable over HTTP rather than only written to disk | open |
 

@@ -53,7 +53,7 @@ window.OctaviaEmbedder = {
 
 **The embedder is injected over an origin-restricted channel.** The page arrives over plain HTTP on the LAN, so anything that could inject script into it could otherwise open the microphone. On Android that means `WebViewCompat.addWebMessageListener` with an allow-list, never `addJavascriptInterface`, which exposes the object to every script in the WebView. See [[Conventions & Security Model]].
 
-## The one place the interface cannot match the host
+## The one place the interface cannot match the host *(closed in v0.28.0 — see below)*
 
 The desktop's microphone button is a **toggle**. `listen` opens her microphone and leaves it open, and [[The Attention Gate]] decides what was addressed to her.
 
@@ -62,6 +62,16 @@ A remote room cannot have that yet. An open microphone beside a speaker playing 
 So: **same button, same place, same look, held rather than toggled.** That is the whole of the difference, and it is stated in the code rather than papered over. Making it a toggle needs real echo cancellation and item 7's per-room gate actually built. If the difference is unacceptable, the answer is not a smarter button — it is doing item 6 properly.
 
 > Item 6 is now the **only** thing between the phone and the desktop feeling identical, which is a much sharper way to hold it than "echo, later".
+
+### And then item 6 landed, eight days later *(v0.28.0)*
+
+**The gap this section describes is closed.** A room can be left listening, so the phone's microphone is a toggle *and* a press: a tap opens the room, a hold takes the floor on top of it, and releasing hands back to the open stream rather than switching off what somebody deliberately left on. The two interfaces match.
+
+The hold is deliberately delayed by **250 ms** so one button can carry both gestures. Nobody speaks in that quarter second — they are still pressing.
+
+> **What made it possible was not a smarter button, exactly as this note predicted — but the "properly" turned out to be somewhere unexpected.** The echo cancellation is not in the host at all. `Mute()`/`Unmute()` works at the desk because everything shares one clock; the host knows when it *sent* her voice and has no idea when a handset's speaker emitted it or fell silent. **The client knows both exactly, because it owns the track**, so the suppression lives there and nothing about it crosses the socket.
+>
+> That is this note's own thesis applied one level further out. It argued that a renderer should borrow what the device it is running inside can do; item 6 says the device should also be *reasoned about* by whoever holds it. See [[Stage 14 - Always-On Listening In A Room]] and [[A Server, And Clients]].
 
 ## Every way a press can end
 
