@@ -1624,10 +1624,15 @@ a client at all.
 > > notwithstanding, and the note above became *"here is the fix"* instead of *"here are two
 > > things you might try"*.
 > >
-> > **Her ears work too, confirmed by the owner talking to her**: *"she can still hear me"*.
-> > That is a stronger fact than it looks — the audio devices merely *enumerating* from
-> > session 0 proves nothing about capture, and a microphone actually reaching Whisper
-> > through a service is the half that a session-0 caveat would most plausibly have broken.
+> > **Audio works in both directions, confirmed out loud by the owner** — *"she can still
+> > hear me"* and *"I can hear her fine"*. That is the whole of the session-0 worry, closed
+> > by the only method that could close it.
+> >
+> > It is worth stating plainly because the expectation ran the other way: **a service is in
+> > session 0, and session-0 audio is the thing everybody warns you about.** Logged on as the
+> > user it is simply full duplex — a microphone into Whisper, and her voice out of the sound
+> > card, both audible. Enumerating a device proved nothing either way; a person listening
+> > proved both.
 > >
 > > The cost is one that is worth writing down because it is silent: **a service logged on as
 > > an account stops starting when that account's password changes**, and says so in the

@@ -113,8 +113,9 @@ because a service outlives the window that wanted it.
 > unaffected. `--install` says this at install time too.
 >
 > **The fix is to log the service on as yourself**, in `services.msc` → Octavia → Log On →
-> This account. That is verified: her key decrypts, the hosted brain answers, her voice plays
-> and the audio devices enumerate — all from session 0. A machine-wide `ANTHROPIC_API_KEY`
+> This account. That is verified: her key decrypts, the hosted brain answers, and **audio
+> works in both directions** — she hears a microphone and her voice comes out of the sound
+> card, both confirmed by listening, all from session 0. A machine-wide `ANTHROPIC_API_KEY`
 > also works and needs no password.
 >
 > One consequence worth knowing: a service logged on as an account **stops starting when that
