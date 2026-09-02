@@ -53,6 +53,9 @@ internal sealed class FaceHub : IFaceTransport, IDisposable
     public void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to) =>
         _sockets?.SendAudioTo(pcm, to);
 
+    public bool AnyWantsAudio(IReadOnlyCollection<FaceId> faces) =>
+        _sockets?.AnyWantsAudio(faces) ?? false;
+
     /// **Always null now, and honestly so.** It meant "the renderer that is always there",
     /// and with a server there is no such thing: every face comes and goes over a socket.
     /// `EyesIn` used it only as a tie-break for which face to ask for a still, and falls

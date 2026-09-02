@@ -1636,11 +1636,32 @@ the prize worth naming: an always-on box in a cupboard wants to be Linux.
 >   permission prompt nobody looks at never settles. Measured in a headless renderer, where
 >   the button did nothing at all, for ever. There is a two-second deadline now.
 >
-> **What is still open, and it is most of the list:**
+> **And the voice half followed, v0.35.0.** `speaker.js` plays the binary frames the host has
+> been able to send since item 9, and the server sets `IVoice.Aloud = false` when any face in
+> the attending room has subscribed to audio — so on one machine she is not said twice, a
+> fraction of a second apart.
+>
+> **`Aloud` already existed and already meant this.** It was built in item 9 to keep the desk
+> quiet while she answered a handset, and its own comment says *"silencing the sound card
+> rather than not speaking is deliberate"* — the visemes and the tee read from the audio as it
+> plays. So the voice half needed no new concept either: one condition changed from *which
+> room* to *is somebody else playing her*.
+>
+> **The page subscribes only once its audio context is actually running**, which is the same
+> rule the microphone fallback was rebuilt around: *can I try* and *did it work* are different
+> questions, and only the second may decide. No subscription means nobody claimed the job and
+> the sound card keeps it, so this cannot make her silent. A browser will not start audio for
+> an untouched page, so the client passes `--autoplay-policy=no-user-gesture-required` and a
+> plain tab retries on the first gesture.
+>
+> **One visible consequence worth knowing:** her voice now comes out of **`Octavia.exe`** in
+> the Windows volume mixer rather than `Octavia.Server.exe`. Same speakers, different slider.
+>
+> **What is still open:**
 >
 > | | |
 > |---|---|
-> | Her voice | Still plays through the *server's* sound card. Downstream audio to a page is unwritten; the handset does it natively. |
+> | ~~Her voice~~ | **Done, v0.35.0.** The page plays her; the server stops using its sound card exactly when a face in the room says it will. |
 > | `music` | Still the server's loopback. **A page cannot capture loopback at all**, so this one genuinely needs the client shell, not the renderer — the first part of item 3 that is not simply more of the same. |
 > | `SapiVoice` | Unchanged, and still cannot be streamed. |
 > | `setMicrophone` / `setOutput` | Still host-only, still about the server's devices. |

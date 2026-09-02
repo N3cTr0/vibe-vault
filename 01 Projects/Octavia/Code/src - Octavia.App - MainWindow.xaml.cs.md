@@ -56,8 +56,22 @@ public partial class MainWindow : Window
 
         try
         {
+            /* **Her voice may start without being clicked first** — Stage 15 item 3.
+
+               A browser refuses to play audio for a page nobody has touched, which is the
+               right default for the open web and the wrong one here: this window exists to
+               be her, it was opened deliberately, and waiting for a click before she can
+               speak would be a worse first run than the one this replaces.
+
+               The page still checks whether its audio context actually started, and keeps
+               her voice on the server's sound card until it has — so this makes the desk
+               seamless rather than making the page trust anything. */
             var environment = await CoreWebView2Environment.CreateAsync(
-                userDataFolder: Paths.BrowserData);
+                userDataFolder: Paths.BrowserData,
+                options: new CoreWebView2EnvironmentOptions
+                {
+                    AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required"
+                });
 
             await Face.EnsureCoreWebView2Async(environment);
         }

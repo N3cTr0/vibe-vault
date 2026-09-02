@@ -1839,13 +1839,27 @@ internal sealed class OctaviaSession : IDisposable
            handset was answered aloud in an empty house — and if the desk had opted into
            audio, in two rooms at once. The visemes and the streamed PCM are untouched; only
            the sound card is. See `IVoice.Aloud`. */
-        var aloud = room.Id == RoomId.Host;
+        /* **And the room may be taking her voice itself** — Stage 15 item 3.
+
+           A face that subscribed to audio is going to play her. In the host room that is the
+           same machine, so leaving the sound card on would say every sentence twice, a
+           fraction of a second apart. The server stops using the speakers exactly when
+           somebody else has said they will.
+
+           The face only subscribes once it has a working audio context, so this cannot make
+           her silent: no subscription means nobody claimed the job, and the sound card keeps
+           it. That check lives in the page for the same reason the microphone's fallback
+           does — *can I try* and *did it work* are different questions. */
+        var playedThere = _face.AnyWantsAudio(FacesIn(room.Id));
+        var aloud = room.Id == RoomId.Host && !playedThere;
         _voice.Aloud = aloud;
 
         Log.Write(aloud
             ? $"turn in room '{room.Id}'; her voice plays on this machine"
-            : $"turn in room '{room.Id}'; her voice goes only to that room, and this machine stays silent"
-              + (_voice.AudioFormat is null ? " — and this voice cannot be streamed, so nobody will hear it" : ""));
+            : playedThere && room.Id == RoomId.Host
+                ? $"turn in room '{room.Id}'; the face there is playing her, so this machine stays silent"
+                : $"turn in room '{room.Id}'; her voice goes only to that room, and this machine stays silent"
+                  + (_voice.AudioFormat is null ? " — and this voice cannot be streamed, so nobody will hear it" : ""));
 
         if (!aloud && _voice.AudioFormat is null)
             Notice(room, "Her Windows voice cannot leave this machine; you will see her words, not hear them.");

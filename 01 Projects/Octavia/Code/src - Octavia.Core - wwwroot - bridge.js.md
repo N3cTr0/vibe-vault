@@ -306,7 +306,13 @@ function connectSocket() {
     queued = [];
   });
 
+  /* Binary frames are her voice and nothing else — the same contract as upstream, in the
+     other direction. Without this they arrive as `Blob` and `JSON.parse` chokes on them. */
+  socket.binaryType = 'arraybuffer';
+
   socket.addEventListener('message', e => {
+    if (e.data instanceof ArrayBuffer) { speaker?.play(e.data); return; }
+
     try { receive(JSON.parse(e.data)); }
     catch (err) { console.error('bad host message', err, e.data); }
   });
@@ -374,6 +380,12 @@ function receive(msg) {
   switch (msg.type) {
     case 'state':
       applyState(msg.value);
+
+      /* Anything but `speaking` means she has stopped, and frames already scheduled would
+         go on playing a sentence she was told to abandon. The host drops its buffered audio
+         on the same signal — `WebSocketFaceServer` has done this for socket faces since item
+         9 — so this is that rule arriving where the sound actually is. */
+      if (msg.value !== 'speaking') speaker?.silence();
 
       /* An open microphone must not hear her answer.
          Item 6 put this on the client for the handset, because only the client knows when
@@ -691,7 +703,77 @@ async function renderDeviceSettings() {
   box.hidden = false;
 }
 
+/* Her voice, played here rather than out of the server's sound card — Stage 15 item 3.
+
+   **Subscribed to only once it genuinely plays.** The server stops using its own speakers
+   when a face in the room says it is taking the audio, so a page that asked on the strength
+   of *intending* to play would make her silent — an `AudioContext` that will not resume plays
+   nothing, quietly and for ever. That is the same fault the microphone fallback was rebuilt
+   to avoid, pointing the other way, and it is worth the extra step in both directions.
+
+   A browser refuses to resume audio before the page has been clicked; her own client passes
+   the flag that allows it, so the desk is seamless and a plain tab starts the moment somebody
+   touches it. */
+let speaker = null;
+let speakerAsked = false;
+let herFormat = null;
+
+/* One retry, on the first thing a person does.
+
+   A browser will not start audio for a page nobody has touched, and that is the whole of why
+   the first attempt can fail. So the next gesture tries again — once, because after that the
+   answer is not about gestures. Registered on `document` in the capture phase so it sees the
+   click that opens her drawer or presses her microphone, without taking it. */
+function retrySpeakerOnGesture() {
+  const again = () => {
+    document.removeEventListener('pointerdown', again, true);
+    document.removeEventListener('keydown', again, true);
+    if (herFormat) useHerVoiceHere(herFormat).catch(() => {});
+  };
+
+  document.addEventListener('pointerdown', again, true);
+  document.addEventListener('keydown', again, true);
+}
+
+async function useHerVoiceHere(format) {
+  if (speaker || speakerAsked) return;
+  speakerAsked = true;
+
+  try {
+    const { createSpeaker } = await import('./speaker.js');
+    const device = await createSpeaker(format);
+
+    if (!device.ready) {
+      // Not a failure: the page has simply not been touched yet. The next gesture retries,
+      // and until then her voice keeps coming out of the machine she is running on.
+      await device.close();
+      speakerAsked = false;
+      retrySpeakerOnGesture();
+      return;
+    }
+
+    speaker = device;
+    send({ type: 'subscribe', want: ['audio'] });
+  } catch (err) {
+    speakerAsked = false;
+    console.warn('her voice will stay on the server', err);
+  }
+}
+
 function applyHello(msg) {
+  /* Only when there is something to play *and* this face is not already having it played
+     for it. An embedder that lends a microphone is a shell with its own audio path — the
+     handset plays her natively — and two of them would talk over each other. */
+  if (msg.audioAvailable && !(embedder && !embedder.isSelf)) {
+    herFormat = {
+      sampleRate: msg.audioSampleRate,
+      channels: msg.audioChannels,
+      bits: msg.audioBits
+    };
+
+    useHerVoiceHere(herFormat).catch(() => {});
+  }
+
   // The host answering *is* the second splash step; the voice is the third.
   splashStep('host', true);
   splashStep('voice', !!msg.voice);

@@ -421,6 +421,18 @@ internal sealed class WebSocketFaceServer : IDisposable
     /// speaker in an empty house. `Want` is *whether this renderer makes noise at all*: see
     /// `Face.Want`, audio is a physical output rather than a rendering hint, so a face that
     /// has not asked receives nothing however it was addressed.
+    /// Whether any of these faces subscribed to her voice. See IFaceTransport.
+    public bool AnyWantsAudio(IReadOnlyCollection<FaceId> faces)
+    {
+        foreach (var id in faces)
+            if (_faces.TryGetValue(id, out var face) &&
+                face.Socket.State == WebSocketState.Open &&
+                face.Want.Contains("audio"))
+                return true;
+
+        return false;
+    }
+
     public void SendAudioTo(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to)
     {
         if (_faces.IsEmpty || to.Count == 0) return;

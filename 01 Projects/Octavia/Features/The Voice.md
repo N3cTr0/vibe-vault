@@ -77,3 +77,31 @@ The exemption that went with it: the host used to refuse to stream audio to the 
 ## Still true from v0.1.0
 
 The SAPI path still reports real viseme events, mapped to jaw openness *and* to a VRM mouth shape — see [[The Avatar Interface]]. And `Settle()` still clamps its queue counter after a `Hush`, because SAPI's cancellation events fire once per cancelled sentence and used to drive it negative.
+
+## Where her voice comes out *(v0.35.0 — Stage 15 item 3)*
+
+*Until now, out of the **server's** sound card. Now out of whichever face is listening — which on the desk is her own client.*
+
+`speaker.js` plays the binary frames the host has been able to send since item 9, and the server sets `IVoice.Aloud = false` when any face in the attending room has subscribed to audio. On one machine that stops her being said twice, a fraction of a second apart.
+
+> `turn in room 'host'; the face there is playing her, so this machine stays silent`
+
+### `Aloud` already existed and already meant this
+
+It was built for [[One Being, Many Rooms|item 9]], to keep the desk quiet while she answered a handset. Its own comment is the reason it fits: **"silencing the sound card rather than not speaking is deliberate"** — the visemes and the audio tee both read from the buffer *as it plays*, so cutting anywhere earlier takes them with it.
+
+So this needed no new concept. One condition changed, from *which room is she attending* to *is somebody else playing her*.
+
+### Subscribed only once it actually plays
+
+The same rule the [[Lending A Renderer The Device's Senses|microphone fallback]] was rebuilt around, pointed the other way. An `AudioContext` that will not resume plays nothing, quietly and for ever — so a page that subscribed on the strength of *intending* to play would take the job from the sound card and then drop it in silence.
+
+**No subscription means nobody claimed the job, and the sound card keeps it.** That is what makes this safe to switch on by default.
+
+A browser refuses to start audio for an untouched page, so her own client passes `--autoplay-policy=no-user-gesture-required` — deliberate, because this window exists to be her and was opened on purpose. A plain tab retries on the first gesture instead.
+
+### Hush had to be real
+
+Frames already handed to the audio graph go on playing a sentence she was told to abandon, and nothing can un-schedule them after the fact. Every scheduled source is tracked and stopped on any state that is not `speaking`. The host has dropped its buffered audio on that same signal since item 9; this is that rule arriving where the sound actually is.
+
+> **One visible consequence:** her voice now comes out of **`Octavia.exe`** in the Windows volume mixer rather than `Octavia.Server.exe`. Same speakers, different slider — worth knowing before concluding she has gone quiet.

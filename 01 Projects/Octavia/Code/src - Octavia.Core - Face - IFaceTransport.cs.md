@@ -34,6 +34,18 @@ internal interface IFaceTransport
     /// told *who*, never *why*: the session knows about rooms, this does not.
     void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to);
 
+    /// Whether any of these faces has asked to be sent her voice.
+    ///
+    /// **Asked so the server can stop using its own speakers** — Stage 15 item 3. A face that
+    /// subscribed to audio is a face that is going to play her, and on the machine she runs
+    /// on that means the sound card would otherwise say the same sentence twice, a fraction
+    /// of a second apart.
+    ///
+    /// A *question* rather than a flag the session keeps, because the answer changes when a
+    /// face connects, subscribes or leaves, and the transport is the only place that knows
+    /// about all three.
+    bool AnyWantsAudio(IReadOnlyCollection<FaceId> faces);
+
     /// `to` is optional and null keeps the original meaning: **everyone**.
     ///
     /// That default is the reason this change stayed small — nearly every send site is

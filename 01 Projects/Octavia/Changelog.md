@@ -16,6 +16,48 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.35.0 — 2026-09-02
+
+**Her voice comes out of the client now.** The page plays the binary frames the host has been
+able to send since item 9, and the server stops using its own sound card exactly when a face
+in the attending room says it will. That is the second of the two device hooks Stage 15 item 3
+removes, and the last one that was simply more of the same shape.
+
+The log says which: *"turn in room 'host'; the face there is playing her, so this machine stays
+silent."*
+
+**`IVoice.Aloud` already existed and already meant this.** It was built in item 9 to keep the
+desk quiet while she answered a handset, and its own comment says *"silencing the sound card
+rather than not speaking is deliberate"* — the visemes and the audio tee both read from the
+buffer as it plays, so cutting anywhere earlier takes them with it. So the voice half needed no
+new concept, only a different condition: from *which room is she attending* to *is somebody
+else playing her*.
+
+**The page subscribes only once its audio context is actually running.** This is the same rule
+the microphone fallback was rebuilt around, pointed the other way: *can I try* and *did it
+work* are different questions, and only the second may decide anything. No subscription means
+nobody claimed the job and the sound card keeps it — so this cannot make her silent. A browser
+refuses to start audio for a page nobody has touched, so her own client passes
+`--autoplay-policy=no-user-gesture-required` and a plain tab retries on the first gesture.
+
+Hush had to be real rather than a flag: frames already handed to the audio graph go on playing
+a sentence she was told to abandon, so every scheduled source is tracked and stopped. The host
+has dropped its buffered audio on the same signal since item 9; this is that rule arriving
+where the sound actually is.
+
+**One visible consequence worth knowing:** her voice now comes out of **`Octavia.exe`** in the
+Windows volume mixer rather than `Octavia.Server.exe`. Same speakers, different slider.
+
+What is left of item 3 is the part that is different in kind — `music` comes from loopback and
+**a page cannot capture loopback at all**, so it needs the client shell rather than the
+renderer — plus `SapiVoice`, the device settings, and deleting the classes that are now only a
+fallback.
+
+317 checks pass.
+
+---
+
+
 ## 0.34.0 — 2026-09-02
 
 **The desktop stopped using the server's microphone.** Her page opens its own, streams it up,

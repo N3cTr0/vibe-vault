@@ -423,6 +423,14 @@ internal sealed class RecordingFace : IFaceTransport
 
     public void SendAudio(ReadOnlyMemory<byte> pcm, IReadOnlyCollection<FaceId> to) => LastHeardBy = to;
 
+    /// Which faces have subscribed to her voice, for the checks that care.
+    ///
+    /// Empty by default, so every existing room check sees the behaviour it was written
+    /// against: nobody is playing her, therefore the sound card still does.
+    public HashSet<FaceId> Hearing { get; } = [];
+
+    public bool AnyWantsAudio(IReadOnlyCollection<FaceId> faces) => faces.Any(Hearing.Contains);
+
     private void Record(FaceId? to, object message)
     {
         var json = JsonSerializer.Serialize(message, FaceHub.Json);
