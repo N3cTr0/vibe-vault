@@ -133,3 +133,29 @@ She starts on the neural voice directly. That used to be an upgrade she performe
 `setVoiceEngine: "windows"` is answered with a notice rather than obliged, and `VoiceEngine` still exists as a field because an existing `config.json` says `"windows"` and reading it has to mean something rather than crash. **A setting that can only be wrong is worse than no setting; one that silently does nothing is worse again.**
 
 > **Seven checks were deleted rather than ported.** They asserted the mapping from Windows' 21 viseme ids onto the five VRM mouth shapes — a mapping that lived inside `SapiVoice`. The neural voice never sees a viseme id: `VisemeReader` derives her mouth from the waveform, which is exactly why it stays in step with audio that is *streamed* rather than played. A rewritten version would have asserted arithmetic nothing performs.
+
+## The audition *(09/03/2026 — Stage 16)*
+
+*"I need to search for a free or commercial voice for Octavia, the one she has now I don't like."*
+
+Nothing here has changed yet. `tools/VoiceAudition` renders one paragraph in twenty-two candidate voices into `data\auditions`, because **which one is nicer is an ear, not a specification** — see [[Roadmap]] Stage 16.
+
+The tool is free-standing on purpose: it does not reference `Octavia.Core`. sherpa-onnx carries its own native `onnxruntime.dll` and Octavia.Core carries Microsoft's for Silero and the wake word, so the challenger is auditioned in a process that has never met the incumbent.
+
+### The two candidates
+
+| | Piper, a different voice | Kokoro |
+|---|---|---|
+| Work to switch | one line of config | a new `IVoice`, roughly a day |
+| Disk | 60–114 MB per voice | 350 MB once, every voice included |
+| Streamable | yes, already proven | yes — chunked callback, raw PCM |
+| Her mouth | unchanged | unchanged — PCM at 24 kHz, read the same way |
+| Offline, private, free | yes | yes |
+
+Ten Piper voices, including the three `high` models that were never on her shortlist — `high` is a larger model at the same sample rate, and the likeliest place for the incumbent engine to have a better answer hiding.
+
+Twelve Kokoro voices, at 82M parameters against a Piper voice's ~20M. It clears every constraint Stage 16 wrote down *before* the search began, which is why it is the only new engine on the sheet. **Measured rather than assumed:** on this machine with no GPU it synthesised the audition paragraph at an RTF of **0.34–0.47** — about two and a half times faster than she says it, so "real-time, sentence by sentence" survives a model four times the size.
+
+Hosted voices — ElevenLabs and the like — were left off deliberately: per-character billing on someone who talks all evening, network latency on every sentence, and an outage becoming muteness rather than plainness.
+
+> **`kokoro-multi-lang-v1_1` is a trap.** Newer than `v1_0` and 103 speakers against 53, so it looks like the obvious download. One hundred of them are Chinese; it contributes three English women. The English catalogue is in **`v1_0`**. See [[Lessons Learned]].

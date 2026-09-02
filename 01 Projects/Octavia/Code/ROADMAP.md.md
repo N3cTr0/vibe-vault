@@ -1974,7 +1974,7 @@ the server and no help at all when it does not.
 - Native runtimes that link CUDA stay out-of-process where practical. One process
   should not host two of them.
 
-## Stage 16 — A voice she actually wants to hear *(asked for 09/02/2026)*
+## Stage 16 — A voice she actually wants to hear *(asked for 09/02/2026, auditioned 09/03/2026)*
 
 > **The owner's words:** *"I need to search for a free or commercial voice for Octavia, the
 > one she has now I don't like."*
@@ -2019,6 +2019,48 @@ upgrade — and two of them are constraints this project has already paid for on
 **Which one is nicer is the owner's ear, not a specification.** So the deliverable of the
 research is a *shortlist he can listen to* — the same sentence in each candidate — rather
 than a recommendation argued from datasheets.
+
+### The audition *(09/03/2026)*
+
+`tools/VoiceAudition` renders one paragraph in every candidate into `data\auditions`:
+
+```
+dotnet run --project tools/VoiceAudition            # everything, ~22 clips
+dotnet run --project tools/VoiceAudition -- piper   # the incumbent engine only
+dotnet run --project tools/VoiceAudition -- kokoro  # the challenger only
+```
+
+It is free-standing on purpose: it does **not** reference `Octavia.Core`, because sherpa-onnx
+carries its own native `onnxruntime.dll` and Octavia.Core carries Microsoft's for Silero and
+the wake word. Two of those in one output folder is a native collision, so the challenger is
+auditioned in a process that has never met the incumbent. Nothing in it ships.
+
+**Piper is ruled in but not ruled out.** Ten female English voices including the three `high`
+models, which were never on her shortlist — `high` is a larger model at the same sample rate,
+and the likeliest place for the incumbent engine to have a better answer hiding.
+
+**Kokoro is the challenger, and it clears every constraint above.** 82M parameters, run through
+sherpa-onnx as a child process. It produces raw PCM at 24 kHz, so `VisemeReader` keeps working
+untouched; it streams by callback; it is free, offline and private. On this machine, **with no
+GPU**, it synthesised the audition paragraph at an RTF of **0.34–0.47** — roughly two and a half
+times faster than she says it, which is the "real-time, sentence by sentence" constraint measured
+rather than assumed. Twelve voices rendered, nine from `kokoro-multi-lang-v1_0` and three from
+`v1_1`.
+
+- **`v1_1` is a trap for anyone reading only the speaker count.** It advertises 103 speakers
+  against `v1_0`'s 53 and is the newer model, so it looks like the obvious download. One hundred
+  of those speakers are Chinese: it contributes exactly three English women. The English
+  catalogue — `af_heart`, `af_bella`, `bf_emma` and the rest — is in **`v1_0`**.
+- Its lexicon also warns `Unknown token` on at least one character of ordinary English
+  punctuation. Worth chasing only if a `v1_1` voice wins.
+
+**Hosted voices were deliberately left off the sheet**, not overlooked: per-character billing on
+someone who talks all evening, network latency added to every sentence, and an outage becoming
+muteness rather than plainness. They get their own audition if the owner asks.
+
+**Waiting on the owner's ear.** Naming a take is what starts the work: a Piper voice is a config
+change; Kokoro is a new `IVoice` behind the seam that already let SAPI be removed without her
+noticing.
 
 ## Stage 17 — The wake word *(built 09/02/2026, v0.39.0)*
 
