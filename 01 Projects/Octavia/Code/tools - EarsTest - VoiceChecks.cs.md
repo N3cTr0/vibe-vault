@@ -7,6 +7,7 @@ source-path: tools\EarsTest\VoiceChecks.cs
 # tools\EarsTest\VoiceChecks.cs
 
 ```csharp
+using System.Runtime.InteropServices;
 // The mouth is now read out of the waveform rather than handed to us by the engine, so
 // it is our arithmetic that can be wrong. `EarsTest -- mouth <wav>` is for judging it by
 // eye; these are the properties that must hold whatever it looks like.
@@ -81,6 +82,52 @@ internal static class VoiceChecks
         Check("an odd name survives tidying", PiperStore.Pretty("nonsense") == "nonsense",
             PiperStore.Pretty("nonsense"));
         Check("the catalogue is not empty", PiperStore.Catalogue.Count > 0, "no voices listed");
+
+        /* **The chunk size must not be able to silence her mouth** — v0.39.1.
+
+           `VisemeReader` consumes fixed 512-sample frames, and `OnAudioPlayed` used to read
+           whole frames out of whatever arrived and discard the remainder. That was safe only
+           because a sound card delivered 80 ms at a time, or 1,764 samples. Replacing it with
+           a 20 ms clock made every chunk **441 samples** — less than one frame — so the loop
+           never ran and her mouth stopped moving entirely, while her voice played perfectly
+           and nothing anywhere threw.
+
+           So this asserts the property rather than the number: **audio delivered in pieces
+           smaller than a frame still produces visemes.** Anyone changing the pacing again
+           gets told here rather than by a bug report. */
+        var chunked = new VisemeReader(Rate);
+        var speech = new short[Rate];             // one second of a vowel-ish tone
+        for (var i = 0; i < speech.Length; i++)
+            speech[i] = (short)(12000 * Math.Sin(2 * Math.PI * 700 * i / (double)Rate));
+
+        int Visemes(int chunk)
+        {
+            var seen = 0;
+            var carry = new List<short>();
+
+            for (var at = 0; at < speech.Length; at += chunk)
+            {
+                var length = Math.Min(chunk, speech.Length - at);
+                carry.AddRange(speech.AsSpan(at, length).ToArray());
+
+                while (carry.Count >= VisemeReader.FrameSamples)
+                {
+                    if (chunked.Read(CollectionsMarshal.AsSpan(carry)[..VisemeReader.FrameSamples]).Shape is not null)
+                        seen++;
+                    carry.RemoveRange(0, VisemeReader.FrameSamples);
+                }
+            }
+
+            return seen;
+        }
+
+        var big = Visemes(1764);      // what a sound card used to deliver
+        var small = Visemes(441);     // what the 20 ms clock delivers
+
+        Check("a sound-card-sized chunk produces visemes", big > 0, $"{big}");
+        Check("and a chunk smaller than one frame still does", small > 0,
+            $"{small} — carrying leftovers across chunks is what makes this work");
+        Check("...and produces about as many", Math.Abs(big - small) <= 2, $"{big} vs {small}");
 
         return failures;
     }

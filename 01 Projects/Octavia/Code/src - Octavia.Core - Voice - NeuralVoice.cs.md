@@ -242,9 +242,37 @@ internal sealed class NeuralVoice : IVoice
         var reader = _reader;
         if (reader is null) return;
 
-        var samples = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>(pcm);
+        /* **Whole viseme frames, carried across chunk boundaries.**
+
+           This used to read frames straight out of whatever arrived and discard the
+           remainder, which was fine for as long as *whatever arrived* was reliably bigger
+           than a frame — `WaveOut` delivered 80 ms, or 1,764 samples, and a frame is 512.
+
+           `Pacer` replaced the sound card with a 20 ms clock. 20 ms at 22,050 Hz is **441
+           samples**, and 441 is less than 512, so the loop below stopped executing at all:
+           her voice played perfectly and her mouth never moved once. Nothing threw, nothing
+           logged, and the audio tee immediately above carried on working — which is why it
+           took a bug report rather than a test.
+
+           Leftovers are kept now, so the reader sees a continuous stream and no chunk size
+           can silence her mouth again. */
+        var arrived = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>(pcm);
+
+        if (_carry.Count > 0 || arrived.Length < VisemeReader.FrameSamples)
+        {
+            foreach (var sample in arrived) _carry.Add(sample);
+            if (_carry.Count < VisemeReader.FrameSamples) return;
+        }
+
+        var samples = _carry.Count > 0
+            ? System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_carry)
+            : arrived;
+
+        var consumed = 0;
+
         for (var offset = 0; offset + VisemeReader.FrameSamples <= samples.Length; offset += VisemeReader.FrameSamples)
         {
+            consumed = offset + VisemeReader.FrameSamples;
             var mouth = reader.Read(samples.Slice(offset, VisemeReader.FrameSamples));
 
             // The sound card is fed continuously and a buffer with nothing in it comes
@@ -256,7 +284,14 @@ internal sealed class NeuralVoice : IVoice
             _lastOpenness = mouth.Openness;
             Viseme?.Invoke(mouth.Openness, mouth.Shape);
         }
+
+        // Whatever did not make a whole frame waits for the next chunk. Cleared rather than
+        // grown without limit: `Hush` and a new utterance both reset it below.
+        if (_carry.Count > 0) _carry.RemoveRange(0, consumed);
     }
+
+    /// Samples left over from the last chunk, waiting to make a whole viseme frame.
+    private readonly List<short> _carry = new(VisemeReader.FrameSamples * 2);
 
     public void Say(string sentence)
     {

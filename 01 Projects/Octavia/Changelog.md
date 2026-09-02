@@ -16,6 +16,42 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.39.1 — 2026-09-02
+
+**Her mouth stopped moving in v0.36.0, and it was one number.** Reported, found, fixed.
+
+`VisemeReader` consumes fixed **512-sample** frames, and `OnAudioPlayed` read whole frames out
+of whatever chunk arrived and discarded the remainder. That was safe for as long as *whatever
+arrived* was reliably larger than a frame: `WaveOut` delivered 80 ms, which at 22,050 Hz is
+1,764 samples — three frames and a bit left over, every time.
+
+`Pacer` replaced the sound card with a 20 ms clock. **20 ms is 441 samples, and 441 is less
+than 512**, so `offset + 512 <= 441` was never true and the loop body never executed once.
+
+**Everything around it kept working perfectly, which is why it took a bug report.** The audio
+tee sits four lines above the viseme loop in the same method, so her voice played, streamed,
+and reached the page exactly as intended. Nothing threw. Nothing logged. She simply spoke with
+a closed mouth.
+
+Leftover samples are carried across chunks now, so the reader sees a continuous stream and no
+pacing choice can silence her mouth again. The check that guards it asserts the *property*
+rather than the number: audio delivered in pieces smaller than one frame still produces
+visemes, and about as many as sound-card-sized pieces do.
+
+**A note on how this was verified, because two measurements were wrong before one was right.**
+The first attempt grepped for `viseme` lines from `attach-face.ps1`, which deliberately prints
+a `~` per viseme rather than a line — so it read zero before *and* after the fix. The second
+counted those `~`s through a pipe, which `Write-Host` never reaches. Both said "still broken".
+The honest measurements were the protocol conformance run — **37 visemes received** — and
+comparing the mouth region of four screenshots taken across one sentence, which differ by
+16,000 and 19,500 against a flat baseline. *A test that cannot fail correctly is worse than no
+test*, and that applies to ad-hoc verification just as much as to the suite.
+
+316 checks pass.
+
+---
+
+
 ## 0.39.0 — 2026-09-02
 
 **She can be woken by a phrase rather than by transcribing everything.** The wake word runs
