@@ -25,21 +25,18 @@ internal static class FaceChecks
             if (!passed) failures++;
         }
 
-        // --- SAPI viseme -> VRM mouth shape --------------------------
-        var shapes = Enumerable.Range(0, 22).Select(SapiVoice.Shape).ToList();
-        var vocabulary = new[] { "aa", "ih", "ou", "ee", "oh" };
+        /* **The SAPI viseme checks went with SAPI**, v0.37.0.
 
-        Check("silence closes the mouth", shapes[0] is null, $"got '{shapes[0]}'");
-        Check("p/b/m closes the mouth", shapes[21] is null, $"got '{shapes[21]}'");
-        Check("every shape is a VRM viseme",
-            shapes.All(s => s is null || vocabulary.Contains(s)),
-            string.Join(",", shapes.Where(s => s is not null && !vocabulary.Contains(s))));
-        Check("all five shapes are reachable",
-            vocabulary.All(v => shapes.Contains(v)),
-            string.Join(",", vocabulary.Except(shapes.Where(s => s is not null)!)));
-        Check("'aa' is an open vowel", SapiVoice.Shape(2) == "aa", SapiVoice.Shape(2) ?? "null");
-        Check("'w/uw' rounds the lips", SapiVoice.Shape(7) == "ou", SapiVoice.Shape(7) ?? "null");
-        Check("sibilants stay narrow", SapiVoice.Shape(15) == "ih", SapiVoice.Shape(15) ?? "null");
+           They asserted a mapping from Windows' 21 viseme ids onto the five VRM mouth
+           shapes, and that mapping existed only inside `SapiVoice`. The neural voice does not
+           receive viseme ids at all — `VisemeReader` derives the mouth from the waveform,
+           which is why her mouth stays in step with audio that is streamed rather than
+           played.
+
+           Deleted rather than ported: there is no id to map any more, so a rewritten version
+           would be asserting arithmetic nothing performs. What replaced them in substance is
+           the viseme half of the face-protocol checks, which watch the shapes she actually
+           sends. */
 
         // --- sentence -> expression ----------------------------------
         var presets = new[] { "neutral", "happy", "angry", "sad", "relaxed", "surprised" };

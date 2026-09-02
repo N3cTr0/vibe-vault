@@ -309,40 +309,25 @@ internal static class SelfTest
     /// neural engine is running would answer a question nobody asked.
     private static Check Voice(OctaviaConfig config, HostSnapshot host)
     {
-        if (string.Equals(config.VoiceEngine, "neural", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!PiperStore.HasEngine)
-                return new Check("Voice", false, "the neural speech engine is not installed",
-                    "It downloads the first time the neural voice is chosen, which needs internet once. " +
-                    "Switch to Windows speech under Settings if that is not possible.");
+        /* **One voice to check now.** The Windows branch this replaces asked `SapiVoice`
+           what speech voices Windows had installed — a sensible question while she could use
+           them, and a meaningless one since Stage 15 item 3: SAPI synthesises to a sound
+           card, the server has none, and a voice that cannot be streamed reaches nobody.
 
-            if (!PiperStore.HasVoice(config.NeuralVoiceName))
-                return new Check("Voice", false, $"'{config.NeuralVoiceName}' has not been downloaded",
-                    "Pick it again under Settings > Voice and she will fetch it.");
+           The advice changed with it. "Switch to Windows speech under Settings" was the
+           fallback for a machine that could not download the model, and there is no longer
+           anywhere to fall back to — so it says what is actually true instead. */
+        if (!PiperStore.HasEngine)
+            return new Check("Voice", false, "the neural speech engine is not installed",
+                "It downloads the first time she starts, which needs internet once. " +
+                "Until it arrives she has no voice at all — there is no longer a Windows one.");
 
-            // Running means it started; the snapshot carries what the session actually has.
-            return new Check("Voice", true, host.Running ? host.Voice : PiperStore.Pretty(config.NeuralVoiceName));
-        }
+        if (!PiperStore.HasVoice(config.NeuralVoiceName))
+            return new Check("Voice", false, $"'{config.NeuralVoiceName}' has not been downloaded",
+                "Pick it again under Settings > Voice and she will fetch it.");
 
-        try
-        {
-            using var box = new SapiVoice(config);
-            var voices = box.InstalledVoices();
-
-            if (voices.Count == 0)
-                return new Check("Voice", false, "no speech voices installed",
-                    "Add one under Windows Settings > Time & language > Speech.");
-
-            if (!string.IsNullOrWhiteSpace(config.VoiceName) && !voices.Contains(config.VoiceName))
-                return new Check("Voice", false, $"'{config.VoiceName}' is not installed on this machine",
-                    $"She fell back to '{box.CurrentVoice}'. Pick one from the dropdown to make it stick.");
-
-            return new Check("Voice", true, $"{box.CurrentVoice} ({voices.Count} installed)");
-        }
-        catch (Exception ex)
-        {
-            return new Check("Voice", false, ex.Message, "Speech synthesis could not start.");
-        }
+        // Running means it started; the snapshot carries what the session actually has.
+        return new Check("Voice", true, host.Running ? host.Voice : PiperStore.Pretty(config.NeuralVoiceName));
     }
 
     /// Deliberately free. The local brain is asked whether it is there; Claude is not

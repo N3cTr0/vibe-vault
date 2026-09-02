@@ -123,3 +123,13 @@ One device doing three jobs, and only one of them made a noise. Delete it naivel
 `Pacer` replaces it — same buffer, same rate, same tap, no device. It is paced **against a stopwatch from a fixed start**, not by sleeping for the chunk length: every sleep is *at least* its duration and the work between is never free, so a loop drifts and a minute of speech arrives late with the visemes behind it. A machine that falls badly behind resets the clock to now rather than emitting a burst of catch-up audio.
 
 `Aloud` is false permanently. Two earlier versions of that decision — *aloud in the host room*, then *unless a face is playing her* — were the same mistake at different sizes: both made the sound card the default and everything else the exception. **There is no default now.**
+
+### One voice *(v0.37.0)*
+
+`SapiVoice` is deleted. It had already stopped being a voice: it synthesises straight to a sound card, and its `AudioFormat` was **null** — the interface's own way of saying *this cannot be streamed to anybody*. Once the server lost its speakers, that made it not a lesser voice but **no voice at all**, speaking into a device that does not exist while every face waited in silence.
+
+She starts on the neural voice directly. That used to be an upgrade she performed on herself — SAPI first, so a first run could talk while an 80 MB model downloaded, then a swap when it arrived. There is nothing to start with now, so **a first run is quiet until the model lands** and says so through `Trouble` rather than pretending. Honest silence beats a voice nobody can hear.
+
+`setVoiceEngine: "windows"` is answered with a notice rather than obliged, and `VoiceEngine` still exists as a field because an existing `config.json` says `"windows"` and reading it has to mean something rather than crash. **A setting that can only be wrong is worse than no setting; one that silently does nothing is worse again.**
+
+> **Seven checks were deleted rather than ported.** They asserted the mapping from Windows' 21 viseme ids onto the five VRM mouth shapes — a mapping that lived inside `SapiVoice`. The neural voice never sees a viseme id: `VisemeReader` derives her mouth from the waveform, which is exactly why it stays in step with audio that is *streamed* rather than played. A rewritten version would have asserted arithmetic nothing performs.

@@ -18,6 +18,40 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.37.0 — 2026-09-02
+
+**Her Windows voice is gone**, and it had already stopped being a voice. `SapiVoice`
+synthesises straight to a sound card, and its `AudioFormat` was null — the interface's way of
+saying *this cannot be streamed to anybody*. Since the server lost its speakers in v0.36.0
+that made it not a lesser voice but **no voice at all**: it would have spoken into a device
+that does not exist while every face waited in silence.
+
+She starts on the neural voice directly now. That used to be an upgrade she performed on
+herself — SAPI first so a first run could talk while an 80 MB model downloaded, then a swap
+when it arrived. There is nothing to start with any more, so a first run is quiet until the
+model lands and says so through `Trouble` rather than pretending. **Honest silence beats a
+voice nobody can hear.**
+
+`setVoiceEngine: "windows"` is answered with a notice rather than obliged. `VoiceEngine`
+defaults to `"neural"` and the field stays, because an existing `config.json` says `"windows"`
+and reading that has to mean something rather than crash. A setting that can only be wrong is
+worse than no setting; a setting that silently does nothing is worse again.
+
+The self-test's Windows branch went with it, including its advice: *"switch to Windows speech
+under Settings"* was the fallback for a machine that could not download the model, and there
+is nowhere to fall back to now, so it says what is true instead.
+
+**Seven checks were deleted rather than ported**, which is worth saying plainly. They asserted
+the mapping from Windows' 21 viseme ids onto the five VRM mouth shapes, and that mapping lived
+inside `SapiVoice`. The neural voice never sees a viseme id — `VisemeReader` derives her mouth
+from the waveform, which is exactly why it stays in step with audio that is streamed rather
+than played. A rewritten version would have asserted arithmetic nothing performs.
+
+310 checks pass.
+
+---
+
+
 ## 0.36.0 — 2026-09-02
 
 **The server has no sound card.** Not muted, not conditional — gone. *"We don't want the

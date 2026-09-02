@@ -111,14 +111,24 @@ internal sealed class OctaviaSession : IDisposable
             ? new LocalBrain(config, _tools)
             : new ClaudeBrain(config, _tools);
         Log.Write($"brain: {_brain.Description}");
-        _voice = new SapiVoice(config);
+        /* **The neural voice, and only the neural voice.**
+
+           This used to start with `SapiVoice` and upgrade, so a first run could talk while
+           the 80 MB neural model downloaded rather than sitting mute. That was right for as
+           long as the server had speakers.
+
+           It has none now, and SAPI **synthesises to a sound card** — its `AudioFormat` is
+           null, which is the interface's way of saying it cannot be streamed to anybody. So
+           on this server it is not a lesser voice, it is *no voice at all*: it would speak
+           into a device that does not exist while every face waited in silence.
+
+           A first run is therefore quiet until the model arrives, and says so through
+           `Trouble` rather than pretending. Honest silence beats a voice nobody can hear.
+           See Stage 15 item 3. */
+        _voice = new NeuralVoice(config);
         Listen(_voice);
 
-        // The neural engine may have to download 80 MB before it can say anything, so
-        // she starts with the Windows voice and upgrades herself when it is ready. That
-        // way a first run talks immediately instead of sitting mute.
-        if (string.Equals(config.VoiceEngine, "neural", StringComparison.OrdinalIgnoreCase))
-            UseNeuralVoice().Forget("starting the neural voice");
+        UseNeuralVoice().Forget("starting the neural voice");
 
         _face.MessageReceived += OnFaceMessage;
 
@@ -473,30 +483,26 @@ internal sealed class OctaviaSession : IDisposable
         Announce();
     }
 
-    private void UseWindowsVoice()
-    {
-        if (_voice is SapiVoice) return;
-
-        var sapi = new SapiVoice(_config);
-        Listen(sapi);
-
-        var previous = _voice;
-        previous.Hush();
-        _voice = sapi;
-        previous.Dispose();
-
-        Log.Write($"voice engine: {sapi.EngineName}");
-        Announce();
-    }
-
+    /// **There is one voice now**, and asking for the other says so rather than obliging.
+    ///
+    /// `windows` meant `SapiVoice`, which synthesises straight to a sound card and cannot be
+    /// streamed. On a server with no sound card that is not a choice between two voices, it
+    /// is a choice between a voice and silence — so the setting is answered honestly instead
+    /// of being quietly ignored, which is the failure mode this project keeps writing down.
     private void SelectVoiceEngine(string? engine)
     {
-        var neural = string.Equals(engine, "neural", StringComparison.OrdinalIgnoreCase);
-        _config.VoiceEngine = neural ? "neural" : "windows";
+        if (!string.Equals(engine, "neural", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Write($"voice engine '{engine}' asked for; there is only the neural one now");
+            Notice("She has one voice now. The Windows voice needed a sound card, " +
+                      "and the server has none — see Stage 15 item 3.");
+            return;
+        }
+
+        _config.VoiceEngine = "neural";
         _config.Save();
 
-        if (neural) UseNeuralVoice().Forget("switching to the neural voice");
-        else UseWindowsVoice();
+        UseNeuralVoice().Forget("switching to the neural voice");
     }
 
     // ---- face to host ----------------------------------------

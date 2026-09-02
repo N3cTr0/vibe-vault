@@ -93,9 +93,15 @@ internal sealed class OctaviaConfig
     /// Only used by the "windows" recognizer.
     public string RecognitionCulture { get; set; } = "en-US";
 
-    /// "windows" for Windows' own synthesiser, "neural" for Piper. Windows is the
-    /// default because it is on every machine and needs nothing downloaded.
-    public string VoiceEngine { get; set; } = "windows";
+    /// "neural" for Piper, and there is nothing else since v0.37.0.
+    ///
+    /// It used to default to `"windows"` — SAPI, on every machine and needing no download.
+    /// That voice synthesises straight to a sound card, and the server has none since Stage
+    /// 15 item 3, so it could not reach a single face. **A setting that can only be wrong is
+    /// worse than no setting**, but the field stays: an existing `config.json` says
+    /// `"windows"`, and reading that has to mean something rather than crashing. It is
+    /// answered with a notice and ignored.
+    public string VoiceEngine { get; set; } = "neural";
 
     /// A SAPI voice name, or a Piper voice like "en_GB-jenny_dioco-medium", depending
     /// on the engine above.

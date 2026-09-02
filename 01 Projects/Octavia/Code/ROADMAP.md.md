@@ -1673,7 +1673,7 @@ the prize worth naming: an always-on box in a cupboard wants to be Linux.
 > |---|---|
 > | ~~Her voice~~ | **Done, v0.35.0.** The page plays her; the server stops using its sound card exactly when a face in the room says it will. |
 > | `music` | Still the server's loopback. **A page cannot capture loopback at all**, so this one genuinely needs the client shell, not the renderer — the first part of item 3 that is not simply more of the same. |
-> | `SapiVoice` | Unchanged, and still cannot be streamed. |
+> | ~~`SapiVoice`~~ | **Deleted, v0.37.0.** It synthesised to a sound card and could not be streamed, so with no sound card it was not a lesser voice but *no voice at all*. She starts on the neural one directly; a first run is quiet until the model lands and says so. |
 > | `setMicrophone` / `setOutput` | Still host-only, still about the server's devices. |
 > | The device classes | `LocalMicSource`, `MicLevelMeter`, `AudioDevices`, `LoopbackListener` all still in the core, now as the fallback rather than the default. |
 
