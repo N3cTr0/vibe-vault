@@ -230,6 +230,32 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
                detector, and the analyser copies what it needs. */
             Audio?.Invoke(_frame, SileroVad.FrameSamples);
 
+            /* The wake word reads the same frames the voice detector does, before it.
+
+               Deliberately *outside* the utterance lock and before `ProcessFrame`: it has to
+               fire on the phrase itself, which is part of the utterance being assembled, so
+               waiting for the utterance to end would mean judging it after the fact. It also
+               costs about a millisecond, on three models sized in kilobytes. */
+            if (_wake is not null && RequiresWake)
+            {
+                try
+                {
+                    if (_wake.Heard(_frame, _wakeThreshold))
+                    {
+                        _awakeUntil = DateTime.UtcNow + AwakeFor;
+                        Log.Write($"woken: '{_wake.Phrase}' ({_wake.LastScore:0.00})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // A wake word that throws must not stop her hearing. It fails *open*,
+                    // the same bargain the attention gate makes: answering the television
+                    // occasionally is better than going silent.
+                    Log.Warn($"wake word failed, listening without it: {ex.Message}");
+                    UseWakeWord(null);
+                }
+            }
+
             try
             {
                 ProcessFrame();
@@ -271,6 +297,60 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         Trouble?.Invoke(
             "The microphone is open but completely silent. Over RDP, set Local Resources " +
             "> Remote audio > Settings to 'Record from this computer', then reconnect.");
+    }
+
+    /* ---- the wake word ------------------------------------------------------------
+
+       She is *"Hey Octavia"*-activated the way a smart speaker is, rather than transcribing
+       everything and deciding afterwards. `AttentionGate` still exists and still matters —
+       this opens an exchange, and the gate carries it — but the always-on layer is now about
+       four megabytes of ONNX instead of Whisper. */
+
+    private WakeWord? _wake;
+    private float _wakeThreshold = 0.5f;
+
+    /// How sure the model must be. openWakeWord scores 0–1 and its own guidance is 0.5;
+    /// higher misses her, lower wakes on the television.
+    public float WakeThreshold { set => _wakeThreshold = Math.Clamp(value, 0.05f, 0.99f); }
+    private DateTime _awakeUntil = DateTime.MinValue;
+
+    /// How long one wake word keeps her listening.
+    ///
+    /// Long enough to say the thing after the phrase — people pause after *"Hey Octavia"* —
+    /// and short enough that a room does not stay open after somebody wanders off. Every turn
+    /// she takes extends it, so a conversation does not need the phrase repeated; that is
+    /// `KeepAwake`, called when she answers.
+    private static readonly TimeSpan AwakeFor = TimeSpan.FromSeconds(12);
+
+    /// Whether an utterance must be preceded by the wake word to be transcribed.
+    ///
+    /// **False while somebody holds the button.** Push-to-talk is already an explicit
+    /// request, and has been since Stage 14 — a wake word on top of it would be a second
+    /// password for a door somebody is holding open.
+    public bool RequiresWake { get; set; }
+
+    public string? WakePhrase => _wake?.Phrase;
+
+    /// Something was heard and deliberately not transcribed. The face shows these, because
+    /// *"she ignored me"* has to be a question with an answer.
+    public event Action<string>? Overheard;
+
+    public void UseWakeWord(WakeWord? wake)
+    {
+        _wake?.Dispose();
+        _wake = wake;
+
+        if (wake is not null) Log.Write($"wake word active: '{wake.Phrase}'");
+    }
+
+    /// Extends the window, so a follow-up needs no second *"Hey Octavia"*.
+    public void KeepAwake() => _awakeUntil = DateTime.UtcNow + AwakeFor;
+
+    /// Whether the next completed utterance may reach Whisper.
+    private bool Awake()
+    {
+        if (_wake is null || !RequiresWake) return true;
+        return DateTime.UtcNow < _awakeUntil;
     }
 
     private void ProcessFrame()
@@ -322,6 +402,28 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
             _voicedFrames = 0;
 
             if (samples is null) return;
+
+            /* **The wake word decides whether this is worth transcribing at all.**
+
+               Here rather than after Whisper, which is the entire point: the gate downstream
+               already answers *was that meant for me* and answers it well, but only once
+               1.6 GB of speech model has turned the utterance into words. Everything said in
+               a listening room was paying that. Dropping it here costs nothing.
+
+               Only when a wake word is *required* — a held button is an explicit request and
+               bypasses this completely; making somebody say a wake word into a button they
+               are holding would read as broken. See `RequiresWake`. */
+            if (!Awake())
+            {
+                // Said out loud, because a wake word that never fires is indistinguishable
+                // from a microphone that is not working — and the score is the only thing
+                // that tells "it nearly fired" from "it heard nothing at all".
+                Log.Write($"heard {seconds:0.0}s, not transcribed: no '{_wake!.Phrase}' " +
+                          $"(best {_wake.LastScore:0.00})");
+
+                Overheard?.Invoke($"not addressed to her (best {_wake.LastScore:0.00})");
+                return;
+            }
 
             Hypothesised?.Invoke("…");
             _ = TranscribeAsync(samples);

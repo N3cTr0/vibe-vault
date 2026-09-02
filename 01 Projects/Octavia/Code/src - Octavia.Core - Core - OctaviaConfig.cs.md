@@ -225,6 +225,27 @@ internal sealed class OctaviaConfig
     /// always let through, whatever else the gate thinks.
     public string WakeNames { get; set; } = "Octavia";
 
+    /// The spoken phrase that opens an exchange, or empty for none.
+    ///
+    /// **Not the same thing as `WakeNames` above, and the difference is where the work
+    /// happens.** `WakeNames` is matched in a *transcript* — free, but only after Whisper has
+    /// turned every utterance in the room into words. This is matched in the *audio*, by a
+    /// four-megabyte model, so nothing is transcribed until she is addressed.
+    ///
+    /// Empty by default, because hers does not exist yet: openWakeWord ships `hey jarvis`,
+    /// `alexa`, `hey mycroft` and `hey rhasspy`, and *"Hey Octavia"* has to be trained. Any
+    /// other value is looked up as a file — `Hey Octavia` → `hey_octavia.onnx` in
+    /// `data\models\wake`.
+    ///
+    /// **Two words beat one.** A phrase has a far stronger acoustic signature than a single
+    /// name, and it was the largest factor in model quality across every configuration
+    /// openWakeWord's own trainers tested.
+    public string WakePhrase { get; set; } = "";
+
+    /// How sure the model must be, 0 to 1. openWakeWord's own guidance is 0.5: higher misses
+    /// her, lower wakes on the television.
+    public double WakeThreshold { get; set; } = 0.5;
+
     /// Utterances shorter than this are treated as noise rather than speech.
     public int MinUtteranceChars { get; set; } = 2;
 

@@ -16,6 +16,75 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.39.0 — 2026-09-02
+
+**She can be woken by a phrase rather than by transcribing everything.** The wake word runs
+in front of Whisper, on the same 16 kHz frames the voice detector reads, and an utterance that
+was not preceded by it never reaches the speech model at all.
+
+**She already decided correctly and paid far too much to do it.** `AttentionGate` answers
+*was that meant for me* and answers it well — but only after 1.6 GB of Whisper has turned the
+utterance into words, and since Stage 14 item 6 that was every utterance in a listening room,
+indefinitely, on eight CPU threads. The always-on layer is now about **3.7 MB of ONNX**.
+
+**It runs on the server, which is not a contradiction of the device rule.** That rule is about
+*devices*; this is arithmetic on a stream faces already send, the same as Whisper and the gate.
+Nothing new is opened.
+
+### Three models, in a chain
+
+openWakeWord is not one network: a melspectrogram front end, a shared speech-embedding
+backbone, and only the last and smallest model knows which phrase it is listening for. The
+first two are common to every wake word there is, so a second phrase later costs a megabyte
+rather than four.
+
+The magic numbers are the model's, not choices — 76 mel frames in, slide 8, keep 16 embeddings
+of 96 — and so is the `/10 + 2` on the melspectrogram output. openWakeWord's training applied
+it, so inference must; getting it wrong produces a model that runs perfectly and never fires.
+
+### Proved with `hey jarvis`, which is not her phrase
+
+Hers has to be trained off this machine, in a Colab, against dependencies pinned to 2022. If
+the only way to learn whether any of this worked were to train it first, nobody would find out
+the plumbing was wrong until after ninety minutes of somebody else's GPU. A pretrained model
+separates *does the pipeline work* from *is this model any good*, and answers the first for
+nothing:
+
+| | |
+|---|---|
+| silence | **0.000** |
+| *"hey jarvis"* | **0.949** |
+| *"turn the kitchen light off please"* | **0.000** |
+| the phrase again | **0.999** |
+
+The speech is synthesised, which suits this unusually well: these models are trained on
+synthetic speech in the first place.
+
+### The three things easiest to get wrong, all handled
+
+- **A held button bypasses it entirely.** Push-to-talk has been an explicit request since
+  Stage 14; asking somebody to say a wake word into a button they are holding down would be a
+  second password for a door they have already opened.
+- **The gate's follow-up window survives it.** *"And what about tomorrow?"* is addressed to
+  her by context, with no name and no phrase — and if that audio never reached Whisper, the
+  gate would never get the chance to allow it. Every turn she takes extends the window.
+- **It says when it does not fire.** A wake word that never triggers is indistinguishable
+  from a microphone that is not working, so a dropped utterance is logged with the best score
+  it saw and reported to the face as `overheard` — the same signal the gate has used since
+  Stage 9, from one layer earlier.
+
+It also fails **open**: a missing model, no network, a phrase nobody has trained, or an
+exception mid-stream all leave her listening exactly as she did before, and say so. The window
+is cleared on a hit, or one *"hey jarvis"* would wake her four times as the phrase slid
+through the classifier's buffer.
+
+`WakePhrase` is **empty by default** and stays that way until hers exists — set to anything
+else and she would answer only to a name that is not hers, which is worse than the behaviour
+it replaces. 313 checks pass.
+
+---
+
+
 ## 0.38.0 — 2026-09-02
 
 **The server holds no local device at all.** Stage 15 item 3 is finished. `LocalMicSource`,

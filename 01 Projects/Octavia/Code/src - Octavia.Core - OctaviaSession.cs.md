@@ -1183,6 +1183,17 @@ internal sealed class OctaviaSession : IDisposable
             ears.Hypothesised += partial =>
                 ToRoom(EarsRoom, new { type = "caption", who = "You", text = partial, tentative = true });
 
+            /* Something was heard and deliberately not transcribed.
+
+               **A wake word that never fires is indistinguishable from a microphone that is
+               not working**, and that is the failure this exists to prevent. The gate has
+               reported its rejections as `overheard` since Stage 9 for exactly the same
+               reason — *"she ignored me"* has to be a question with an answer — and this is
+               the same signal from one layer earlier. */
+            if (ears is WhisperRecognizer listening)
+                listening.Overheard += why =>
+                    ToRoom(EarsRoom, new { type = "overheard", text = why });
+
             _ears = ears;
             Log.Write($"ears open: {ears.EngineName}");
             return ears;
@@ -1417,6 +1428,12 @@ internal sealed class OctaviaSession : IDisposable
 
         _floor = from;
 
+        /* **A held button bypasses the wake word entirely.** Push-to-talk has been an
+           explicit request since Stage 14, and asking somebody to say *"Hey Octavia"* into a
+           button they are already holding down would be a second password for a door they
+           have opened. `ReleaseFloor` puts it back. */
+        if (_ears is WhisperRecognizer pressed) pressed.RequiresWake = false;
+
         /* **A room that is already listening is already streaming through a source**, and
            building a second one would leave the first attached to nothing while its frames
            kept arriving — a press inside a listening room would go deaf. The floor is a claim
@@ -1491,6 +1508,54 @@ internal sealed class OctaviaSession : IDisposable
         OpenRoomListening(from, room).Forget("opening a room's ears");
     }
 
+    /// Loads the wake word, if one is configured, and tells the ears to require it.
+    ///
+    /// **Failure here leaves her listening the way she did before**, which is the whole
+    /// bargain: a missing model, no network, a phrase nobody has trained — none of those are
+    /// reasons to stop her hearing. She simply transcribes everything and lets
+    /// `AttentionGate` decide, exactly as she did before this existed, and the log says so.
+    private async Task ArmWakeWordAsync(WhisperRecognizer ears, Room room)
+    {
+        var phrase = _config.WakePhrase?.Trim() ?? "";
+
+        if (phrase.Length == 0)
+        {
+            ears.RequiresWake = false;
+            return;
+        }
+
+        if (WakeWordStore.ResolveWakeModel(phrase) is not { } model)
+        {
+            Log.Warn($"wake word '{phrase}' has no model; listening without one");
+            Notice(room, $"No wake word model for '{phrase}', so she is listening to everything.");
+            ears.RequiresWake = false;
+            return;
+        }
+
+        if (!await WakeWordStore.EnsureAsync(model, m => Notice(room, m)))
+        {
+            ears.RequiresWake = false;
+            return;
+        }
+
+        try
+        {
+            ears.UseWakeWord(new WakeWord(
+                phrase,
+                WakeWordStore.PathFor(WakeWordStore.Melspectrogram),
+                WakeWordStore.PathFor(WakeWordStore.Embedding),
+                WakeWordStore.PathFor(model)));
+
+            ears.WakeThreshold = (float)_config.WakeThreshold;
+            ears.RequiresWake = true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"wake word would not load, listening without one: {ex.Message}");
+            ears.RequiresWake = false;
+        }
+    }
+
     private async Task OpenRoomListening(FaceId from, Room room)
     {
         var ears = await EnsureEarsAsync();
@@ -1507,6 +1572,11 @@ internal sealed class OctaviaSession : IDisposable
         _openFace = from;
         _openRoom = room.Id;
         _faceMic = new FaceAudioSource($"a room ('{room.Id}')");
+
+        /* **This is the room where a wake word earns its keep.** Always-on listening means
+           every utterance in it would otherwise be transcribed by a 1.6 GB model, for ever.
+           A held button is the opposite case and is left alone — see `RequiresWake`. */
+        await ArmWakeWordAsync(recogniser, room);
 
         recogniser.UseSource(_faceMic);
         recogniser.Unmute();
@@ -1569,6 +1639,12 @@ internal sealed class OctaviaSession : IDisposable
         _floor = null;
         _floorTimeout?.Dispose();
         _floorTimeout = null;
+
+        /* The wake word comes back with the button. **Deliberately after the flush below**
+           in effect, not before: the utterance the button was held for has already been
+           captured, and requiring a wake word again applies to whatever is said *next*. */
+        if (_openFace is not null && _ears is WhisperRecognizer released && released.WakePhrase is not null)
+            released.RequiresWake = true;
 
         /* Ending the utterance here rather than waiting for the voice detector to guess.
            A released button is a far better end-of-sentence marker than silence is, and a
@@ -1834,6 +1910,13 @@ internal sealed class OctaviaSession : IDisposable
         {
             _responding = false;
             room.Gate.Answered();
+
+            /* And the wake word's window with it. **The gate's follow-up rule would be
+               unreachable otherwise**: *"and what about tomorrow?"* is addressed to her by
+               context, said without her name and without the phrase — and if the audio never
+               reached Whisper, the gate would never get the chance to allow it. The wake word
+               opens an exchange; the gate carries it; this is the join between them. */
+            if (_ears is WhisperRecognizer talking) talking.KeepAwake();
             if (!_voice.IsSpeaking) OnVoiceFinished();
         }
     }

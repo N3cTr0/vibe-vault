@@ -104,3 +104,40 @@ The Windows desktop recognizer remains an automatic fallback: if Whisper fails t
 No wake word. No speaker identification.
 
 *The line that used to be here — "continuous listening sends every recognised phrase to the brain, so always-on is a demo rather than a mode to live in" — has been **untrue since v0.9.0**.* A small local model now judges what was addressed to her before the brain is troubled, and what it declines is shown faintly rather than swallowed. See [[The Attention Gate]].
+
+## A wake word, in front of Whisper *(v0.39.0 — Stage 17)*
+
+*She could already decide correctly. She was paying far too much to do it.*
+
+[[The Attention Gate]] answers **was that meant for me**, and answers it well — but only after 1.6 GB of Whisper has turned the utterance into words. Since [[One Being, Many Rooms|item 6]] gave a room always-on listening, that was **every utterance in the room, indefinitely, on eight CPU threads**. The always-on layer is now about **3.7 MB of ONNX**, and nothing is transcribed until she is addressed.
+
+It runs **server-side**, which is not a contradiction of the device rule: that rule is about *devices*, and this is arithmetic on a stream faces already send — the same as Whisper and the gate.
+
+### Three models, in a chain
+
+openWakeWord is not one network. A melspectrogram front end, a shared speech-embedding backbone, and only the last and smallest model knows which phrase it listens for — so a second phrase later costs a megabyte rather than four.
+
+The magic numbers belong to the model, not to us: 76 mel frames in, slide 8, keep 16 embeddings of 96. So does the `/10 + 2` applied to the melspectrogram output — training did it, so inference must, and **getting it wrong produces a model that runs perfectly and never fires**.
+
+### Proved with `hey jarvis`, which is not her phrase
+
+Hers has to be trained off this machine. If the only way to learn whether the plumbing worked were to train it first, nobody would find out it was wrong until after ninety minutes of somebody else's GPU. A pretrained model separates *does the pipeline work* from *is this model any good*:
+
+| | |
+|---|---|
+| silence | **0.000** |
+| *"hey jarvis"* | **0.949** |
+| *"turn the kitchen light off please"* | **0.000** |
+| the phrase again | **0.999** |
+
+The test speech is synthesised, which suits this unusually well — these models are **trained on synthetic speech** in the first place.
+
+### The three things easiest to get wrong
+
+- **A held button bypasses it entirely.** Push-to-talk is already an explicit request; a wake word on top would be a second password for a door somebody is holding open.
+- **The gate's follow-up window survives it.** *"And what about tomorrow?"* is addressed by context, with no name and no phrase — and if that audio never reached Whisper, the gate would never get the chance to allow it. Every turn extends the window.
+- **It says when it does not fire.** A wake word that never triggers is indistinguishable from a broken microphone, so a dropped utterance is logged with the best score it saw and reported to the face as `overheard` — the gate's own signal, one layer earlier.
+
+It fails **open**, like the gate: a missing model, no network, an untrained phrase or an exception mid-stream all leave her listening exactly as before. And the window is cleared on a hit, or one *"hey jarvis"* would wake her four times as the phrase slid through the classifier's buffer.
+
+> **`WakePhrase` is empty by default** and stays so until hers is trained — pointing it at `hey jarvis` would mean she answers only to a name that is not hers, which is worse than what it replaces.

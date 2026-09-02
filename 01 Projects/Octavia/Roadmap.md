@@ -2017,3 +2017,47 @@ upgrade — and two of them are constraints this project has already paid for on
 **Which one is nicer is the owner's ear, not a specification.** So the deliverable of the
 research is a *shortlist he can listen to* — the same sentence in each candidate — rather
 than a recommendation argued from datasheets.
+
+## Stage 17 — The wake word *(built 09/02/2026, v0.39.0)*
+
+The runtime is done and proved; **her phrase is not trained**, and that is the whole of what
+is left. See Stage 9, where the old *"not built and arguably not wanted"* note is struck.
+
+### What is built
+
+In front of Whisper, on the same frames the voice detector reads. An utterance not preceded
+by the phrase never reaches the speech model — which moves the always-on cost from 1.6 GB to
+about 3.7 MB, and means nothing said in a listening room is transcribed until she is
+addressed.
+
+It runs **server-side**, and that is not a contradiction of item 3: that rule is about
+devices, and this is arithmetic on a stream faces already send.
+
+Measured, with `hey jarvis` standing in: silence **0.000**, the phrase **0.949**, *"turn the
+kitchen light off please"* **0.000**, the phrase again **0.999**.
+
+### What is left, and only you can do it
+
+**Train "Hey Octavia."** It cannot be done on this machine — the pipeline is pinned to
+2022-era PyTorch and TensorFlow, which is why the Colab notebooks exist.
+
+1. Open one of the 2026 openWakeWord trainer notebooks in Colab.
+2. Give it the phrase. **Two words, not one**: *"Hey Octavia"* has a far stronger acoustic
+   signature than *"Octavia"*, and that was the single biggest factor in model quality across
+   every configuration tested. Positive samples are generated synthetically **with Piper** —
+   which she already ships, and which is what killed the old *"no corpus exists"* objection.
+3. ~75–90 minutes on Colab Pro.
+4. Drop `hey_octavia.onnx` into `data\models\wake\` and set `"WakePhrase": "Hey Octavia"`.
+
+Nothing else changes: `WakeWordStore` resolves any phrase that is not one of openWakeWord's
+own as a filename, so hers is found the moment it is there.
+
+### Then worth doing, in this order
+
+- **Tune the threshold against a real room.** 0.5 is openWakeWord's own guidance and is a
+  starting point, not an answer. `WakeThreshold` is in config; the log carries the best score
+  of every utterance it declined, which is exactly the data needed.
+- **Whisper need not be loaded until she is woken.** It is opened at startup today so a first
+  press does not pay for the model — right when a press was the only way in, and now worth
+  re-asking: with a wake word, the 1.6 GB could stay unloaded until the phrase is heard. That
+  is a bigger change than it sounds and belongs on its own.
