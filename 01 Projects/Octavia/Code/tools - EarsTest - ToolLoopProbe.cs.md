@@ -92,6 +92,63 @@ internal static class ToolLoopProbe
         foreach (var question in questions) await Ask(local, question);
     }
 
+    /// The confirmation rule, driven as a conversation rather than as a predicate.
+    ///
+    /// `ToolChecks` asserts what `Conversation.Grants` decides; this asserts that the
+    /// decision is actually reached — that a dangerous tool is refused, that she asks, that
+    /// the next *"yes"* runs it, and that a *"no"* leaves it alone. Against the mock house,
+    /// on the local brain, so it costs nothing and unlocks nothing real.
+    public static async Task ConfirmAsync()
+    {
+        var repo = ToolChecks.FindRepoRoot();
+        var pwsh = ToolChecks.FindPwsh();
+        if (repo is null || pwsh is null) { Console.WriteLine("  skipped: no repo or no pwsh"); return; }
+
+        var config = OctaviaConfig.Load("dev");
+        config.McpServers = new Dictionary<string, McpServer>
+        {
+            ["house"] = new()
+            {
+                Command = pwsh,
+                Args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                        Path.Combine(repo, "tools", "mock-mcp.ps1")]
+            }
+        };
+
+        await using var registry = new ToolRegistry(config);
+        await registry.StartAsync();
+
+        using var brain = new LocalBrain(config, registry);
+        Console.WriteLine($"  brain: {brain.Description}, against the mock house");
+
+        foreach (var answer in new[] { "yes", "no" })
+        {
+            Console.WriteLine();
+            Console.WriteLine($"  == answering '{answer}' ==");
+
+            // One conversation across both turns: the consent lives on it, which is the
+            // whole point — a new one each time would be testing nothing.
+            var talk = new Conversation();
+
+            await Say(brain, talk, "Unlock the front door.");
+            await Say(brain, talk, answer);
+        }
+    }
+
+    private static async Task Say(IBrain brain, Conversation talk, string text)
+    {
+        Console.WriteLine($"  > {text}");
+        try
+        {
+            await foreach (var sentence in brain.RespondAsync(talk, text))
+                Console.WriteLine($"    {sentence}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"    FAILED: {ex.Message}");
+        }
+    }
+
     private static async Task Ask(IBrain brain, string question)
     {
         Console.WriteLine();

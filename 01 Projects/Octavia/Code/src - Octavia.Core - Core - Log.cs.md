@@ -90,15 +90,45 @@ internal static class Log
             Remembered.Enqueue(line);
             while (Remembered.Count > RememberedLines) Remembered.Dequeue();
 
+            Append(line);
+        }
+    }
+
+    /// One line onto the end of the file, retried briefly when somebody else is mid-write.
+    ///
+    /// **`lock (Gate)` is a lock inside one process, and there are two of them now.** Since
+    /// v0.28.2 the client always starts a server, so a client and a server share this file
+    /// as a matter of course — and two processes appending at the same instant is no longer
+    /// a rare collision, it is the ordinary case. The old code swallowed the exception, so
+    /// the loser simply lost its line: silently, with no trace, in exactly the log somebody
+    /// would later read to work out what happened.
+    ///
+    /// Three quick attempts. The write is short and the contention is microseconds wide, so
+    /// this is enough to make the loss theoretical again — and if it still fails, the line
+    /// is dropped as before rather than taking her down for it, because a companion that
+    /// dies over a log file helps nobody.
+    private static void Append(string line)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
             try
             {
                 Roll();
                 File.AppendAllText(Paths.LogFile, line + Environment.NewLine);
+                return;
+            }
+            catch (IOException)
+            {
+                // The other process has it open. Yield rather than spin: the write it is
+                // doing is as short as ours.
+                Thread.Sleep(15);
             }
             catch
             {
-                // Logging must never take her down. The in-memory tail still holds the
-                // line, so the diagnostics panel works even when the disk does not.
+                // Anything else — a read-only disk, a deleted folder — will not be fixed by
+                // trying again. The in-memory tail still holds the line, so the diagnostics
+                // panel works even when the disk does not.
+                return;
             }
         }
     }

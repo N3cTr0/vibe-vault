@@ -104,6 +104,10 @@ internal sealed class ClaudeBrain : IBrain
         // in the history, or the next request sends two user messages in a row.
         var client = Client();
 
+        /* Taken before the turn begins, and cleared by the taking. Whatever she asked about
+           last time is answerable by this utterance and by nothing after it. */
+        var consent = history.TakeConsent();
+
         history.Add(Utterance.User, userText);
 
         /* Asked once per turn rather than held, because a server can come up or fall over
@@ -223,13 +227,19 @@ internal sealed class ClaudeBrain : IBrain
                     Input = Fields(arguments)
                 });
 
-                /* `confirmed` is false, always, and that is the honest state of this rather
-                   than an oversight. Carrying a spoken yes from one turn into the next is
-                   its own piece of work, and nothing configured today is riskier than a
-                   read — so a `Confirm` tool comes back with the registry's refusal, she
-                   relays it, and nothing happens. The safe half is built; the other half is
-                   not, and pretending otherwise is how a door gets unlocked. */
-                var answer = await _tools.CallAsync(call.Name, arguments, confirmed: false, cancel);
+                /* A yes spoken in the previous turn, and only the previous one.
+                   `Conversation` holds the rule; both brains ask it the same question. */
+                var raw = arguments.GetRawText();
+                var granted = Conversation.Grants(consent, call.Name, raw, userText);
+
+                if (granted) Log.Write($"tool '{call.Name}': confirmed by the last thing said");
+
+                var answer = await _tools.CallAsync(call.Name, arguments, granted, cancel);
+
+                // Refused for want of a yes, so remember what was asked about. She is about
+                // to put the question; the answer has one turn to arrive.
+                if (!granted && answer.Text.StartsWith("Not done:", StringComparison.Ordinal))
+                    history.AwaitYes(call.Name, raw);
 
                 /* One result per call, in the same message: the API rejects a follow-up
                    where any tool_use has no matching tool_result.

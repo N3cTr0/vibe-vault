@@ -547,6 +547,7 @@ dotnet run --project tools/EarsTest -- split     # the server/client boundary, c
 dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, against the real gateway
 dotnet run --project tools/EarsTest -- toolloop        # the tool loop, both brains (SPENDS MONEY; not in the suite)
 dotnet run --project tools/EarsTest -- toolloop local  # ...the local brain only, which is free
+dotnet run --project tools/EarsTest -- confirm        # the spoken-yes rule, as a conversation (free)
 ```
 
 ### Tool servers

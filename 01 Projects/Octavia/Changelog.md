@@ -16,6 +16,58 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.32.0 — 2026-09-02
+
+**A spoken yes now survives the turn that asked for it**, which was the last thing between
+her and a tool that does something. Stage 12's confirmation rule has existed since v0.17.0
+and had never been reachable: every call went out with `confirmed: false`, so a dangerous
+tool could only ever be refused.
+
+```
+> Unlock the front door.
+  Do you want to unlock the front door?
+> yes
+  The front door is now unlocked.
+```
+
+The log confirms what the words claim — `needs confirmation; not run`, then
+`confirmed by the last thing said`, then `tool: house__house_unlock_door`. Answering *"no"*
+produces the refusal and nothing else.
+
+**Consent lasts exactly one turn, and is to a call rather than to a tool.** It is read and
+cleared at the top of every turn, so a question she asked is answerable by the very next
+thing said and by nothing after it. It carries the arguments too: *"yes"* about the back door
+is not consent to unlock the front one, however the model phrases its second attempt.
+
+**The rule is biased towards refusing**, because the costs are not symmetric — a yes misread
+as a no costs one repeated question, and a no misread as a yes costs whatever the tool does.
+Agreement must be present *and* disagreement absent, so *"yes, but not yet"* is not consent.
+A conversation that survived several turns would let a yes about something else entirely open
+a door, and *"say yes to the next thing she asks"* is a sentence a television can produce.
+
+The refusal text changed too, and it earns its place: told merely that confirmation is
+needed, a model will often ask and answer itself in the same breath — *"shall I unlock it?
+Yes, unlocking now"* — which is a confirmation nobody gave. It now says to ask plainly, in one
+short question, and to say nothing else.
+
+**Her server and her client stopped losing log lines.** `lock (Gate)` is a lock inside one
+process, and since v0.28.2 there are always two of them sharing one file — so two processes
+appending at the same instant went from a rare collision to the ordinary case, and the loser
+silently lost its line in exactly the log somebody would read to find out what happened.
+Three quick retries on `IOException`, then the old behaviour of dropping it rather than taking
+her down.
+
+**The tray can start and stop her service**, drawn only when one is registered. Offered now
+because stopping her became *safe*: the client still refuses to stop a console server, since
+two of the three mechanisms for that were measured skipping her unwind entirely.
+
+Ten new checks on the consent rule and a `confirm` probe that drives the whole exchange as a
+conversation against the mock house, on the local brain, so it costs nothing and unlocks
+nothing real. 311 checks pass.
+
+---
+
+
 ## 0.31.0 — 2026-09-02
 
 **She can see through the house's cameras.** `look_at_camera` fetches a UniFi Protect

@@ -896,12 +896,27 @@ How it works, and what each decision cost:
   tools said is inside the sentence she just spoke, so the next turn keeps the substance and
   loses only the ability to quote the raw result. When that matters it is a real change and
   belongs on its own.
-- **`confirmed` is always false**, and that is the honest state of it rather than an
-  oversight. Carrying a spoken *yes* from one turn to the next is its own piece of work.
-  Nothing configured today is riskier than a read, so a `Confirm` tool comes back with the
-  registry's refusal, she relays it, and nothing happens. **The safe half is built and the
-  other half is not** — and that is the half where a door gets unlocked, so it is named here
-  rather than assumed.
+- ~~**`confirmed` is always false**, and that is the honest state of it rather than an
+  oversight. Carrying a spoken *yes* from one turn to the next is its own piece of work.~~
+  **Built, v0.32.0.** *"Unlock the front door"* → *"Do you want to unlock the front door?"* →
+  *"yes"* → unlocked, with the log showing `needs confirmation; not run`, then `confirmed by
+  the last thing said`, then the call. *"No"* produces the refusal and nothing else.
+
+  **Consent lasts exactly one turn and is to a *call*, not a tool.** Read and cleared at the
+  top of every turn, so a question is answerable by the very next thing said and nothing
+  after it. The arguments are part of it: *"yes"* about the back door is not consent to
+  unlock the front one, however the model phrases its second attempt.
+
+  **The rule refuses when unsure**, because the costs are not symmetric — a yes misread as a
+  no costs one repeated question; a no misread as a yes costs whatever the tool does.
+  Agreement must be present *and* disagreement absent, so *"yes, but not yet"* is not
+  consent. A consent that survived several turns would let a yes about something else open a
+  door, and *"say yes to the next thing she asks"* is a sentence a television can produce.
+
+  The refusal text changed with it, and earns its place: told only that confirmation is
+  needed, a model will often ask and answer itself in one breath — *"shall I unlock it? Yes,
+  unlocking now"* — which is a confirmation nobody gave. It now says to ask plainly, in one
+  short question, and say nothing else.
 
 **Proven by a probe, never by the suite.** `EarsTest -- toolloop` asks two real questions
 against the real API and the real gateway. It is deliberately *not* in the default run:

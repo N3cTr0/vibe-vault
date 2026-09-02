@@ -51,6 +51,9 @@ internal sealed class LocalBrain : IBrain
         Situation now = default,
         [EnumeratorCancellation] CancellationToken cancel = default)
     {
+        // Taken before the turn begins, and cleared by the taking.
+        var consent = history.TakeConsent();
+
         history.Add(Utterance.User, userText);
 
         var messages = new List<object> { new { role = "system", content = Persona.System } };
@@ -190,10 +193,16 @@ internal sealed class LocalBrain : IBrain
                     function = new { name, arguments }
                 });
 
-                // `confirmed` is false here for the same reason it is in `ClaudeBrain`, and
-                // it is the same missing half: a spoken yes does not yet survive the turn
-                // that asked for it. See that file.
-                var answer = await Answer(name, arguments, cancel);
+                // The same rule as `ClaudeBrain`, asked of the same place: a yes spoken in
+                // the previous turn, for this exact call, and nothing older.
+                var granted = Conversation.Grants(consent, name, arguments, userText);
+
+                if (granted) Log.Write($"tool '{name}': confirmed by the last thing said");
+
+                var answer = await Answer(name, arguments, granted, cancel);
+
+                if (!granted && answer.StartsWith("Not done:", StringComparison.Ordinal))
+                    history.AwaitYes(name, arguments);
 
                 answers.Add(new { role = "tool", tool_call_id = call.Id.ToString(), content = answer });
             }
@@ -267,7 +276,7 @@ internal sealed class LocalBrain : IBrain
     /// Failures come back as text rather than as exceptions, because that is what the seam
     /// promised and because a model handed *"the gateway could not be reached"* can say so,
     /// where a thrown exception ends the turn with nothing to relay.
-    private async Task<string> Answer(string name, string arguments, CancellationToken cancel)
+    private async Task<string> Answer(string name, string arguments, bool confirmed, CancellationToken cancel)
     {
         JsonElement parsed;
 
@@ -281,7 +290,7 @@ internal sealed class LocalBrain : IBrain
             parsed = JsonDocument.Parse("{}").RootElement.Clone();
         }
 
-        var answer = await _tools!.CallAsync(name, parsed, confirmed: false, cancel);
+        var answer = await _tools!.CallAsync(name, parsed, confirmed, cancel);
 
         /* The text only. **This brain has no eyes** — the same sentence `IBrain` already
            uses about `Situation.Image` — so a picture would be bytes it cannot read and a

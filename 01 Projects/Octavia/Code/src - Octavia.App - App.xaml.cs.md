@@ -144,6 +144,21 @@ public partial class App : Application
         menu.Items.Add("Save diagnostics...", null, (_, _) => _window?.SaveDiagnostics());
         menu.Items.Add("Open data folder", null, (_, _) =>
             System.Diagnostics.Process.Start("explorer.exe", Paths.DataDir));
+        /* Her server, when there is one registered to control.
+
+           **This is only offered because stopping her became safe.** The client refuses to
+           stop a *console* server, and that is not squeamishness — three mechanisms were
+           measured and two of them skipped her unwind entirely. The service control manager
+           does it properly, so a menu entry that stops her now means what it says. Absent
+           the service, these are not drawn at all rather than shown greyed: an entry that
+           cannot work is a question a person has to answer every time they open the menu. */
+        if (LocalServer.ServiceInstalled)
+        {
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add("Start her server", null, (_, _) => LocalServer.ControlService(start: true));
+            menu.Items.Add("Stop her server", null, (_, _) => LocalServer.ControlService(start: false));
+        }
+
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
 

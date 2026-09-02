@@ -9,6 +9,7 @@ source-path: tools\EarsTest\ToolChecks.cs
 ```csharp
 using System.Text.Json;
 using Octavia.Brain.Tools;
+using Octavia.Brain;
 using Octavia.Core;
 
 /// The tool seam, driven against the mock MCP server in tools\mock-mcp.ps1.
@@ -86,6 +87,61 @@ internal static class ToolChecks
         // able to be told it was wrong.
         var missing = (await registry.CallAsync("house__nonsense", stateArgs)).Text;
         Check("an unknown tool answers rather than throws", missing.Contains("no tool"), missing);
+
+        /* A spoken yes, and how narrowly it counts.
+
+           This is the rule that decides whether a sentence can open a door, so it is checked
+           in every direction that could go wrong rather than only the happy one. The bias
+           throughout is towards refusing: a yes misread as a no costs one repeated question,
+           and a no misread as a yes costs whatever the tool does. */
+        const string door = "house__house_unlock_door";
+        const string back = """{"entity":"the back door"}""";
+        const string front = """{"entity":"the front door"}""";
+
+        Conversation Asked()
+        {
+            var talk = new Conversation();
+            talk.AwaitYes(door, back);
+            return talk;
+        }
+
+        Check("a plain yes counts",
+              Conversation.Grants(Asked().TakeConsent(), door, back, "yes"));
+
+        Check("so does go ahead",
+              Conversation.Grants(Asked().TakeConsent(), door, back, "go ahead"));
+
+        Check("and a yes with words around it",
+              Conversation.Grants(Asked().TakeConsent(), door, back, "Yes, please do that."));
+
+        Check("a no does not",
+              !Conversation.Grants(Asked().TakeConsent(), door, back, "no"));
+
+        // The one a looser rule gets wrong: agreement and refusal in the same breath.
+        Check("a yes with a caveat does not",
+              !Conversation.Grants(Asked().TakeConsent(), door, back, "yes, but not yet"));
+
+        Check("silence on the subject does not",
+              !Conversation.Grants(Asked().TakeConsent(), door, back, "what is the weather like"));
+
+        // Consent is to a *call*, not to a tool. Saying yes about the back door must not
+        // unlock the front one, however the model phrases its second attempt.
+        Check("a yes about one thing is not a yes about another",
+              !Conversation.Grants(Asked().TakeConsent(), door, front, "yes"));
+
+        Check("a yes to one tool is not a yes to another",
+              !Conversation.Grants(Asked().TakeConsent(), "house__house_set_light", back, "yes"));
+
+        // The lifetime: taking it clears it, so a second turn cannot reuse the first's yes.
+        var once = Asked();
+        var first = once.TakeConsent();
+        var second = once.TakeConsent();
+        Check("consent survives exactly one turn",
+              Conversation.Grants(first, door, back, "yes") &&
+              !Conversation.Grants(second, door, back, "yes"));
+
+        Check("and nothing is pending before she asks",
+              !Conversation.Grants(new Conversation().TakeConsent(), door, back, "yes"));
 
         return failures;
     }

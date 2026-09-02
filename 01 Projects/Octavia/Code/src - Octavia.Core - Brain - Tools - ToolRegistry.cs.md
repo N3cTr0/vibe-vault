@@ -122,7 +122,13 @@ internal sealed class ToolRegistry : IAsyncDisposable
         if (tool.Risk == ToolRisk.Confirm && !confirmed)
         {
             Log.Write($"tool '{name}' needs confirmation; not run");
-            return "That one needs confirming out loud first. Ask, then do it if the answer is yes.";
+
+            /* The wording is instructions to the model, and it is worth being exact: it must
+               ask *and stop*. Told merely that confirmation is needed, a model will often
+               ask and answer itself in the same breath — "shall I unlock it? Yes, unlocking
+               now" — which is a confirmation nobody gave. */
+            return "Not done: this one needs the person to say yes first. Ask them plainly, " +
+                   "in one short question, and say nothing else. Do not assume the answer.";
         }
 
         var provider = _providers.FirstOrDefault(p => p.Name == tool.Source);

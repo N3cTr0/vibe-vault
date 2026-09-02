@@ -193,16 +193,35 @@ internal static class LocalServer
        up on a phone in another room. */
 
 
-    /// Asks the server exe to start her service, and reports whether there was one.
+    /// Whether a service is registered for her on this machine.
     ///
-    /// Shelling out rather than holding a `ServiceController` here on purpose: the SCM, the
-    /// service name and the permissions it was installed with are the server's business,
-    /// and a client that knew them would be a second place to keep them right.
-    private static bool StartService(string exe)
+    /// Asked once, when the tray is built. `--service-status` exits 1 for "not installed"
+    /// and 0 or 2 for a service that exists, which is the whole of the question here.
+    internal static bool ServiceInstalled =>
+        FindServer() is { } exe && Ask(exe, "--service-status") != 1;
+
+    /// Starts or stops her service from the tray.
+    ///
+    /// Fire and forget, on a background thread, because both can take seconds — her ears
+    /// alone are 1.6 GB — and a tray menu that freezes the desktop while it waits is worse
+    /// than one that takes a moment to have an effect.
+    internal static void ControlService(bool start) => Task.Run(() =>
+    {
+        if (FindServer() is not { } exe) return;
+
+        var result = Ask(exe, start ? "--start" : "--stop");
+
+        Log.Write(result == 0
+            ? $"her service was {(start ? "started" : "stopped")} from the tray"
+            : $"the tray could not {(start ? "start" : "stop")} her service (exit {result})");
+    });
+
+    /// Runs the server exe with one switch and hands back its exit code.
+    private static int Ask(string exe, string argument)
     {
         try
         {
-            using var asked = Process.Start(new ProcessStartInfo(exe, "--start")
+            using var asked = Process.Start(new ProcessStartInfo(exe, argument)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -210,17 +229,28 @@ internal static class LocalServer
                 RedirectStandardError = true
             });
 
-            if (asked is null) return false;
+            if (asked is null) return -1;
 
             asked.WaitForExit(40_000);
-            if (asked.ExitCode == 0) Log.Write("her service was asked to start");
-            return asked.ExitCode == 0;
+            return asked.ExitCode;
         }
         catch (Exception ex)
         {
-            Log.Warn($"could not ask her service to start: {ex.Message}");
-            return false;
+            Log.Warn($"could not run {Path.GetFileName(exe)} {argument}: {ex.Message}");
+            return -1;
         }
+    }
+
+    /// Asks the server exe to start her service, and reports whether there was one.
+    ///
+    /// Shelling out rather than holding a `ServiceController` here on purpose: the SCM, the
+    /// service name and the permissions it was installed with are the server's business,
+    /// and a client that knew them would be a second place to keep them right.
+    private static bool StartService(string exe)
+    {
+        var started = Ask(exe, "--start") == 0;
+        if (started) Log.Write("her service was asked to start");
+        return started;
     }
 
     /// Where her server is, in the two layouts that actually exist.

@@ -184,3 +184,34 @@ Declined honestly rather than bluffing: *"I can't look outside yet, but I can ch
 ### Proven
 
 `EarsTest -- unifi` gained three assertions and **adapts to the day**: with a camera online there must be image bytes and the words must name that camera; with none online it says the snapshot went untested rather than failing. It finds the camera by parsing `list_cameras`' own prose, so if that wording stops being readable the check notices too.
+
+## A spoken yes, and how narrowly it counts *(v0.32.0)*
+
+*The last thing between her and a tool that does something. The confirmation rule has existed since v0.17.0 and had never been reachable: every call went out with `confirmed: false`, so a dangerous tool could only ever be refused.*
+
+```
+> Unlock the front door.
+  Do you want to unlock the front door?
+> yes
+  The front door is now unlocked.
+```
+
+The log confirms what the words claim — `needs confirmation; not run`, then `confirmed by the last thing said`, then the call. Answering **no** produces the refusal and nothing else.
+
+### The rule
+
+**Consent lasts exactly one turn.** It is read and cleared at the top of every turn, so a question she asked is answerable by the very next thing said and by nothing after it. A consent that survived several turns would let a *"yes"* about something else entirely open a door — and *"say yes to the next thing she asks"* is a sentence a television can produce. See [[The Attention Gate]] for why that is not a hypothetical here.
+
+**Consent is to a call, not to a tool.** The arguments are part of it: *"yes"* about the back door is not consent to unlock the front one, however the model phrases its second attempt.
+
+**It refuses when unsure**, because the costs are not symmetric — a yes misread as a no costs one repeated question; a no misread as a yes costs whatever the tool does. Agreement must be present *and* disagreement absent, so *"yes, but not yet"* is not consent.
+
+### One change that is not about the rule at all
+
+The refusal text. Told merely that confirmation is needed, a model will often **ask and answer itself in the same breath** — *"shall I unlock it? Yes, unlocking now"* — which is a confirmation nobody gave. The text now instructs it to ask plainly, in one short question, and say nothing else.
+
+That is worth noticing generally: a permission system's weakest point can be the *wording of its refusal*, not the check.
+
+### Proven twice, both free
+
+`ToolChecks` asserts what the predicate decides — ten cases, every direction that could go wrong. `EarsTest -- confirm` asserts the decision is actually *reached*, driving the whole exchange as a two-turn conversation against the mock house on the local brain, so it costs nothing and unlocks nothing real.
