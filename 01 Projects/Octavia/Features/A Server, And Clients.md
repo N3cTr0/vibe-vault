@@ -180,3 +180,18 @@ The single-instance mutex is `Local\`, so it cannot see across sessions — a se
 `LocalServer` asks `--start` before spawning a console of its own, because a service outlives the window that wanted it and comes back after a reboot.
 
 **Not done:** the same start and stop in the client's tray. The shortcuts answer what was asked; the tray is a nicety that can follow.
+
+### Logging her on as you, which was tried the same day *(v0.30.1)*
+
+The section above said a service runs as LocalSystem and therefore cannot read her API key, and named two possible fixes. The owner applied one of them within the hour, so everything that was in doubt could be **measured instead of assumed**:
+
+| | |
+|---|---|
+| Her key | **Decrypts.** Asked a question on the `cloud` profile, she reached Claude and answered — so DPAPI `CurrentUser` is readable by a service logged on as that user. |
+| Audio devices | **Enumerate**, microphones and outputs both, from session 0. |
+| Her voice | *"turn in room 'host'; her voice plays on this machine"* is in the log, with no error behind it. |
+| Ears, voice, loopback, tools | Open exactly as they do from a console. |
+
+The original wording was **overstated rather than wrong**. *"A service runs as LocalSystem"* is a default, not a rule — and stating a default as a constraint is how a fixable problem gets written down as a limitation and then believed. `--install` now recommends the verified fix, and mentions the environment variable second as the one that needs no password.
+
+> **One consequence, worth knowing because it is silent:** a service logged on as an account stops starting when that account's password changes, and says so in the Windows event log rather than in hers.

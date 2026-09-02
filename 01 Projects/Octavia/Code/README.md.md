@@ -103,11 +103,22 @@ start.
 The client prefers the service: it asks `--start` before spawning a console of its own,
 because a service outlives the window that wanted it.
 
-> **A service runs as LocalSystem, and her API key is sealed to your Windows account** — so
-> the *hosted* brain cannot read it from a service. The local brain, which is the default, is
-> unaffected. To use Claude from the service, either set `ANTHROPIC_API_KEY` as a machine-wide
-> environment variable, or set the service to log on as your own account in `services.msc`.
-> `--install` says this at install time too.
+> **While she is installed as a service pointed at a build directory, the service locks the
+> build output.** `dotnet build` fails with `MSB3027` until you `--stop` her — she is a
+> running process holding `Octavia.Core.dll`, and being a service is what makes it easy to
+> forget she is running at all. Point the service at `dist` if that gets tiresome.
+
+> **A service logs on as LocalSystem by default, and her API key is sealed to *your* Windows
+> account** — so the hosted brain will not find it. The local brain, which is the default, is
+> unaffected. `--install` says this at install time too.
+>
+> **The fix is to log the service on as yourself**, in `services.msc` → Octavia → Log On →
+> This account. That is verified: her key decrypts, the hosted brain answers, her voice plays
+> and the audio devices enumerate — all from session 0. A machine-wide `ANTHROPIC_API_KEY`
+> also works and needs no password.
+>
+> One consequence worth knowing: a service logged on as an account **stops starting when that
+> account's password changes**, and says so in the Windows event log rather than in hers.
 
 > **Run the client on the machine the server is on**, unless you are using the neural voice.
 > Her voice plays through the *server's* sound card for the host room; a Windows (SAPI) voice

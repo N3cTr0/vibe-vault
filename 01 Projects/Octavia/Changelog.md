@@ -16,6 +16,34 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.30.1 — 2026-09-02
+
+**The service was set to log on as the user, and everything in doubt was measured.** v0.30.0
+said a service runs as LocalSystem and therefore cannot read her API key, and listed two
+possible fixes. One of them was tried the same day and works, so the note is now *"here is
+the fix"* rather than *"here are two things you might try"*.
+
+Verified from session 0, running as the account rather than as LocalSystem:
+
+- **Her key decrypts.** Asked a question on the `cloud` profile, she reached Claude and
+  answered. DPAPI `CurrentUser` is readable by a service logged on as that user.
+- **The audio devices enumerate**, both microphones and both outputs, and *"turn in room
+  'host'; her voice plays on this machine"* is in the log with no error behind it.
+- Ears, the neural voice, the loopback and the MCP tool server all open exactly as they do
+  from a console.
+
+The wording was overstated rather than wrong. *"A service runs as LocalSystem"* is a default,
+not a rule, and stating a default as a constraint is how a fixable problem gets recorded as a
+limitation. `--install` now recommends the verified fix and mentions the environment variable
+second, as the one that needs no password.
+
+**One consequence worth knowing, because it is silent:** a service logged on as an account
+stops starting when that account's password changes, and says so in the Windows event log
+rather than in hers.
+
+---
+
+
 ## 0.30.0 — 2026-09-02
 
 **She runs as a Windows service**, which closes Stage 15 item 4. The client half landed in

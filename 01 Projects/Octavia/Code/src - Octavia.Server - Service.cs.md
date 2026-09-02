@@ -144,14 +144,22 @@ internal sealed class Service : ServiceBase
         Console.WriteLine();
 
         /* Said at install rather than discovered later, because the failure it causes is
-           silent and looks like a broken brain: her key is DPAPI-sealed to *a user account*,
-           and a service runs as LocalSystem. It cannot read the file, so the hosted brain
-           has no key and says so — while the local brain, and everything else, is fine. */
-        Console.WriteLine("Note: a service runs as LocalSystem, and her API key is sealed to your");
-        Console.WriteLine("Windows account — so the *hosted* brain cannot read it from a service.");
-        Console.WriteLine("The local brain is unaffected. To use Claude from the service, either set");
-        Console.WriteLine("ANTHROPIC_API_KEY as a machine-wide environment variable, or set the service");
-        Console.WriteLine("to log on as your own account in services.msc.");
+           silent and looks like a broken brain rather than like a permissions problem: her
+           key is DPAPI-sealed to *a user account*, and a service installed this way logs on
+           as LocalSystem, which is not that account.
+
+           **The fix is measured, not assumed.** Setting the service to log on as the user
+           was tried: her key decrypts, the hosted brain answers, and the audio devices still
+           open from session 0. So this recommends the thing that is known to work rather
+           than listing two possibilities and leaving the reader to find out. */
+        Console.WriteLine("Note: a service logs on as LocalSystem by default, and her API key is");
+        Console.WriteLine("sealed to *your* Windows account — so the hosted brain will not find it.");
+        Console.WriteLine("The local brain, which is the default, is unaffected.");
+        Console.WriteLine();
+        Console.WriteLine("To use Claude from the service, set it to log on as your own account:");
+        Console.WriteLine("  services.msc -> Octavia -> Log On -> This account.");
+        Console.WriteLine("That is verified working, session 0 and all. A machine-wide");
+        Console.WriteLine("ANTHROPIC_API_KEY also works, and needs no password.");
 
         return 0;
     }

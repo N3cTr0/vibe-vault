@@ -1613,11 +1613,22 @@ a client at all.
 > building the whole `sc` command as one string and letting two layers of parsing disagree
 > about the quotes; `ArgumentList` fixed it and the registry value was read back to prove it.
 >
-> And **a service runs as LocalSystem, so the hosted brain has no key**: `apikey.dat` is
-> DPAPI-sealed to a *user account*. The local brain is unaffected, which is the profile she
-> runs on anyway. `--install` says this out loud at install time rather than leaving it to be
-> discovered as a mysteriously broken brain, and names both fixes — a machine-wide
-> `ANTHROPIC_API_KEY`, or setting the service to log on as the user in `services.msc`.
+> And **a service logs on as LocalSystem by default, so the hosted brain has no key**:
+> `apikey.dat` is DPAPI-sealed to a *user account*. The local brain is unaffected, which is
+> the profile she runs on anyway. `--install` says this at install time rather than leaving
+> it to be discovered as a mysteriously broken brain.
+>
+> > **The fix was tried the same day, and it works** *(v0.30.1)*. The owner set the service
+> > to log on as their own account, and everything that was in doubt was measured rather than
+> > assumed: **her key decrypts** — she was asked a question on the `cloud` profile and Claude
+> > answered — the audio devices still enumerate, and *"her voice plays on this machine"* is
+> > in the log with no error behind it. So DPAPI `CurrentUser` is readable by a service
+> > logged on as that user, session 0 notwithstanding, and the note above became *"here is the
+> > fix"* instead of *"here are two things you might try"*.
+> >
+> > The cost is one that is worth writing down because it is silent: **a service logged on as
+> > an account stops starting when that account's password changes**, and says so in the
+> > Windows event log rather than in hers.
 >
 > Not done: a tray entry in the client for the same start and stop. The shortcuts are the
 > answer to what was asked, and the tray is a nicety that can follow.
