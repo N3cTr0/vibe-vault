@@ -1441,11 +1441,18 @@ starting:
   host device to protect. `listen` becomes "stream my microphone continuously", which is a
   room concern. Only `setWhisperCompute`, `openDataFolder` and `saveDiagnostics` stay
   server-side, because those really are about the machine she runs on.
-- **Item 6 stops being optional.** Always-on listening from a client with speakers in the same
+- ~~**Item 6 stops being optional.** Always-on listening from a client with speakers in the same
   room is the echo problem, and today the desktop escapes it only because the server owns both
   the microphone and the mute. Once the desktop streams like a phone it inherits the phone's
   problem. It is more tractable than the general case — the server knows when it is speaking
-  and the round trip on a LAN is milliseconds — but it is no longer somebody else's item.
+  and the round trip on a LAN is milliseconds — but it is no longer somebody else's item.~~
+
+  > **Struck 09/02/2026 — item 6 landed the same day and this consequence never arrived.** The
+  > reasoning was right about where the problem would appear and wrong about who would own it.
+  > v0.28.0 put the suppression **on the client**, because only the client knows when its own
+  > speaker emitted and when it stopped. So the desktop does not inherit a problem when it
+  > starts streaming like a phone; it inherits a phone's *answer*, already written and already
+  > measured. This is the one bullet of the four that got cheaper instead of dearer.
 
 **Until this is built: run the client on the server's machine, or use the neural voice.** Her
 voice plays through the server's sound card for the host room, and SAPI cannot be streamed to
