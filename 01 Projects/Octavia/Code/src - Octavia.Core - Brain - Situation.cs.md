@@ -86,35 +86,48 @@ internal static class Sight
 
     /// Decodes a captured still far enough to describe it, then throws the pixels away.
     /// Null when it will not decode at all, which is its own kind of answer.
+    ///
+    /// **This one method was the whole of `UseWPF` in the core** — `BitmapFrame` is WIC
+    /// underneath, works headless, and is Windows only. It decodes with ImageSharp now,
+    /// which is managed and cross-platform, so the core no longer needs WPF. See Stage 15
+    /// item 2 for the rest of what a Linux server would still want.
+    ///
+    /// The arithmetic is unchanged and deliberately so: mean and standard deviation of
+    /// luminance, both on 0–1, so a `Glance` written before this reads the same as one
+    /// written after. `L8` is the same single-channel grey `Gray8` produced, and ImageSharp
+    /// applies the same BT.709 luminance weighting, so the numbers move by rounding at most.
     public static Glance? Inspect(string base64)
     {
         try
         {
             using var stream = new MemoryStream(Convert.FromBase64String(base64));
-            var frame = System.Windows.Media.Imaging.BitmapFrame.Create(
-                stream,
-                System.Windows.Media.Imaging.BitmapCreateOptions.None,
-                System.Windows.Media.Imaging.BitmapCacheOption.OnLoad);
-
-            var grey = new System.Windows.Media.Imaging.FormatConvertedBitmap(
-                frame, System.Windows.Media.PixelFormats.Gray8, null, 0);
-
-            var stride = grey.PixelWidth;
-            var pixels = new byte[stride * grey.PixelHeight];
-            grey.CopyPixels(pixels, stride, 0);
+            using var grey = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.L8>(stream);
 
             double sum = 0, sumSquares = 0;
-            foreach (var pixel in pixels)
+            var counted = 0;
+
+            grey.ProcessPixelRows(rows =>
             {
-                var value = pixel / 255.0;
-                sum += value;
-                sumSquares += value * value;
-            }
+                for (var y = 0; y < rows.Height; y++)
+                {
+                    // A row at a time rather than a whole copied buffer: a 4K still is 8 MB
+                    // of pixels she looks at once and never keeps.
+                    foreach (var pixel in rows.GetRowSpan(y))
+                    {
+                        var value = pixel.PackedValue / 255.0;
+                        sum += value;
+                        sumSquares += value * value;
+                        counted++;
+                    }
+                }
+            });
 
-            var mean = sum / pixels.Length;
-            var variance = Math.Max(0, sumSquares / pixels.Length - mean * mean);
+            if (counted == 0) return null;
 
-            return new Glance(grey.PixelWidth, grey.PixelHeight, mean, Math.Sqrt(variance));
+            var mean = sum / counted;
+            var variance = Math.Max(0, sumSquares / counted - mean * mean);
+
+            return new Glance(grey.Width, grey.Height, mean, Math.Sqrt(variance));
         }
         catch (Exception ex)
         {

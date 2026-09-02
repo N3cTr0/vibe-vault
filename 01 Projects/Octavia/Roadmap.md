@@ -369,6 +369,35 @@ Whisper's. That is the Piper arrangement exactly, and Piper works.
 nine weeks from this decision. It does not change the choice, but it does mean any
 character made the easy way has to be made and exported before then.
 
+> **Checked properly, 09/02/2026, and it was wrong in both directions.** The one-date framing
+> above conflated two deadlines that are months apart, and missed a third that has already
+> passed.
+>
+> | | |
+> |---|---|
+> | ~~04/05/2026~~ | UE 4.27, 5.0, 5.1 access removed — **already gone** |
+> | ~~06/05/2026~~ | UE 5.2, 5.3, 5.4 access removed — **already gone** |
+> | **11/05/2026** | UE 5.5 access ends; the web app shuts down; **the 90-day retrieval window opens** |
+> | **≈02/03/2027** | Retrieval closes. Anything still in the gallery is deleted permanently |
+>
+> **So there is more time than recorded, and less choice.** *Creating* her stops on 11/05;
+> *retrieving* her runs about ninety days past that, to early February — roughly five months
+> rather than nine weeks. But **UE 5.5 is the only version still served**, so a character made
+> now can only come down into a 5.5 project, not into 5.6 or 5.7.
+>
+> **Making her is not GPU-blocked; getting her out is.** The web app is cloud-delivered, so a
+> browser and a connection are the whole requirement — this GT 730 can make her today.
+> Retrieval needs **Quixel Bridge or the MetaHuman Importer in UEFN**, which means a working
+> Unreal install, which is the part this machine cannot do. Epic also offers downloading the
+> **DNA file** via standalone Bridge for later reconstruction, which is the smallest thing
+> that preserves the work.
+>
+> **The recommendation that follows:** make her in the browser well before 11/05 — it costs
+> nothing here and banks the character — and treat retrieval as a task for the GPU box, with
+> until February to do it. The risk worth naming is that the retrieval window is the *only*
+> one with no extension behind it, and it lands in the middle of a machine purchase that has
+> not happened yet.
+
 **What was actually delivered here.** The stage's premise — "photorealism becomes
 attaching a different renderer" — was an assumption. It is now a tested claim:
 `tools\attach-face.ps1 -Conformance` drives a running host through a turn and checks every
@@ -1540,7 +1569,23 @@ the page lost its `postMessage` transport and gained reconnection with a persist
 split` guards the boundary as text, because a compiler cannot — all three assemblies
 legitimately see each other's internals.
 
-### 2. A portable core — **open**
+### 2. A portable core — **open; WPF gone 09/02/2026, v0.33.0**
+
+> **One blocker down, and the count was wrong.** `Sight.Inspect` greyed a camera still with
+> WPF's `BitmapFrame`; it decodes with ImageSharp now — managed, cross-platform, and measured
+> producing the same numbers on flat black, flat white, mid-grey and a half-and-half frame.
+> `UseWPF` is gone from the core.
+>
+> **But the note below, and the project file, both said WPF was *"the single thing"* standing
+> between the core and a plain `net10.0` target. It was not.** NAudio, `System.Speech` and
+> WebView2 are all still referenced here and all Windows-only. What went was the blocker that
+> could be removed without deciding anything else; the target has not moved.
+>
+> **And the remaining work should wait for item 3.** The classes an `Octavia.Windows` project
+> would exist to hold — `AudioDevices`, `MicLevelMeter`, `LoopbackListener`, the local
+> microphone, the voice — are the same ones item 3 moves *out of the server to the client*.
+> Doing item 2 first means moving that code twice. **Item 3 is not merely a prerequisite in
+> the usual sense; it does most of item 2's work as a side effect.**
 
 `Octavia.Core` still targets `net10.0-windows` with WPF on, for exactly one method:
 `Sight.Inspect` greys a camera still with `BitmapFrame`. It works headless — WIC underneath,

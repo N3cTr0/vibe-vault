@@ -16,6 +16,42 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.33.0 — 2026-09-02
+
+**The core no longer needs WPF.** `Sight.Inspect` — which greys a camera still and measures
+its brightness and contrast, so she can tell a dark room from a covered lens — was the one
+method holding `UseWPF` on. It decodes with ImageSharp now: managed, cross-platform, and
+measured producing the same numbers on flat black, flat white, mid-grey and a half-and-half
+frame.
+
+**The claim it replaces was wrong, and worth correcting rather than quietly deleting.** Both
+the project file and the roadmap called `BitmapFrame` *"the single thing standing between
+this project and a plain `net10.0` target"*. NAudio, `System.Speech` and WebView2 are all
+still referenced in the core and all Windows-only. One blocker went — the one that could be
+removed without deciding anything else — and the target has not moved.
+
+**The rest of Stage 15 item 2 should wait for item 3**, which is a finding rather than a
+deferral. The classes an `Octavia.Windows` project would exist to hold — `AudioDevices`,
+`MicLevelMeter`, `LoopbackListener`, the local microphone, the voice — are exactly the ones
+item 3 moves out of the server and into the client. Doing item 2 first means moving that code
+twice; item 3 does most of item 2's work as a side effect.
+
+Also, **the MetaHuman deadline was checked properly and was wrong in both directions.** The
+roadmap recorded a single date, 11/05/2026, roughly nine weeks out. In fact two earlier
+stages have already passed (UE 4.27–5.1 in April, 5.2–5.4 in June), the web app's shutdown on
+11/05 opens a **90-day retrieval window** running to about 02/03/2027, and **UE 5.5 is the
+only version still served**. So there is more time than recorded and less choice: creating
+her is cloud-delivered and needs no GPU — this machine can do it today — while *retrieving*
+her needs Quixel Bridge or the UEFN importer, which needs a working Unreal install, which it
+cannot. The retrieval window is the only one with nothing behind it, and it lands in the
+middle of a machine purchase that has not happened.
+
+Six new checks on the decoder, built from generated images so the expected values are
+arithmetic rather than a property of whatever photograph was checked in. 317 pass.
+
+---
+
+
 ## 0.32.0 — 2026-09-02
 
 **A spoken yes now survives the turn that asked for it**, which was the last thing between

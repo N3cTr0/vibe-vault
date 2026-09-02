@@ -16,10 +16,18 @@ source-path: src\Octavia.Core\Octavia.Core.csproj
     nothing in this project knows whether a window exists. That was already true before the
     split - see Stage 15 - which is why this project is a move rather than a rewrite.
 
-    `UseWPF` is on for exactly one method: `Sight.Inspect` greys a camera still with
-    `BitmapFrame`, which is WIC underneath and needs no dispatcher, so it works perfectly
-    well in a headless server. It is also the single thing standing between this project and
-    a plain `net10.0` target. See Stage 15 item 2.
+    `UseWPF` is gone as of v0.33.0. It was on for exactly one method - `Sight.Inspect` greying
+    a camera still with `BitmapFrame` - which now decodes with ImageSharp instead: managed,
+    cross-platform, and measured producing the same numbers.
+
+    **The comment it replaces called that "the single thing standing between this project and
+    a plain net10.0 target", and that was wrong.** NAudio, System.Speech and WebView2 are all
+    still referenced here and all Windows-only, so the target has not moved. What went is one
+    of several blockers, and the one that could be removed without deciding anything else.
+
+    The rest belongs to Stage 15 item 2, and wants item 3 done first: item 3 moves the audio
+    devices out to the client, which is most of what an `Octavia.Windows` project would
+    otherwise have been created to hold.
   -->
   <PropertyGroup>
     <UseWPF>true</UseWPF>
@@ -62,6 +70,7 @@ source-path: src\Octavia.Core\Octavia.Core.csproj
          a fact a diagnostics bundle needs whether or not this machine draws anything. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <PackageReference Include="NAudio" Version="3.0.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.1" />
     <PackageReference Include="System.Speech" Version="10.0.11" />
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
