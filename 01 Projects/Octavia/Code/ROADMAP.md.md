@@ -462,11 +462,47 @@ path, the marker not sticking. **A frame has now been captured here**, once a we
 redirected in. What is still unproven is only the last step: no still has yet been sent to
 Claude, because the dev profile's brain has no eyes and that call costs money.
 
-**Wake word: not built, and arguably not wanted.** openWakeWord ships models for "hey
+~~**Wake word: not built, and arguably not wanted.** openWakeWord ships models for "hey
 jarvis" and the like; there is no "Octavia", and training one needs a corpus that does not
 exist. Meanwhile the free layer already does the cheap half of the job — her name is
 matched in the transcript for nothing. What a real wake word would buy is not running
-Whisper at all, which is a battery argument on a machine that is plugged in.
+Whisper at all, which is a battery argument on a machine that is plugged in.~~
+
+> **Both halves of that are now wrong** *(checked 09/02/2026)*. Still not built — but "not
+> wanted" no longer follows, and the thing that made it hard has gone away.
+>
+> **The corpus objection is dead, and Piper killed it.** openWakeWord's own training path
+> generates its positive samples *synthetically with Piper* — `rhasspy/piper-sample-generator`
+> — thousands of pronunciations across voices, speeds and pitches, layered with reverb and
+> noise. **She already ships Piper.** The 2026 Colab notebooks train a custom word in about
+> 75–90 minutes. The output is a **~200 KB ONNX model**, and `Octavia.Core` already carries
+> ONNX Runtime for Silero VAD, so *running* it adds no dependency at all — it slots in exactly
+> where the VAD already sits, in front of Whisper instead of behind it.
+>
+> **And the argument against was written for a different machine.** *"A battery argument on a
+> machine that is plugged in"* was fair when she was a window somebody opened. She is an
+> always-on service now, and since item 6 a room can be left listening — so **Whisper
+> large-v3-turbo runs on every utterance in the room, on eight CPU threads, indefinitely**.
+> That is no longer a battery cost; it is a permanent CPU cost and, more to the point, it
+> means *everything said in that room is transcribed*. A wake word moves the always-on layer
+> from a 1.6 GB speech model to 200 KB of ONNX, and nothing gets transcribed until she is
+> addressed.
+>
+> **What she has today is the second half, not the first.** `AttentionGate` decides whether an
+> utterance was *meant* for her — her name is an unconditional yes, follow-ups inside the
+> window pass, fragments are dropped, and only genuinely ambiguous lines cost a local model
+> call. Nothing paid is ever reached without it. So she already behaves correctly; the
+> difference a wake word makes is **where the filtering happens**, not whether it happens.
+>
+> One practical note from the research: **a two-word phrase trains far better than one.** *"Hey
+> Octavia"* has a much stronger acoustic signature than *"Octavia"* alone, and that was the
+> single biggest factor in model quality across configurations. `WakeNames` is already a
+> comma-separated config value, so the transcript-matching half needs no change to agree with
+> it.
+>
+> The one real cost: the *training* pipeline is pinned to 2022-era PyTorch and TensorFlow and
+> is unpleasant to stand up locally, which is why the Colab notebooks exist. Train it once,
+> off this machine, and ship the `.onnx`.
 
 **Presence detection is not built.** It needs the camera, and it waits with it.
 
