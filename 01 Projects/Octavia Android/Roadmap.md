@@ -508,6 +508,19 @@ puts her in the tray and she keeps running.
 `look`. She keeps her room, her voice and her face identity, and that is all. Everything
 beyond it needs item 6 first, and would want a person's consent besides.
 
+## Stage 6 — Always-on listening *(done 09/02/2026, 0.12.0)*
+
+Her item 6, built from both sides. **Tap toggles, hold talks**, and the placard is true.
+
+- **Gating is the defence and it lives here**, because only this side knows when her voice
+  actually left the speaker. 74 seconds of her own voice into an open microphone produced no
+  utterance; 3226 frames were held back.
+- **Echo cancellation is a bonus.** `VOICE_COMMUNICATION` plus `AcousticEchoCanceler` for
+  always-on only — the vendor effects attach to no other source — and push-to-talk keeps
+  `VOICE_RECOGNITION`. Fluence on the 11T Pro, a software effect on the J7: availability is
+  not effectiveness, which is why nothing depends on it.
+- **A press is never gated.** It is somebody deliberately talking over her.
+
 ## Stage 4 — The house
 
 `hello` gains whatever Stage 12 gives it, and this app shows it. Not designed yet, because

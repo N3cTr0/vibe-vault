@@ -12,6 +12,8 @@ package com.n3ctr0.octavia.audio
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.media.MediaRecorder
 import android.util.Log
 
@@ -42,6 +44,8 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
     }
 
     private var record: AudioRecord? = null
+    private var canceller: AcousticEchoCanceler? = null
+    private var suppressor: NoiseSuppressor? = null
     private var thread: Thread? = null
 
     @Volatile private var running = false
@@ -55,9 +59,24 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
      * Begins capture. The caller must already hold `RECORD_AUDIO` — this returns false
      * rather than throwing if the device refuses, so a mic button can go back up instead of
      * the app dying in someone's hand.
+     *
+     * @param cancelEcho Ask the platform to cancel this device's own output.
+     *
+     * **Only for always-on listening, and it changes the audio source to get it.** The good
+     * canceller on this hardware is Qualcomm's Fluence, in
+     * `/vendor/lib/soundfx/libqcomvoiceprocessing.so`, and it attaches to
+     * `VOICE_COMMUNICATION` — never to `VOICE_RECOGNITION`, which is otherwise the better
+     * source for a recogniser and is what push-to-talk keeps. So the trade is made only
+     * where it buys something: a held button has no echo problem worth paying telephony
+     * gain and noise-shaping for.
+     *
+     * It is a bonus rather than a dependency. Gating on [VoicePlayer.audible] is what
+     * actually stops her transcribing herself, on every device including one whose canceller
+     * is a generic software effect. This buys **barge-in** — interrupting her mid-sentence —
+     * where the hardware is good enough, and is absent rather than broken where it is not.
      */
     @SuppressLint("MissingPermission")
-    fun start(): Boolean {
+    fun start(cancelEcho: Boolean = false): Boolean {
         if (running) return true
         bytesSent = 0
 
@@ -71,8 +90,10 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
                 // VOICE_RECOGNITION rather than MIC: it asks the platform for the
                 // processing chain tuned for speech, and on most devices declines the
                 // aggressive gain and noise shaping that flatter a voice memo and confuse
-                // a recogniser.
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                // a recogniser. VOICE_COMMUNICATION only when the echo canceller is wanted,
+                // because that is the only source the vendor effects attach to.
+                if (cancelEcho) MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                else MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
@@ -87,6 +108,8 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
             try { r.release() } catch (e: Exception) { Log.w(TAG, "release: ${e.message}") }
             return false
         }
+
+        if (cancelEcho) attachEffects(r.audioSessionId)
 
         record = r
         running = true
@@ -110,8 +133,42 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
         return true
     }
 
+    /**
+     * Attach the platform's echo canceller and noise suppressor, if this device has them.
+     *
+     * **Availability is not effectiveness.** `isAvailable()` was true on both handsets here —
+     * Qualcomm Fluence on one, a generic NXP software effect on the other — and those are not
+     * the same thing at all. Neither is required: every one of these failing leaves gating
+     * doing the work it was always going to do.
+     */
+    private fun attachEffects(session: Int) {
+        try {
+            if (AcousticEchoCanceler.isAvailable()) {
+                canceller = AcousticEchoCanceler.create(session)?.apply { enabled = true }
+                Log.i(TAG, "echo canceller: ${if (canceller?.enabled == true) "on" else "refused"}")
+            } else {
+                Log.i(TAG, "no echo canceller on this device; gating alone")
+            }
+
+            if (NoiseSuppressor.isAvailable()) {
+                suppressor = NoiseSuppressor.create(session)?.apply { enabled = true }
+            }
+        } catch (e: Exception) {
+            // Never fatal. A microphone that records is worth more than one that cancels.
+            Log.w(TAG, "could not attach the voice effects: ${e.message}")
+        }
+    }
+
+    private fun releaseEffects() {
+        try { canceller?.release() } catch (e: Exception) { Log.w(TAG, "canceller: ${e.message}") }
+        try { suppressor?.release() } catch (e: Exception) { Log.w(TAG, "suppressor: ${e.message}") }
+        canceller = null
+        suppressor = null
+    }
+
     fun stop() {
         if (!running && record == null) return
+        releaseEffects()
         running = false
         thread?.interrupt()
         thread = null

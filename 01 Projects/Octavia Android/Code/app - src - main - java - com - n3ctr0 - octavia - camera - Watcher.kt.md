@@ -73,10 +73,14 @@ class Watcher(private val context: Context) {
     private var previous: FloatArray? = null
     private var lastAt = 0L
 
+    /** When the motion reading was last written down. See `onFrame`. */
+    private var lastSaid = 0L
+
     /* Smoothed centroid in frame fractions, starting where a person usually is. Held
        across frames, which is why this is state rather than a local. */
     private var x = 0.5f
     private var y = 0.42f
+    private var centreY = 0.42f
 
     val running: Boolean get() = owner != null
 
@@ -117,7 +121,7 @@ class Watcher(private val context: Context) {
             .build()
 
         previous = null
-        x = 0.5f; y = 0.42f; lastAt = 0L
+        x = 0.5f; y = 0.42f; centreY = 0.42f; lastAt = 0L
 
         analysis.setAnalyzer(executor) { image ->
             try { onFrame(image, front, onGaze) } finally { image.close() }
@@ -178,15 +182,40 @@ class Watcher(private val context: Context) {
                 sy += (i / W) * d
             }
         }
+        /* Throttled to once every two seconds, and it earns its place: "she is not following
+           me" is otherwise unanswerable from here. `sum` says whether the camera saw motion
+           at all, and the gaze says where it put her — two very different failures that look
+           identical from in front of the screen. */
+        if (now - lastSaid > 2000) {
+            lastSaid = now
+            Log.i(TAG, "motion %.2f (needs > %.2f), gaze %.2f, %.2f"
+                .format(sum, ENOUGH, (0.5f - x) * 0.8f, (centreY - y) * 0.55f))
+        }
+
         if (sum <= ENOUGH) return
 
         x += (sx / sum / W - x) * 0.25f
         y += (sy / sum / H - y) * 0.25f
 
+        /* **Where "level" is, learned rather than assumed.**
+         *
+         * `watch.js` treats 0.42 down the frame as eye level, which is right for a webcam
+         * clipped to a monitor and wrong for a handset — propped on a desk or held in a
+         * hand, it looks up at you from below. Measured on the 11T Pro the centroid sat at
+         * ~0.71 for a solid fifteen seconds, so she was told to look **down**, hard, the
+         * entire time. She was tracking perfectly and staring at the floor, which from in
+         * front of the screen is indistinguishable from not tracking at all.
+         *
+         * So the vertical centre drifts towards wherever the person actually is, over about
+         * six seconds. A steady position decays to level and only *movement* deflects her.
+         * Horizontal is left alone: left and right of a phone are real directions, and the
+         * measurements showed no bias there to correct. */
+        centreY += (y - centreY) * 0.02f
+
         /* Mirrored, like looking in a mirror: move to your left and her eyes go to your
            left. The vertical span is smaller because standing up should raise her gaze,
            not roll her eyes at the ceiling. Both spans are hers. */
-        onGaze((0.5f - x) * 0.8f, (0.42f - y) * 0.55f)
+        onGaze((0.5f - x) * 0.8f, (centreY - y) * 0.55f)
     }
 
     /**

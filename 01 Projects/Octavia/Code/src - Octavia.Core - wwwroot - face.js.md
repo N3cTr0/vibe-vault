@@ -71,7 +71,20 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
 
-  const fit = Math.max(1, 1.42 / Math.min(camera.aspect, 1.3));
+  /* How far back to stand, and **the floor under the aspect is what makes her the right
+     size on a phone**.
+
+     The rule fits her *width*: a narrower viewport shows less across at a given distance, so
+     the camera retreats in proportion. That is right down to about a square, and wrong past
+     it. A handset in portrait is ~0.63, which asked for 2.25× — more than twice the desktop's
+     retreat — and she arrived as a small figure adrift in a tall empty room. She is a tall,
+     narrow subject: below square the limit stops being her width and becomes the height of
+     the screen, which no amount of backing away improves.
+
+     So the aspect is clamped at both ends. Anything narrower than 0.9 is framed as if it were
+     0.9, which crops nothing — there is nothing beside her — and gives back the third of the
+     screen she was losing. */
+  const fit = Math.max(1, 1.42 / Math.min(Math.max(camera.aspect, 0.9), 1.3));
   const offset = (frame.offset ?? 0) / fit;
   camera.position.set(
     frame.target.x + offset,

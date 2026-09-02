@@ -231,6 +231,21 @@ class MainActivity : ComponentActivity() {
            panel that owned the camera. */
         senses.release()
 
+        /* **Turning the phone is not looking away.**
+         *
+         * A rotation destroys this activity and builds it again in place, so `onStop` runs
+         * for something the person experiences as the screen turning round. Treating that as
+         * leaving started the tray service and then stopped it milliseconds later from the
+         * new `onStart` — before the service had reached `startForeground` — and Android kills
+         * an app that breaks that contract outright:
+         * `ForegroundServiceDidNotStartInTimeException`, which is what a rotation looked like
+         * from the outside. It also dropped and reopened her socket every time the screen
+         * turned, which is the very churn keeping it in a ViewModel exists to avoid.
+         *
+         * The ViewModel survives a configuration change, so there is nothing to do here: she
+         * is still connected on the other side of it. */
+        if (isChangingConfigurations) return
+
         // Her tray. Off, this is the behaviour every version up to 0.9.2 had.
         if (settings.stayConnected) OctaviaService.start(this) else model.release()
     }

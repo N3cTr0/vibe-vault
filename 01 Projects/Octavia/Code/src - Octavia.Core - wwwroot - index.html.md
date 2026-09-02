@@ -146,6 +146,12 @@ source-path: src\Octavia.Core\wwwroot\index.html
 
   <div class="dbody" data-body="settings" hidden>
     <div class="dscroll">
+      <!-- Whatever the thing showing this page says it owns: the handset's address, room and
+           camera; a desktop client's hotkey. Empty and hidden in a browser tab, which owns
+           nothing. The page never asks *which* client it is — it renders what it is handed,
+           which is the whole point of the embedder seam. -->
+      <div id="deviceBox" hidden></div>
+
       <label class="field-row" for="avatar">
         <span class="label">Appearance</span>
         <select id="avatar"></select>

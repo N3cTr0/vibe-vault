@@ -125,13 +125,38 @@ internal static class RoomChecks
                 face.Any(phone, "notice"), "ignored in silence, which reads as broken");
             Check("a refusal announces nothing", !face.Any(phone, "hello"));
 
+            /* `listen` is deliberately **not** in this list any more, and its absence is the
+               whole of Stage 14 item 6. From the desk it means "open the microphone on the
+               machine she runs on" and is hers to protect; from a room it means "transcribe
+               what I am already sending you", which is a claim about the sender's own device
+               and has nothing here to refuse. It is checked on its own below. */
             foreach (var kind in new[]
-                     { "listen", "setMicrophone", "setOutput", "setMusic", "openDataFolder", "saveDiagnostics" })
+                     { "setMicrophone", "setOutput", "setMusic", "openDataFolder", "saveDiagnostics" })
             {
                 face.Clear();
                 face.From(phone, new { type = kind, value = "" });
                 Check($"'{kind}' from another room is refused", face.Any(phone, "notice"));
             }
+
+            /* Item 6: a room asking to listen is answered rather than refused — and, more to
+               the point, **it must not touch this machine's microphone on the way**. That is
+               the fault item 9 exists to prevent arriving through the one door item 6 opens,
+               so it is worth asserting both halves rather than only the friendly one. */
+            face.Clear();
+            face.From(phone, new { type = "listen" });
+
+            Check("'listen' from another room is not refused any more",
+                !face.Any(phone, "notice"),
+                "item 6 gave a room its own ears; something still says they belong to the desk");
+
+            Check("...and it did not open this machine's microphone",
+                !Log.Tail(20).Any(line => line.Contains("listening on '")),
+                "a phone asking to be heard opened the desk's microphone");
+
+            // Left as it was found, so the checks after this one are not standing in a room
+            // that is quietly still streaming.
+            face.Clear();
+            face.From(phone, new { type = "listen" });
 
             Check("the microphone was never changed from the phone",
                 config.MicrophoneDevice == "", config.MicrophoneDevice);

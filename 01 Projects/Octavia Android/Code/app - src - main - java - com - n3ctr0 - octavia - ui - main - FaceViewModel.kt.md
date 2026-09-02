@@ -40,6 +40,9 @@ data class FaceState(
     val profile: String = "",
     val protocol: Int = 0,
     val needKey: Boolean = false,
+    /** Whether this device is streaming continuously — Stage 14 item 6. Separate from
+     *  `talking`, which is a finger on a button. */
+    val listening: Boolean = false,
     /** Whether the *host* can stream at all — false on the Windows voice, which cannot be
      *  teed. Reported so this face can say why it is silent rather than look broken. */
     val audioAvailable: Boolean = false,
@@ -69,10 +72,45 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
     private val socket = FaceSocket(this)
     private val voice = VoicePlayer()
 
-    /** Frames go straight out as they are read. There is no buffering to do: she is the
-     *  one deciding what counts as an utterance, and holding audio here would only add
-     *  latency to a decision made at the other end. */
-    private val mic = MicRecorder { frame -> socket.sendAudio(frame) }
+    /**
+     * The microphone, and **the gate that stops her transcribing herself**.
+     *
+     * Frames go straight out as they are read — there is no buffering to do, because she is
+     * the one deciding what counts as an utterance and holding audio here would only add
+     * latency to a decision made at the other end. The one exception is the gate below.
+     *
+     * Stage 14 item 6. While her voice is coming out of this device's speaker, the frames
+     * are dropped rather than sent — the microphone stays open, so there is nothing to
+     * restart and no gap at the end of her sentence, but nothing she said travels back to
+     * her ears as something somebody in the room said.
+     *
+     * **Only while listening continuously.** A held button is a person deliberately speaking
+     * over her, and the first thing `startTalking` does is hush her — so gating a press would
+     * throw away the very words it was pressed for.
+     */
+    private val mic = MicRecorder { frame ->
+        if (listeningOn && !pressing && voice.audible) echoFramesDropped++
+        else socket.sendAudio(frame)
+    }
+
+    /** True while this device is streaming continuously rather than on a held button. */
+    @Volatile private var listeningOn = false
+
+    /**
+     * True while a finger is on the button.
+     *
+     * **The gate must let a press through even while she is speaking**, and leaving this out
+     * cost a whole test round: holding the button during her answer and saying "yes" reached
+     * her ears as *nothing voiced at all*, because the gate was busy suppressing her own
+     * voice and took the words with it. A press is somebody deliberately talking over her —
+     * `startTalking` hushes her for exactly that reason — so it is the one thing the gate
+     * must never swallow.
+     */
+    @Volatile private var pressing = false
+
+    /** Counted rather than inferred, and reported when listening stops: "she started
+     *  answering herself" and "the gate is too keen" look the same from the outside. */
+    @Volatile private var echoFramesDropped = 0L
 
     /**
      * How this face takes a picture, supplied by the activity.
@@ -129,6 +167,9 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
      */
     fun release() {
         stopTalking()
+        // An open microphone must not outlive the screen, whether a finger or a switch
+        // opened it. She closes her side when the face departs.
+        stopListening()
         socket.disconnect()
         // The track holds a hardware buffer; leaving it open through a doze would keep the
         // audio path awake for a conversation nobody is listening to.
@@ -189,14 +230,67 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
             append(Line("", "This device would not open its microphone.", Line.Kind.Notice))
             return "this device would not open its microphone"
         }
+        pressing = true
         _state.update { it.copy(talking = true) }
         return null
+    }
+
+    /**
+     * Start or stop always-on listening in this room — Stage 14 item 6.
+     *
+     * Returns null when it was done, or **why not**, which her page shows to the person who
+     * tapped. The host is told with `listen`, which from a room means *"transcribe what I am
+     * sending"* rather than *"open the microphone on the machine you run on"*.
+     *
+     * **The microphone opens with echo cancellation asked for**, which push-to-talk does not:
+     * see `MicRecorder.start`. Gating does the real work either way.
+     */
+    fun setListening(on: Boolean): String? {
+        if (_state.value.link != FaceSocket.Link.Up) return "not connected to her"
+        if (on == listeningOn) return null
+
+        if (!on) {
+            stopListening()
+            return null
+        }
+
+        // A press already owns the microphone; leave it alone rather than fighting it.
+        if (_state.value.talking) return "let go of the button first"
+
+        if (!mic.start(cancelEcho = true)) {
+            append(Line("", "This device would not open its microphone.", Line.Kind.Notice))
+            return "this device would not open its microphone"
+        }
+
+        listeningOn = true
+        echoFramesDropped = 0
+        socket.send("listen")
+        _state.update { it.copy(listening = true) }
+        return null
+    }
+
+    private fun stopListening() {
+        if (!listeningOn) return
+        listeningOn = false
+
+        // Told first, so she stops expecting audio before it stops arriving.
+        socket.send("listen")
+        if (!_state.value.talking) mic.stop()
+
+        android.util.Log.i("FaceViewModel", "stopped listening; $echoFramesDropped frame(s) held back while she spoke")
+        _state.update { it.copy(listening = false) }
     }
 
     /** The button came up, the app went away, or the link dropped. All three mean release. */
     fun stopTalking() {
         if (!_state.value.talking && !mic.active) return
-        mic.stop()
+
+        pressing = false
+
+        // The stream outlives the press when the room was left listening: the press was a
+        // louder claim laid on top of it, exactly as the host treats the floor.
+        if (!listeningOn) mic.stop()
+
         socket.talking(false)
         _state.update { it.copy(talking = false) }
     }
@@ -214,8 +308,11 @@ class FaceViewModel(private val settings: Settings) : ViewModel(), FaceSocket.Li
             voice.flush()
             // She treats a face that vanishes mid-stream as a release, but the microphone
             // is ours to close — leaving it open would keep recording into a dead socket.
+            // That applies to always-on listening as much as to a held button, and the host
+            // closes its side when the face departs.
+            listeningOn = false
             mic.stop()
-            _state.update { it.copy(talking = false) }
+            _state.update { it.copy(talking = false, listening = false) }
         }
         _state.update { it.copy(link = link, linkDetail = detail) }
     }

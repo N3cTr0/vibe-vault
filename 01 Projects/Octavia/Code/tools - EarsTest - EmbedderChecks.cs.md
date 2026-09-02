@@ -282,7 +282,15 @@ internal static class EmbedderChecks
                     await Eval("String(!document.getElementById('watch').hidden)") == "true",
                     "hidden, on a device holding a camera");
 
+                /* **The hold does not begin the instant the finger lands**, since item 6 gave
+                   the same button a tap as well: starting immediately and cancelling on a
+                   quick release would take and drop the floor on every tap. So every press
+                   check has to outwait `HOLD_AFTER_MS`, and the delay being *wrong* is worth
+                   catching too — a hold that never engages is a microphone button that does
+                   nothing. */
                 await Press("pointerdown");
+                await Task.Delay(600);
+
                 Check("pressing takes the floor through the embedder",
                     (await Calls()).Contains("talking:true"),
                     await Calls());
@@ -301,6 +309,7 @@ internal static class EmbedderChecks
                    press can end has to lead to the same place. */
                 await Eval("window.__calls = []");
                 await Press("pointerdown");
+                await Task.Delay(600);
                 await Press("pointerleave");
                 Check("dragging off the button releases too",
                     (await Calls()).Contains("talking:false"),
@@ -308,9 +317,24 @@ internal static class EmbedderChecks
 
                 await Eval("window.__calls = []");
                 await Press("pointerdown");
+                await Task.Delay(600);
                 await Press("pointercancel");
                 Check("the system taking the gesture releases too",
                     (await Calls()).Contains("talking:false"),
+                    await Calls());
+
+                /* A tap is not a press, and must not become one. Releasing before the hold
+                   engages is how somebody says "leave this listening"; if it took the floor
+                   on the way past, every tap would be a quarter-second of her attention and
+                   a line in her log. This embedder has no `listening`, so the tap has
+                   nowhere to go — which is the point: it still must not talk. */
+                await Eval("window.__calls = []");
+                await Press("pointerdown");
+                await Press("pointerup");
+                await Task.Delay(600);
+
+                Check("a tap is not a press",
+                    !(await Calls()).Contains("talking"),
                     await Calls());
 
                 // The whole reason the button is hidden without an embedder: `listen` drives

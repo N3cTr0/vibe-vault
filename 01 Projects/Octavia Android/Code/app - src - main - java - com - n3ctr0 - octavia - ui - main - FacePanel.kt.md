@@ -25,6 +25,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.n3ctr0.octavia.camera.DeviceSenses
 import com.n3ctr0.octavia.data.Settings
 import com.n3ctr0.octavia.net.FaceSocket
+import com.n3ctr0.octavia.web.DeviceSettings
 import com.n3ctr0.octavia.web.EmbedderBridge
 
 /**
@@ -54,6 +55,12 @@ fun FacePanel(
     config: Settings,
     senses: DeviceSenses?,
     onTalking: suspend (Boolean) -> Unit,
+    /** Always-on listening, from her microphone button's tap. Throws so a refusal reaches
+     *  the page rather than leaving a button that did nothing. */
+    onListening: suspend (Boolean) -> Unit,
+    /** A setting was changed from inside her page. True when the connection has to be
+     *  reopened for it to mean anything. */
+    onChanged: (reconnect: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -93,6 +100,22 @@ fun FacePanel(
                 // wander off to the open web is a different and much worse thing.
                 webViewClient = WebViewClient()
 
+                /* Her page's console, in `adb logcat`.
+                   A WebView swallows `console.*` and every uncaught exception unless asked
+                   for them, so a script error in her renderer presented here as a control
+                   that quietly did nothing — which is exactly how an evening went. On the
+                   desktop this is a keypress away in devtools; on a handset it is nothing at
+                   all without this. */
+                webChromeClient = object : android.webkit.WebChromeClient() {
+                    override fun onConsoleMessage(m: android.webkit.ConsoleMessage): Boolean {
+                        android.util.Log.i(
+                            "FacePage",
+                            "${m.messageLevel()} ${m.message()} (${m.sourceId()}:${m.lineNumber()})"
+                        )
+                        return true
+                    }
+                }
+
                 setBackgroundColor(android.graphics.Color.BLACK)
 
                 /* Offered before the page is loaded, because her renderer reads
@@ -108,6 +131,9 @@ fun FacePanel(
                             senses = senses.lends(),
                             onTalking = onTalking,
                             onWatch = { on -> senses.watch(on) },
+                            onListening = onListening,
+                            describe = { DeviceSettings.describe(config) },
+                            apply = { key, value -> DeviceSettings.apply(config, key, value, onChanged) },
                         ).also { it.attach() }
                     }
 

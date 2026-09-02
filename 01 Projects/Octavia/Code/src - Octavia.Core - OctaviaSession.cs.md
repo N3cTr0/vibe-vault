@@ -127,7 +127,11 @@ internal sealed class OctaviaSession : IDisposable
         // than one of them being ignored.
         _face.AudioReceived += (from, pcm) =>
         {
-            if (_floor == from) _faceMic?.Push(pcm, pcm.Length);
+            // Either claim will do: a held button, or a room that has been left listening.
+            // Still exactly one face at a time — two rooms mixed into one sentence is worse
+            // than one of them being ignored.
+            if (_floor == from || (_floor is null && _openFace == from))
+                _faceMic?.Push(pcm, pcm.Length);
         };
 
         // A phone that walks out of range must not hold her ears for ever, and must not
@@ -135,6 +139,11 @@ internal sealed class OctaviaSession : IDisposable
         _face.FaceDeparted += from =>
         {
             if (_floor == from) ReleaseFloor("disconnected and so released");
+
+            // A handset that walked out of range is not a room that is still listening, and
+            // leaving it open would hold her ears for a device that is gone.
+            if (_openFace == from) CloseRoomListening("the face left");
+
             Departed(from);
         };
 
@@ -180,7 +189,60 @@ internal sealed class OctaviaSession : IDisposable
     /// Whose words the recogniser is currently turning into text. The floor-holder's room
     /// while a face holds it, this machine's otherwise — the ears follow the microphone,
     /// not the machine the engine happens to run on.
-    private RoomId EarsRoom => _floor is { } holder ? RoomOf(holder).Id : RoomId.Host;
+    ///
+    /// **Live, and therefore only right while somebody is still speaking.** A finished
+    /// utterance is attributed with `_owed` instead; see the note there.
+    ///
+    /// A press wins over an open room: the floor is the louder claim, and it is what a person
+    /// just did rather than what they switched on earlier.
+    private RoomId EarsRoom =>
+        _floor is { } holder ? RoomOf(holder).Id
+        : _openFace is { } streaming ? RoomOf(streaming).Id
+        : RoomId.Host;
+
+    /// <summary>
+    /// The utterance that has been flushed but not yet transcribed, and who it belongs to.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// **Transcription outlives the press, and nothing used to carry the speaker across the
+    /// gap.** `talking:false` releases the floor synchronously — `_floor` becomes null — and
+    /// only then does `Flush` hand the samples to Whisper, which answers on its own thread
+    /// some time later. By then `EarsRoom` reads the empty floor and says `host`, so a
+    /// sentence spoken into a phone was judged by the *desktop's* attention gate and, if it
+    /// survived that, answered in the desktop's room. `_attending` was already set correctly
+    /// by `TakeFloor` and `RespondTo` promptly overwrote it with the wrong one.
+    ///
+    /// It is latched here at flush time instead, and read exactly once by whoever the words
+    /// turn out to belong to.
+    ///
+    /// `Deliberate` rides along because the same gap hides the other half: **a held button
+    /// has already said "this is for you"**, so the gate must not second-guess it. The code
+    /// claimed push-to-talk bypassed the gate; it did not, and anything under twelve
+    /// characters was dropped as *"too short to be addressed to anyone"* — press, say "yes",
+    /// get ignored. `RoomChecks` runs with `Gate = "off"`, which is why the one harness that
+    /// drives a face taking the floor could never see it.
+    /// </remarks>
+    private (RoomId Room, bool Deliberate)? _owed;
+
+    /// <summary>The face streaming its microphone continuously, and the room it is in.</summary>
+    ///
+    /// <remarks>
+    /// **Stage 14 item 6.** A room asking to `listen` is not asking to open the microphone on
+    /// the machine she runs on — it is saying *"transcribe what I am sending"*. That is the
+    /// same message meaning two different things in two places, which is what item 3 of Stage
+    /// 15 concluded it should mean everywhere once the server holds no device at all.
+    ///
+    /// **Deliberately not the floor.** `_floor` is a single holder with a sixty-second limit,
+    /// and a face that simply held it forever would starve the desk and then time out. This is
+    /// a separate, quieter claim: the room is *open*, and a press can still take the floor on
+    /// top of it and hand it back afterwards.
+    ///
+    /// One at a time, because the recogniser has one source and one voice — the same reason
+    /// rooms are serialised everywhere else.
+    /// </remarks>
+    private FaceId? _openFace;
+    private RoomId _openRoom = RoomId.Host;
 
     private Room RoomOf(FaceId face) =>
         RoomNamed(_where.TryGetValue(face, out var id) ? id : RoomId.Host);
@@ -490,6 +552,22 @@ internal sealed class OctaviaSession : IDisposable
         Seen(inbound.From);
         var room = RoomOf(inbound.From);
 
+        /* **`listen` means two different things, and which one depends on where it came
+           from.** From the desk it is *"open the microphone on the machine she runs on"*, and
+           that is hers to protect. From anywhere else it is *"transcribe what I am already
+           sending you"* — a claim about the sender's own device, not about hers, so there is
+           nothing there to refuse. Stage 15 item 3 concludes it should mean only the second
+           thing everywhere, once the server holds no device at all.
+
+           Checked before the authority table rather than inside it, because the table answers
+           "may this room drive that hardware" and this is no longer a question about
+           hardware. */
+        if (kind == "listen" && room.Id != RoomId.Host)
+        {
+            ToggleRoomListening(inbound.From, room);
+            return;
+        }
+
         if (HostOnly.Contains(kind) && room.Id != RoomId.Host)
         {
             Refuse(inbound.From, room.Id, kind);
@@ -509,6 +587,19 @@ internal sealed class OctaviaSession : IDisposable
                 Join(inbound.From, RoomId.Named(Text(message, "room")));
                 room = RoomOf(inbound.From);
                 _senses[inbound.From] = Senses(message);
+
+                /* **A room cannot be listening through a face that is not this one.**
+                   Killing an app does not close its socket politely, so the server can hold a
+                   dead face for as long as it takes a keepalive to give up — and during that
+                   window the room is still "open" through it. The replacement face then
+                   arrives, is told `listening: true` because the *room* is open, shows a lit
+                   microphone button, and is ignored: its audio is not the open face's.
+                   Blue button, deaf room, nothing in the log.
+
+                   A fresh `ready` in a listening room means its client has changed, so the
+                   honest state is off. One tap starts it again, against a face that exists. */
+                if (_openFace is { } holder && _openRoom == room.Id && holder != inbound.From)
+                    CloseRoomListening("the face that opened it was replaced");
 
                 if (_faceBuilt) Log.Write("face ready; scene built");
                 else Log.Warn("face ready but the scene did not build - check WebGL support and the browser console");
@@ -753,7 +844,10 @@ internal sealed class OctaviaSession : IDisposable
         voice = _voice.CurrentVoice,
         voiceEngine = _voice is NeuralVoice ? "neural" : "windows",
         ears = _ears?.EngineName ?? "not started",
-        listening = _wantsToListen,
+        /* Per face, because "is she listening" is a question about a *room*. The desk asks
+           about this machine's microphone; a handset asks whether the stream it is sending
+           is being transcribed. One flag answered both and was wrong for one of them. */
+        listening = room.Id == RoomId.Host ? _wantsToListen : _openRoom == room.Id,
         avatar = AvatarUrl(),
         avatarFile = _config.AvatarFile ?? "",
         avatars = Avatars(),
@@ -1212,13 +1306,38 @@ internal sealed class OctaviaSession : IDisposable
 
     private void OnHeard(string text, float confidence)
     {
-        if (_responding) return;
+        /* She is mid-turn, so this is somebody talking over her — and one of her cannot hold
+           two threads at once, which is the same serialisation rooms already live under.
+           **Said out loud now.** It was a bare `return`, and a room left listening makes it
+           the most likely way an utterance dies: she answers at length, somebody speaks over
+           the end of it, and nothing anywhere records that she heard and discarded them. */
+        if (_responding)
+        {
+            Log.Write($"heard while she was still answering, so let go: {text}");
+            return;
+        }
+
         if (text.Length < _config.MinUtteranceChars) return;
+
+        /* Peeked, not taken — `Consider` is what consumes it. A press is a *request*, so the
+           thresholds that exist to keep the room's chatter out do not apply to it: somebody
+           held a button and spoke, and dropping that on a confidence score is the same
+           silence as ignoring them. Whisper is also least confident exactly where a phone is
+           worst — a room mic at arm's length — so this fired most often on the face that
+           could least afford it. */
+        var asked = _owed?.Deliberate == true;
 
         if (confidence < _config.MinConfidence)
         {
-            Log.Debug($"discarded (confidence {confidence:0.00}): {text}");
-            return;
+            if (!asked)
+            {
+                Log.Debug($"discarded (confidence {confidence:0.00}): {text}");
+                return;
+            }
+
+            // Info rather than debug: this one was asked for, so if she gets it wrong the
+            // reason has to be findable without turning debug logging on.
+            Log.Write($"low confidence ({confidence:0.00}) but it was asked for: {text}");
         }
 
         Consider(text).Forget("weighing something overheard");
@@ -1233,11 +1352,21 @@ internal sealed class OctaviaSession : IDisposable
            other — the desk being mid-exchange must not make a second room's gate believe it
            is too, because "follow-up" is the rule that would then fire on a stranger.
 
-           In practice only the host room ever reaches here: push-to-talk bypasses the gate
-           entirely, since a held button has already answered the question it asks. Scoped
-           rather than built out, exactly as the spec asked. */
-        var room = RoomNamed(EarsRoom);
-        var verdict = await room.Gate.JudgeAsync(text);
+           **Taken from `_owed` when a press is waiting to be attributed**, and only then from
+           the live floor. Transcription finishes long after the button comes up, so reading
+           `EarsRoom` here answered "host" for every sentence ever spoken into a phone. */
+        var owed = _owed;
+        _owed = null;
+
+        var room = RoomNamed(owed?.Room ?? EarsRoom);
+
+        /* A held button has already answered the question the gate asks, so it is not asked.
+           This is what the comment here used to claim was happening. It was not: the gate
+           judged push-to-talk too, and dropped anything under twelve characters — so
+           pressing and saying "yes" reached her ears, her recogniser, and nothing else. */
+        var verdict = owed?.Deliberate == true
+            ? new Verdict(true, "asked for", TimeSpan.Zero)
+            : await room.Gate.JudgeAsync(text);
 
         if (verdict.Answer)
         {
@@ -1353,12 +1482,22 @@ internal sealed class OctaviaSession : IDisposable
         if (_pressing != from || _floor is not null) return;
 
         _floor = from;
-        _faceMic = new FaceAudioSource($"a face ({from})");
 
-        // The local microphone is muted for *speech* — she must not transcribe a blend of
-        // this room and the other one. It keeps running for the room-music analyser, which
-        // is a different question entirely. See the note on _localMic.
-        recogniser.UseSource(_faceMic);
+        /* **A room that is already listening is already streaming through a source**, and
+           building a second one would leave the first attached to nothing while its frames
+           kept arriving — a press inside a listening room would go deaf. The floor is a claim
+           on the stream, not a replacement for it. */
+        var already = _openFace == from && _faceMic is not null;
+
+        if (!already)
+        {
+            _faceMic = new FaceAudioSource($"a face ({from})");
+
+            // The local microphone is muted for *speech* — she must not transcribe a blend of
+            // this room and the other one. It keeps running for the room-music analyser, which
+            // is a different question entirely. See the note on _localMic.
+            recogniser.UseSource(_faceMic);
+        }
 
         /* Then started, in that order and never the other way round: `Start` opens the local
            microphone if it has not been given a source, which is the one thing a phone
@@ -1369,7 +1508,7 @@ internal sealed class OctaviaSession : IDisposable
            so without this the ears would be open, the source right, and nothing heard. */
         recogniser.Unmute();
         recogniser.Start();
-        _faceMic.Start();
+        if (!already) _faceMic!.Start();
 
         _floorTimeout = new System.Threading.Timer(
             _ => ReleaseFloor("timed out"), null, FloorLimit, Timeout.InfiniteTimeSpan);
@@ -1380,6 +1519,117 @@ internal sealed class OctaviaSession : IDisposable
         _attending = asking.Id;
 
         Log.Write($"face {from} has the floor, in room '{asking.Id}'");
+    }
+
+    // ---- always-on listening, in a room ----------------------
+
+    /// <summary>Stage 14 item 6: a room asks to be listened to, or asks to stop.</summary>
+    ///
+    /// <remarks>
+    /// **Not the floor**, for the reasons in the note on `_openFace`. A press still works on
+    /// top of this and hands control back afterwards.
+    ///
+    /// **One at a time.** She has one recogniser, one source and one voice, so two rooms
+    /// streaming at once is not a thing she can do — the same serialisation that already
+    /// governs turns. The second asker is told out loud rather than left wondering, which is
+    /// the rule item 9 set for every other collision.
+    /// </remarks>
+    private void ToggleRoomListening(FaceId from, Room room)
+    {
+        if (_openFace == from)
+        {
+            CloseRoomListening("asked to stop");
+            return;
+        }
+
+        if (_openFace is { } other)
+        {
+            Notice(room, $"She is already listening in '{RoomOf(other).Id}'.");
+            return;
+        }
+
+        /* The desk holds the recogniser's source while it is listening, and taking it would
+           silently deafen somebody standing at the machine. Refused rather than stolen. */
+        if (_wantsToListen)
+        {
+            Notice(room, "She is listening at the desk. Stop that first.");
+            return;
+        }
+
+        OpenRoomListening(from, room).Forget("opening a room's ears");
+    }
+
+    private async Task OpenRoomListening(FaceId from, Room room)
+    {
+        var ears = await EnsureEarsAsync();
+
+        if (ears is not WhisperRecognizer recogniser)
+        {
+            Notice(room, "Her ears would not start.");
+            return;
+        }
+
+        // Asking twice while the model loaded, or walking away in the middle of it.
+        if (_openFace is not null || !KnownFaces().Contains(from)) return;
+
+        _openFace = from;
+        _openRoom = room.Id;
+        _faceMic = new FaceAudioSource($"a room ('{room.Id}')");
+
+        recogniser.UseSource(_faceMic);
+        recogniser.Unmute();
+        recogniser.Start();
+        _faceMic.Start();
+
+        // The same thing the desk shows when its own ears open. Without it the room's pill
+        // read "idle" while she was listening to it, which is the interface disagreeing with
+        // the microphone — the one disagreement none of this is allowed to have.
+        if (room.State is AgentState.Idle) SetState(room, AgentState.Listening);
+
+        Log.Write($"listening continuously to room '{room.Id}' (face {from})");
+        Announce();
+    }
+
+    /// <summary>Stop, and put the ears back where they were.</summary>
+    ///
+    /// **`UseSource` starts what it is given**, so handing back the local microphone when
+    /// nobody at the desk asked for it would open this machine's microphone because somebody
+    /// switched something off on a phone. That is the fault item 9 exists to prevent, and it
+    /// has arrived through this door once already — see `ReleaseFloor`.
+    private void CloseRoomListening(string why)
+    {
+        if (_openFace is not { } was) return;
+
+        var room = _openRoom;
+        _openFace = null;
+        _openRoom = RoomId.Host;
+
+        if (_ears is WhisperRecognizer recogniser)
+        {
+            // Whatever was mid-sentence belongs to the room that was speaking, not to
+            // whoever speaks next. Same latch the floor uses, and for the same reason.
+            if (recogniser.Flush()) _owed = (room, Deliberate: false);
+
+            if (_wantsToListen)
+            {
+                if (_localMic is not null) recogniser.UseSource(_localMic);
+            }
+            else recogniser.Stop();
+        }
+
+        // Only if the floor is not using it. A press taken while the room was open owns the
+        // source until it is released, and tearing it down here would cut that sentence off.
+        if (_floor is null)
+        {
+            _faceMic?.Dispose();
+            _faceMic = null;
+        }
+
+        var stopped = RoomNamed(room);
+        if (stopped.State is AgentState.Listening) SetState(stopped, AgentState.Idle);
+
+        Log.Write($"stopped listening to room '{room}' ({why}; face {was})");
+        Announce();
     }
 
     private void ReleaseFloor(string why)
@@ -1396,9 +1646,19 @@ internal sealed class OctaviaSession : IDisposable
            for ever by something that is no longer there. */
         if (_ears is WhisperRecognizer recogniser)
         {
-            recogniser.Flush();
+            // Latched before the source is swapped away, because the words are still coming
+            // and this is the last moment anything knows whose they are. See `_owed`.
+            if (recogniser.Flush()) _owed = (RoomOf(held).Id, Deliberate: true);
 
-            if (_wantsToListen)
+            /* A room that was already listening keeps listening. The press was a louder claim
+               laid on top of a quieter one, so letting go returns to it rather than ending
+               both — otherwise pressing the button inside a room that is listening would
+               *switch off* the thing the person had deliberately left on. */
+            if (_openFace is not null)
+            {
+                // The stream never stopped; only the floor's claim on it did.
+            }
+            else if (_wantsToListen)
             {
                 if (_localMic is not null) recogniser.UseSource(_localMic);
             }
@@ -1413,8 +1673,12 @@ internal sealed class OctaviaSession : IDisposable
             }
         }
 
-        _faceMic?.Dispose();
-        _faceMic = null;
+        // Kept when a room is still streaming through it; it was never the floor's to own.
+        if (_openFace is null)
+        {
+            _faceMic?.Dispose();
+            _faceMic = null;
+        }
 
         Log.Write($"face {held} {why} the floor");
     }

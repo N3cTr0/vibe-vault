@@ -45,6 +45,23 @@ class OctaviaService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * **The promise is kept here, not in `onStartCommand`, and that is the whole point.**
+     *
+     * `startForegroundService` opens a short window in which this service *must* call
+     * `startForeground` or the system kills the app —
+     * `ForegroundServiceDidNotStartInTimeException`. Doing it in `onStartCommand` looks
+     * equivalent and is not: a `stopService` arriving in between means `onStartCommand` never
+     * runs, the promise is never kept, and the app dies for a service it had already been told
+     * to abandon. Rotating the handset did exactly that.
+     *
+     * `onCreate` always runs, and runs first. The caller's race can no longer reach it.
+     */
+    override fun onCreate() {
+        super.onCreate()
+        startForeground(ID, notification())
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_RELEASE) {
             // The person asked her to go. Stopping the service is only half of it — the
@@ -56,9 +73,9 @@ class OctaviaService : Service() {
             return START_NOT_STICKY
         }
 
-        startForeground(ID, notification())
+        /* Already foreground from `onCreate`; nothing to do but stay running.
 
-        /* NOT sticky. A restart by the system would recreate this service with no activity
+           NOT sticky. A restart by the system would recreate this service with no activity
            behind it — a notification saying she is here, attached to nothing, and no way to
            tell the difference from the outside. */
         return START_NOT_STICKY

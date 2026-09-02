@@ -108,6 +108,16 @@ fun FaceScreen(
                    the person is looking at, and the only thing that can tell them why the
                    button they just pressed did nothing. */
                 onTalking = onTalking,
+                /* Her microphone button, tapped rather than held: leave this device
+                   listening. The refusal travels, because a tap that silently does nothing
+                   is the failure `micAccepted` exists to prevent, in a new place. */
+                onListening = { on ->
+                    viewModel.setListening(on)?.let { why -> throw IllegalStateException(why) }
+                },
+                /* Changed from inside her Settings panel. Only the four that describe the
+                   connection reopen it; a camera choice is read at every use and a
+                   background switch at every stop, so neither needs anything restarted. */
+                onChanged = { reconnect -> if (reconnect) viewModel.reconnect() },
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

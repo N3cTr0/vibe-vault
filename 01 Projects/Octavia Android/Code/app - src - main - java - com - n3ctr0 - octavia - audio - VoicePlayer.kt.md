@@ -32,6 +32,10 @@ class VoicePlayer {
     private companion object {
         const val TAG = "VoicePlayer"
 
+        /** How long after the last written frame she is still assumed to be audible: the
+         *  track's own buffer (~180 ms at her rates) plus a beat of room reverb. */
+        const val TAIL_MS = 400L
+
         /** Matches the host's own bound. Old audio is worthless: a device that cannot keep
          *  up should hear a gap and catch up, rather than drift further behind for the rest
          *  of the utterance. The host drops the oldest for the same reason. */
@@ -120,6 +124,7 @@ class VoicePlayer {
 
                 try {
                     track?.write(frame, 0, frame.size)
+                    lastWrote = android.os.SystemClock.elapsedRealtime()
                 } catch (e: Exception) {
                     Log.w(TAG, "write failed: ${e.message}")
                 }
@@ -136,6 +141,26 @@ class VoicePlayer {
      *  track is started" is not evidence that she was heard. Bytes are. */
     @Volatile var bytesThisUtterance = 0L; private set
     @Volatile var dropped = 0L; private set
+
+    /** When a frame was last handed to the track. */
+    @Volatile private var lastWrote = 0L
+
+    /**
+     * Whether her voice is coming out of this device's speaker **right now**.
+     *
+     * **This is the whole of Stage 14 item 6's defence, and it lives here for a reason.** The
+     * host knows when it *sent* audio; it does not know when this handset's speaker emitted
+     * it, nor when it stopped — the queue, the track's own buffer and the radio all sit in
+     * between. That gap is exactly why her in-process `Mute()`/`Unmute()` does not survive a
+     * network, and why always-on listening in a room needed solving here rather than there.
+     *
+     * This side knows precisely. The tail covers what has been written but not yet played —
+     * the track buffer is about 180 ms — plus a moment of room reverb, because a microphone
+     * hears the wall a beat after the speaker has finished.
+     */
+    val audible: Boolean
+        get() = queue.isNotEmpty() ||
+            (lastWrote != 0L && android.os.SystemClock.elapsedRealtime() - lastWrote < TAIL_MS)
 
     /** One binary frame from the socket. Never blocks the caller. */
     fun play(frame: ByteArray) {

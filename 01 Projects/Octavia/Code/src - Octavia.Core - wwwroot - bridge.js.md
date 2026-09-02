@@ -439,6 +439,14 @@ function applyControls(value) {
   controls = value === 'room' ? 'room' : 'host';
   const hidden = controls !== 'host';
 
+  /* Worth a line, because everything the microphone button does hangs off it and the three
+     ways it can be wrong — the wrong room, no embedder, an embedder that predates item 6 —
+     are indistinguishable from the outside. A shell that forwards its console (the Android
+     client does) turns "the button did nothing" into a sentence. */
+  console.info('controls: ' + controls +
+    ', lent: ' + ([...lent].join(',') || 'nothing') +
+    ', can toggle listening: ' + canToggleListening());
+
   // `style.display` rather than `hidden`, because these rows are laid out with `display`
   // and a class rule would win against the attribute.
   document.querySelectorAll('[data-host-only]')
@@ -450,9 +458,116 @@ function applyControls(value) {
      back as press-and-hold. See the note on `holdToTalk`. */
   talkBtn.hidden = hidden && !lent.has('mic');
 
-  const holding = hidden && lent.has('mic');
-  talkBtn.title = holding ? 'Hold to talk' : 'Listen (Ctrl+Alt+O)';
-  talkBtn.setAttribute('aria-label', holding ? 'Hold to talk' : 'Toggle listening');
+  /* In a room it does both since item 6: tap to leave her listening, hold to say one thing.
+     The desk keeps its single meaning, because there is nothing there to hold — its
+     microphone is hers and `listen` is the only verb it has. */
+  const inRoom = hidden && lent.has('mic');
+  const both = inRoom && canToggleListening();
+
+  talkBtn.title = both ? 'Tap to listen, hold to talk'
+                : inRoom ? 'Hold to talk'
+                : 'Listen (Ctrl+Alt+O)';
+
+  // The label says the action, the title is the tooltip. They differ in the host room
+  // because the shortcut belongs in one and not the other.
+  talkBtn.setAttribute('aria-label', inRoom ? talkBtn.title : 'Toggle listening');
+}
+
+/* ---- the settings that belong to the thing showing this page ----------------
+
+   Her settings describe *her*: a voice, an avatar, how the room is lit. They are the same
+   from every face because there is one of her. A client has settings of its own — which
+   server it dialled, which room it is standing in, which of its two cameras it lends — and
+   those were living in a long-press on an invisible corner of the Android app, which is a
+   fine recovery path and a poor place to keep a setting somebody wants to change.
+
+   **The page does not know or ask what it is embedded in.** The embedder hands over a list
+   of fields and takes back values; a Windows client would describe its hotkey the same way
+   and get the same rendering. Special-casing one client here is exactly how a renderer stops
+   being a renderer — see the note on `embedder` above. */
+
+function deviceField(field) {
+  const row = document.createElement('label');
+  row.className = 'field-row';
+
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = field.label ?? field.key;
+  row.appendChild(label);
+
+  let input;
+
+  if (field.type === 'switch') {
+    input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = !!field.value;
+  } else if (field.type === 'choice') {
+    input = document.createElement('select');
+    for (const option of field.options ?? []) {
+      const el = document.createElement('option');
+      el.value = option.value;
+      el.textContent = option.label ?? option.value;
+      input.appendChild(el);
+    }
+    input.value = field.value ?? '';
+  } else {
+    input = document.createElement('input');
+    // `password` keeps a remote key off the screen in a room somebody else can see.
+    input.type = field.type === 'password' ? 'password'
+               : field.type === 'number' ? 'number' : 'text';
+    input.value = field.value ?? '';
+  }
+
+  input.id = `device-${field.key}`;
+  row.htmlFor = input.id;
+  row.appendChild(input);
+
+  if (field.hint) {
+    const hint = document.createElement('span');
+    hint.className = 'hint';
+    hint.textContent = field.hint;
+    row.appendChild(hint);
+  }
+
+  /* `change`, not `input`: an address being typed is not an address, and saving on every
+     keystroke would have the client reconnecting to `10.1.1.2` on the way to `10.1.1.21`. */
+  input.addEventListener('change', () => {
+    const value = field.type === 'switch' ? input.checked
+                : field.type === 'number' ? Number(input.value)
+                : input.value;
+
+    Promise.resolve(embedder.set(field.key, value)).catch(error => {
+      notify(`That setting would not save: ${error.message}`);
+    });
+  });
+
+  return row;
+}
+
+async function renderDeviceSettings() {
+  const box = document.getElementById('deviceBox');
+  if (!box || !embedder || typeof embedder.settings !== 'function') return;
+
+  let fields;
+  try {
+    fields = await embedder.settings();
+  } catch (error) {
+    // Not fatal and not silent: her own settings still work, and the reason is findable.
+    console.warn('the embedder would not describe its settings', error);
+    return;
+  }
+
+  if (!Array.isArray(fields) || fields.length === 0) return;
+
+  box.replaceChildren();
+
+  const heading = document.createElement('div');
+  heading.className = 'device-heading';
+  heading.textContent = embedder.name ?? 'This device';
+  box.appendChild(heading);
+
+  for (const field of fields) box.appendChild(deviceField(field));
+  box.hidden = false;
 }
 
 function applyHello(msg) {
@@ -554,9 +669,11 @@ function applyHello(msg) {
     window.Face.setHour(msg.roomHour >= 0 ? msg.roomHour : null);
   }
 
-  // Only in the host room. Elsewhere this button is held rather than toggled, and its
-  // pressed state belongs to the finger on it rather than to her microphone.
-  if (controls === 'host') talkBtn.setAttribute('aria-pressed', String(!!msg.listening));
+  /* `listening` is per room since item 6, so this is true wherever the button is. The one
+     exception is a finger currently on it: a hold owns the pressed state for as long as it
+     lasts, and letting a `hello` overwrite it mid-press would show the button coming back up
+     while somebody is still speaking into it. */
+  if (!holdingFloor) talkBtn.setAttribute('aria-pressed', String(!!msg.listening));
 
   // A face that attached mid-session has missed whatever she is currently doing and
   // wearing, and neither is re-sent until it next changes.
@@ -808,12 +925,89 @@ function holdToTalk(on) {
    covers the system taking the gesture away, which on a phone is a scroll or a call
    arriving. `blur` and `visibilitychange` cover the app going to the background mid-press.
    `holdToTalk` is idempotent, so the overlap costs nothing. */
-talkBtn.addEventListener('pointerdown', e => { e.preventDefault(); holdToTalk(true); });
-talkBtn.addEventListener('pointerup', () => holdToTalk(false));
-talkBtn.addEventListener('pointerleave', () => holdToTalk(false));
-talkBtn.addEventListener('pointercancel', () => holdToTalk(false));
-window.addEventListener('blur', () => holdToTalk(false));
-document.addEventListener('visibilitychange', () => { if (document.hidden) holdToTalk(false); });
+/* Always-on listening in a room, item 6. The shell streams continuously and stops her
+   hearing herself; this page only says when to start and when to stop.
+
+   `listening` is optional on the embedder: a shell that predates item 6, or one that cannot
+   cancel its own echo well enough to try, simply does not offer it and the button stays a
+   push-to-talk. The page finding out by asking is the same shape as `senses`. */
+let listeningHere = false;
+
+function canToggleListening() {
+  return !!embedder && typeof embedder.listening === 'function' && lent.has('mic');
+}
+
+function toggleListening() {
+  if (!canToggleListening()) return;
+
+  const wanted = !listeningHere;
+
+  Promise.resolve(embedder.listening(wanted))
+    .then(() => {
+      listeningHere = wanted;
+      // Her `hello` says so too, and agrees — but the button should not wait a round trip
+      // to show what the finger just did.
+      talkBtn.setAttribute('aria-pressed', String(wanted));
+    })
+    .catch(err => {
+      notify(err && err.message || 'This device would not start listening.');
+      send({ type: 'faceError', text: `listening failed: ${err && err.message || err}` });
+    });
+}
+
+/* **Tap toggles, hold talks** — the same button doing what the desk's does and what a
+   walkie-talkie does, because on a room face it is now capable of both. Stage 14 item 6 gave
+   a room always-on listening; push-to-talk stays because a held button is still the exact,
+   deliberate way to say something, and it bypasses her attention gate where always-on cannot.
+
+   The hold does not begin until the finger has been down a moment. Starting it immediately
+   and cancelling on a quick release would take and drop the floor on every tap, which is a
+   line in her log and a moment of her attention for something the person meant as a switch.
+   The cost is a quarter-second before a hold begins, and nobody speaks in that quarter
+   second — they are still pressing. */
+const HOLD_AFTER_MS = 250;
+let holdTimer = null;
+
+function beginPress() {
+  if (holdTimer !== null) return;
+  holdTimer = setTimeout(() => { holdTimer = null; holdToTalk(true); }, HOLD_AFTER_MS);
+}
+
+function endPress(tapped) {
+  if (holdTimer !== null) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+
+    /* Released before the hold began, so it was a tap. In the host room the click handler
+       already sends `listen` on this socket.
+
+       **In a room it must go through the embedder**, for the same reason `talking` does: the
+       microphone belongs to the shell, which holds its own connection, and the host binds
+       "the face that is streaming" to whoever asked. Sent from here it would name *this*
+       panel — a face with no microphone — and every frame the shell then sent would be
+       dropped as coming from somebody else. */
+    if (tapped && controls !== 'host') toggleListening();
+    return;
+  }
+
+  holdToTalk(false);
+}
+
+talkBtn.addEventListener('pointerdown', e => { e.preventDefault(); beginPress(); });
+talkBtn.addEventListener('pointerup', () => endPress(true));
+
+/* Every other way a press can end, and none of them is a tap.
+
+   A held button that never releases holds her ears until the host's sixty-second timeout,
+   which is the failure this cannot be allowed to have. `pointerleave` makes dragging off
+   cancel, which is what a person expects; `pointercancel` covers the system taking the
+   gesture away, which on a phone is a scroll or a call arriving. `blur` and
+   `visibilitychange` cover the app going to the background mid-press. `holdToTalk` is
+   idempotent, so the overlap costs nothing. */
+talkBtn.addEventListener('pointerleave', () => endPress(false));
+talkBtn.addEventListener('pointercancel', () => endPress(false));
+window.addEventListener('blur', () => endPress(false));
+document.addEventListener('visibilitychange', () => { if (document.hidden) endPress(false); });
 hushBtn.addEventListener('click', () => send({ type: 'hush' }));
 el('forget').addEventListener('click', () => send({ type: 'forget' }));
 
@@ -1188,6 +1382,11 @@ setTimeout(() => {
     setTimeout(finishSplash, 1200);
   }
 }, 15000);
+
+/* Drawn once, on the way up, and not on every `hello`: these belong to the client rather
+   than to her, so nothing the host says can change them, and re-reading would throw away a
+   half-typed address. In a browser tab there is no embedder and this does nothing at all. */
+renderDeviceSettings();
 
 /* `ready` is how a face introduces itself, so it is sent from the socket's `open` handler
    and from nowhere else — see `connectSocket`. Every reconnection is a new introduction. */

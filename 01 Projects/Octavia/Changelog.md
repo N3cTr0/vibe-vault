@@ -16,6 +16,191 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.28.1 — 2026-09-02
+
+**She was too small on a phone**, and the framing rule says why. It fits her *width*: a
+narrower viewport shows less across at a given distance, so the camera retreats in proportion.
+Right down to about square, and wrong past it. A handset in portrait is about **0.63**, which
+asked the camera to stand back **2.25×** — more than twice the desktop's retreat — and she
+arrived as a small figure adrift in a tall empty room.
+
+She is a tall, narrow subject. Below square the limit stops being her width and becomes the
+height of the screen, and no amount of backing away improves that. The aspect is clamped at
+both ends now, so anything narrower than 0.9 is framed as if it were 0.9 — which crops nothing,
+because there is nothing beside her.
+
+**The desktop is untouched**, and measurably so: its stage sits around 1.85 and still clamps to
+1.3, for the same `fit` of 1.09 it always had. Only portrait moved.
+
+## 0.28.0 — 2026-09-02
+
+**Stage 14 item 6: a room can be left listening.** The last thing the Windows client could do
+that a handset could not, and the last item of Stage 14. Specced first, in the vault as
+*Stage 14 — Always-On Listening In A Room*.
+
+Her placard has said *"Press the microphone, or say her name"* on every face for months. On a
+phone the second half was a lie until now.
+
+### `listen` means two different things
+
+From the desk it is *"open the microphone on the machine she runs on"*, and that is hers to
+protect — it is why the authority table exists at all. From a room it is *"transcribe what I
+am already sending you"*: a claim about the sender's own device, with nothing here to refuse.
+So it is answered before the host-only table rather than inside it, because it stopped being a
+question about her hardware. Stage 15 item 3 concludes it should mean only the second thing
+everywhere, once the server holds no device.
+
+### Being listened to is not holding the floor
+
+`_floor` is a single holder with a sixty-second limit. A face that simply held it would starve
+the desk and then time out, so a room being *open* is a separate, quieter claim: `_openFace`
+and `_openRoom`, no timer, and audio accepted from either claim.
+
+**A press still works on top of it and hands back afterwards.** Pressing the button inside a
+room that is listening must not switch off the thing somebody deliberately left on — so
+`ReleaseFloor` returns to the open stream instead of stopping the ears, and `TakeFloor` reuses
+the source that is already streaming rather than building a second one and going deaf.
+
+One room at a time. She has one recogniser, one source and one voice, which is the same
+serialisation turns already live under, and the second asker is told out loud.
+
+### The echo is answered on the client, and it has to be
+
+`Mute()`/`Unmute()` works at the desk because everything is on one clock. The host knows when
+it *sent* her voice; it does not know when a handset's speaker emitted it, nor when it
+stopped. **The client knows both exactly**, because it owns the track — so the suppression
+lives there and nothing about it crosses the socket. See the Android client's v0.12.0.
+
+Measured: 74 seconds of her own voice into an open microphone produced no utterance at all.
+
+### Two things that were true and invisible
+
+**A listening room did not look like one.** Only the watch button had a pressed state, so a
+microphone left listening looked identical to one switched off — and switching it off looked
+exactly like the tap not working, which is how it was first reported. The room's state was
+never set either, so the pill read `idle` while she was listening to it. Both are the
+interface disagreeing with the microphone.
+
+The first fix for that was itself wrong, and only a person watching could have caught it: the
+new pressed style used its own colour, so when she began *answering* the existing
+`data-state="listening"` rule stopped applying and the button turned black mid-reply, then
+blue again afterwards, for a switch nobody had touched. Two visual languages for one thing.
+Cobalt now means *this microphone is open* whatever she is doing with it, and the halo still
+animates only while she is listening.
+
+**A room cannot be listening through a face that is not there.** Killing an app does not close
+its socket politely, so the server can hold a dead face until a keepalive gives up. The
+replacement face arrives, is told `listening: true` because the *room* is open, lights its
+microphone button — and is ignored, because its audio is not the open face's. Blue button,
+deaf room, nothing in the log, and it was reported in exactly those words. Departure closes it
+and a fresh `ready` in a listening room closes it too, so neither has to be the one that works.
+
+**`OnHeard` opened with a bare `if (_responding) return;`.** With a room left listening, that
+becomes the most likely way an utterance dies: she answers at length, somebody speaks over the
+end of it, and nothing anywhere records that she heard them and let go. Rooms are serialised
+and that is correct; being silent about it is not. It is the fourth mute failure found in her
+ears in two versions.
+
+### The checks changed with the contract
+
+`'listen' from another room is refused` was guarding the old design and now asserts the new
+one — *and* that it still does not open the desk's microphone on the way, because that is the
+fault item 9 exists to prevent arriving through the one door item 6 opens. `a tap is not a
+press` is new: a tap that took the floor on its way past would spend a quarter-second of her
+attention and a line in her log every time somebody flipped a switch.
+
+The embedder press checks now outwait the hold delay, which is a real change in feel worth
+stating: **the hold does not engage for 250 ms**, so that a tap and a press can share one
+button. Nobody speaks in that quarter second — they are still pressing.
+
+## 0.27.0 — 2026-09-02
+
+**A client's own settings are drawn in her Settings panel now**, above hers, under a heading
+the client chooses. The owner's words: *"it should go — if this is an android client show
+these settings, if it is the windows client show those."*
+
+On the handset they lived behind a **long press on an invisible corner of the screen**. That
+began as a recovery path, and a good one: a wrong address leaves an app whose page cannot
+load, and then there is no panel to open — which is exactly where that handset was on
+09/01/2026, and it took `adb` to get out of. But a recovery path is a poor place to keep a
+setting somebody wants to change, and choosing which camera she looks through is not an
+emergency. The long press stays for the case it was built for.
+
+**The page is handed fields and never told what it is embedded in.** `window.OctaviaEmbedder`
+gains `name`, `settings()` and `set(key, value)`; `bridge.js` renders whatever comes back —
+text, number, password, switch, choice — and hands changes straight back. Nothing in the page
+mentions Android, which is the rule the seam was written under in v0.25.0: *the page
+special-casing one client is how a renderer stops being a renderer*. A Windows client
+describing its hotkey through the same call would get the same rows for free.
+
+A browser tab has no embedder, so the section is absent rather than empty. The credential is a
+password field, because it was previously drawn in clear text at full width — not a secret
+from the person holding the phone, and very much one from whoever is standing behind them.
+
+**The reply channel grew a value.** `talking` and `watch` only ever needed to succeed or fail;
+`settings` has an *answer*, so a reply now carries one when there is one.
+
+## 0.26.2 — 2026-09-02
+
+**Nothing spoken into a phone had ever reached her.** Found while specifying Stage 14 item 6,
+which cannot be built on a path that does not work. Three faults in the gap between a button
+coming up and the words existing — transcription is asynchronous, and everything here assumed
+it was not.
+
+### The transcript was produced and thrown away
+
+`ReleaseFloor` flushes, which hands the samples to Whisper and returns immediately. Then, when
+nobody at the desk is listening, the very next line calls `recogniser.Stop()` — which clears
+`_wantListening`. A second later transcription finishes, finds the flag down, and returns
+without telling anyone.
+
+**So the floor was taken, the audio arrived, Whisper ran, and the log showed a press followed
+by nothing.** It worked at the desk because `_wantsToListen` is true there and `Stop` is never
+reached; it could never work from a room, which is the only place that path is used.
+
+`_muted` and `_wantListening` guard *incoming* audio. Applying them to words already in flight
+was the bug. A flushed utterance is somebody's deliberate act and is delivered whatever the
+flags have done since; the voice detector's own segments still respect them, because those
+really are the room being overheard.
+
+### The words were attributed to the wrong room
+
+`talking:false` clears `_floor` synchronously, so by the time the transcript existed `EarsRoom`
+read the empty floor and answered `host`. A sentence spoken into a phone was judged by the
+**desktop's** attention gate and, if it survived that, answered in the desktop's room —
+`RespondTo` overwriting the correct `_attending` that `TakeFloor` had just set.
+
+Latched at flush time now, in `_owed`, and read once by whoever the words turn out to belong
+to. `Flush` returns whether a transcript is actually coming, so a latch is never left standing
+for a press that caught nothing.
+
+### The gate judged push-to-talk, which the code said it did not
+
+> *"push-to-talk bypasses the gate entirely, since a held button has already answered the
+> question it asks"*
+
+It did not. Everything the recogniser produces goes through `OnHeard` whatever source it came
+from, so a held button was judged like anything overheard — and the gate drops anything under
+twelve characters as *"too short to be addressed to anyone"*. Press, say "yes", get ignored.
+
+**`RoomChecks` builds its session with `Gate = "off"`**, so the one harness that drives a face
+taking the floor is the one that could not see this.
+
+A press bypasses the gate now, and an asked-for utterance that scores below `MinConfidence` is
+logged and kept rather than dropped at debug level — Whisper is least confident exactly where a
+phone is worst, a microphone at arm's length, so that filter fired hardest on the face that
+could least afford it.
+
+### Four ways to lose an utterance, all of them mute
+
+That is why this survived twenty-six versions. Every silent path says something now: a press
+with nothing voiced in it, a press Whisper found no words in, and a low-confidence transcript
+that was asked for anyway. *"I pressed the button and nothing happened"* was indistinguishable
+from four different failures.
+
+Confirmed from the handset: press, speak, `turn in room 'phone'`. Twice, plus a deliberate
+empty press that reported itself. 288 assertions still pass.
+
 ## 0.26.1 — 2026-09-02
 
 **Her ears open when the server starts**, and that closes Stage 14 item 11 — the last open

@@ -205,6 +205,20 @@ body[data-state="listening"] #talk::after{animation:halo 1.4s infinite}
 #watch svg{width:17px;height:17px}
 #watch[aria-pressed="true"]{background:var(--alert);border-color:var(--alert);color:#fff;opacity:1}
 
+/* A microphone left listening, item 6.
+
+   **The same cobalt the rule above already uses**, and that is the point rather than a
+   coincidence. This started as its own colour and was immediately wrong in a way only a
+   person watching could catch: `data-state="listening"` paints the button blue while she is
+   listening, so the moment she began *answering* that rule stopped applying and the new one
+   took over — the button turned black mid-reply and blue again afterwards, for a switch
+   nobody had touched. Two visual languages for one thing, disagreeing.
+
+   So: cobalt means *this microphone is open*, whatever she happens to be doing with it, and
+   the halo above still animates only while she is actually listening. Not the camera's red —
+   that means "a lens is open and recording you" and should keep meaning only that. */
+#talk[aria-pressed="true"]{background:var(--cobalt);border-color:var(--cobalt);color:#fff;opacity:1}
+
 /* The field is opened by #typeBtn and takes the room it needs only then. `.grow`
    holds the space open when it is shut, so the drawer button stays where it was and
    the row does not jump as the field appears. */
@@ -374,6 +388,24 @@ body:not(.loading) #splash{opacity:0;visibility:hidden;pointer-events:none}
 #entries .empty{padding-left:0;padding-right:0}
 
 /* settings */
+
+/* The client's own settings, above hers and marked off from them, because "which server did
+   this handset dial" and "what does she sound like" are questions about different things and
+   only one of them follows her from face to face. */
+#deviceBox{
+  display:flex;flex-direction:column;gap:18px;
+  padding-bottom:20px;margin-bottom:4px;border-bottom:1px solid var(--rule,rgba(0,0,0,.12));
+}
+.device-heading{
+  font-family:var(--mono);font-size:var(--t-label);letter-spacing:var(--track);
+  text-transform:uppercase;color:var(--ink-faint);
+}
+#deviceBox input[type=text],#deviceBox input[type=number]{
+  font:inherit;padding:10px 12px;border:1px solid var(--rule,rgba(0,0,0,.18));
+  border-radius:8px;background:var(--field,#fff);color:inherit;
+}
+#deviceBox input[type=checkbox]{width:auto;align-self:flex-start}
+
 .field-row{display:flex;flex-direction:column;gap:7px}
 .field-row .label{
   font-family:var(--mono);font-size:var(--t-label);letter-spacing:var(--track);text-transform:uppercase;color:var(--ink-faint);

@@ -140,7 +140,13 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     /// is a far better end marker than 800 ms of quiet: it is exact, it costs no latency,
     /// and it cannot be fooled by someone pausing mid-thought. The voice detector still
     /// decides for the local microphone, which has nothing better to go on.
-    public void Flush()
+    ///
+    /// **Returns whether a transcript is actually coming.** Transcription is asynchronous, so
+    /// the caller has already moved on by the time the words exist — and a caller that needs
+    /// to remember *who was speaking* has to know whether there is anything left to remember
+    /// it for. Below `MinVoicedSeconds` there is not, and a latch set anyway would still be
+    /// waiting when somebody else spoke next.
+    public bool Flush()
     {
         float[]? samples;
 
@@ -158,10 +164,17 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
             _vad.Reset();
         }
 
-        if (samples is null) return;
+        if (samples is null)
+        {
+            // "Press" would be a lie half the time now: a room switching its listening off
+            // flushes through here too, and there was never a button.
+            Log.Write("the utterance ended with nothing voiced in it");
+            return false;
+        }
 
         Hypothesised?.Invoke("…");
-        _ = TranscribeAsync(samples);
+        _ = TranscribeAsync(samples, asked: true);
+        return true;
     }
 
     public void Mute()
@@ -303,13 +316,40 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
         }
     }
 
-    private async Task TranscribeAsync(float[] samples)
+    /// <param name="asked">
+    /// Whether somebody deliberately ended this utterance, as opposed to the voice detector
+    /// deciding they had stopped talking.
+    /// </param>
+    ///
+    /// <remarks>
+    /// **`_muted` and `_wantListening` guard incoming audio, not words already in flight, and
+    /// conflating the two threw away every sentence ever spoken into a phone.**
+    ///
+    /// Releasing the button calls `ReleaseFloor`, which flushes — starting this — and then,
+    /// when nobody at the desk is listening, calls `Stop()` on the very next line. `Stop`
+    /// clears `_wantListening`. Transcription finishes a second or two later, finds the flag
+    /// down, and returns without a word to anyone. The floor was taken, the audio arrived,
+    /// Whisper ran, and the log showed a press followed by nothing at all.
+    ///
+    /// A flushed utterance is somebody's deliberate act and is delivered whatever the flags
+    /// have done since. The detector's own segments still respect them: those are the room
+    /// being overheard, which is exactly what the flags exist to stop.
+    /// </remarks>
+    private async Task TranscribeAsync(float[] samples, bool asked = false)
     {
         try
         {
             var result = await _whisper.TranscribeAsync(samples);
-            if (_muted || !_wantListening || result.Text.Length == 0) return;
-            if (!result.Text.Any(char.IsLetterOrDigit)) return;
+
+            if (result.Text.Length == 0 || !result.Text.Any(char.IsLetterOrDigit))
+            {
+                // Never silently, now. "I pressed the button and nothing happened" was
+                // indistinguishable from four other failures, all of them mute.
+                if (asked) Log.Write("the utterance was flushed but Whisper heard no words in it");
+                return;
+            }
+
+            if (!asked && (_muted || !_wantListening)) return;
 
             Recognized?.Invoke(result.Text, result.Confidence);
         }

@@ -47,6 +47,12 @@ class EmbedderBridge(
     private val senses: List<String>,
     private val onTalking: suspend (Boolean) -> Unit,
     private val onWatch: suspend (Boolean) -> Unit,
+    /** Start or stop always-on listening. Throws with a sentence her page shows. */
+    private val onListening: suspend (Boolean) -> Unit = { },
+    /** This app's own settings, as fields her page can draw. Empty means it draws nothing. */
+    private val describe: () -> JSONArray = { JSONArray() },
+    /** Apply one of them. Throws with a sentence a person can read; the page shows it. */
+    private val apply: (String, Any?) -> Unit = { _, _ -> },
 ) {
 
     companion object {
@@ -128,6 +134,20 @@ class EmbedderBridge(
                 }
             }
 
+            /* Stage 14 item 6. Like `talking`, this must drive the **native** socket: the
+               host binds "the face that is streaming" to whoever asked, and asking from the
+               panel would name a face with no microphone and drop every frame the app then
+               sent. */
+            "listening" -> scope.launch {
+                try {
+                    onListening(arg)
+                    answer(reply, id, null)
+                } catch (e: Exception) {
+                    Log.w(TAG, "listening($arg) refused: ${e.message}")
+                    answer(reply, id, e.message ?: "this device could not start listening")
+                }
+            }
+
             "watch" -> scope.launch {
                 try {
                     onWatch(arg)
@@ -140,13 +160,32 @@ class EmbedderBridge(
                 }
             }
 
+            /* What this app owns, described rather than drawn. The page renders whatever it
+               is handed and never learns it is talking to Android — a Windows client would
+               describe its hotkey the same way and get the same rows. */
+            "settings" -> answer(reply, id, null, describe())
+
+            "set" -> {
+                val key = call.optString("key")
+                try {
+                    apply(key, call.opt("arg"))
+                    answer(reply, id, null)
+                } catch (e: Exception) {
+                    Log.w(TAG, "set($key) refused: ${e.message}")
+                    answer(reply, id, e.message ?: "that setting would not save")
+                }
+            }
+
             else -> answer(reply, id, "no such call")
         }
     }
 
-    private fun answer(reply: JavaScriptReplyProxy, id: Int, error: String?) {
+    private fun answer(reply: JavaScriptReplyProxy, id: Int, error: String?, value: Any? = null) {
         val out = JSONObject().put("id", id).put("ok", error == null)
         if (error != null) out.put("error", error)
+        // `settings` has an answer rather than merely succeeding, so a reply carries a value
+        // when there is one. `talking` and `watch` never set it and the page never reads it.
+        if (value != null) out.put("value", value)
         try { reply.postMessage(out.toString()) } catch (e: Exception) {
             Log.w(TAG, "could not answer the page: ${e.message}")
         }
@@ -180,27 +219,31 @@ class EmbedderBridge(
                 var waiting = pending.get(m.id);
                 if (!waiting) return;
                 pending.delete(m.id);
-                if (m.ok) waiting.resolve();
+                if (m.ok) waiting.resolve(m.value);
                 else waiting.reject(new Error(m.error || 'this device refused'));
               };
             }
             return p;
           }
 
-          function call(method, arg) {
+          function call(method, arg, key) {
             return new Promise(function (resolve, reject) {
               var p = port();
               if (!p) { reject(new Error('this device is not listening')); return; }
               var id = next++;
               pending.set(id, { resolve: resolve, reject: reject });
-              p.postMessage(JSON.stringify({ id: id, method: method, arg: arg }));
+              p.postMessage(JSON.stringify({ id: id, method: method, arg: arg, key: key }));
             });
           }
 
           window.OctaviaEmbedder = {
+            name: 'This phone',
             senses: $list,
             talking: function (held) { return call('talking', !!held); },
-            watch: function (on) { return call('watch', !!on); }
+            watch: function (on) { return call('watch', !!on); },
+            listening: function (on) { return call('listening', !!on); },
+            settings: function () { return call('settings'); },
+            set: function (key, value) { return call('set', value, key); }
           };
         })();
         """.trimIndent()

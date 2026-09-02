@@ -16,6 +16,119 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.12.0 — 2026-09-02
+
+**Stage 14 item 6: this device can be left listening**, against her v0.28.0. The last thing
+the Windows client could do that this one could not, and the end of Stage 14. Her placard has
+said *"Press the microphone, or say her name"* on every face for months; here the second half
+was a lie until now.
+
+**Tap toggles, hold talks.** The same button does what the desk's does and what a
+walkie-talkie does. A hold waits 250 ms before engaging, so a tap does not take and drop the
+floor on its way past.
+
+### The gate, which is the whole defence
+
+Her `Mute()`/`Unmute()` works at the desk because everything is on one clock. The host knows
+when it *sent* her voice; it cannot know when this handset's speaker emitted it, nor when it
+stopped — the queue, the track's buffer and the radio all sit in between. **This side knows
+both exactly**, so the suppression lives here and nothing about it crosses the socket.
+
+While her voice is audible, microphone frames are dropped rather than sent. The microphone
+stays open, so there is no gap to close at the end of her sentence.
+
+Measured: 74 seconds of her own voice into an open microphone produced **no utterance at
+all** — 3226 frames held back while she spoke.
+
+### Echo cancellation is a bonus, not a dependency
+
+Always-on opens the microphone as `VOICE_COMMUNICATION` and attaches `AcousticEchoCanceler`,
+because that is the only source the vendor effects attach to — `libqcomvoiceprocessing` never
+attaches to `VOICE_RECOGNITION`, which push-to-talk keeps because it is the better source for
+a recogniser and a held button has no echo problem worth paying telephony gain for.
+
+Measured first, on both handsets: Qualcomm Fluence on the 11T Pro, a generic NXP software
+effect on the J7. Availability is not effectiveness, which is exactly why gating does the work
+and this only buys barge-in where the hardware is good enough.
+
+### The one that cost a test round
+
+The gate must **never** swallow a press. The first build gated on `listeningOn && audible`,
+which is right until somebody holds the button *while she is speaking* — which is precisely
+when they most mean it, and why `startTalking` hushes her. A held button and the word "yes"
+reached her as *nothing voiced at all*. The doc comment above the code had said so all along;
+the code had not.
+
+### Her page's console, in logcat
+
+A WebView swallows `console.*` and every uncaught exception unless asked for them, so a script
+error in her renderer presented here as a control that quietly did nothing — which is how an
+hour went, chasing a face id across restarts. On the desktop this is a keypress away in
+devtools; on a handset it was nothing at all.
+
+## 0.11.0 — 2026-09-02
+
+**Her settings panel is where this app's settings live now**, against her v0.27.0. The
+owner's words: *"I don't like that hidden setup menu… if this is an android client show
+these settings, if it's the windows client show those."*
+
+The long press on an invisible corner stays, because the reason it exists has not gone away:
+a wrong address leaves a page that cannot load, and then there is no panel to open. It is a
+recovery path again rather than the only way in.
+
+`DeviceSettings` describes the seven fields — address, port, credential, room, camera, speak
+here, stay in the background — and applies them. **Only the four that describe the connection
+reopen it**; a camera choice is read at every use and the background switch at every stop, so
+neither restarts anything. The credential became a password field on the way: not a secret
+from the person holding the phone, and very much one from whoever is behind them.
+
+### Turning the phone killed it
+
+`ForegroundServiceDidNotStartInTimeException`, and two separate faults behind it.
+
+**A rotation is not looking away.** The activity is destroyed and rebuilt in place, so
+`onStop` ran for something the person experiences as the screen turning round — starting the
+tray service, which the new `onStart` stopped milliseconds later, before the service had
+reached `startForeground`. Android kills an app that breaks that contract. It was also
+dropping and reopening her socket on every rotation, which is the churn keeping it in a
+ViewModel exists to prevent. `isChangingConfigurations` answers the question exactly.
+
+**And the service now keeps its promise in `onCreate`.** Doing it in `onStartCommand` looks
+equivalent and is not: a `stopService` arriving in between means `onStartCommand` never runs,
+so the promise is never kept and the app dies for a service it had already been told to
+abandon. `onCreate` always runs, and runs first.
+
+Verified: four rotations through both landscape orientations, same process throughout, no
+crash and no stray notification.
+
+### She was following you and staring at the floor
+
+*"I am convinced she isn't following me."* She was — the measurements settled it, and they
+also showed why it did not look like it:
+
+```
+motion 35.14 (needs > 0.80), gaze  0.01, -0.14
+motion 46.82 (needs > 0.80), gaze -0.02, -0.15
+motion 34.01 (needs > 0.80), gaze -0.17, -0.18
+```
+
+Motion twenty to fifty times over the threshold and real horizontal tracking, with the
+**vertical pinned at −0.14 to −0.21 out of a ±0.23 range** for fifteen seconds. Working back,
+the motion centroid sat about 71% down the frame — so she was being told to look down, hard,
+the whole time.
+
+`watch.js` treats 0.42 down the frame as eye level, which is right for a webcam clipped to a
+monitor and wrong for a handset propped on a desk looking up at you. **Level is learned now**,
+drifting towards wherever the person actually is over about six seconds, so a steady position
+decays to level and only movement deflects her. Horizontal is untouched — left and right of a
+phone are real directions and the measurements showed no bias to correct.
+
+After: `-0.13, -0.09, -0.07, -0.09, -0.01, -0.04`. Level, and moving when you do.
+
+The watcher also reports motion and gaze every two seconds now. *"She is not following me"*
+was unanswerable from here, and the two failures it could have been — a camera seeing nothing,
+and a camera seeing you and aiming wrong — look identical from in front of the screen.
+
 ## 0.10.0 — 2026-09-02
 
 **Stage 7: she stays when you look away**, which is the last thing the Windows client could
