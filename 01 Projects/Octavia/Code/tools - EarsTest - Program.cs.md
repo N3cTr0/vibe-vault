@@ -23,6 +23,7 @@ if (args.Length > 0 && args[0] == "rooms") { Environment.Exit(await RoomChecks.R
 if (args.Length > 0 && args[0] == "embedder") { Environment.Exit(EmbedderChecks.Run()); }
 if (args.Length > 0 && args[0] == "split") { Environment.Exit(SplitChecks.Run()); }
 if (args.Length > 0 && args[0] == "unifi") { Environment.Exit(await UnifiChecks.RunAsync()); }
+if (args.Length > 0 && args[0] == "toolloop") { await ToolLoopProbe.RunAsync(); return; }
 // `remotekey` checks it, `remotekey show` prints it, `remotekey roll` replaces it. Nothing
 // in Settings displays the key yet, so without these the only way to read the secret a
 // phone has to be told is to open data\remote.key by hand.

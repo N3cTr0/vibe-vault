@@ -109,7 +109,7 @@ internal sealed class OctaviaSession : IDisposable
             StartTools().Forget("starting the tool servers");
         _brain = string.Equals(config.Brain, "local", StringComparison.OrdinalIgnoreCase)
             ? new LocalBrain(config)
-            : new ClaudeBrain(config);
+            : new ClaudeBrain(config, _tools);
         Log.Write($"brain: {_brain.Description}");
         _voice = new SapiVoice(config);
         Listen(_voice);

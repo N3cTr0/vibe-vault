@@ -18,6 +18,51 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.29.0 — 2026-09-02
+
+**She can use her hands.** Asked *"what hardware is on my network right now?"*, she answered
+*"There's a Dream Machine Pro SE acting as your gateway, and a UniFi AC Pro access point."*
+Nobody named a tool. That is Stage 12's point reached: the seam from v0.17.0, a real server
+from v0.28.3, and the last hop between them.
+
+The safe shape the roadmap specified was followed literally. `Ask()` builds the request with
+two separate object initializers rather than one and a conditional assignment, so *identical
+when there is nothing to offer* is something a reader can check rather than something they
+trust a serialiser about. A machine with no servers configured sends exactly the request it
+sent before this existed, and the system-prompt cache breakpoint is untouched.
+
+**Tool calls are assembled from the stream** rather than from a second non-streaming request:
+`content_block_start` opens a call, `input_json_delta` fragments accumulate, and nothing is
+parsed until the block ends. She keeps talking while it happens — *"Let me check that for
+you"* was spoken **before** the call went out, which is the entire reason she streams and is
+what the simpler design would have thrown away.
+
+**Four rounds, then she stops and says so.** The failure that guards is a model answering its
+own tool result with another call forever: it costs money every lap and, unlike a slow
+answer, never ends by itself.
+
+**The tool exchange is not written to history.** `Conversation` holds strings, and widening it
+to structured blocks would change every brain and the diagnostics bundle. What the tools said
+is inside the sentence she just spoke, so the next turn keeps the substance and loses only
+the ability to quote the raw result.
+
+**`confirmed` is always false, and that is stated rather than hidden.** Carrying a spoken
+*yes* across turns is its own piece of work; nothing configured today is riskier than a read,
+so a `Confirm` tool returns the registry's refusal and nothing happens. The safe half is
+built and the other half is not — and the other half is where a door gets unlocked.
+
+`EarsTest -- toolloop` proves it against the real API and the real gateway, and is
+deliberately **not** in the default suite: *a self-test that spends money is a bad self-test*
+is already a rule here. Everything up to the last hop stays covered for nothing. 298 pass.
+
+**Claude only.** `LocalBrain` speaks the OpenAI-compatible API and needs its own `tools` array
+and `tool_calls` delta handling, and streaming tool-call support varies across Ollama, LM
+Studio and llama-server. The `home` profile is a local brain, so **on the everyday profile
+she still cannot call a tool.** That is the remaining gap, and it is a far smaller one.
+
+---
+
+
 ## 0.28.3 — 2026-09-02
 
 **She can see the network.** The first real tool server: `tools\unifi-mcp.ps1`, five

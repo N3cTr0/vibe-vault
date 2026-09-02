@@ -866,6 +866,53 @@ calling it done would repeat exactly the mistake this version spent its time und
 **When it is written**, the safe shape is: build the request identically when the registry
 is empty, so a machine with no servers configured is byte-for-byte unaffected.
 
+### It is written — **the loop is built, 09/02/2026, v0.29.0**
+
+She was asked *"what hardware is on my network right now?"* and answered from the gateway:
+*"There's a Dream Machine Pro SE acting as your gateway, and a UniFi AC Pro access point."*
+Nobody named a tool. **That is Stage 12's whole point reached** — the seam, a real server
+and the last hop, all connected.
+
+**The safe shape above was followed literally.** `Ask()` builds the request with two separate
+object initializers rather than one and a conditional assignment, so *"identical when there
+is nothing to offer"* is something a reader can check instead of something they have to
+trust a serialiser about. No `Tools`, no reordering, no extra block — the system-prompt cache
+breakpoint is untouched for everybody with no servers configured.
+
+How it works, and what each decision cost:
+
+- **Tool calls are assembled from the stream**, not from a second non-streaming request.
+  `content_block_start` opens a call, `input_json_delta` fragments accumulate into its
+  arguments, and nothing is parsed until the block ends. She keeps speaking while it happens
+  — *"Let me check that for you"* was spoken before the call went out, which is the whole
+  reason for streaming and would have been lost by the simpler design.
+- **Four rounds, then she stops and says so in the log.** The failure this guards is a model
+  answering its own tool result with another call forever: it costs money every lap and,
+  unlike a slow answer, never ends on its own.
+- **The tool exchange is not written to history.** `Conversation` holds strings, and widening
+  it to structured blocks would change every brain and the diagnostics bundle. Whatever the
+  tools said is inside the sentence she just spoke, so the next turn keeps the substance and
+  loses only the ability to quote the raw result. When that matters it is a real change and
+  belongs on its own.
+- **`confirmed` is always false**, and that is the honest state of it rather than an
+  oversight. Carrying a spoken *yes* from one turn to the next is its own piece of work.
+  Nothing configured today is riskier than a read, so a `Confirm` tool comes back with the
+  registry's refusal, she relays it, and nothing happens. **The safe half is built and the
+  other half is not** — and that is the half where a door gets unlocked, so it is named here
+  rather than assumed.
+
+**Proven by a probe, never by the suite.** `EarsTest -- toolloop` asks two real questions
+against the real API and the real gateway. It is deliberately *not* in the default run:
+*"a self-test that spends money is a bad self-test"* is already written down here, and this
+one spends money every time. Everything up to the last hop stays covered for nothing by
+`ToolChecks` and `UnifiChecks`.
+
+**Claude only, so far.** `LocalBrain` speaks the OpenAI-compatible API and would need its own
+`tools` array and `tool_calls` delta handling — a second implementation, and streaming
+tool-call support varies between Ollama, LM Studio and llama-server. It is not written, and
+it matters: the `home` profile is a local brain, so **on her everyday profile she still
+cannot call a tool.** That is now the gap, and it is a much smaller one than this was.
+
 **Then Home Assistant and UniFi are configuration, not code.** HA ships an MCP server of
 its own; UniFi has community ones, and failing that a small server is a day's work against
 its API. That is the whole return on doing the seam first.
@@ -945,10 +992,10 @@ description that gained a `restart`, a `reset` or an `order` would quietly turn 
 query into something she stops to ask permission for, and nothing else would notice. Broken
 on purpose to watch it go red.
 
-**Still not built: the brain-side tool loop.** She lists five tools and can call none of
-them. That is now the only thing between her and a network she can answer questions about,
-and it has something real and harmless to be written against — which was the whole argument
-for doing this one first.
+~~**Still not built: the brain-side tool loop.** She lists five tools and can call none of
+them.~~ **Built the same day, v0.29.0** — and the argument for doing UniFi first held: the
+loop was written and watched running against read-only tools with nothing in the house to
+break. See Stage 12 above.
 
 ## Stage 13 — Away: a phone that asks the house how it is
 

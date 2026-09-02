@@ -4,7 +4,7 @@ tags: [octavia, feature]
 ---
 
 # Hands — tools and integrations
-*Stage 12, seam built in v0.17.0. **The first real server arrived in v0.28.3** — UniFi, five read-only tools, no Home Assistant required — but she **still cannot call one**.* See [[Roadmap]] stage 12.
+*Stage 12, seam built in v0.17.0. **The first real server arrived in v0.28.3** — UniFi, five read-only tools, no Home Assistant required — and **v0.29.0 closed the last hop: she calls them.** Through Claude only; the local brain, and so the everyday  profile, cannot yet.* See [[Roadmap]] stage 12.
 *Stage 12, seam built in v0.17.0. Configured, connected, listed and tested — **but she cannot call one yet**.* See [[Roadmap]] stage 12.
 
 ## What exists and what does not
@@ -55,7 +55,7 @@ Both authenticate with an `X-API-KEY` made in the UniFi UI, over the local wire,
 
 Eight assertions, and the one worth having is **"every tool is judged a read"**. `RiskOf` looks for its dangerous words first, so a description that gained a `restart`, a `reset` or an `order` would quietly turn a network status query into something she stops to ask permission for — and *nothing else in the system would notice*. The safety of these tools is a property of their **wording**, so the wording is what is asserted. Broken on purpose to watch it go red.
 
-> **She still cannot call any of them.** The last hop is unchanged and is now the only thing between her and a network she can answer questions about. What changed is that it finally has something real, local and entirely harmless to be written against — which was the whole argument for doing UniFi before the house.
+> ~~**She still cannot call any of them.**~~ **She does, as of v0.29.0 — the same day.** Asked *what hardware is on my network right now?* she answered *There is a Dream Machine Pro SE acting as your gateway, and a UniFi AC Pro access point*, and nobody named a tool. The argument for doing UniFi first held exactly: the loop was written and watched running against read-only tools with nothing in the house to break. See the section below.
 ## Why MCP rather than N integrations
 
 The argument that decided it: MCP is a published protocol with a tool-definition shape both Claude and local models can be handed, it keeps each integration **out of process** behind a boundary, and it means a new capability is a new *server* rather than a new branch inside `OctaviaSession`.
@@ -97,3 +97,40 @@ An unknown tool **answers rather than throws** — "There is no tool called `hou
 ## Next
 
 Home Assistant is not installed yet; the smart devices are on Google Home. The order that makes sense is **install Home Assistant → point an MCP server at it → then write the tool loop**, so the loop is written against something real. UniFi (a UDM SE at `10.1.1.1`) is the other early candidate: network health and who is home by device presence. See [[Roadmap]] stage 12.
+
+## The last hop: the brain-side tool loop *(v0.29.0)*
+
+*Written the same day as the server it was written against, which was the argument for doing UniFi first.*
+
+> **Q.** What hardware is on my network right now?
+> **A.** *Let me check that for you.* You've got two devices online right now. There's a Dream Machine Pro SE acting as your gateway, and a UniFi AC Pro access point. Both are up and running fine.
+
+Nobody named a tool. She decided one was wanted, picked it, called it, and turned the result into speech.
+
+### Four decisions, and what each one cost
+
+**Tool calls are assembled from the stream**, not from a cheap non-streaming probe followed by a streamed answer. That alternative was half the code and would have silently discarded *"Let me check that for you"* — the sentence spoken **before** the call goes out, while the gateway is being queried. She streams so the voice can start early; a design that stops streaming during the slowest part of a turn defeats the reason streaming exists. `content_block_start` opens a call, `input_json_delta` fragments accumulate, nothing is parsed until the block closes.
+
+**The request is byte-identical when there is nothing to offer.** `Ask()` uses two separate object initializers rather than one with a conditional assignment — so *"identical when empty"* is something a reader can check rather than something they trust a serialiser about. The [[The Brain|system-prompt cache breakpoint]] is untouched for anyone with no servers configured.
+
+**Four rounds, then she stops and logs it.** A model answering its own tool result with another call forever costs money every lap and never ends on its own. The ceiling logs when it bites, because a turn that stopped at a limit looks exactly like one that finished.
+
+**The tool exchange is not written to history.** `Conversation` holds strings; widening it to structured blocks would change every brain and the diagnostics bundle. What the tools said is inside the sentence she just spoke, so the next turn keeps the substance and loses only the ability to quote the raw result verbatim.
+
+### The half that is not built, said out loud
+
+`confirmed` is **always false**. A `ToolRisk.Confirm` tool therefore comes back with the registry's refusal, she relays it, and nothing happens. Carrying a spoken *yes* from one turn into the next is its own piece of work and is not done.
+
+Nothing configured today is riskier than a read, so this costs nothing yet — but it is named at the call site in the code, not only here, because **an unbuilt half that looks built is worse than one that fails loudly**, and this is the half where a door gets unlocked.
+
+### How it is proven
+
+`EarsTest -- toolloop` asks two real questions of the real API and the real gateway. That is the only way to know the model *chooses* a tool rather than that the plumbing compiles.
+
+It is deliberately **not** in the default suite: it spends money every run, and *a self-test that spends money is a bad self-test* is already a rule here. Everything up to the last hop stays covered for nothing by the mock and by `EarsTest -- unifi`.
+
+### What is still missing
+
+**Claude only.** `LocalBrain` speaks the OpenAI-compatible API and needs its own `tools` array and `tool_calls` delta handling — a second implementation, and streaming tool-call support varies across Ollama, LM Studio and llama-server.
+
+The `home` profile is a local brain, so **on the everyday profile she still cannot call a tool.** That is the remaining gap, and it is a far smaller one than the one this closed.

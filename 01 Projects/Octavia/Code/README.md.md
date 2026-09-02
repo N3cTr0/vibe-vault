@@ -502,6 +502,7 @@ dotnet run --project tools/EarsTest -- music     # what she makes of what is pla
 dotnet run --project tools/EarsTest -- gate      # how well the attention gate judges
 dotnet run --project tools/EarsTest -- split     # the server/client boundary, checked as text
 dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, against the real gateway
+dotnet run --project tools/EarsTest -- toolloop  # the brain-side tool loop (SPENDS MONEY; not in the suite)
 ```
 
 ### Tool servers
@@ -529,7 +530,7 @@ network attached.
 
 Configured servers are started in the background, and what they offer is logged and reported
 in `hello` — so *"is the integration actually connected"* does not need a log to answer.
-**She cannot call a tool yet**: the brain-side loop is the open half of Stage 12.
+**She calls them through Claude** since v0.29.0. `LocalBrain` cannot yet, so the `home` profile still cannot — see Stage 12.
 
 The suite synthesizes speech, runs it through Silero VAD and Whisper, asserts that
 silence transcribes to nothing, exercises the streaming `<think>` filter and markdown
