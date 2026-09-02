@@ -1738,6 +1738,44 @@ the prize worth naming: an always-on box in a cupboard wants to be Linux.
 > delicate deletion in a 2,000-line file, and this is precisely the shape of change whose
 > mistakes are silent. One had already been made that evening — a mis-named `hello` field left
 > her mute for an hour with the cause sitting in her own log.
+>
+> ### And then the wake word — **agreed 09/02/2026, in that order**
+>
+> Second, not first, and the order is the owner's. The device removal is the one with a
+> deadline of its own making: every version it waits, more code is written against hooks that
+> are supposed to be leaving.
+>
+> The full argument is in Stage 9, where the old *"not built and arguably not wanted"* note is
+> struck. In short: **she already decides correctly and pays far too much to do it.**
+> `AttentionGate` answers *"was that meant for me"* — but only after Whisper has transcribed
+> it, and since item 6 that is every utterance in a listening room, for ever, on eight CPU
+> threads. A wake word moves the always-on layer from a 1.6 GB speech model to ~200 KB of
+> ONNX, and nothing is transcribed until she is addressed.
+>
+> **It stays on the server, and that is not a contradiction of item 3.** The rule is about
+> *devices*, and this is compute on a stream that faces are already sending — the same thing
+> Whisper and the gate are. Nothing new is opened.
+>
+> The shape, so this is not re-derived:
+>
+> - **Where:** in front of Whisper, beside Silero — `Senses/Ears`. `Octavia.Core` already
+>   carries ONNX Runtime for the VAD, so the model needs no new dependency.
+> - **What:** *"Hey Octavia"*, trained off this machine in a Colab with
+>   `rhasspy/piper-sample-generator`. Two words rather than one: a much stronger acoustic
+>   signature, and the biggest single factor in model quality. The training pipeline is pinned
+>   to 2022-era PyTorch and TensorFlow, so it is trained once, elsewhere, and the `.onnx` is
+>   shipped.
+> - **When it applies:** *only* to a room left listening. **A held button must bypass it
+>   entirely** — push-to-talk is already an explicit request and always has been, and making
+>   somebody say a wake word into a button they are holding is the kind of thing that reads as
+>   broken.
+> - **What it does not replace:** the gate's follow-up window. *"And what about tomorrow?"* is
+>   addressed to her by context, said without her name and without a wake word, and dropping
+>   that would make her unusable past one turn. The wake word opens the exchange; the gate
+>   still carries it.
+> - **The failure to design for:** a wake word that never fires is indistinguishable from a
+>   microphone that is not working. It has to say so — a heard-but-rejected line already goes
+>   to the log and to the face as `overheard`, and this needs the equivalent.
 
 ### 3. The server holds no device — the original note *(decided 09/02/2026)*
 
