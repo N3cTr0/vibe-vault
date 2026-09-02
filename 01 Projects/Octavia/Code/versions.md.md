@@ -18,6 +18,54 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.28.2 — 2026-09-02
+
+**Her shortcut did not start her.** Stage 15 split her into two processes and left the
+desktop shortcut written the day before pointing at only one of them. Double-clicking
+`Octavia.exe` with no server running gave a blank window for thirty seconds and then a
+message blaming a script syntax error — the rare cause, named first, because the message
+predated the split and had been correct when this process *was* the server.
+
+The client now starts her: if her address is on this machine and nothing answers, it runs
+`Octavia.Server.exe`, waits for the port, and only then loads a page.
+
+**The reconnection in `bridge.js` could never have covered this.** It recovers a socket that
+dropped; it cannot recover a page that was never served, because the retry lives in a file
+that has to be downloaded from the thing that is missing. A server that goes away and a
+server that was never there are different faults with different answers.
+
+Her console is started minimised rather than hidden, deliberately: on Windows the close
+button is what raises SIGTERM, and a server with no console at all can only be killed. The
+taskbar entry is also the honest thing to show — there really are two processes now.
+
+The failure message can finally name one cause instead of guessing between two, because the
+client knows whether anything answered before it ever loaded a page. Missing server, dead
+server, wrong machine and genuine page fault now read differently, and the first two no
+longer cost thirty seconds to say.
+
+**What stopping her taught, in three measurements and two lies.** `CloseMainWindow` returns
+true and the process is gone in six seconds with her shutdown handler never run — nothing
+logged, her sound card released by the OS instead of by her. Ctrl+C is delivered and ignored;
+a server started by a window does not answer to one. Ctrl+Break works, arrives as SIGQUIT and
+logs cleanly every time — and cannot be survived by whoever raises it, since
+`SetConsoleCtrlHandler(NULL, TRUE)` ignores Ctrl+C only and a real handler returning true did
+not save the caller either. So the client does not stop her at all. She is stopped by her own
+console, and by the SCM once Stage 15 item 4 is built.
+
+That item stays open and stays wanted. It was argued here that a client which can start her
+made the service unnecessary, on the grounds that the server and the client always share a
+box; **the owner corrected that** — *"it may not always be the case"* — and the correction is
+worth more than the claim. A deployment is the one thing in this project guaranteed to
+change, and item 3 exists precisely to stop the code believing in one. This is the on-demand
+half of item 4, not a replacement for it.
+
+Also struck a fourth stale note that item 6 overtook, inside item 3, where it would have
+misled whoever picked that item up: the desktop does not inherit the phone's echo problem
+when it starts streaming like a phone. It inherits the phone's answer.
+
+---
+
+
 ## 0.28.1 — 2026-09-02
 
 **She was too small on a phone**, and the framing rule says why. It fits her *width*: a

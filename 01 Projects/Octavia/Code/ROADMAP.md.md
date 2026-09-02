@@ -1460,10 +1460,41 @@ starting:
 voice plays through the server's sound card for the host room, and SAPI cannot be streamed to
 a client at all.
 
-### 4. The server as a Windows Service — **open**
+### 4. The server as a Windows Service — **open; the client half done 09/02/2026, v0.28.2**
 
 With the client starting it on demand, so double-clicking her still works. A console app
 first, deliberately: a service that fails before its first log line is diagnosed by guesswork.
+
+> **The second half is built and the first is still wanted.** Double-clicking her shortcut
+> without the server up gave a thirty-second wait and a grey window that blamed a script
+> error — the desktop shortcut written the day before, doing exactly what it was told. The
+> client now starts her when she is local and absent, waits for the port, and only then
+> loads a page.
+>
+> **The reconnection in `bridge.js` could never have covered this, and that is structural.**
+> It recovers a socket that dropped; it cannot recover a page that was never served, because
+> the retry lives in a file that has to be downloaded from the thing that is missing. *A
+> server that goes away and a server that was never there are different faults.*
+>
+> It was argued here that this made the service unnecessary, because the server and the
+> client always share a box. **The owner corrected that and was right** — *"it may not always
+> be the case"* — and the correction is worth more than the claim: a deployment is the one
+> thing in this project guaranteed to change, and item 3 exists precisely to stop the code
+> believing in one. The service is still the item; this is the on-demand half of it.
+
+**What stopping her taught, before the service does it properly.** Three mechanisms were
+measured against a running server, and two of them lie:
+
+| | |
+|---|---|
+| `CloseMainWindow` | Returns true, process gone in under 6 s, **handler never runs** — nothing logged, her sound card and any MCP child released by the OS. Closing the same console by hand logs correctly, so the two are not equivalent. |
+| Ctrl+C | Delivered and **ignored**. `AttachConsole` and `GenerateConsoleCtrlEvent` both return true; she carries on serving. A server started by a window does not answer to one. |
+| Ctrl+Break | **Works** — arrives as SIGQUIT, clean shutdown line every time. Also cannot be survived by whoever raises it: `SetConsoleCtrlHandler(NULL, TRUE)` ignores Ctrl+C only, and a real handler returning true did not save the caller either. |
+
+So the client does not stop her at all. She is stopped by her own console's close button,
+which is the SIGTERM path and is proven — and by the SCM once item 4 is built, where none of
+the above applies. A client that took itself down to stop her would skip its own `OnExit` and
+leave a dead tray icon: a tidy server for an untidy desktop.
 
 ### 5. Diagnostics bundles over HTTP — **open**
 

@@ -22,6 +22,18 @@ tags: [octavia, spec, stage-15]
 > reached by necessity from the other side. Item 3 now inherits a solved problem instead of
 > creating one. See `ROADMAP.md` Stage 15 item 3 and [[Stage 14 - Always-On Listening In A Room]].
 
+> **Item 4's on-demand half is built, and the service stays wanted** *(09/02/2026, v0.28.2)*.
+> The stage shipped a desktop shortcut that opened a client with nothing behind it: thirty
+> seconds of blank window, then a message blaming a script error. The client now starts her
+> server when she is local and absent. **The page's reconnection could never have covered
+> this** — it recovers a dropped socket, not a page that was never served, because the retry
+> has to be downloaded from the missing thing.
+>
+> It was argued here that this made the service unnecessary, since the server and the client
+> always share a box. The owner corrected it — *"it may not always be the case"* — and the
+> correction outranks the claim: this spec's own item 3 exists to stop the code believing in
+> a deployment. See `ROADMAP.md` Stage 15 item 4 and [[Lessons Learned]].
+
 > **A specification written before the code**, 09/02/2026, in her own repo rather than
 > from the [[Octavia Android]] side. It follows [[Stage 14 - Lending A Renderer The Device's Senses]],
 > which closed item 10. The owner asked for the structure first — *"we can figure it all
@@ -223,7 +235,7 @@ Each is checkable from outside, and the ones marked ✽ are asserted in `EarsTes
 | 1 | The split itself — three projects, a headless server, a thin client | *this stage* |
 | 2 | A portable core: decode a still without WPF, `Octavia.Windows` for NAudio and SAPI | open |
 | 3 | The server holds no device; every client passes its own up, the Windows one exactly as the phone does | **decided 09/02/2026**, open |
-| 4 | The server as a Windows Service, with the client starting it on demand | open |
+| 4 | The server as a Windows Service, with the client starting it on demand | **on-demand half done v0.28.2**; the service open |
 | 5 | Diagnostics bundles downloadable over HTTP rather than only written to disk | open |
 
 ## The cost, stated before it is paid

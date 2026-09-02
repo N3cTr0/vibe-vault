@@ -33,13 +33,15 @@ public partial class MainWindow : Window
 
     private readonly ClientConfig _client;
     private readonly string _hotkeyText;
+    private readonly LocalServer.Outcome _server;
     private HwndSource? _hwnd;
     private bool _hotkeyRegistered;
 
-    internal MainWindow(ClientConfig client, string hotkey)
+    internal MainWindow(ClientConfig client, string hotkey, LocalServer.Outcome server)
     {
         _client = client;
         _hotkeyText = hotkey;
+        _server = server;
         InitializeComponent();
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -97,10 +99,55 @@ public partial class MainWindow : Window
                       $"{(allowed ? "allowed" : "denied")}");
         };
 
+        /* Nothing is listening and we already know why, so there is no page to wait for.
+           Spending the grace period proving something established before the window opened
+           is thirty seconds of a person watching a blank rectangle. */
+        if (_server is LocalServer.Outcome.Missing or LocalServer.Outcome.Failed)
+        {
+            Log.Error($"not attaching: {_client.Origin} has nothing behind it");
+            ShowFallback(FaceFailureText());
+            return;
+        }
+
         Log.Write($"client attaching to {_client.Origin}");
         Face.CoreWebView2.Navigate(_client.PageUrl());
         WatchForFace();
     }
+
+    /// Why her face is not on screen, in the words of the case that actually happened.
+    ///
+    /// **The old text named the rare cause first.** It offered a script syntax error before
+    /// "nothing is serving her", which was the right order when this process *was* the
+    /// server and a parse error was the only way the page could fail — and exactly the wrong
+    /// order afterwards, when a shipped build's scripts have not changed since it was built
+    /// and a missing server is the overwhelming case.
+    ///
+    /// It can name one cause now instead of guessing between two, because the client knows
+    /// whether anything answered before it ever loaded a page.
+    private string FaceFailureText() => _server switch
+    {
+        LocalServer.Outcome.Missing =>
+            $"Nothing is serving her at {_client.Origin}.\n\nHer server is not running, and " +
+            "there is no Octavia.Server.exe beside this client to start — so this looks like " +
+            "a half-copied build. Start her server from its own shortcut, then open this " +
+            "window again.",
+
+        LocalServer.Outcome.Failed =>
+            $"Her server was started, and never answered at {_client.Origin}.\n\nIt is " +
+            "minimised in the taskbar and will say what stopped it; her log has the same " +
+            "story with timestamps.",
+
+        LocalServer.Outcome.Remote =>
+            $"Nothing answered at {_client.Origin}.\n\nThat is another machine, so this " +
+            "client cannot start her. Check her server is running there, and that the " +
+            "address in client.json is the one you meant.",
+
+        // Something *was* answering when the client looked, so the page reaching this window
+        // and then failing to finish is a page fault again, and the old text is right again.
+        _ => "Octavia's face did not start.\n\nHer server is answering, so her page reached " +
+             "this window and then failed to finish — which usually means one of her script " +
+             "files has a syntax error. The browser console will name it."
+    };
 
     /// How long the page gets to load before the client stops believing in it.
     ///
@@ -123,13 +170,8 @@ public partial class MainWindow : Window
             var alive = await Ask("typeof window.OctaviaFace === 'object'");
             if (alive == "true") return;
 
-            Log.Error($"the page never finished loading within {FaceGrace.TotalSeconds:0}s — " +
-                      "its scripts most likely failed to parse; open the browser console");
-
-            ShowFallback(
-                "Octavia's face did not start.\n\nThe window loaded but her page never " +
-                "finished, which usually means one of her script files has a syntax error, " +
-                $"or that nothing is serving her at {_client.Origin}.");
+            Log.Error($"the page never finished loading within {FaceGrace.TotalSeconds:0}s");
+            ShowFallback(FaceFailureText());
         };
 
         timer.Start();

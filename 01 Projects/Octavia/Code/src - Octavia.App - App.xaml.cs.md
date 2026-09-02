@@ -77,7 +77,10 @@ public partial class App : Application
 
         Log.Write($"Octavia client starting {SystemReport.Version}; her server is {_client.Origin}");
 
-        _window = new MainWindow(_client, _client.Hotkey);
+        // Before the window, because the window's first act is to load a page from it.
+        var hosting = LocalServer.Ensure(_client, ValueArgument(e.Args, "--profile", "-p"));
+
+        _window = new MainWindow(_client, _client.Hotkey, hosting);
         BuildTray();
 
         if (_client.StartMinimised) _window.Hide();
@@ -193,6 +196,9 @@ public partial class App : Application
             _window.Close();
         }
 
+        // Her server is deliberately left running, whoever started it: a handset can be
+        // mid-conversation while nobody is at this desk. See LocalServer for the three
+        // mechanisms that were tried and why none of them belongs in a client.
         Shutdown();
     }
 
