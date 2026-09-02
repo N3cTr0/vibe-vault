@@ -39,6 +39,22 @@ const LEAD_S = 0.06;
 const RESTART_AFTER_S = 0.25;
 
 export async function createSpeaker({ sampleRate, channels, bits }) {
+  /* **The format is checked rather than trusted, and that is a scar.**
+
+     The first version read `audioSampleRate` from `hello` — a field she has never sent. The
+     rate arrived `undefined`, `new AudioContext({ sampleRate: undefined })` quietly fell back
+     to the device's own rate and reported itself *running*, so the guard below passed, the
+     page subscribed, the server dutifully stopped using its sound card — and then every
+     single frame threw inside `createBuffer`. She went completely silent, and the only trace
+     was a `faceError` in her log.
+
+     So a format that cannot be used is refused here, at the one point where refusing still
+     leaves her audible. */
+  const usable = value => Number.isFinite(value) && value > 0;
+
+  if (!usable(sampleRate) || !usable(channels))
+    throw new Error(`her audio format makes no sense: ${sampleRate} Hz, ${channels} channels`);
+
   if (bits !== 16) throw new Error(`only 16-bit audio is understood, not ${bits}-bit`);
 
   /* The context is created at *her* sample rate, so nothing resamples.
@@ -72,7 +88,21 @@ export async function createSpeaker({ sampleRate, channels, bits }) {
        server would stop using its own sound card and she would simply go quiet — which is
        the same fault the microphone fallback was rebuilt to avoid, in the other direction.
        So the subscription waits on this. */
-    get ready() { return context.state === 'running'; },
+    get ready() {
+      if (context.state !== 'running') return false;
+
+      /* **A rehearsal, not just a pulse.** "The context is running" was the old test and it
+         was one level too shallow: a context can be perfectly healthy and still reject every
+         buffer this is about to hand it. So one buffer is actually built, in her exact
+         format, before telling anyone this speaker works. It costs a single allocation, once,
+         and it is the check that would have caught the silence. */
+      try {
+        context.createBuffer(channels, 1, sampleRate);
+        return true;
+      } catch {
+        return false;
+      }
+    },
 
     /// One binary frame. Interleaved, little-endian, and already in her format.
     play(buffer) {

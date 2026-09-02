@@ -1657,6 +1657,16 @@ the prize worth naming: an always-on box in a cupboard wants to be Linux.
 > **One visible consequence worth knowing:** her voice now comes out of **`Octavia.exe`** in
 > the Windows volume mixer rather than `Octavia.Server.exe`. Same speakers, different slider.
 >
+> **And then the sound card went entirely, v0.36.0** — *"we don't want the server having access
+> to any local devices besides the GPU."* The fallback above went with it: `Aloud` is false
+> permanently, and her voice reaches a room only by being streamed to something in it.
+>
+> **The hard part was never the loudspeaker.** `WaveOut` was the *clock*. It pulled from the
+> buffer in real time, and the tee to faces, the visemes and the end of an utterance were all
+> consequences of that pull — one device doing three jobs, only one of which made a noise.
+> `Pacer` replaces it: same buffer, same rate, same tap, paced against a stopwatch from a
+> fixed start so an overrun is absorbed rather than accumulated, and holding nothing.
+>
 > **What is still open:**
 >
 > | | |

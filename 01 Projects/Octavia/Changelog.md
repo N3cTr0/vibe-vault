@@ -16,6 +16,52 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.36.0 — 2026-09-02
+
+**The server has no sound card.** Not muted, not conditional — gone. *"We don't want the
+server having access to any local devices besides the GPU."*
+
+**The hard part was never the loudspeaker.** `NeuralVoice` drove a `WaveOut`, and that device
+was doing three jobs: it pulled from the buffer in real time, and the audio teed to faces, the
+visemes read from the same bytes at the same instant, and the end of an utterance were all
+consequences of that pull. Take it away and her mouth stops moving. Take it away carelessly
+and her voice is generated as fast as Piper can write it, arriving at a face seconds before it
+should.
+
+So it is replaced by a clock rather than deleted. `Pacer` pulls the same buffer at the same
+rate into the same tap, paced against a stopwatch from a fixed start — sleeping for the chunk
+length in a loop drifts, because every sleep is *at least* its duration and the work between
+is never free. It holds nothing, opens nothing, and a machine that falls badly behind resets
+to now rather than emitting a burst of catch-up audio.
+
+`IVoice.Aloud` is false permanently. Two earlier versions of that decision — *"aloud in the
+host room"*, then *"unless a face is playing her"* — were the same mistake at different sizes:
+both made the sound card the default and everything else the exception. There is no default
+now. Her voice reaches a room by being streamed there, always, and a room with nobody to play
+it hears nothing. **That is the correct outcome for a headless server and it is now the only
+one.**
+
+**Before this shipped, one bug made her completely silent and is worth writing down.** The
+page read `audioSampleRate` from `hello` — a field she has never sent. `undefined` made
+`new AudioContext({ sampleRate: undefined })` fall back to the device rate and report itself
+*running*, so the guard passed, the page subscribed, the server dutifully stopped using its
+speakers, and then every frame threw inside `createBuffer`. The only trace was a `faceError`
+in her log, which said exactly what was wrong and went unread for an hour.
+
+The guard is now a rehearsal rather than a pulse: it builds one buffer in her exact format
+before claiming the speaker works, and a format with a non-finite rate is refused outright. If
+playback fails *after* subscribing, the page unsubscribes and says so — though with no server
+speakers to hand back to, that is now a notice rather than a fallback.
+
+A room check went red for the right reason and was rewritten. Its criterion did not change; it
+got stronger — *"she does not answer a handset out loud in an empty house"* became *"she has
+no way to be out loud anywhere except through a face"*.
+
+317 checks pass.
+
+---
+
+
 ## 0.35.0 — 2026-09-02
 
 **Her voice comes out of the client now.** The page plays the binary frames the host has been

@@ -234,9 +234,20 @@ internal static class RoomChecks
                 "the desk was told she was thinking about somebody else's question");
             Check("the desktop's expression never moves", !face.Any(desk, "emotion"));
 
-            // --- 3. her voice does not play in an empty room --------------
-            Check("the log says where her voice went",
-                Log.Tail(60).Any(line => line.Contains("her voice goes only to that room")),
+            /* --- 3. her voice does not play in an empty room --------------
+
+               **The criterion got stronger rather than changing.** It used to be *"she does
+               not answer a handset out loud in an empty house"*, enforced by the server
+               keeping its speakers for the host room only. Stage 15 item 3 removed the
+               speakers altogether — *"no local devices on the server besides the GPU"* — so
+               her voice reaches a room only by being streamed to something in it.
+
+               This face subscribes to nothing, so the honest log line is that nobody is
+               playing her. Asserting the *route* rather than the silence is deliberate: a
+               server that had quietly gone back to its own sound card would still be silent
+               in this harness, and would still be wrong. */
+            Check("the log says nobody was there to play her",
+                Log.Tail(60).Any(line => line.Contains("nothing there is playing her voice")),
                 "the audio route is not in the log at all");
 
             // --- 5. forgetting is per room --------------------------------

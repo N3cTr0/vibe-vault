@@ -105,3 +105,21 @@ A browser refuses to start audio for an untouched page, so her own client passes
 Frames already handed to the audio graph go on playing a sentence she was told to abandon, and nothing can un-schedule them after the fact. Every scheduled source is tracked and stopped on any state that is not `speaking`. The host has dropped its buffered audio on that same signal since item 9; this is that rule arriving where the sound actually is.
 
 > **One visible consequence:** her voice now comes out of **`Octavia.exe`** in the Windows volume mixer rather than `Octavia.Server.exe`. Same speakers, different slider — worth knowing before concluding she has gone quiet.
+
+### And then the sound card went entirely *(v0.36.0)*
+
+*"We don't want the server having access to any local devices besides the GPU."* So the handover above stopped being a handover: there is nothing to hand back to.
+
+**The hard part was never the loudspeaker.** `WaveOut` was the **clock**. It pulled from the buffer in real time, and three separate things hung off that pull:
+
+| | |
+|---|---|
+| The audio teed to faces | Read as it went out, which is what keeps it in step |
+| The visemes | Read from *the same bytes at the same instant* |
+| The end of an utterance | Noticed by the buffer running dry |
+
+One device doing three jobs, and only one of them made a noise. Delete it naively and her mouth stops moving; delete it carelessly and Piper's output races to a face seconds early.
+
+`Pacer` replaces it — same buffer, same rate, same tap, no device. It is paced **against a stopwatch from a fixed start**, not by sleeping for the chunk length: every sleep is *at least* its duration and the work between is never free, so a loop drifts and a minute of speech arrives late with the visemes behind it. A machine that falls badly behind resets the clock to now rather than emitting a burst of catch-up audio.
+
+`Aloud` is false permanently. Two earlier versions of that decision — *aloud in the host room*, then *unless a face is playing her* — were the same mistake at different sizes: both made the sound card the default and everything else the exception. **There is no default now.**

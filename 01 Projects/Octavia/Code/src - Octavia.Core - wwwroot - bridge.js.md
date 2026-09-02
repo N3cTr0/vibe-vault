@@ -311,7 +311,7 @@ function connectSocket() {
   socket.binaryType = 'arraybuffer';
 
   socket.addEventListener('message', e => {
-    if (e.data instanceof ArrayBuffer) { speaker?.play(e.data); return; }
+    if (e.data instanceof ArrayBuffer) { hear(e.data); return; }
 
     try { receive(JSON.parse(e.data)); }
     catch (err) { console.error('bad host message', err, e.data); }
@@ -735,6 +735,32 @@ function retrySpeakerOnGesture() {
   document.addEventListener('keydown', again, true);
 }
 
+/* One frame of her voice, and the last line of defence.
+
+   **A speaker that starts failing must hand the sound card back**, because the server only
+   stopped using it on the strength of this page saying it would play her. Left to itself, a
+   throw in here is a companion who has gone silent with no explanation — which is exactly
+   what happened when the sample rate arrived undefined.
+
+   Unsubscribing is enough: the server asks *"is anybody in this room taking the audio"* at
+   the start of every turn, so the next thing she says comes out of the speakers again. */
+function hear(frame) {
+  if (!speaker) return;
+
+  try {
+    speaker.play(frame);
+  } catch (err) {
+    const device = speaker;
+    speaker = null;
+
+    send({ type: 'subscribe', want: [] });
+    send({ type: 'faceError', text: `her voice would not play here: ${err && err.message || err}` });
+    notify('Her voice has gone back to the machine she runs on.');
+
+    device.close().catch(() => {});
+  }
+}
+
 async function useHerVoiceHere(format) {
   if (speaker || speakerAsked) return;
   speakerAsked = true;
@@ -765,8 +791,11 @@ function applyHello(msg) {
      for it. An embedder that lends a microphone is a shell with its own audio path — the
      handset plays her natively — and two of them would talk over each other. */
   if (msg.audioAvailable && !(embedder && !embedder.isSelf)) {
+    // `audioRate`, and it is worth naming the mistake: this read `audioSampleRate` on the
+    // first attempt — a field she has never sent. See `createSpeaker`, which now refuses a
+    // format it cannot use rather than trusting one it was handed.
     herFormat = {
-      sampleRate: msg.audioSampleRate,
+      sampleRate: msg.audioRate,
       channels: msg.audioChannels,
       bits: msg.audioBits
     };

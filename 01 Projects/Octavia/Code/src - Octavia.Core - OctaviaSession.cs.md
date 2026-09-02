@@ -1850,19 +1850,34 @@ internal sealed class OctaviaSession : IDisposable
            her silent: no subscription means nobody claimed the job, and the sound card keeps
            it. That check lives in the page for the same reason the microphone's fallback
            does — *can I try* and *did it work* are different questions. */
+        /* **Never aloud. The server has no speakers** — *"we don't want the server having
+           access to any local devices besides the GPU."*
+
+           This was `room.Id == RoomId.Host`, then briefly *"unless a face is playing her"*,
+           and both were the same mistake in different sizes: they made the sound card the
+           default and everything else the exception. Under the rule there is no sound card
+           to be the default. `NeuralVoice` no longer opens one at all — see `Pacer`, which
+           replaced the `WaveOut` that was quietly acting as her clock.
+
+           So her voice reaches a room by being *streamed there*, always, and a room with
+           nobody to play it hears nothing. That is the correct outcome for a headless
+           server, and it is now the only one. */
+        _voice.Aloud = false;
+
         var playedThere = _face.AnyWantsAudio(FacesIn(room.Id));
-        var aloud = room.Id == RoomId.Host && !playedThere;
-        _voice.Aloud = aloud;
 
-        Log.Write(aloud
-            ? $"turn in room '{room.Id}'; her voice plays on this machine"
-            : playedThere && room.Id == RoomId.Host
-                ? $"turn in room '{room.Id}'; the face there is playing her, so this machine stays silent"
-                : $"turn in room '{room.Id}'; her voice goes only to that room, and this machine stays silent"
-                  + (_voice.AudioFormat is null ? " — and this voice cannot be streamed, so nobody will hear it" : ""));
+        Log.Write(playedThere
+            ? $"turn in room '{room.Id}'; the face there is playing her"
+            : $"turn in room '{room.Id}'; **nothing there is playing her voice**"
+              + (_voice.AudioFormat is null
+                  ? " — and this voice cannot be streamed at all, so nobody will hear it"
+                  : " — she is streaming it, but no face has asked for it"));
 
-        if (!aloud && _voice.AudioFormat is null)
-            Notice(room, "Her Windows voice cannot leave this machine; you will see her words, not hear them.");
+        // Now unconditional, because there is no longer a room where a voice that cannot be
+        // streamed would still be heard. A Windows voice on a server with no speakers talks
+        // to nobody, wherever the question came from.
+        if (_voice.AudioFormat is null)
+            Notice(room, "Her Windows voice cannot leave the machine she runs on; you will see her words, not hear them.");
 
         ToRoom(room.Id, new { type = "caption", who = "You", text = userText });
         ToRoom(room.Id, new { type = "turn", who = "you", text = userText });
@@ -1935,10 +1950,13 @@ internal sealed class OctaviaSession : IDisposable
         // The turn is over; her face should not keep the last sentence's mood on it.
         Feel(spokenIn, Mood.Neutral);
 
-        // Her voice belongs to this machine again the moment the turn ends, so nothing that
-        // happens next — a hotkey, an utterance into the desk microphone — can be swallowed
-        // by a flag left over from a phone conversation.
-        _voice.Aloud = true;
+        /* This used to hand her voice back to *this machine* at the end of a turn, so a flag
+           left over from a phone conversation could not swallow the next thing said at the
+           desk. There is no longer a machine to hand it back to: the server has no speakers,
+           and every room hears her by being streamed to. Left at false, permanently, and the
+           line is kept struck rather than deleted because the reasoning it records — a mode
+           flag outliving the turn that set it — is still a real hazard elsewhere. */
+        _voice.Aloud = false;
 
         if (_wantsToListen)
         {
