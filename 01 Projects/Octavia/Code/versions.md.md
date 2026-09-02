@@ -18,6 +18,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.28.3 — 2026-09-02
+
+**She can see the network.** The first real tool server: `tools\unifi-mcp.ps1`, five
+read-only tools over the UDM SE's own local Integration API, plugged into the seam Stage 12
+built in v0.22.0 and never had a real server for.
+
+**No Home Assistant is involved, and the roadmap said there would have to be.** That advice
+is still right about the *house* — Google Home has no API a Windows program can use — and
+wrong about the network: the gateway answers an official local API itself. UniFi Network
+Integration v1 (application `10.6.101`) for sites, devices, clients and statistics, and
+**UniFi Protect answers the same key** (application `7.2.105`) for cameras.
+
+`list_devices`, `list_clients`, `get_status`, `find_client`, `list_cameras`. **`list_clients`
+is presence** — eighteen named clients, `Kitchen - Plug - Microwave` and the like — which
+answers "is anyone home" with no smart-home integration existing yet.
+
+Output is written for a model rather than a parser: `UDM SE: online, up 13d 1h` and
+`CPU 5%, memory 63%`, not the raw JSON, which spends most of its tokens on identifiers
+nothing downstream reads. Failures come back as text for the same reason the seam already
+required — a model told *"the gateway could not be reached"* can say so, where an exception
+only ends the turn.
+
+**A 401 is not proof that an endpoint exists.** The first probe read `401` on the integration
+path and took it as confirmation the API was enabled; a nonsense path under `/proxy/network/`
+returns `401` too, because the proxy answers before it routes. Only a real key settled it.
+
+**Both Protect cameras are offline** — `Front Door` and `Back Garden`, both `DISCONNECTED`,
+and a snapshot returns `503` rather than an image, so that state is real rather than a stale
+flag. `list_cameras` reports what is *reachable* rather than what exists, because "she has
+cameras" and "she can see anything" are separate claims.
+
+Network and Protect are one server rather than two, departing from the roadmap's "each
+integration independently broken-able": they are two applications on one appliance behind one
+address and one key, so when the UDM is unreachable both are and there is no independence to
+preserve.
+
+Not built: the camera snapshot. Protect returns a JPEG and MCP can carry an image, but the
+brain-side loop does not exist *and* neither camera is online — two blockers, and writing it
+against neither would be guessing.
+
+`EarsTest -- unifi` drives the real gateway and **skips** when no key is configured, so it
+stays green on a machine with no house. Eight assertions; the one worth having is *"every
+tool is judged a read"*, because `RiskOf` checks its dangerous words first and a description
+that gained a `restart`, a `reset` or an `order` would quietly turn a status query into
+something she stops to ask permission for. Broken on purpose to watch it go red. 298 pass.
+
+**She still cannot call any of them.** The brain-side tool loop is the open half of Stage 12,
+and it now has something real and entirely harmless to be written against — which was the
+whole argument for doing UniFi before the house.
+
+---
+
+
 ## 0.28.2 — 2026-09-02
 
 **Her shortcut did not start her.** Stage 15 split her into two processes and left the

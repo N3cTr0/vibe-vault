@@ -903,6 +903,55 @@ sharing a machine that reboots for games.
 → add one `McpServers` entry → *then* write the brain-side tool loop, with something real
 to call.
 
+### UniFi came first, and needed no Home Assistant at all *(09/02/2026, v0.28.3)*
+
+The recommendation above is still right about the *house*. It was wrong about the network:
+**the UDM SE answers an official local API of its own**, so `tools\unifi-mcp.ps1` plugs into
+the seam with no HA anywhere in the picture.
+
+- **UniFi Network Integration API v1**, application `10.6.101`, at
+  `https://10.1.1.1/proxy/network/integration/v1`, authenticated with an `X-API-KEY` made in
+  the UniFi UI. Sites, devices, clients, per-device statistics.
+- **UniFi Protect answers the same key**, application `7.2.105`, at
+  `/proxy/protect/integration/v1` — cameras, and a JPEG snapshot per camera.
+
+Five tools, every one a read: `list_devices`, `list_clients`, `get_status`, `find_client`,
+`list_cameras`. **`list_clients` is presence** — eighteen named clients, `Kitchen - Plug -
+Microwave` and the like, which answers "is anyone home" without a single smart-home
+integration existing yet.
+
+> **A 401 is not proof that an endpoint exists.** The first probe read `401` on the
+> integration path and took it as confirmation the API was enabled; a nonsense path under
+> `/proxy/network/` returns `401` too, because the proxy answers before it routes. Only a
+> real key settled it. *An error that is produced before the question is understood tells you
+> nothing about the question.*
+
+**Both Protect cameras are offline** — `Front Door` and `Back Garden`, both `DISCONNECTED`,
+and a snapshot returns `503` rather than an image, so the state is real rather than a stale
+flag. `list_cameras` therefore reports what is reachable rather than what exists, because
+"she has cameras" and "she can see anything" are separate claims.
+
+**Not built: the snapshot tool.** Protect returns a JPEG and MCP can carry an image, but the
+brain-side loop does not exist *and* neither camera is online. Two blockers, and writing it
+against neither would be guessing — the mistake this stage's notes have recorded three times.
+
+**Network and Protect are one server, not two**, which departs from "each integration
+independently broken-able" above. They are two applications on one appliance behind one
+address and one key: when the UDM is unreachable both are, so there is no independence to
+preserve. If Protect ever moves to its own NVR, splitting it is a copy and a config entry.
+
+`EarsTest -- unifi` drives the real gateway and **skips** when no key is configured, so it
+stays green on a machine with no house. Eight assertions, and the one worth having is
+*"every tool is judged a read"*: `RiskOf` looks for its dangerous words first, so a
+description that gained a `restart`, a `reset` or an `order` would quietly turn a status
+query into something she stops to ask permission for, and nothing else would notice. Broken
+on purpose to watch it go red.
+
+**Still not built: the brain-side tool loop.** She lists five tools and can call none of
+them. That is now the only thing between her and a network she can answer questions about,
+and it has something real and harmless to be written against — which was the whole argument
+for doing this one first.
+
 ## Stage 13 — Away: a phone that asks the house how it is
 
 "How is everything at home?" from somewhere else. This is a **second face over the Stage 3

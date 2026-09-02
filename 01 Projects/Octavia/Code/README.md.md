@@ -501,7 +501,35 @@ dotnet run --project tools/EarsTest -- mic       # capture-device diagnostic
 dotnet run --project tools/EarsTest -- music     # what she makes of what is playing
 dotnet run --project tools/EarsTest -- gate      # how well the attention gate judges
 dotnet run --project tools/EarsTest -- split     # the server/client boundary, checked as text
+dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, against the real gateway
 ```
+
+### Tool servers
+
+She discovers capabilities from MCP servers listed in `McpServers`, rather than having them
+compiled in. **Secrets go in `Env`, never in `Args`** — an argument is visible in the process
+list to every account on the machine.
+
+```jsonc
+"McpServers": {
+  "unifi": {
+    "Command": "pwsh",
+    "Args": ["-NoProfile", "-File", "C:\\Projects\\Octavia\\tools\\unifi-mcp.ps1"],
+    "Env": { "UNIFI_API_KEY": "...", "UNIFI_HOST": "10.1.1.1" },
+    "Enabled": true
+  }
+}
+```
+
+`tools\unifi-mcp.ps1` is the first real one: five read-only tools over the UDM's own local
+Integration API, covering both UniFi Network and UniFi Protect. **No Home Assistant is
+involved** — the gateway answers this itself, with a key made in Settings → Control Plane →
+Integrations. `tools\mock-mcp.ps1` is the other, for proving the seam on a machine with no
+network attached.
+
+Configured servers are started in the background, and what they offer is logged and reported
+in `hello` — so *"is the integration actually connected"* does not need a log to answer.
+**She cannot call a tool yet**: the brain-side loop is the open half of Stage 12.
 
 The suite synthesizes speech, runs it through Silero VAD and Whisper, asserts that
 silence transcribes to nothing, exercises the streaming `<think>` filter and markdown

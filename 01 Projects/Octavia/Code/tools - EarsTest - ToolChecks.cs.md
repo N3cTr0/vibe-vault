@@ -90,7 +90,7 @@ internal static class ToolChecks
         return failures;
     }
 
-    private static string? FindRepoRoot()
+    internal static string? FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
@@ -101,7 +101,7 @@ internal static class ToolChecks
         return null;
     }
 
-    private static string? FindPwsh()
+    internal static string? FindPwsh()
     {
         var candidates = new[]
         {
