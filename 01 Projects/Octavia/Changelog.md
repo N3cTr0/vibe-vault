@@ -16,6 +16,64 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.30.0 — 2026-09-02
+
+**She runs as a Windows service**, which closes Stage 15 item 4. The client half landed in
+v0.28.2; this is the other one, and the owner's correction is what kept it on the list —
+*"it may not always be the case"* that the server and the client share a box.
+
+`--install`, `--uninstall`, `--start`, `--stop`, `--service-status`. Auto-start, so she is
+there after a reboot with nothing double-clicked, and **Start Octavia** / **Stop Octavia**
+are desktop shortcuts.
+
+**Starting and stopping her needs no administrator**, which was the requested part and the
+only interesting one. A service is normally an administrator's object, so every start would
+raise a UAC prompt — a poor thing to put between somebody and their own companion.
+`--install` splices a single entry into the service's own descriptor granting
+`RPWPDTLOCRRC` to the installing account: start, stop, pause, query, and nothing else. Not
+`WD` or `WO` — the right to hand *other people* control of her stays with administrators.
+The descriptor is read and spliced rather than rewritten, because a hand-written SDDL that
+happens to omit something Windows put there is how a service becomes unmanageable by the
+system that installed it.
+
+**Service mode is asked for explicitly** with `--service`, not sniffed from
+`Environment.UserInteractive`. A wrong guess produces a process that neither runs as a
+service nor prints anything, and the flag is written into the registered command line once,
+at install, where `sc qc` reads it back.
+
+**The clean shutdown finally happens from outside the process.** v0.28.2 recorded three
+mechanisms and two of them lying: `CloseMainWindow` skipped the unwind entirely, Ctrl+C was
+delivered and ignored, and Ctrl+Break could not be survived by whoever raised it. The SCM
+does properly what none of them could — `--stop` produced *"Octavia server stopped"* on the
+first attempt. That is the argument for a service restated as a measurement, and it is why
+the client still refuses to stop her itself.
+
+The client prefers the service: `LocalServer` asks `--start` before spawning a console,
+because a service outlives the window that wanted it and comes back after a reboot.
+
+**The registered path was stored unquoted**, found by reading the registry back rather than
+by trusting the command. Invisible under `C:\Projects`; the classic unquoted-service-path
+failure the moment anything sits under `C:\Program Files`, where Windows resolves
+`C:\Program.exe` instead and the service simply never starts. The cause was building the
+whole `sc` command as one string and letting two layers of parsing disagree about the
+quotes. `ArgumentList` fixed it, and the stored value was read back to prove it.
+
+**A service runs as LocalSystem, so the hosted brain has no key** — `apikey.dat` is
+DPAPI-sealed to a *user account*. The local brain is unaffected, which is the profile she
+runs on anyway. `--install` says so at install time rather than leaving it to be found later
+as a mysteriously broken brain, and names both fixes: a machine-wide `ANTHROPIC_API_KEY`, or
+setting the service to log on as the user in `services.msc`.
+
+Console mode is untouched and still the default. A console that cannot bind now says whether
+the service is the thing holding the port — a cause it could not have seen, since a service
+lives in session 0 and the single-instance mutex is per-session.
+
+298 checks pass. Verified installed, started, attached to by the client, and stopped, with
+the registered path and the granted rights both read back from Windows.
+
+---
+
+
 ## 0.29.1 — 2026-09-02
 
 **The local brain can use tools too**, which is the half that matters day to day. The `home`

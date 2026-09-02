@@ -28,5 +28,9 @@ source-path: src\Octavia.Server\Octavia.Server.csproj
     <ProjectReference Include="..\Octavia.Core\Octavia.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.11" />
+  </ItemGroup>
+
 </Project>
 ```

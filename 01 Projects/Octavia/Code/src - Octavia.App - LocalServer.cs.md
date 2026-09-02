@@ -92,6 +92,23 @@ internal static class LocalServer
             return Outcome.Missing;
         }
 
+        /* A registered service is the better thing to start, and is tried first.
+
+           It outlives this client, it comes back after a reboot, and stopping it is a thing
+           somebody can do deliberately from a shortcut — none of which is true of a console
+           this window happened to spawn. `--start` exits non-zero when there is no service,
+           which is a clean answer rather than something to probe for. */
+        if (StartService(exe))
+        {
+            if (WaitForPort(port, Grace))
+            {
+                Log.Write("her service answered; attaching");
+                return Outcome.Started;
+            }
+
+            Log.Warn("her service started and nothing answered on the port; trying a console");
+        }
+
         /* Its own console, minimised.
 
            Hiding it outright would cost the shutdown path: on Windows a console's close
@@ -175,6 +192,36 @@ internal static class LocalServer
        while nobody is at the desk, and closing a window on this machine is no reason to hang
        up on a phone in another room. */
 
+
+    /// Asks the server exe to start her service, and reports whether there was one.
+    ///
+    /// Shelling out rather than holding a `ServiceController` here on purpose: the SCM, the
+    /// service name and the permissions it was installed with are the server's business,
+    /// and a client that knew them would be a second place to keep them right.
+    private static bool StartService(string exe)
+    {
+        try
+        {
+            using var asked = Process.Start(new ProcessStartInfo(exe, "--start")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+
+            if (asked is null) return false;
+
+            asked.WaitForExit(40_000);
+            if (asked.ExitCode == 0) Log.Write("her service was asked to start");
+            return asked.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"could not ask her service to start: {ex.Message}");
+            return false;
+        }
+    }
 
     /// Where her server is, in the two layouts that actually exist.
     ///

@@ -142,3 +142,41 @@ the best evidence there is that the shape is right.
 - [[One Being, Many Rooms]] — rooms, and what the host room now has to mean
 - [[Lending A Renderer The Device's Senses]] — the seam item 3 generalises
 - [[Face Protocol]] — unchanged by this stage, which is the point
+
+## She runs as a service *(v0.30.0 — Stage 15 item 4, closed)*
+
+*The client half landed in v0.28.2. This is the other one, and it stayed on the list because the owner corrected the reasoning that would have removed it: **"it may not always be the case"** that the server and the client share a box.*
+
+```
+Octavia.Server.exe --install --profile home
+```
+
+Auto-start, so she is there after a reboot with nothing double-clicked. **Start Octavia** and **Stop Octavia** are desktop shortcuts. `--uninstall` removes her; the console is untouched and still the right thing to run when you want to *watch* her start.
+
+### No administrator, which was the point
+
+A service is normally an administrator's object, so the obvious build makes every start and stop raise a UAC prompt — between somebody and their own companion, forever.
+
+`--install` splices **one** entry into the service's own security descriptor: `RPWPDTLOCRRC` for the installing account — start, stop, pause, query, and nothing else. Deliberately **not** `WD` or `WO`; the right to hand *other people* control of her stays with administrators.
+
+The descriptor is **read and spliced, never rewritten**. A hand-written SDDL that happens to omit an entry Windows put there is how a service becomes unmanageable by the system that installed it.
+
+### The clean shutdown, at last
+
+[[Lessons Learned|Three mechanisms were measured failing]] to stop the console server from outside: `CloseMainWindow` skipped the unwind entirely, Ctrl+C was delivered and ignored, and Ctrl+Break could not be survived by whoever raised it.
+
+`--stop` produced **"Octavia server stopped"** on the first attempt. Stopping a service is something Windows is *designed* to do; closing somebody's console window is not. That is the argument for this item restated as a measurement — and it is why the client still refuses to stop her itself.
+
+### Two things found by building it
+
+**The registered path was stored unquoted.** `sc create` reported success, the service ran, and the `ImagePath` in the registry was missing the quotes around the exe — because the command was built as one string and two layers of parsing disagreed. Invisible under `C:\Projects`; the classic unquoted-service-path failure under `C:\Program Files`, where Windows resolves `C:\Program.exe` and the service never starts. Found by reading the registry back rather than trusting the call. `ArgumentList` fixed it.
+
+**A service runs as LocalSystem, so the hosted brain has no key.** `apikey.dat` is DPAPI-sealed to a *user account*. The local brain — the default, and the profile she actually runs on — is unaffected. `--install` prints this at the moment somebody is definitely looking, with both fixes: a machine-wide `ANTHROPIC_API_KEY`, or logging the service on as the user in `services.msc`.
+
+### Small things that follow from session 0
+
+The single-instance mutex is `Local\`, so it cannot see across sessions — a service and a console would both pass it. The real guard is the port, and a console that cannot bind now says whether the *service* is what holds it, which is a cause it could not otherwise have seen.
+
+`LocalServer` asks `--start` before spawning a console of its own, because a service outlives the window that wanted it and comes back after a reboot.
+
+**Not done:** the same start and stop in the client's tray. The shortcuts answer what was asked; the tray is a nicety that can follow.

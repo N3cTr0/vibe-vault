@@ -74,9 +74,40 @@ of its own.
 pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1
 ```
 
-That writes `Octavia Server.lnk` and `Octavia.lnk`. It overwrites, so re-run it after moving
-the repo. `-ProfileName cloud` for a second server icon on the hosted brain, `-Dist` to point
-them at a published build, `-Minimised` to keep the server's console out of the way.
+That writes `Octavia Server.lnk`, `Octavia.lnk`, and — for the service below — `Start
+Octavia.lnk` and `Stop Octavia.lnk`. It overwrites, so re-run it after moving the repo.
+`-ProfileName cloud` for a second server icon on the hosted brain, `-Dist` to point them at a
+published build, `-Minimised` to keep the server's console out of the way, `-NoService` to
+leave the start/stop pair out.
+
+## Running her as a service
+
+So she is there after a reboot with nothing double-clicked:
+
+```
+Octavia.Server.exe --install --profile home
+```
+
+That registers her, sets her to start with Windows, and **grants this account the right to
+start and stop her without becoming an administrator** — which is what makes the two desktop
+shortcuts work with no UAC prompt in the way. `--uninstall` removes her again; the console
+keeps working either way, and is still the right thing to run when you want to watch her
+start.
+
+| | |
+|---|---|
+| `--start` / `--stop` | what the desktop shortcuts call |
+| `--service-status` | `0` running, `1` not installed, `2` stopped |
+| `--install` / `--uninstall` | asks Windows for administrator rights, once |
+
+The client prefers the service: it asks `--start` before spawning a console of its own,
+because a service outlives the window that wanted it.
+
+> **A service runs as LocalSystem, and her API key is sealed to your Windows account** — so
+> the *hosted* brain cannot read it from a service. The local brain, which is the default, is
+> unaffected. To use Claude from the service, either set `ANTHROPIC_API_KEY` as a machine-wide
+> environment variable, or set the service to log on as your own account in `services.msc`.
+> `--install` says this at install time too.
 
 > **Run the client on the machine the server is on**, unless you are using the neural voice.
 > Her voice plays through the *server's* sound card for the host room; a Windows (SAPI) voice

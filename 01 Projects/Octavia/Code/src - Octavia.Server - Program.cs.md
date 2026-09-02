@@ -8,6 +8,7 @@ source-path: src\Octavia.Server\Program.cs
 
 ```csharp
 using System.Runtime.InteropServices;
+using System.ServiceProcess;
 using Octavia.Core;
 using Octavia.Diagnostics;
 
@@ -36,6 +37,26 @@ internal static class Program
         if (ValueArgument(args, "--diagnostics") is { } bundlePath)
             return WriteBundle(bundlePath, profile);
 
+        /* Managing the service is also outside the check, and for a plainer reason: every
+           one of these is *about* a running server, so refusing them because one is running
+           would be exactly backwards. */
+        if (Has(args, "--install")) return Service.Install(profile);
+        if (Has(args, "--uninstall")) return Service.Uninstall();
+        if (Has(args, "--start")) return Service.Start();
+        if (Has(args, "--stop")) return Service.Stop();
+        if (Has(args, "--service-status")) return ReportService();
+
+        /* Service mode, which never returns until the SCM says so.
+           Also outside the mutex, and this is the subtle one: a service runs in session 0
+           and a console runs in the user's, so a `Local\` mutex cannot see across them and
+           would pass in both. The real guard is the port — whichever starts second cannot
+           bind and says so. See the message below. */
+        if (Has(args, "--service"))
+        {
+            ServiceBase.Run(new Service(profile));
+            return 0;
+        }
+
         using var onlyOne = new Mutex(true, MutexName, out var isFirst);
         if (!isFirst)
         {
@@ -59,6 +80,13 @@ internal static class Program
             var message = $"nothing could bind port {config.FacePort}, so no face could ever reach her";
             Log.Error($"server: {message}");
             Console.Error.WriteLine($"Octavia's server could not start: {message}");
+
+            // The likeliest cause once she can be a service, and invisible from here: the
+            // service is in another session, so nothing above this line could have noticed.
+            if (Service.Status() is System.ServiceProcess.ServiceControllerStatus.Running)
+                Console.Error.WriteLine("Her service is running and already holds that port. " +
+                                        "Stop it first: Octavia.Server.exe --stop");
+
             return 1;
         }
 
@@ -170,6 +198,25 @@ internal static class Program
             Log.Warn($"unobserved task exception: {args.Exception.Message}");
             args.SetObserved();
         };
+    }
+
+    /// A switch with no value of its own.
+    private static bool Has(string[] args, string name) =>
+        args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    /// What the service is doing, in one line, for a person rather than a script.
+    private static int ReportService()
+    {
+        switch (Service.Status())
+        {
+            case null:
+                Console.WriteLine("Octavia is not installed as a service.");
+                return 1;
+
+            case var status:
+                Console.WriteLine($"Octavia's service is {status.ToString()!.ToLowerInvariant()}.");
+                return status == ServiceControllerStatus.Running ? 0 : 2;
+        }
     }
 
     /// --name value, --name=value, or an alias such as -p.

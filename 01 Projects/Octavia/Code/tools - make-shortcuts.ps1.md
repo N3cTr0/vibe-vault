@@ -51,6 +51,7 @@ param(
   [string]$ProfileName = 'home',
   [switch]$Dist,
   [switch]$Minimised,
+  [switch]$NoService,
   [string]$Desktop = [Environment]::GetFolderPath('Desktop')
 )
 
@@ -107,6 +108,27 @@ Set-Shortcut -Name 'Octavia Server' -Target $serverExe -Arguments "--profile $Pr
 Set-Shortcut -Name 'Octavia' -Target $clientExe -Arguments '' `
   -Description 'Octavia - attaches to her server' `
   -Window 1 -Icon "$clientExe,0"
+
+<#
+  The service pair, written whether or not the service is installed yet.
+
+  They are the answer to "there must be a way to start and stop it on the desktop", and they
+  work without a UAC prompt because `--install` hands this account the right to start and
+  stop this one service. Minimised, because both print a line and exit - there is nothing to
+  look at, and a console flashing open is not a status report.
+
+  Written unconditionally on purpose: they are how somebody who has not installed it yet
+  finds out that they can, and `--start` says exactly that when there is no service.
+#>
+if (-not $NoService) {
+  Set-Shortcut -Name 'Start Octavia' -Target $serverExe -Arguments '--start' `
+    -Description "Start Octavia's service" `
+    -Window 7 -Icon "$serverExe,0"
+
+  Set-Shortcut -Name 'Stop Octavia' -Target $serverExe -Arguments '--stop' `
+    -Description "Stop Octavia's service" `
+    -Window 7 -Icon "$serverExe,0"
+}
 
 Write-Output ''
 Write-Output "  server rig : $ProfileName"
