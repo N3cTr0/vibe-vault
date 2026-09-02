@@ -1676,6 +1676,32 @@ the prize worth naming: an always-on box in a cupboard wants to be Linux.
 > | ~~`SapiVoice`~~ | **Deleted, v0.37.0.** It synthesised to a sound card and could not be streamed, so with no sound card it was not a lesser voice but *no voice at all*. She starts on the neural one directly; a first run is quiet until the model lands and says so. |
 > | `setMicrophone` / `setOutput` | Still host-only, still about the server's devices. |
 > | The device classes | `LocalMicSource`, `MicLevelMeter`, `AudioDevices`, `LoopbackListener` all still in the core, now as the fallback rather than the default. |
+>
+> ### What is left, as one job — **agreed 09/02/2026 for the next session**
+>
+> **It is one coordinated change, not three**, because every piece is reached through the same
+> call sites in `OctaviaSession`. Doing them separately means touching the same fourteen lines
+> three times and leaving the middle states half-true.
+>
+> 1. **Delete `StartListening`/`StopListening`** — the server's own microphone path. `listen`
+>    then always means *"transcribe what I am already sending"*, and the fallback for a face
+>    that declares no microphone goes with it. That fallback was right while the server had a
+>    device worth falling back to; it is now the last thing keeping one alive.
+> 2. **Delete `LocalMicSource`, `MicLevelMeter` and `AudioDevices`.** `hello` stops advertising
+>    the *server's* microphones and outputs — a client should be listing its own, which the
+>    page can already do for cameras — and `setMicrophone`/`setOutput` stop meaning anything
+>    host-side. The authority table shrinks to `setWhisperCompute`, `openDataFolder` and
+>    `saveDiagnostics`, which really are about the machine she runs on.
+> 3. **Delete `LoopbackListener`/`MusicWatcher`, and give `music` a face→host message.** This
+>    is the **first protocol change since Stage 3** and the one piece that is different in
+>    kind: *a page cannot capture loopback at all*, so the sender has to be the WPF shell. It
+>    needs no socket of its own — it can push through the page's existing one with
+>    `window.OctaviaFace.send`, the same channel `Tell` already uses.
+>
+> **Deferred deliberately** at the end of a nine-release session rather than rushed: it is a
+> delicate deletion in a 2,000-line file, and this is precisely the shape of change whose
+> mistakes are silent. One had already been made that evening — a mis-named `hello` field left
+> her mute for an hour with the cause sitting in her own log.
 
 ### 3. The server holds no device — the original note *(decided 09/02/2026)*
 
