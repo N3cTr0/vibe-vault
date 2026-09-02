@@ -8,7 +8,7 @@ tags: [octavia, moc]
 > An always-on desktop companion with a language model behind her — **a local one by default**, Claude when asked for: a headless .NET **server** owns the microphone, the voice, the API key and the conversation; clients render her face and do nothing else. Built toward a fully animated — eventually photoreal — 3D face that hears you locally, reacts to music, and later sees and acts. **This note is the reference point for everything Octavia.**
 
 - **Repo:** `C:\Projects\Octavia` on **`N3CTR0-PC`** — git, with a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) (both since 08/30/2026). She moved off the [[Claude Dev VM]] that day; see [[Moving To The New Machine]].
-- **Current version:** 0.26.0 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.28.1 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
 - **A second face exists:** [[Octavia Android]], her phone/tablet client, in its own repo since 08/31/2026.
 - **Started:** 08/29/2026, from a single-file HTML prototype (`C:\Projects\talking-avatar.html`)
 - **Distribution:** two self-contained single-file exes in `dist\` — `Octavia.Server.exe` and `Octavia.exe` (see [[Build & Release]])
@@ -19,6 +19,15 @@ tags: [octavia, moc]
 **The face is a renderer; the host is the being.** Every stage of work is either a better renderer or a better host, never both at once. That separation is what lets the plaster bust become a VRM avatar and then a photoreal MetaHuman without `OctaviaSession` changing shape. See [[Architecture]] and [[Roadmap]].
 
 > **v0.26.0 collected on it.** She is a server now and the window is a client — and the split was mostly moving files, because the session had never known a window existed. Nothing on the wire changed, so the phone connected to the new server unmodified. See [[A Server, And Clients]].
+
+> **Stage 14 finished on 09/02/2026, with item 6 in v0.28.0.** A room can be left listening, so
+> *"press the microphone, or say her name"* is finally true on a handset. **Nothing is left
+> that the Windows client can do and a phone cannot.** See [[Stage 14 - Always-On Listening In A Room]].
+>
+> Getting there turned over the more important finding: **nothing spoken into a phone had ever
+> reached her**, in twenty-six versions, because her ears had four separate *silent* ways to
+> lose an utterance. That is written up in [[Lessons Learned]] and is the thing to remember
+> from this stage, not the feature.
 
 ## Core notes
 
@@ -32,6 +41,7 @@ tags: [octavia, moc]
 - [[Stage 14 - A Microphone Somewhere Else]] — the spec for item 2, **implemented in v0.23.0**. Both its traps were real; the room-music one is now a test
 - [[Stage 14 - Two Rooms]] — the spec for item 9, **implemented in v0.24.0**. It replaced item 5, absorbed item 7, and struck item 4 as already done
 - [[Stage 14 - Lending A Renderer The Device's Senses]] — the spec for item 10, **implemented in v0.25.0**. The first one written in response to this side's own work
+- [[Stage 14 - Always-On Listening In A Room]] — the spec for item 6, **implemented in v0.28.0**. It finishes Stage 14, and the build cost three things the spec did not predict
 - [[Stage 15 - Server And Clients]] — the spec for the split, **implemented in v0.26.0**. The first written in her own repo rather than from the phone's side
 - [[Conventions & Security Model]] — the rules every change must follow
 - [[Build & Release]] — dev builds, publish, moving her to another PC, versioning

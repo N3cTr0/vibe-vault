@@ -48,7 +48,20 @@ Every face→host message is one of three things, and the check is on the sendin
 
 | Class | Messages | Rule |
 |---|---|---|
-| **Host only** | `listen`, `setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Host room only. Elsewhere: refused, answered with a `notice`, logged once per room per kind. |
+| **Host only** | ~~`listen`~~, `setMicrophone`, `setOutput`, `setMusic`, `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Host room only. Elsewhere: refused, answered with a `notice`, logged once per room per kind. |
+
+> **`listen` left this table in v0.28.0**, and the reason is the interesting part. It was never
+> one message: from the desk it means *"open the microphone on the machine she runs on"*, which
+> is hers to protect and is the whole reason this table exists; from a room it means
+> *"transcribe what I am already sending you"*, which is a claim about the sender's own device
+> with nothing here to refuse. Routed on the room **before** the table, because it stopped
+> being a question about her hardware. Stage 15 item 3 makes the second meaning the only one.
+>
+> A room being listened to is deliberately **not** the floor — `_floor` is a single holder with
+> a sixty-second limit, so a face that simply held it would starve the desk and then time out.
+> It is a separate, quieter claim, and a press works on top of it and hands back afterwards:
+> pressing inside a listening room must not switch off what somebody deliberately left on.
+> See [[Stage 14 - Always-On Listening In A Room]].
 | **Room** | `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | The sending face's room. |
 | **Being** | `setKey`, `setVoice`, `setVoiceEngine`, `setAvatar`, `setRoomHour`, `setStats` | Any room, echoed to every room — every face is wearing the result. |
 

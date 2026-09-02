@@ -5,13 +5,13 @@ tags: [octavia, octavia-android, moc]
 
 # Octavia Android — Project Hub
 
-> A second face for [[Octavia]], over the protocol her built-in one already speaks. She stays on the PC at home; this is an Android window onto her — a WebSocket, a renderer and (eventually) a microphone, reached over WireGuard. **This note is the reference point for everything on the phone side.**
+> A second face for [[Octavia]], over the protocol her built-in one already speaks. Her server stays on the PC at home; this is her other face — its own room, its own microphone, its own camera, its own voice — reached over the LAN and eventually WireGuard. **This note is the reference point for everything on the phone side.**
 
 - **Repo:** `C:\Projects\Octavia-Android` — git since 08/31/2026, private remote [`N3cTr0/Octavia-Android`](https://github.com/N3cTr0/Octavia-Android)
-- **Current version:** 0.5.0 — **her voice comes out of the phone**, on top of Stage 1's connect-and-type. AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
+- **Current version:** 0.12.0 — **always-on listening**, and with it **full parity: there is nothing the Windows client can do that this cannot.** AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
 - **Started:** 08/31/2026, out of [[Octavia]]'s Stage 13
 - **Parent project:** [[Octavia]] — her `PROTOCOL.md` is the contract and lives in *her* repo, deliberately not copied here
-- **Written against:** protocol version 1. Audio playback was built against her **v0.22.0**; she is at **v0.23.0**, which added `talking` and binary frames *upstream* for a microphone here — the host half of this repo's next stage.
+- **Written against:** protocol version 1, her **v0.28.1**. Since her v0.26.0 she is a *server* and **every** face is a client — the Windows one included — so this app and the desktop are the same kind of thing, differing only in which devices they lend her.
 
 ## The one idea to keep
 
@@ -22,6 +22,23 @@ tags: [octavia, octavia-android, moc]
 Her Stage 13 says so explicitly: the app needs an Android SDK and a device to test on, and her repo is neither. The more useful reason is that keeping it separate keeps the protocol honest — anything the phone needs has to be a *protocol* change rather than a quiet reach into her internals, which is exactly the pressure that keeps the socket a real interface.
 
 ## Where it actually got to
+
+**Parity, on 09/02/2026, at v0.12.0.** Her Stage 14 is finished and its last item — always-on
+listening in a room — is built on both sides. The handset now has: her real renderer, its own
+room, push-to-talk *and* a listening toggle, its own microphone and camera, her voice, her
+eyes following you, her settings panel carrying this device's own settings, and a tray so she
+survives being looked away from.
+
+**The thing to remember from that week is not the features.** Getting always-on to work meant
+first discovering that **nothing spoken into a phone had ever reached her** — twenty-six
+versions — because her ears had four separate *silent* ways to lose an utterance. See
+[[Lessons Learned]] here and in [[Octavia]]'s folder.
+
+**The echo answer lives on this side, and had to.** Her in-process `Mute()`/`Unmute()` works at
+the desk because everything is on one clock; the host knows when it *sent* her voice and can
+never know when this handset's speaker emitted it or stopped. This side owns the track and
+knows both, so the gate is local and nothing about it crosses the socket. Measured: 74 seconds
+of her own voice into an open microphone produced no utterance, with 3226 frames held back.
 
 **Stage 1 is working on the real J7 Pro (08/31/2026).** She answered a typed question from the handset, spoke the reply on the PC, and both turns came back to the phone. Her log read `face connected over socket (2 attached)` and `face skipping: viseme, level` — a **second face beside her desktop one**, which is exactly what Stage 3 built the protocol for. See `Screenshots\`.
 
@@ -48,6 +65,10 @@ Nothing is built. The repo, the design and the version history exist; there is n
 That is not a stall — it is the order her roadmap asks for. Stage 13's steps 1–4 all shipped in her **v0.14.0**: the socket can bind the LAN (`RemoteAccess`), `remote.key` survives a restart, `subscribe` lets a phone decline sixty visemes a second, and the network decision is the UDM SE's own WireGuard.
 
 ## The two prerequisites found on 08/31/2026
+
+> [!done] Both are closed, and the reasoning is kept because it is how the route was chosen.
+> The page is served over HTTP since her **v0.20.0** (route A), and audio travels upstream
+> since her **v0.23.0**. What follows is the state of the question on 08/31/2026.
 
 Both live in **her** repo, and neither was visible until the renderer question was answered. Full write-up in `ROADMAP.md` stage 0 in this repo.
 

@@ -16,14 +16,28 @@ That is not a preference invented for the phone — it is the contract in [[Face
 ## The shape
 
 ```
-MainActivity
-└── FaceViewModel          holds only what she has said
-    ├── FaceSocket         the only thing that talks to her
-    └── Settings           host, port, credential
-        └── FaceScreen     state pill, transcript, caption, text field
+MainActivity              permissions, the back key, the lifecycle, the tray
+├── OctaviaService        a foreground service so she survives being looked away from
+├── FaceViewModel         holds only what she has said, and owns the connection
+│   ├── FaceSocket        the only thing that talks to her
+│   ├── MicRecorder       this device's microphone (+ the platform echo canceller)
+│   ├── VoicePlayer       her voice, and `audible` — which is what gates the microphone
+│   └── Settings          host, port, credential, room, camera, and the two switches
+├── DeviceSenses          owns the camera outright, so a still and a watch cannot fight
+│   ├── CameraStill       one frame, for `look`
+│   ├── Watcher           a port of her `watch.js`, so her eyes follow from here too
+│   └── Lens              which camera this device lends her
+└── FaceScreen
+    └── FacePanel         a WebView running *her* renderer, served by her socket
+        ├── EmbedderBridge    origin-restricted; lends the page this device's senses
+        └── DeviceSettings    this app's settings, drawn inside her Settings panel
 ```
 
-Four files, and the smallness is the point: everything interesting is in her repo.
+**The smallness that used to be the point has moved.** At Stage 1 this was four files and
+everything interesting lived in her repo. It is larger now for one reason: `getUserMedia` does
+not run on a plain `http://` LAN origin, so the microphone and camera cannot live in the
+WebView and this app owns them natively. Every one of those classes exists because of that
+single fact — and none of them decides anything she says.
 
 ## The message lists are deliberately not repeated here
 
