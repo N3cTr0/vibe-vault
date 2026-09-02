@@ -18,6 +18,40 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.29.1 — 2026-09-02
+
+**The local brain can use tools too**, which is the half that matters day to day. The `home`
+profile is a local model, so *"she can use tools"* and *"she can use tools on the profile she
+is actually run under"* were different claims — and only the second is worth anything.
+
+`LocalBrain` now sends an OpenAI-compatible `tools` array and assembles `tool_calls` out of
+its own stream. qwen2.5:7b answered correctly: *"Your network has a UniFi Dream Machine PRO SE
+and an AC Pro access point."*
+
+**The index identifies a call across chunks, not the id.** Ollama sends a call whole in a
+single chunk; the OpenAI streaming shape lets the arguments arrive as fragments, and the id
+may appear only in the first one. So every field accumulates — free when there is one
+fragment, correct when there are twenty. Written against the format rather than against the
+one server that happened to be running.
+
+**A machine with no tool servers must not start sending a `tools` key.** Some servers refuse
+it outright when the model has no tool template, so *identical when there is nothing to offer*
+is a stricter requirement here than for the hosted brain. It is met the same way: two request
+shapes rather than one with a conditional key, so it can be read rather than trusted.
+
+**A 7B model embellishes.** Asked about the hardware it added *"with their firmware versions
+up to date"*, which no tool said. The tool result is exact; what a small model does with it is
+not. Nothing is wrong with the loop — it is an argument for keeping dangerous tools behind
+confirmation regardless of which brain is driving, which is what already happens.
+
+`EarsTest -- toolloop local` drives this half and costs nothing; `toolloop` drives both and
+spends money on the hosted one. Neither is in the default suite. 298 free checks still pass,
+and the local brain still answers normally with no tools configured — the path that had to
+stay untouched.
+
+---
+
+
 ## 0.29.0 — 2026-09-02
 
 **She can use her hands.** Asked *"what hardware is on my network right now?"*, she answered

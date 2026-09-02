@@ -26,15 +26,14 @@ using Octavia.Core;
 /// nothing.
 internal static class ToolLoopProbe
 {
-    public static async Task RunAsync()
+    /// `toolloop` drives both brains; `toolloop local` drives only the free one.
+    ///
+    /// The local half costs nothing and could in principle live in the suite — it is here
+    /// instead because it needs a model server running and a multi-gigabyte model loaded,
+    /// and a check that skips on most machines teaches people to ignore skips.
+    public static async Task RunAsync(bool localOnly = false)
     {
         var config = OctaviaConfig.Load("cloud");
-
-        if (string.IsNullOrWhiteSpace(SecretStore.ReadApiKey()))
-        {
-            Console.WriteLine("  skipped: no API key on this machine");
-            return;
-        }
 
         if (config.McpServers.Count == 0)
         {
@@ -54,18 +53,41 @@ internal static class ToolLoopProbe
             return;
         }
 
-        using var brain = new ClaudeBrain(config, registry);
-        Console.WriteLine($"  brain: {brain.Description}");
-
         /* Deliberately not "call list_devices". A question phrased the way somebody would
            actually ask it is the whole point: the model has to decide a tool is wanted,
            pick one, and turn what comes back into a sentence. Naming the tool would test
            the plumbing while skipping the judgement. */
-        await Ask(brain, "What hardware is on my network right now?");
-        await Ask(brain, "Are any of my cameras online?");
+        string[] questions =
+        [
+            "What hardware is on my network right now?",
+            "Are any of my cameras online?"
+        ];
+
+        if (!localOnly)
+        {
+            if (string.IsNullOrWhiteSpace(SecretStore.ReadApiKey()))
+            {
+                Console.WriteLine("  hosted: skipped, no API key on this machine");
+            }
+            else
+            {
+                using var claude = new ClaudeBrain(config, registry);
+                Console.WriteLine();
+                Console.WriteLine($"  == {claude.Description} ==");
+                foreach (var question in questions) await Ask(claude, question);
+            }
+        }
+
+        // The one that actually matters day to day: `home` is a local brain, so until this
+        // works she cannot use a tool on the profile she is normally run under.
+        using var local = new LocalBrain(config, registry);
+        Console.WriteLine();
+        Console.WriteLine($"  == {local.Description} ==");
+        Console.WriteLine("  (a CPU-pinned 7B model; each answer takes a while)");
+        foreach (var question in questions) await Ask(local, question);
     }
 
-    private static async Task Ask(ClaudeBrain brain, string question)
+    private static async Task Ask(IBrain brain, string question)
     {
         Console.WriteLine();
         Console.WriteLine($"  > {question}");

@@ -134,3 +134,18 @@ It is deliberately **not** in the default suite: it spends money every run, and 
 **Claude only.** `LocalBrain` speaks the OpenAI-compatible API and needs its own `tools` array and `tool_calls` delta handling — a second implementation, and streaming tool-call support varies across Ollama, LM Studio and llama-server.
 
 The `home` profile is a local brain, so **on the everyday profile she still cannot call a tool.** That is the remaining gap, and it is a far smaller one than the one this closed.
+
+### Both brains, the same day *(v0.29.1)*
+
+The section above ended by naming the gap, and the gap was the one that mattered: **the `home` profile is a local brain.** *"She can use tools"* and *"she can use tools on the profile she is actually started under"* were different claims, and only the second is worth anything.
+
+`LocalBrain` now sends an OpenAI-compatible `tools` array and assembles `tool_calls` out of its own stream. qwen2.5:7b, on CPU, answers correctly:
+
+> **Q.** What hardware is on my network right now?
+> **A.** Your network has a UniFi Dream Machine PRO SE and an AC Pro access point.
+
+**The index identifies a call across chunks, not the id.** Ollama returns a streamed tool call *whole* — one chunk, id and name and arguments all complete — so the naive reading works perfectly here and would break on llama-server or LM Studio, which may fragment the arguments across many chunks and send the id only in the first. Every field accumulates: free when there is one fragment, correct when there are twenty. See [[Lessons Learned]] — *write against the format, not against the one server that happens to be running*.
+
+**A machine with no tool servers must not start sending a `tools` key.** Some servers refuse it outright when the model has no tool template, so *identical when there is nothing to offer* is a stricter requirement here than for the hosted brain. Met the same way: two request shapes, not one with a conditional key.
+
+**A 7B model embellishes.** Asked about the hardware it added *"with their firmware versions up to date"*, which no tool said and nothing checked. The loop was working perfectly; the embellishment is downstream of it. **The reliability of a tool call is not the reliability of the sentence built from it** — which is an argument for keeping anything dangerous behind confirmation no matter how good the plumbing gets, and the reason `confirmed` staying false costs so little today.

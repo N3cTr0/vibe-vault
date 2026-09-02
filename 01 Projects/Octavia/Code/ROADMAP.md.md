@@ -909,11 +909,32 @@ against the real API and the real gateway. It is deliberately *not* in the defau
 one spends money every time. Everything up to the last hop stays covered for nothing by
 `ToolChecks` and `UnifiChecks`.
 
-**Claude only, so far.** `LocalBrain` speaks the OpenAI-compatible API and would need its own
-`tools` array and `tool_calls` delta handling — a second implementation, and streaming
-tool-call support varies between Ollama, LM Studio and llama-server. It is not written, and
-it matters: the `home` profile is a local brain, so **on her everyday profile she still
-cannot call a tool.** That is now the gap, and it is a much smaller one than this was.
+~~**Claude only, so far.**~~ **Both brains, v0.29.1** — written the same day, because the gap
+it left was the one that mattered. The `home` profile is a local brain, so *"she can use
+tools"* and *"she can use tools on the profile she is actually run under"* were different
+claims, and only the second one is worth anything day to day.
+
+`LocalBrain` now sends an OpenAI-compatible `tools` array and assembles `tool_calls` out of
+its own stream. **qwen2.5:7b answers correctly**: *"Your network has a UniFi Dream Machine
+PRO SE and an AC Pro access point."*
+
+Two things the shape forced, neither cosmetic:
+
+- **The index identifies a call across chunks, not the id.** Ollama sends a call whole in a
+  single chunk; the OpenAI streaming shape lets arguments arrive as fragments, and the id
+  may appear only in the first. So every field accumulates — free when there is one
+  fragment, correct when there are twenty. Written against the format rather than against
+  the one server that was to hand.
+- **A machine with no tool servers must not start sending a `tools` key.** Some servers
+  refuse it outright when the model has no tool template, so *identical when there is
+  nothing to offer* is a harder requirement here than for the hosted brain — and it is met
+  the same way, with two request shapes rather than one and a conditional key.
+
+**A 7B model embellishes.** Asked about hardware it added *"with their firmware versions up
+to date"*, which no tool said. This is the small-model problem in a new place: the tool
+result is exact, and what a small model does with it is not. Nothing is wrong with the loop
+— it is an argument for keeping dangerous tools behind confirmation no matter which brain is
+driving.
 
 **Then Home Assistant and UniFi are configuration, not code.** HA ships an MCP server of
 its own; UniFi has community ones, and failing that a small server is a day's work against
