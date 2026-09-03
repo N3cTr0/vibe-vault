@@ -2320,7 +2320,7 @@ history like any other turn.
   *who*.
 - **Quiet hours are not yet the owner's.** 22:30–07:30 is a guess in `RoundsConfig`.
 
-### Not built: a caption that follows her voice
+### ~~Not built: a caption that follows her voice~~ **Built 09/03/2026, v0.51.0**
 
 *Asked for in v0.50.1 — "have it scroll at the bottom depending on where she is with saying
 it" — shipped wrong, reverted the same evening, and written down here rather than guessed at
@@ -2348,6 +2348,8 @@ sends that as a cue; the face advances the caption to the sentence the cue names
 
 **A cue carries an index, not text.** The face already has the words — it is being asked which
 of them she is on, and sending the sentence again would make the two able to disagree.
+
+> **Done the evening it was written.** octavia-kokoro emits the marker, KokoroVoice compares it against what the Pacer has released, and sayingAt carries a character range. Watched: the reply stopped growing at 19.2s and the caption went on advancing for six more seconds. EarsTest -- voice pins the two-process contract.
 
 Worth doing when a fast brain makes the gap obvious. On the CPU model the generation is slow
 enough that the caption and the voice sometimes look synchronised, which is precisely the trap
