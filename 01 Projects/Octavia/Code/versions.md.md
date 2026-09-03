@@ -18,6 +18,63 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.47.0 — 2026-09-03
+
+**One executable again.** `Octavia.Control` lasted a single release.
+
+> *"I don't see why we should have the server and the control app which control the server,
+> this should be merged into 1 app... the server is her backbone."*
+
+Right, and the reasoning that split them was mine and was half an argument. **A Windows
+service has no desktop** — true, and it never required a second *binary*. It required a second
+*mode*. The tray is always launched by a person in their own session; the service never draws
+anything. Same executable, different entry.
+
+| No arguments | The tray: install her as a service, start, stop, restart, settings |
+|---|---|
+| `--settings` | The tray with the window already open |
+| `--console` | Run her here and print — the old no-argument behaviour |
+| `--service` | The service itself, in session 0, no UI |
+
+**No arguments used to mean *run her and print*.** That is still what `--console` does, and
+still what `dotnet run` and the shortcuts should get, but it was the wrong default for the
+thing a person double-clicks: what they want then is to see whether she is running and to be
+able to change it.
+
+**The tray manages the service rather than hosting her.** Two ways to be running would be two
+things for the settings window to restart and a race over the port.
+
+### Three faults, and only one was in the plan
+
+**`WinExe` was tried first**, because a console application flashes a black window on a
+double-click. It silently breaks every switch a person types: a shell does not wait for a
+windowed process, so output races the prompt, `$LASTEXITCODE` comes back empty, and `--secret`
+has no console to read a keypress from — the command already fixed twice for exactly this
+class of fault. She stays a console application, and the *tray mode* calls `FreeConsole`, which
+closes the window a double-click opened and merely detaches from a terminal's.
+
+**`[STAThread]` went missing.** WPF refuses to build a control off an STA thread, and a WPF
+application never has to think about it because its generated entry point carries the
+attribute. A console `Main` does not. The failure is worth remembering: startup is clean, the
+tray icon appears and works, and the *first window* throws — after `FreeConsole`, with nowhere
+left to print. `Tray.OpenSettings` survives it now and says so in the log and a balloon.
+
+**A refused second instance held a modal dialog**, so it stayed alive holding it: three
+double-clicks collected three windows and three processes. It prints and exits now — and the
+first launch shows a balloon, because the other half of refusing quietly is that the launch
+which *worked* has to be discoverable, or the second one is somebody trying again.
+
+### What the merge cost
+
+`SplitChecks` asserted that the settings UI never constructs a session, and the assembly
+boundary did that for free. There is no boundary now, and the server legitimately constructs
+her. The check is **file-scoped instead, and weaker on purpose rather than by accident**: it
+names `Tray.cs` and `SettingsWindow.xaml.cs`, and adds `Being.Start` to the list. The pressure
+is real — that window exists to configure her, so the shortest path to any new setting will
+always look like reaching for the thing that owns it.
+
+---
+
 ## 0.46.0 — 2026-09-03
 
 **Her server has a tray icon and a settings window, and the client stopped controlling her.**

@@ -63,14 +63,12 @@ $tfm  = 'net10.0-windows10.0.19041.0'
 if ($Dist) {
   $serverExe  = Join-Path $repo 'dist\Octavia.Server.exe'
   $clientExe  = Join-Path $repo 'dist\Octavia.exe'
-  $controlExe = Join-Path $repo 'dist\Octavia.Control.exe'
 } else {
   $serverExe  = Join-Path $repo "src\Octavia.Server\bin\Debug\$tfm\Octavia.Server.exe"
   $clientExe  = Join-Path $repo "src\Octavia.App\bin\Debug\$tfm\Octavia.exe"
-  $controlExe = Join-Path $repo "src\Octavia.Control\bin\Debug\$tfm\Octavia.Control.exe"
 }
 
-foreach ($exe in @($serverExe, $clientExe, $controlExe)) {
+foreach ($exe in @($serverExe, $clientExe)) {
   if (-not (Test-Path -LiteralPath $exe)) {
     throw "not built: $exe`n  run: dotnet build Octavia.slnx"
   }
@@ -101,7 +99,7 @@ function Set-Shortcut {
 $serverWindow = if ($Minimised) { 7 } else { 1 }
 
 Set-Shortcut -Name 'Octavia Server' -Target $serverExe -Arguments "--profile $ProfileName" `
-  -Description "Octavia's server - start this first, then Octavia" `
+  -Description "Octavia - her tray icon, settings, and start/stop" `
   -Window $serverWindow -Icon "$serverExe,0"
 
 # No --profile: a profile is a brain, a Whisper model and a set of tool servers, and the
@@ -133,19 +131,17 @@ if (-not $NoService) {
 }
 
 <#
-  Her controls: a tray icon for the server, and everything about it that is a setting.
+  `Octavia Controls.lnk` was its own executable for one release and is not one any more -
+  v0.47.0 merged the tray back into the server, which is what `Octavia Server.lnk` now opens.
 
-  **A separate process because a service has no desktop.** She runs in session 0, where a
-  tray icon would be drawn where nobody can see it - so the thing a person clicks lives in
-  their own session and controls the service from outside.
-
-  Written unconditionally, and it is the shortcut somebody should keep in Startup: the
-  start/stop pair above are still there for a keyboard, but this is the one that also says
-  whether she is running and lets a setting be changed while she is not.
+  Removed rather than left: a shortcut to a deleted exe is a thing somebody clicks once,
+  gets nothing from, and remembers as her being broken.
 #>
-Set-Shortcut -Name 'Octavia Controls' -Target $controlExe -Arguments '' `
-  -Description "Octavia's server - tray icon and settings" `
-  -Window 1 -Icon "$controlExe,0"
+$stale = Join-Path $Desktop 'Octavia Controls.lnk'
+if (Test-Path -LiteralPath $stale) {
+  Remove-Item -LiteralPath $stale -Force
+  Write-Output 'removed:  Octavia Controls.lnk (merged into Octavia Server in v0.47.0)'
+}
 
 Write-Output ''
 Write-Output "  server rig : $ProfileName"

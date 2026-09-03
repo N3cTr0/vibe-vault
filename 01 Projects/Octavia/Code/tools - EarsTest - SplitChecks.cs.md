@@ -58,17 +58,30 @@ internal static class SplitChecks
             Check($"the client never does `{forbidden}`", !client.Contains(forbidden, StringComparison.Ordinal),
                   "the client has started containing her again");
 
-        /* **The controls are held to the same rule**, and it is easier to break there: that
-           app exists to configure her, so the shortest path to any new setting will always
-           look like constructing the thing that owns it. It writes `config.json` and the
-           sealed secret store instead — the two things the server reads at startup — which is
-           also what lets it work while she is stopped. */
-        var controls = Read(Path.Combine(repo, "src", "Octavia.Control"));
-        Check("there are controls to check", controls.Length > 0, "no .cs found under src/Octavia.Control");
+        /* **The tray and the settings window are held to the same rule**, and it costs more
+           to enforce now than it did for one release.
 
-        foreach (var forbidden in contains)
-            Check($"the controls never do `{forbidden}`", !controls.Contains(forbidden, StringComparison.Ordinal),
-                  "the controls have started containing her");
+           They lived in `Octavia.Control`, a project of their own, and the assembly boundary
+           did the work: it referenced `Octavia.Core` and never constructed anything from it.
+           v0.47.0 merged that back into the server — correctly, because the split was two
+           binaries where two *modes* were wanted — and the boundary went with it. The server
+           legitimately constructs her; `Program.cs` is the host.
+
+           So this is file-scoped instead, and **weaker on purpose rather than by accident**:
+           it names the two files that must stay ignorant. The pressure is real — that window
+           exists to configure her, so the shortest path to any new setting will always look
+           like reaching for the thing that owns it. It writes `config.json` and the sealed
+           secret store instead, which is also what lets it work while she is stopped. */
+        var interfaceFiles = new[] { "Tray.cs", "SettingsWindow.xaml.cs" };
+        var ui = string.Join('\n', interfaceFiles.Select(f =>
+            ReadFile(Path.Combine(repo, "src", "Octavia.Server", f))));
+
+        Check("there is a tray and a settings window to check", ui.Length > 0,
+              "neither Tray.cs nor SettingsWindow.xaml.cs was found under src/Octavia.Server");
+
+        foreach (var forbidden in contains.Append("Being.Start"))
+            Check($"her tray and settings never do `{forbidden}`", !ui.Contains(forbidden, StringComparison.Ordinal),
+                  "the interface has started reaching into her instead of into her config file");
 
         /* And the client no longer starts or stops her server — v0.46.0, at the owner's
            instruction: a client sets what it sends out, not what runs on somebody else's
@@ -138,6 +151,10 @@ internal static class SplitChecks
         return System.Text.RegularExpressions.Regex.Replace(
             source, @"//.*?$", " ", System.Text.RegularExpressions.RegexOptions.Multiline);
     }
+
+    /// One file, comments stripped, or empty when it is not there.
+    private static string ReadFile(string path) =>
+        File.Exists(path) ? WithoutComments(File.ReadAllText(path)) : "";
 
     private static string Read(string dir, string pattern = "*.cs")
     {

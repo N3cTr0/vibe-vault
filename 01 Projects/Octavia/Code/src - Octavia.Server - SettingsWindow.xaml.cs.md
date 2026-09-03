@@ -1,10 +1,10 @@
 ---
 project: Octavia
 tags: [octavia, code]
-source-path: src\Octavia.Control\SettingsWindow.xaml.cs
+source-path: src\Octavia.Server\SettingsWindow.xaml.cs
 ---
 
-# src\Octavia.Control\SettingsWindow.xaml.cs
+# src\Octavia.Server\SettingsWindow.xaml.cs
 
 ```csharp
 using System.Diagnostics;
@@ -20,7 +20,7 @@ using MessageBox = System.Windows.MessageBox;
 using Orientation = System.Windows.Controls.Orientation;
 using TextBox = System.Windows.Controls.TextBox;
 
-namespace Octavia.Control;
+namespace Octavia.Server;
 
 /// Everything about her server that is a setting, in one window.
 ///

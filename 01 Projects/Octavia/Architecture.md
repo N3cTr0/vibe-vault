@@ -10,16 +10,16 @@ tags: [octavia, architecture]
 > below did not change to allow that — **the rule is what allowed it**, and the split was
 > mostly a matter of moving files. See [[A Server, And Clients]].
 
-> **Four executables since v0.46.0**, and each extra one exists for a reason that could not be
-> designed around:
+> **Three executables**, and only one of them is an extra process for a reason that could not
+> be designed around: **`octavia-kokoro.exe`** carries its own native `onnxruntime.dll` while
+> `Octavia.Core` carries Microsoft's for Silero and the wake word, and two in one folder is a
+> native collision. That is a process boundary where a namespace would not do.
 >
-> - **`octavia-kokoro.exe`** carries its own native `onnxruntime.dll`, and `Octavia.Core`
->   carries Microsoft's for Silero and the wake word. Two in one folder is a native collision.
-> - **`Octavia.Control.exe`** is her server's tray icon and settings, and it is separate
->   because **a Windows service has no desktop** — an icon drawn from session 0 is drawn where
->   nobody can see it. See [[Her Controls]].
->
-> Both are the same shape of answer: a process boundary where a namespace would not do.
+> **There were four for one release**, and the fourth was not that. `Octavia.Control` held the
+> tray and the settings window, split off because *a Windows service has no desktop* — true,
+> and an argument for a second **mode**, not a second **binary**. Merged back in v0.47.0: the
+> tray is always launched by a person in their own session, and the service never draws
+> anything. See [[Her Controls]].
 
 ## The rule
 
@@ -63,13 +63,13 @@ Octavia.Core.dll — her, and nothing that draws
                   vrm-avatar.js, headphones.js (the prop), camera.js, watch.js,
                   dev.js, bridge.js (protocol), face.css, index.html, lib/
 
-Octavia.Server.exe   Program.cs — load, open the socket, wait for ctrl+c
+Octavia.Server.exe   Program.cs — one entry, four modes: tray (no arguments),
+                     --settings, --console, --service
                      Service.cs — install/start/stop, and --secret
+                     Tray.cs, SettingsWindow — the desktop half, in the user's
+                     session because a service has no desktop
 Octavia.exe          App (tray, single instance), MainWindow (WebView2, hotkey),
                      ClientConfig, Hotkey, Native. No session, and a check says so.
-Octavia.Control.exe  App (tray), SettingsWindow. Her server's controls, in the
-                     user's session because a service has no desktop. No session
-                     either, and the same check says so.
 octavia-kokoro.exe   Her voice. sherpa-onnx in a process of its own, because it
                      carries a second native onnxruntime.dll.
 ```

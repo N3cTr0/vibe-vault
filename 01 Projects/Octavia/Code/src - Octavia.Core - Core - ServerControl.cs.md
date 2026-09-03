@@ -83,6 +83,24 @@ internal static class ServerControl
         return result == 0;
     }
 
+    /// Registers the service. **Asks Windows for administrator rights**, once, via the
+    /// server's own `--install` — which is where the service name, the account and the
+    /// start/stop rights it grants this user all live. Nothing here knows any of that.
+    ///
+    /// The exit code is the answer: a person who cancels the UAC prompt gets a false, not an
+    /// exception, because cancelling is an ordinary thing to do.
+    public static bool Install(string? profile)
+    {
+        if (Find() is not { } exe) return false;
+
+        var result = profile is { Length: > 0 }
+            ? Ask(exe, "--install", "--profile", profile)
+            : Ask(exe, "--install");
+
+        Log.Write(result == 0 ? "her service was installed" : $"could not install her service (exit {result})");
+        return result == 0;
+    }
+
     /// Stop, then start. **Not one command**: the service control manager returns from a stop
     /// when the service says it has stopped, and her unwind — three MCP child processes, a
     /// voice engine, 1.6 GB of Whisper — finishes after that. Starting immediately can find
@@ -101,18 +119,22 @@ internal static class ServerControl
         return Control(start: true);
     }
 
-    /// Runs the server exe with one switch and hands back its exit code.
-    private static int Ask(string exe, string argument)
+    /// Runs the server exe with some switches and hands back its exit code.
+    private static int Ask(string exe, params string[] arguments)
     {
         try
         {
-            using var asked = Process.Start(new ProcessStartInfo(exe, argument)
+            var start = new ProcessStartInfo(exe)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
-            });
+            };
+
+            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+
+            using var asked = Process.Start(start);
 
             if (asked is null) return -1;
 
@@ -121,7 +143,7 @@ internal static class ServerControl
         }
         catch (Exception ex)
         {
-            Log.Warn($"could not ask the server '{argument}': {ex.Message}");
+            Log.Warn($"could not ask the server '{string.Join(' ', arguments)}': {ex.Message}");
             return -1;
         }
     }

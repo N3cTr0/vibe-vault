@@ -1,13 +1,13 @@
 ---
 project: Octavia
 tags: [octavia, code]
-source-path: src\Octavia.Control\SettingsWindow.xaml
+source-path: src\Octavia.Server\SettingsWindow.xaml
 ---
 
-# src\Octavia.Control\SettingsWindow.xaml
+# src\Octavia.Server\SettingsWindow.xaml
 
 ```xml
-<Window x:Class="Octavia.Control.SettingsWindow"
+<Window x:Class="Octavia.Server.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Octavia — her server" Height="660" Width="720"

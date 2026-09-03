@@ -49,7 +49,6 @@ source-path: src\Octavia.Core\Octavia.Core.csproj
          since v0.1.0 because it is the thing a person double-clicks. -->
     <InternalsVisibleTo Include="Octavia" />
     <InternalsVisibleTo Include="EarsTest" />
-    <InternalsVisibleTo Include="Octavia.Control" />
   </ItemGroup>
 
   <ItemGroup>

@@ -32,9 +32,10 @@ Octavia.Core.dll — her
 ├── Face/        the socket every renderer speaks over, and the page it serves
 └── wwwroot/     the renderer: room, avatar, and console
 
-Octavia.Server.exe   a console host: opens the socket and stays out of the way
+Octavia.Server.exe   her. No arguments opens her tray — install, start, stop and
+                     every setting; --service is the service; --console runs her
+                     here and prints
 Octavia.exe          the Windows client: a window, a tray icon, a hotkey
-Octavia.Control.exe  her server's tray icon and settings - a service has no desktop
 octavia-kokoro.exe   her voice, out of process
 ```
 
@@ -76,7 +77,7 @@ of its own.
 pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1
 ```
 
-That writes `Octavia Server.lnk`, `Octavia.lnk`, `Octavia Controls.lnk`, and — for the service
+That writes `Octavia Server.lnk` (her tray), `Octavia.lnk`, and — for the service
 below — `Start Octavia.lnk` and `Stop Octavia.lnk`. It overwrites, so re-run it after moving the repo.
 `-ProfileName cloud` for a second server icon on the hosted brain, `-Dist` to point them at a
 published build, `-Minimised` to keep the server's console out of the way, `-NoService` to
@@ -84,14 +85,26 @@ leave the start/stop pair out.
 
 ## Her controls
 
-`Octavia.Control.exe` — a tray icon for **her server**, and a window holding everything about
-it that is a setting: which brain and which models, the speech model and the wake phrase, her
-speaking rate and avatar, her rounds and how long she learns before reporting, every
-integration's settings and passwords, the log level and how many days of logs to keep.
+**Run `Octavia.Server.exe` with no arguments** and she goes to the notification area. Right-click
+for a tray holding everything about her that is a setting: which brain and which models, the
+speech model and the wake phrase, her speaking rate and avatar, her rounds and how long she
+learns before reporting, every integration's settings and passwords, the log level and how many
+days of logs to keep.
 
-**A separate process because a Windows service has no desktop.** An icon drawn from inside her
-would be drawn in session 0, where nobody can see it — so the thing you click lives in your
-session and controls the service from outside.
+| No arguments | The tray. Install her as a service, start, stop, restart, settings |
+|---|---|
+| `--settings` | The tray with the window already open |
+| `--console` | Run her here and print — what you want while watching her start |
+| `--service` | The service itself. Started by Windows, never by hand |
+
+**One executable, three modes.** It was two executables for a release, on the reasoning that a
+Windows service has no desktop — which is true, and which never needed a second *binary*, only
+a second *mode*: the tray is always launched by a person in their own session, and the service
+never draws anything.
+
+The tray **manages the service rather than hosting her**. Two ways to be running would mean two
+things for the settings window to restart and a race over the port; `--console` is the answer
+for running her without a service, and it is a line in the menu.
 
 It **edits `config.json` and the sealed secret store** rather than talking to a running
 session, which is what keeps it working while she is stopped — exactly when you need to change
@@ -179,10 +192,9 @@ rmdir /s /q C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Kokoro -c Release -r win-x64 --self-contained false -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
-dotnet publish src\Octavia.Control -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
 
-**Four projects since v0.46.0.** `Octavia.Kokoro` is her voice — a small console
+**Three projects.** `Octavia.Kokoro` is her voice — a small console
 exe that the server starts, writes sentences to and reads audio from. It is separate because
 it carries its own native `onnxruntime.dll` and `Octavia.Core` carries Microsoft's for Silero
 and the wake word; two of those in one folder is a native collision. **Leave her out and the
@@ -194,10 +206,6 @@ installed"* rather than as a missing download.
 > job is to hold a model — and it is published first so the two self-contained publishes
 > after it own every file they share.
 
-`Octavia.Control` is her server's tray icon and settings window, and it is a separate process
-because **a Windows service has no desktop**: an icon drawn from inside her would be drawn in
-session 0, where nobody can see it.
-
 **Then the server, then the client**, into the same folder. Both of those carry
 `Octavia.Core`, so the order only decides which copy of the shared files wins, and they are
 identical — but publishing the client first and the server second would leave the *client's*
@@ -208,7 +216,7 @@ The `rmdir` is not optional politeness: publish overwrites but never deletes, so
 renamed or dropped file lives on in `dist` forever. A stale `lib\three.min.js` survived
 the whole three.js upgrade that way.
 
-Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, `Octavia.Control.exe`,
+Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`,
 `octavia-kokoro.exe`, and the `wwwroot` beside them. The face is not embedded in either exe on purpose: you can edit the bust on
 the target machine and just reload.
 

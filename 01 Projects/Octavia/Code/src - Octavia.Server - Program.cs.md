@@ -19,10 +19,37 @@ namespace Octavia.Server;
 /// Everything a renderer needs already travels over that socket, so there is nothing here
 /// that the window used to do and this cannot. What the window has that this does not is a
 /// screen — see `Being` for why that turns out to be the only difference.
-internal static class Program
+internal static partial class Program
 {
     private const string MutexName = @"Local\Octavia.Server.SingleInstance";
 
+    /* **She stays a console application, and the alternative was tried first.**
+
+       `WinExe` is the obvious way to stop a double-click leaving a black window behind the
+       tray, and it silently breaks every switch a person types: a shell does not wait for a
+       windowed process, so the output races the prompt, `$LASTEXITCODE` comes back empty, and
+       `--secret` has no console to read a keypress from — the one command that most needs
+       one, and the one already fixed twice for exactly this class of fault.
+
+       So the console stays and the *tray mode* gives it back. `FreeConsole` closes the window
+       when this process owns it, which is the double-click case, and merely detaches when the
+       console belongs to a terminal. Both are what is wanted. */
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool FreeConsole();
+
+    /* **`[STAThread]`, and it is not optional.**
+
+       WPF and WinForms both refuse to build a control on a thread that is not single-threaded
+       apartment. A WPF application never has to think about this because its generated entry
+       point carries the attribute; a console `Main` does not, and merging the tray into this
+       executable in v0.47.0 quietly dropped it.
+
+       The failure is worth remembering: nothing goes wrong at startup, the tray icon appears
+       and works, and the *first window* throws `The calling thread must be STA`. It took the
+       process down with no console left to print to — see `Tray.OpenSettings`, which now
+       survives it. */
+    [STAThread]
     private static int Main(string[] args)
     {
         // The console's default code page is not UTF-8, and her prose has em-dashes in it.
@@ -60,6 +87,19 @@ internal static class Program
             ServiceBase.Run(new Service(profile));
             return 0;
         }
+
+        /* **No arguments means the tray**, since v0.47.0.
+
+           It used to mean *run her here and print*, which is still what `--console` does and
+           still what `dotnet run` and the shortcuts should get — but it is the wrong default
+           for the thing a person double-clicks. What they want then is to see whether she is
+           running and to be able to change that, which is a tray.
+
+           The order matters: every switch above this line answers and exits, so `--install`,
+           `--diagnostics` and the rest are unaffected. */
+        // `--settings` is the tray with its window already open: a shortcut can point straight
+        // at what somebody wants, and it is how the window gets exercised without a mouse.
+        if (!Has(args, "--console")) return Tray.Run(profile, settings: Has(args, "--settings"));
 
         using var onlyOne = new Mutex(true, MutexName, out var isFirst);
         if (!isFirst)

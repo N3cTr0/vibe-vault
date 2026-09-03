@@ -15,16 +15,17 @@ Runs from `src\Octavia.App\bin\Debug\net10.0-windows10.0.19041.0\Octavia.exe`. S
 
 ## The desktop shortcuts
 
-**Two of them since v0.26.0**, and the order matters — the server has to be up before the client has anything to attach to.
+**Four of them.** The order still matters — the server has to be up before the client has anything to attach to.
 
 | Shortcut | Runs | Arguments |
 |---|---|---|
 | `Octavia Server.lnk` | `Octavia.Server.exe` | `--profile home` |
 | `Octavia.lnk` | `Octavia.exe` (the client) | *(none)* |
-| `Octavia Controls.lnk` | `Octavia.Control.exe` | *(none)* — **the one to put in Startup** |
 | `Start Octavia.lnk` / `Stop Octavia.lnk` | `Octavia.Server.exe` | `--start` / `--stop` |
 
-**`Octavia Controls.lnk` is the useful one to keep**, since v0.46.0: the start/stop pair still work, but the controls also say whether she is running and let a setting be changed while she is not. See [[Her Controls]].
+**`Octavia Server.lnk` opens her tray** since v0.47.0, rather than a console: it says whether she is running, starts and stops her, installs the service if there is none, and holds every setting. It is the one to put in Startup. The start/stop pair still work for a keyboard. See [[Her Controls]].
+
+`Octavia Controls.lnk` existed for one release and the script **deletes it** if it finds one — a shortcut to a removed exe is something you click once and remember as her being broken.
 
 Made by `tools\make-shortcuts.ps1`, which overwrites, so running it twice is safe. Re-run it after moving the repo or changing which rig the icons should name.
 
@@ -93,22 +94,20 @@ One trap when driving it from an automated browser: **`requestAnimationFrame` do
 
 ## Publish
 
-**Four publishes since v0.46.0**, in this order:
+**Three publishes**, in this order:
 
 ```
 rmdir /s /q C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Kokoro -c Release -r win-x64 --self-contained false -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
-dotnet publish src\Octavia.Control -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
 
-Produces `dist\Octavia.Server.exe`, `dist\Octavia.exe`, `dist\Octavia.Control.exe` and `dist\octavia-kokoro.exe`, plus one `wwwroot` folder beside them. **All of it must travel.** The face is deliberately left outside the exes so it can be edited on the target machine without a rebuild.
+Produces `dist\Octavia.Server.exe`, `dist\Octavia.exe` and `dist\octavia-kokoro.exe`, plus one `wwwroot` folder beside them. **All of it must travel.** The face is deliberately left outside the exes so it can be edited on the target machine without a rebuild.
 
 | Left out | What happens |
 |---|---|
 | `octavia-kokoro.exe` | She runs and **cannot speak**. Her self-test says *"octavia-kokoro.exe is not installed"* rather than reporting a missing download |
-| `Octavia.Control.exe` | She runs, and there is no tray icon and nothing to change a setting with but a text editor — see [[Her Controls]] |
 
 > **Kokoro first, and framework-dependent.** Self-contained would put a second copy of the .NET runtime beside the one the server already carries, for an executable whose whole job is to hold a model — and publishing it first means the two self-contained publishes after it own every file they share.
 
