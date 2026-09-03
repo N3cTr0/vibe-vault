@@ -217,9 +217,19 @@ internal sealed class Watchman : IDisposable
     /// the only kind anybody actually configures.
     public bool Quiet(DateTimeOffset now)
     {
-        if (!TimeOnly.TryParse(_config.Rounds.QuietFrom, out var from) ||
-            !TimeOnly.TryParse(_config.Rounds.QuietTo, out var to))
+        if (Hour(_config.Rounds.QuietFrom) is not { } from || Hour(_config.Rounds.QuietTo) is not { } to)
+        {
+            /* **Said out loud rather than silently meaning "never quiet".**
+
+               A misspelled time used to fall straight through to `false`, which is the most
+               expensive possible reading of it: somebody who typed `24:00` meaning midnight
+               would have got a companion that talks at four in the morning and a config file
+               that looks exactly right. Once per walk is the correct volume for this — it is
+               a standing fault, not an event. */
+            Log.Warn($"rounds: quiet hours '{_config.Rounds.QuietFrom}' to '{_config.Rounds.QuietTo}' " +
+                     "cannot be read as times, so she is treating every hour as awake");
             return false;
+        }
 
         if (from == to) return false;
 
@@ -228,6 +238,24 @@ internal sealed class Watchman : IDisposable
         return from < to
             ? at >= from && at < to          // 01:00 to 06:00
             : at >= from || at < to;         // 22:30 to 07:30, over midnight
+    }
+
+    /// A time of day, accepting the one people actually write for midnight.
+    ///
+    /// **`24:00` is not a time `TimeOnly` will parse**, and it is what somebody types when
+    /// they mean "from midnight" — the owner did, asking for quiet hours of 24:00 to 08:30.
+    /// Rejecting it would be defensible and useless; a config file is not a standards body.
+    /// `24:00` and `00:00` are the same instant, so it is read as one.
+    private static TimeOnly? Hour(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var trimmed = text.Trim();
+        if (trimmed is "24:00" or "24:00:00" or "24") return TimeOnly.MinValue;
+
+        return TimeOnly.TryParse(trimmed, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
     }
 
     private static string Ago(TimeSpan span) => span.TotalMinutes switch

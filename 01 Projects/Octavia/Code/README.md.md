@@ -319,6 +319,7 @@ megabytes of downloaded artefacts, none of it source.
 | `Camera` | `false` | Whether she may open a camera when a question needs eyes |
 | `DevPanel` | *(unset)* | Follows the profile — on for `dev`, off for `live` |
 | `LogLevel` | `info` | `debug` when reproducing a fault; `warn` / `error` to quieten her |
+| `LogKeepDays` | `14` | Days of logs kept. **One file per day**, `octavia-2026-09-03.log`; older ones are deleted on the first line written after midnight. `0` keeps everything |
 | `FacePort` | `8848` | `0` picks any free port |
 
 ### The client's own settings

@@ -182,6 +182,13 @@ internal sealed class OctaviaConfig
     /// diagnostics bundle; info is what a working machine should be reading.
     public string LogLevel { get; set; } = "info";
 
+    /// How many days of log files are kept. One file per day, named for the day; anything
+    /// older is deleted on the first line written after midnight.
+    ///
+    /// Zero or less keeps everything, which is a real answer for somebody chasing a fault
+    /// across a fortnight and a bad default for a machine that is always on.
+    public int LogKeepDays { get; set; } = 14;
+
     /// Whether she may open the camera when asked to look at something. **Off by
     /// default, and it is the only sense that is** — a microphone in a room is expected,
     /// a camera is not. She never watches: one still, only when a question needs eyes,
@@ -353,6 +360,7 @@ internal sealed class OctaviaConfig
 
         var applied = config.WithProfileApplied(requestedProfile);
         Log.SetThreshold(applied.LogLevel);
+        Log.KeepDays = applied.LogKeepDays;
         return applied;
     }
 

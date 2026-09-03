@@ -126,6 +126,35 @@ internal static class RoundChecks
             Check("...and not one minute after it ends", !watchman.Quiet(At(7, 31)), "07:31 read as quiet");
         }
 
+        /* **`24:00` is what somebody types when they mean midnight**, and it is not a time
+           `TimeOnly` will parse. The owner typed exactly that. Rejecting it would be
+           defensible and useless — a config file is not a standards body. */
+        var midnight = Loud();
+        midnight.Rounds.QuietFrom = "24:00";
+        midnight.Rounds.QuietTo = "08:30";
+
+        using (var watchman = new Watchman(midnight, _ => true))
+        {
+            Check("24:00 is read as midnight", watchman.Quiet(At(2, 0)), "02:00 read as awake");
+            Check("...through to the end of the window", watchman.Quiet(At(8, 29)), "08:29 read as awake");
+            Check("...and not one minute after", !watchman.Quiet(At(8, 31)), "08:31 read as quiet");
+            Check("...and not in the evening", !watchman.Quiet(At(21, 0)), "21:00 read as quiet");
+        }
+
+        /* A time that cannot be read used to fall through to *never quiet*, silently — the
+           most expensive possible reading of a typo, and indistinguishable from a correct
+           file. It still errs towards being awake, because a companion that will not speak is
+           worse than one that speaks at the wrong hour, but it says so now. */
+        var nonsense = Loud();
+        nonsense.Rounds.QuietFrom = "half past ten";
+        nonsense.Rounds.QuietTo = "08:30";
+
+        using (var watchman = new Watchman(nonsense, _ => true))
+        {
+            Check("an unreadable quiet hour does not silently mean 'never quiet'",
+                  !watchman.Quiet(At(2, 0)), "it read as quiet, which hides the typo differently");
+        }
+
         // --- she is busy ---------------------------------------------------
         said.Clear();
         var asked = 0;

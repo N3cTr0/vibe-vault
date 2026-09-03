@@ -48,6 +48,10 @@ internal static class DiagnosticsChecks
             Log.Warn("a warning");
             Log.Error("an error");
 
+            // Nothing is written to the base name any more; the day is spliced in, so
+            // midnight rotates the log by being a different answer to "what is today".
+            logPath = Log.Today;
+
             var written = File.ReadAllText(logPath);
             Check("debug is filtered out", !written.Contains("must not appear"), "debug line was written at info level");
             Check("info is written", written.Contains("plain info line"), "info line missing");
@@ -59,7 +63,12 @@ internal static class DiagnosticsChecks
 
             Check("tail remembers lines", Log.Tail(10).Any(l => l.Contains("an error")), "the error is not in the tail");
 
-            // --- rotation -----------------------------------------------
+            // --- one file per day ---------------------------------------
+            Check("the log is named for the day",
+                  Path.GetFileName(logPath) == $"octavia-{DateTime.Now:yyyy-MM-dd}.log",
+                  Path.GetFileName(logPath));
+
+            // --- rotation within a day ----------------------------------
             Log.MaxBytes = 2000;
             for (var i = 0; i < 60; i++) Log.Write(new string('x', 80) + i);
 
@@ -67,7 +76,48 @@ internal static class DiagnosticsChecks
             Check("log rolled", files.Count > 1, $"{files.Count} file(s) after exceeding the cap");
             Check("current log is small", new FileInfo(logPath).Length < 8000,
                 $"{new FileInfo(logPath).Length} bytes");
-            Check("rolled file kept", File.Exists(Path.Combine(scratch, "octavia.1.log")), "octavia.1.log missing");
+            Check("rolled file kept",
+                  File.Exists(Path.Combine(scratch, $"octavia-{DateTime.Now:yyyy-MM-dd}.1.log")),
+                  "the rolled file is missing");
+
+            /* --- purging ------------------------------------------------
+
+               Backdated files rather than a clock that has to be waited out, and **the file's
+               own timestamp is what the purge reads** — which is what makes it quietly do the
+               right thing with the `octavia.log` and `octavia.1.log` every version before this
+               one left lying about. One of those is planted here on purpose. */
+            var ancient = Path.Combine(scratch, "octavia-2020-01-01.log");
+            var legacy = Path.Combine(scratch, "octavia.1.log");
+            var recent = Path.Combine(scratch, $"octavia-{DateTime.Now.AddDays(-1):yyyy-MM-dd}.log");
+
+            foreach (var (file, age) in new[] { (ancient, 400), (legacy, 400), (recent, 1) })
+            {
+                File.WriteAllText(file, "old\n");
+                File.SetLastWriteTime(file, DateTime.Now.AddDays(-age));
+            }
+
+            Log.KeepDays = 14;
+            Log.Purged = DateOnly.MinValue;   // as though the day had just turned over
+            Log.Write("a line that triggers the purge");
+
+            Check("a log older than the limit is deleted", !File.Exists(ancient), "it is still there");
+            Check("...including one named the old way", !File.Exists(legacy), "it is still there");
+            Check("a log inside the limit is kept", File.Exists(recent), "yesterday's was deleted");
+            Check("...and today's is never touched", File.Exists(logPath), "today's log was deleted");
+
+            /* Zero means keep everything, which is a real answer for somebody chasing a fault
+               across a month. It must not be read as "keep nothing", which is the reading that
+               deletes the evidence they were collecting. */
+            File.WriteAllText(ancient, "old\n");
+            File.SetLastWriteTime(ancient, DateTime.Now.AddDays(-400));
+
+            Log.KeepDays = 0;
+            Log.Purged = DateOnly.MinValue;
+            Log.Write("another line");
+
+            Check("zero days keeps everything", File.Exists(ancient), "it was purged anyway");
+
+            Log.KeepDays = 14;
 
             // --- self-test ----------------------------------------------
             var config = new OctaviaConfig { Brain = "local", Recognizer = "whisper" };

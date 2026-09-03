@@ -18,6 +18,55 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.45.0 — 2026-09-03
+
+**A log file per day, deleted after a fortnight.** And two smaller things asked for with it.
+
+`octavia-2026-09-03.log`. **Nothing schedules the rotation**: the day is spliced into the name
+and `Log.Today` is simply a different answer after midnight, so a server that was asleep at
+the turn of the day rotates on its first line of the new one exactly as a server that was
+awake. `LogKeepDays` (14) deletes the rest, once per day, on the first line written.
+
+The purge reads **the file's own timestamp rather than a date out of its name**, which costs
+nothing and quietly clears the `octavia.log` and `octavia.1.log` every earlier version left
+behind — a purge that only understood the new naming would have left those on disk for ever,
+which is the waste it was asked for to prevent.
+
+The size cap is **kept and demoted** rather than replaced: a day is a good unit for finding
+things and no unit at all for bounding size, and the day something goes wrong at three in the
+morning is the day it writes ten gigabytes. It now rolls within the day.
+
+`0` keeps everything, which is a real answer for somebody chasing a fault across a month, and
+must not be read as "keep nothing" — the reading that deletes the evidence they were
+collecting. A check asserts it.
+
+### Quiet hours are 00:00 to 08:30
+
+Asked for as **24:00 to 08:30**, and `24:00` is not a time `TimeOnly` will parse. Rejecting it
+would be defensible and useless; a config file is not a standards body, and `24:00` and `00:00`
+are the same instant. It is read as midnight.
+
+**And an unreadable time no longer silently means "never quiet".** It fell straight through to
+`false`, which is the most expensive possible reading of a typo: a companion that talks at four
+in the morning and a config file that looks exactly right. It still errs towards being awake —
+one that will not speak is worse than one that speaks at the wrong hour — but it says so.
+
+### Which rule matched: **not obtainable**
+
+Probed properly and ruled out, so nobody looks again. Every legacy event route (`stat/event`,
+`stat/alarm`, `stat/ips/event`) is **gone in Network 10.x** — every guide describing them
+predates this. `rest/ipsalert` answers 200 and **empty** across twelve hours in which the
+system log held ~290 events: the collection exists and the data no longer lands in it. Seven
+ways of resolving a row's `INITIATOR_ID` all 404.
+
+She can say who, how many and what changed. Never what it was.
+
+**Everything learned about all three UniFi APIs is written down** — surfaces, auth, what works,
+what is absent and how that was established — in the vault's *UniFi API* deep dive, against
+explicit version numbers, because Ubiquiti moves these between releases.
+
+---
+
 ## 0.44.0 — 2026-09-03
 
 **She watches the network for a week before she is willing to say anything about it.**

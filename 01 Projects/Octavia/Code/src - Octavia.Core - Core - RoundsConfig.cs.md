@@ -44,7 +44,7 @@ internal sealed class RoundsConfig
     ///
     /// `From` equal to `To` means no quiet hours at all, which is the honest way to switch
     /// them off: a window of zero length rather than a magic empty string.
-    public string QuietFrom { get; set; } = "22:30";
-    public string QuietTo { get; set; } = "07:30";
+    public string QuietFrom { get; set; } = "00:00";
+    public string QuietTo { get; set; } = "08:30";
 }
 ```

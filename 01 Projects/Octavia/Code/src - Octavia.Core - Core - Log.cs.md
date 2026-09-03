@@ -19,14 +19,29 @@ internal enum LogLevel { Debug, Info, Warn, Error }
 /// so the face can show them without reading the disk.
 internal static class Log
 {
-    /// Past this the file rolls. Small on purpose: the whole point is that it can be
-    /// attached to a message. Settable so the harness can prove rotation works without
-    /// writing a megabyte to do it.
+    /// Past this a single day's file rolls to `octavia-2026-09-03.1.log`. Small on purpose:
+    /// the whole point is that a log can be attached to a message. Settable so the harness can
+    /// prove rotation works without writing a megabyte to do it.
+    ///
+    /// **Secondary to the date since v0.45.0**, and kept rather than replaced by it: a day
+    /// is a good unit for finding things and no unit at all for bounding size, and the day
+    /// something goes wrong at three in the morning is the day it writes ten gigabytes.
     public static long MaxBytes { get; set; } = 1024 * 1024;
 
-    /// octavia.1.log through octavia.3.log. Enough to survive a couple of restarts
-    /// while someone works out how to reproduce the fault.
+    /// Rolled files *within one day*. Enough to survive a couple of restarts while someone
+    /// works out how to reproduce the fault.
     private const int RolledFiles = 3;
+
+    /// How many days of logs are kept. Older ones are deleted on the first write of each day.
+    /// Zero or less keeps everything, which is a real answer for somebody chasing a fault
+    /// across a fortnight and a bad default for everybody else.
+    public static int KeepDays { get; set; } = 14;
+
+    /// The day the last purge ran, so it happens once at midnight rather than on every line.
+    ///
+    /// Settable only so a check can pretend the day has turned over; there is no other reason
+    /// to write to it, and a running server never does.
+    internal static DateOnly Purged { get; set; } = DateOnly.MinValue;
 
     private const int RememberedLines = 300;
 
@@ -55,18 +70,31 @@ internal static class Log
         lock (Gate) return Remembered.TakeLast(Math.Max(0, count)).ToList();
     }
 
-    /// The log and its rolled predecessors, newest first, for the bundle.
+    /// **Today's file.** `Paths.LogFile` is the base name and never written to directly since
+    /// v0.45.0; the day is spliced in, so midnight rotates the log by simply being a different
+    /// answer to this question. Nothing schedules anything, and a server that was asleep at
+    /// midnight rotates on its first line of the new day exactly as one that was awake.
+    public static string Today => DatedPath(DateTime.Now);
+
+    /// Every log file that survives, newest first, for the bundle. Days rather than a fixed
+    /// count of rolled files: *"the last fortnight"* is a thing a person can reason about and
+    /// "octavia.3.log" is not.
     public static IReadOnlyList<string> Files()
     {
-        var files = new List<string>();
-        if (File.Exists(Paths.LogFile)) files.Add(Paths.LogFile);
-        for (var i = 1; i <= RolledFiles; i++)
+        try
         {
-            var rolled = RolledPath(i);
-            if (File.Exists(rolled)) files.Add(rolled);
-        }
+            var directory = Path.GetDirectoryName(Paths.LogFile) ?? Paths.DataDir;
+            var stem = Path.GetFileNameWithoutExtension(Paths.LogFile);
 
-        return files;
+            return Directory.EnumerateFiles(directory, $"{stem}*{Path.GetExtension(Paths.LogFile)}")
+                            .OrderByDescending(File.GetLastWriteTimeUtc)
+                            .ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"could not list log files: {ex.Message}");
+            return File.Exists(Today) ? [Today] : [];
+        }
     }
 
     public static void SetThreshold(string? name)
@@ -113,8 +141,11 @@ internal static class Log
         {
             try
             {
-                Roll();
-                File.AppendAllText(Paths.LogFile, line + Environment.NewLine);
+                var today = Today;
+
+                Purge();
+                Roll(today);
+                File.AppendAllText(today, line + Environment.NewLine);
                 return;
             }
             catch (IOException)
@@ -133,28 +164,82 @@ internal static class Log
         }
     }
 
-    private static void Roll()
+    /// Deletes logs older than `KeepDays`, once per day.
+    ///
+    /// **By the file's own timestamp rather than by reading a date out of its name**, which
+    /// costs nothing and quietly does the right thing with the `octavia.log` and
+    /// `octavia.1.log` left behind by every version before this one. A purge that only
+    /// understood the new naming would have left those on disk for ever, which is exactly the
+    /// waste this was asked for to prevent.
+    private static void Purge()
     {
-        if (!File.Exists(Paths.LogFile)) return;
-        if (new FileInfo(Paths.LogFile).Length < MaxBytes) return;
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (Purged == today || KeepDays <= 0) return;
 
-        var oldest = RolledPath(RolledFiles);
+        // Stamped before the work, not after: a purge that throws must not run again on
+        // every single line for the rest of the day.
+        Purged = today;
+
+        try
+        {
+            var directory = Path.GetDirectoryName(Paths.LogFile) ?? Paths.DataDir;
+            var stem = Path.GetFileNameWithoutExtension(Paths.LogFile);
+            var extension = Path.GetExtension(Paths.LogFile);
+            var cutoff = DateTime.Now.AddDays(-KeepDays);
+            var keep = Today;
+
+            foreach (var file in Directory.EnumerateFiles(directory, $"{stem}*{extension}"))
+            {
+                // Never today's, whatever its timestamp says. A clock that jumped backwards
+                // should cost somebody a confusing filename, not the log they are writing.
+                if (string.Equals(file, keep, StringComparison.OrdinalIgnoreCase)) continue;
+                if (File.GetLastWriteTime(file) >= cutoff) continue;
+
+                File.Delete(file);
+                System.Diagnostics.Debug.WriteLine($"purged old log {Path.GetFileName(file)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Not through `Warn`: this runs from inside `Append`, and logging about the log
+            // from inside the log is how a stack overflow gets written.
+            System.Diagnostics.Debug.WriteLine($"could not purge old logs: {ex.Message}");
+        }
+    }
+
+    private static void Roll(string today)
+    {
+        if (!File.Exists(today)) return;
+        if (new FileInfo(today).Length < MaxBytes) return;
+
+        var oldest = RolledPath(today, RolledFiles);
         if (File.Exists(oldest)) File.Delete(oldest);
 
         for (var i = RolledFiles - 1; i >= 1; i--)
         {
-            var from = RolledPath(i);
-            if (File.Exists(from)) File.Move(from, RolledPath(i + 1), overwrite: true);
+            var from = RolledPath(today, i);
+            if (File.Exists(from)) File.Move(from, RolledPath(today, i + 1), overwrite: true);
         }
 
-        File.Move(Paths.LogFile, RolledPath(1), overwrite: true);
+        File.Move(today, RolledPath(today, 1), overwrite: true);
     }
 
-    private static string RolledPath(int index)
+    /// `octavia-2026-09-03.log`, from the base name in `Paths.LogFile`.
+    ///
+    /// Derived rather than hard-coded so `OCTAVIA_LOG` still redirects the whole scheme, which
+    /// is what lets a check exercise a fortnight of rotation without touching the real one.
+    private static string DatedPath(DateTime day)
     {
         var directory = Path.GetDirectoryName(Paths.LogFile) ?? Paths.DataDir;
-        var name = Path.GetFileNameWithoutExtension(Paths.LogFile);
-        return Path.Combine(directory, $"{name}.{index}{Path.GetExtension(Paths.LogFile)}");
+        var stem = Path.GetFileNameWithoutExtension(Paths.LogFile);
+        return Path.Combine(directory, $"{stem}-{day:yyyy-MM-dd}{Path.GetExtension(Paths.LogFile)}");
+    }
+
+    private static string RolledPath(string dated, int index)
+    {
+        var directory = Path.GetDirectoryName(dated) ?? Paths.DataDir;
+        var name = Path.GetFileNameWithoutExtension(dated);
+        return Path.Combine(directory, $"{name}.{index}{Path.GetExtension(dated)}");
     }
 
     private static string Label(LogLevel level) => level switch
