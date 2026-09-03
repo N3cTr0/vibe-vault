@@ -178,3 +178,9 @@ The wire between them is deliberately the shape Piper's was — sentences in on 
 Piper could not be interrupted. A hush there meant reading the rest of the sentence out of the pipe and throwing it away, with the machine still synthesising audio nobody would ever hear. The callback that generates her audio is now the same one that checks whether she has been interrupted, so a hush stops her inside the word — which needed the child process to read stdin on a different thread from the one generating, or the hush could not be *seen* until the sentence it was interrupting had finished.
 
 > **`kokoro-multi-lang-v1_1` is a trap**, and it cost a 365 MB download to find out. Newer than `v1_0` and 103 speakers against 53. A hundred of them are Chinese; it contributes three English women. The English catalogue is in `v1_0`. See [[Lessons Learned]].
+
+### Confirmed by ear
+
+*"yes i can hear her, sounds much better."*
+
+The suite passes, the readout reads `Kokoro (af_heart)`, a typed question comes back spoken and her mouth moves — and **every one of those would have read exactly the same if the voice were merely working.** Whether it is nicer than the last one was the whole point of the stage, and no check can hold an opinion about it. See [[Lessons Learned]] on facts outside the program's own horizon.

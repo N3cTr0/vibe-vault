@@ -82,6 +82,12 @@ so through `Trouble` — a longer wait makes that honesty matter more, not less.
 `MouthTap` went too — dead since v0.36.0, when `Pacer` took over the tap and nothing
 constructed it again.
 
+**Confirmed by ear, which is the only place this could be confirmed:** *"yes i can hear her,
+sounds much better."* 365 checks pass, the readout reads `Kokoro (af_heart)`, a typed question
+comes back spoken and her mouth moves — but every one of those would have read exactly the same
+if the voice were merely *working*. Whether it is nicer than the last one was the whole point of
+the stage, and no test can hold an opinion about it.
+
 ---
 
 ## 0.39.2 — 2026-09-03
