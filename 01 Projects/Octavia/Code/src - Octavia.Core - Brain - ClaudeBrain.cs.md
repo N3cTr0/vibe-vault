@@ -232,9 +232,27 @@ internal sealed class ClaudeBrain : IBrain
                 var raw = arguments.GetRawText();
 
                 Log.Debug($"tool call: {call.Name}{raw}");
-                var granted = Conversation.Grants(consent, call.Name, raw, userText);
 
-                if (granted) Log.Write($"tool '{call.Name}': confirmed by the last thing said");
+                var authorised = Conversation.Authorises(consent, call.Name, userText);
+                var granted = authorised is not null;
+
+                /* **The consented call runs, not this one.** They are usually identical and
+                   occasionally not, and when they differ the person agreed to the one she
+                   described. Swapping them in is what stops the model's second attempt from
+                   having to match the first. */
+                if (authorised is not null)
+                {
+                    if (!Conversation.SameCall(authorised.Arguments, raw))
+                        Log.Write($"running {call.Name}{authorised.Arguments} — the call she asked about — " +
+                                  $"rather than {call.Name}{raw}, which the model wrote after the yes");
+
+                    arguments = JsonDocument.Parse(authorised.Arguments).RootElement.Clone();
+                    Log.Write($"tool '{call.Name}': confirmed by the last thing said");
+
+                    // Only the first call it authorises. A yes is not a standing permission
+                    // for every use of that tool in the rest of the turn.
+                    consent = null;
+                }
 
                 var answer = await _tools.CallAsync(call.Name, arguments, granted, cancel);
 

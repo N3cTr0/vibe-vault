@@ -184,6 +184,38 @@ internal static class ToolLoopProbe
     /// to disagree about. This one asks for a port number, which is what exposed it.
     ///
     /// **It power-cycles port 1**, so it is a probe and never a check.
+    /// One question, put to whichever brain the profile names, against the real servers.
+    ///
+    ///     dotnet run --project tools/EarsTest -- ask home "switch off the poe on port 1"
+    ///     dotnet run --project tools/EarsTest -- ask cloud "..." yes
+    ///
+    /// **The profile is the point.** *"She can use a tool"* and *"she can use a tool on the
+    /// profile she is actually started under"* are different claims, and the second is the
+    /// only one worth anything — `home` is a local brain, so a tool that works beautifully
+    /// on Claude may simply never be reached in the room. A trailing word is said as a second
+    /// turn, which is how a `Confirm` tool is answered.
+    public static async Task AskAsync(string profile, string question, string? then)
+    {
+        var config = OctaviaConfig.Load(profile);
+
+        await using var registry = new ToolRegistry(config);
+        await registry.StartAsync();
+
+        var offered = await registry.ListAsync();
+        Console.WriteLine($"  {offered.Count} tool(s): {string.Join(", ", offered.Select(t => t.Name))}");
+
+        using IBrain brain = config.Brain == "claude"
+            ? new ClaudeBrain(config, registry)
+            : new LocalBrain(config, registry);
+
+        Console.WriteLine($"  profile '{profile}' -> {brain.Description}");
+        Console.WriteLine();
+
+        var talk = new Conversation();
+        await Say(brain, talk, question);
+        if (!string.IsNullOrWhiteSpace(then)) await Say(brain, talk, then);
+    }
+
     public static async Task ConfirmRealAsync()
     {
         var config = OctaviaConfig.Load("cloud");

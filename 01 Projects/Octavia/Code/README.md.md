@@ -670,7 +670,14 @@ dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, agains
 dotnet run --project tools/EarsTest -- toolloop        # the tool loop, both brains (SPENDS MONEY; not in the suite)
 dotnet run --project tools/EarsTest -- toolloop local  # ...the local brain only, which is free
 dotnet run --project tools/EarsTest -- confirm        # the spoken-yes rule, as a conversation (free)
+dotnet run --project tools/EarsTest -- ask home "switch off the poe on port 1" yes
 ```
+
+**`ask` puts one question to whichever brain a profile names**, against the real servers, and
+a trailing word is said as a second turn — which is how a `Confirm` tool gets its yes. The
+profile is the point: `home` is a local brain, so a tool that works perfectly on Claude may
+never be reached in the room, and *"she can use a tool"* and *"she can use a tool on the
+profile she is started under"* are different claims.
 
 ### Tool servers
 

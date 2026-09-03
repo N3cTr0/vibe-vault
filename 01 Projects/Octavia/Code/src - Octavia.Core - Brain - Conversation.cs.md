@@ -78,46 +78,50 @@ internal sealed class Conversation
         return carried;
     }
 
-    /// Whether this utterance grants that pending question, for this exact call.
+    /// The call a spoken yes authorises, or null.
+    ///
+    /// **It returns the call she described, not the one the model writes next**, and that is
+    /// the whole of the v0.49.1 fix. Until then this compared the pending arguments against
+    /// the model's *second* attempt and ran the call only if they matched — which asks two
+    /// independent generations to agree on a JSON object, and they do not:
+    ///
+    ///     asked:    set_port_power{"port":1,"on":false}
+    ///     after yes: set_port_power{"device":"unifi-gateway","port":1,"on":false}
+    ///
+    /// Same intent, an argument added, refused — so she asked again, and the model added
+    /// something again, and the person answered yes for ever. Comparing them as JSON rather
+    /// than as text (v0.49.0) fixed the *spelling* half of this and could never have fixed
+    /// this half.
+    ///
+    /// So the model is no longer asked to reproduce anything. What runs is the call that was
+    /// **described out loud to the person**, which is also the only call they can be said to
+    /// have agreed to — strictly safer than trusting a second generation to be equivalent.
     ///
     /// **Biased towards refusing.** A yes misread as a no costs one repeated question; a no
     /// misread as a yes costs whatever the tool does. So agreement must be present *and*
-    /// disagreement must be absent — "yes, but not the garage" is not consent, and neither
-    /// is "no, go ahead" however unlikely a person is to say it.
-    ///
-    /// **The arguments are compared as JSON, not as text.** They were compared as raw
-    /// strings until v0.49.0, which sounds equivalent and is not: the two sides come from
-    /// two separate generations, and a model that writes `{"port": 1}` once will write
-    /// `{"port":1}` or `{"device":"UDM SE","port":1}` the next time. Same call, different
-    /// bytes, consent refused — so the question was asked again, and again. Every refusal
-    /// says why, because this failed silently for eighteen releases.
-    internal static bool Grants(Consent? pending, string tool, string arguments, string said)
+    /// disagreement absent — "yes, but not the garage" is not consent, and neither is
+    /// "no, go ahead" however unlikely a person is to say it.
+    internal static Consent? Authorises(Consent? pending, string tool, string said)
     {
-        if (pending is null) return false;
+        if (pending is null) return null;
 
         if (pending.Tool != tool)
         {
             Log.Write($"consent was for '{pending.Tool}', not '{tool}'; asking again");
-            return false;
-        }
-
-        if (!SameCall(pending.Arguments, arguments))
-        {
-            Log.Write($"consent was for {tool}{pending.Arguments}, not {tool}{arguments}; asking again");
-            return false;
+            return null;
         }
 
         var words = Words(said);
         if (words.Any(Refuses))
         {
             Log.Write($"'{said}' reads as a refusal; leaving {tool} alone");
-            return false;
+            return null;
         }
 
-        if (words.Any(Agrees) || Phrase(said)) return true;
+        if (words.Any(Agrees) || Phrase(said)) return pending;
 
         Log.Write($"'{said}' is neither a yes nor a no; leaving {tool} alone");
-        return false;
+        return null;
     }
 
     /// Two argument objects that mean the same call, whatever order or spacing they arrived in.

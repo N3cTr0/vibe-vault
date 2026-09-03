@@ -1882,6 +1882,17 @@ internal sealed class OctaviaSession : IDisposable
                   ? " — and this voice cannot be streamed at all, so nobody will hear it"
                   : " — she is streaming it, but no face has asked for it"));
 
+        /* **What she actually heard.** The line above says a turn happened and not one word
+           about what it was, which makes the commonest report in this project —
+           *"I asked her to X and she said she can't"* — unanswerable from the log. The same
+           sentence typed into a probe reached the tool; spoken through `small.en` it did
+           not, and there was no way to see which of the two had gone wrong: the transcript,
+           the model's choice, or the tool.
+
+           At `debug`, because it is a transcript of somebody's room and the default level
+           should not collect one. */
+        Log.Debug($"heard in '{room.Id}': {userText}");
+
         // Now unconditional, because there is no longer a room where a voice that cannot be
         // streamed would still be heard. A Windows voice on a server with no speakers talks
         // to nobody, wherever the question came from.
@@ -1915,7 +1926,13 @@ internal sealed class OctaviaSession : IDisposable
             }
 
             if (reply.Length > 0)
+            {
+                // The other half of the turn. A tool answer and the sentence built from it
+                // are different things — a 7B model will call a tool correctly and then
+                // narrate something the tool never said — so both are worth having.
+                Log.Debug($"said in '{room.Id}': {Speech.Brief(reply.ToString())}");
                 ToRoom(room.Id, new { type = "turn", who = "octavia", text = reply.ToString() });
+            }
             else if (!cancel.IsCancellationRequested)
                 Notice(room, "She had nothing to say.");
         }

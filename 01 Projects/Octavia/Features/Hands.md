@@ -327,3 +327,57 @@ The question this release answers — *did the tool run, and what did it say* �
 | `info` | every consent decision, **with its reason**: wrong tool, different arguments, read as a refusal, or neither a yes nor a no |
 
 Both brains, the same lines. The consent reasons are the ones that matter: a refusal used to be entirely silent, which is how a rule could fail 127 times without anybody being able to see it.
+
+## The same bug from the other side *(v0.49.1)*
+
+> *"I asked her to switch off the PoE to port 1 and she said she can't do it."*
+
+Reported within the hour of v0.49.0 shipping, and **v0.49.0 is why it took one run to find**. The consent logging added there named the reason immediately:
+
+```
+consent was for set_port_power{"port":1,"on":false},
+not             set_port_power{"device":"unifi-gateway","port":1,"on":false}
+```
+
+The model **added an argument** after the yes. v0.49.0 taught the comparison to ignore key order and whitespace — correct for the half it addressed, and structurally incapable of addressing this half.
+
+### The design was the bug, not the comparison
+
+**It asked two independent generations of a model to agree on a JSON object.** They agree often enough to look fine and not often enough to work, and every conceivable comparison rule sits somewhere on a spectrum between *"loops for ever"* and *"consents to something nobody agreed to"*. There is no correct point on that spectrum, which is the sign that the spectrum is wrong.
+
+So the model is no longer asked to reproduce anything. `Conversation.Authorises` returns the call **she described out loud**, and that is what runs.
+
+That is not a relaxation — it is strictly safer. The front-door-after-a-back-door-yes case used to be *caught* by the comparison; now the front door is never what executes. And what runs is, by construction, the call the person actually heard described.
+
+A yes authorises **one** call, cleared on use, so it is never a standing permission for the rest of the turn.
+
+### The checks had the same shape of hole, one level up
+
+Every consent check asserted the **comparison**, and the comparison was never the weak part. What went untested was the claim the comparison rested on: *that a model asked the same thing twice writes it the same way*. Nothing in the file could have expressed that, because both sides were written by the same hand.
+
+They now assert what a yes **returns** rather than what it compares. See [[Lessons Learned]].
+
+> **Twice in one day, at two different levels.** v0.49.0's checks shared a string between both sides of a comparison; v0.49.1's tested a comparison whose premise was false. Both are the same error — *testing the mechanism instead of the assumption it rests on*.
+
+## She hears you, in the log *(v0.49.1)*
+
+`turn in room 'host'` recorded that a turn had happened and **nothing about what it was**, which makes the commonest report in this project unanswerable from the log. The same sentence typed into a probe reached the tool; spoken through `small.en` it did not, and there was no way to tell which of the three layers — transcript, model, tool — had gone wrong.
+
+```
+heard in 'host': switch off the poe on port 1
+said in 'host': PoE on port 1 has been switched off and will stay that way...
+```
+
+At `debug`, because it is a transcript of somebody's room and the default level should not collect one.
+
+### `ask` — a question without a microphone
+
+```
+dotnet run --project tools/EarsTest -- ask home "switch off the poe on port 1" yes
+```
+
+**The profile is the point.** `home` is a local brain, so a tool that works on Claude may simply never be reached in the room — *"she can use a tool"* and *"she can use a tool on the profile she is actually started under"* are different claims, and only the second is worth anything. It is the second that was broken.
+
+`qwen2.5:7b-cpu`, after the fix:
+
+> *"PoE on port 1 has been switched off and will stay that way until it is turned back on."*

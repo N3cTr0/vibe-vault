@@ -249,88 +249,83 @@ internal static class ToolChecks
             return talk;
         }
 
-        Check("a plain yes counts",
-              Conversation.Grants(Asked().TakeConsent(), door, back, "yes"));
+        // Reads as the old `Grants` did, so every case below still says what it said.
+        static bool Yes(Conversation.Consent? pending, string tool, string said) =>
+            Conversation.Authorises(pending, tool, said) is not null;
 
-        Check("so does go ahead",
-              Conversation.Grants(Asked().TakeConsent(), door, back, "go ahead"));
+        Check("a plain yes counts", Yes(Asked().TakeConsent(), door, "yes"));
 
-        Check("and a yes with words around it",
-              Conversation.Grants(Asked().TakeConsent(), door, back, "Yes, please do that."));
+        Check("so does go ahead", Yes(Asked().TakeConsent(), door, "go ahead"));
 
-        Check("a no does not",
-              !Conversation.Grants(Asked().TakeConsent(), door, back, "no"));
+        Check("and a yes with words around it", Yes(Asked().TakeConsent(), door, "Yes, please do that."));
+
+        Check("a no does not", !Yes(Asked().TakeConsent(), door, "no"));
 
         // The one a looser rule gets wrong: agreement and refusal in the same breath.
-        Check("a yes with a caveat does not",
-              !Conversation.Grants(Asked().TakeConsent(), door, back, "yes, but not yet"));
+        Check("a yes with a caveat does not", !Yes(Asked().TakeConsent(), door, "yes, but not yet"));
 
         Check("silence on the subject does not",
-              !Conversation.Grants(Asked().TakeConsent(), door, back, "what is the weather like"));
-
-        // Consent is to a *call*, not to a tool. Saying yes about the back door must not
-        // unlock the front one, however the model phrases its second attempt.
-        Check("a yes about one thing is not a yes about another",
-              !Conversation.Grants(Asked().TakeConsent(), door, front, "yes"));
+              !Yes(Asked().TakeConsent(), door, "what is the weather like"));
 
         Check("a yes to one tool is not a yes to another",
-              !Conversation.Grants(Asked().TakeConsent(), "house__house_set_light", back, "yes"));
+              !Yes(Asked().TakeConsent(), "house__house_set_light", "yes"));
 
         // The lifetime: taking it clears it, so a second turn cannot reuse the first's yes.
         var once = Asked();
         var first = once.TakeConsent();
         var second = once.TakeConsent();
         Check("consent survives exactly one turn",
-              Conversation.Grants(first, door, back, "yes") &&
-              !Conversation.Grants(second, door, back, "yes"));
+              Yes(first, door, "yes") && !Yes(second, door, "yes"));
 
         Check("and nothing is pending before she asks",
-              !Conversation.Grants(new Conversation().TakeConsent(), door, back, "yes"));
+              !Yes(new Conversation().TakeConsent(), door, "yes"));
 
-        /* **The two sides come from two separate generations, and this file used to hide it.**
+        /* **What a yes authorises is the call she described**, and this is the assertion the
+           whole rule now rests on.
 
-           Every check above hands `back` to both `AwaitYes` and `Grants` — the same string,
-           so a comparison of raw bytes could not fail and the suite was green for eighteen
-           releases while consent was refused 127 times in a row in the field. A model asked
-           the same thing twice writes it twice: `{"device": "UDM", "port": 1}` when it asks,
-           `{"port": 1, "device": "UDM"}` after the yes. Those are the two lines actually
-           logged on 09/03/2026, and the second one is what nothing ever ran.
+           Until v0.49.1 consent was matched against the arguments the model produced *after*
+           the yes, which asks two independent generations to agree on a JSON object. They do
+           not. Comparing them as JSON instead of as text (v0.49.0) fixed the spelling half —
+           key order, whitespace — and could never have fixed this half, seen the same day on
+           the local brain:
 
-           So the pairs below deliberately differ as *text* and agree as *JSON*. The
-           entity-mismatch checks above still hold, because they differ as both. */
-        const string cycle = "unifi__power_cycle_port";
+               asked:     set_port_power{"port":1,"on":false}
+               after yes: set_port_power{"device":"unifi-gateway","port":1,"on":false}
+
+           An argument added, refused, asked again, added again. The person says yes for ever.
+
+           So the model is no longer asked to reproduce anything, and the call that runs is
+           the one that was read out loud — which is also the only one they can be said to
+           have agreed to. */
+        var authorised = Conversation.Authorises(Asked().TakeConsent(), door, "yes");
+
+        Check("a yes returns the call she asked about",
+              authorised?.Arguments == back, authorised?.Arguments ?? "nothing");
+
+        Check("...and it is the back door, whatever the model writes next",
+              authorised?.Arguments != front);
+
+        /* The safety this replaces is not weaker, it moved: the model reaching for the front
+           door on its second attempt used to be caught by the comparison, and is now
+           irrelevant, because the front door is never what runs. `SameCall` is still the
+           test for *whether they differed* — the brains log it when they do, since a model
+           rewriting a confirmed call is worth seeing. */
+        Check("a different entity is still a different call",
+              !Conversation.SameCall(back, front));
+
         const string asked = """{"device": "UDM", "port": 1}""";
 
-        Conversation AskedPort()
-        {
-            var talk = new Conversation();
-            talk.AwaitYes(cycle, asked);
-            return talk;
-        }
+        Check("key order is not a different call",
+              Conversation.SameCall(asked, """{"port": 1, "device": "UDM"}"""),
+              "the v0.49.0 half");
 
-        Check("a yes survives the keys arriving in another order",
-              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port": 1, "device": "UDM"}""", "yes"),
-              "this is the one that was broken");
+        Check("...nor is whitespace", Conversation.SameCall(asked, """{"device":"UDM","port":1}"""));
 
-        Check("...and the whitespace changing",
-              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"device":"UDM","port":1}""", "yes"));
+        Check("but a different port is", !Conversation.SameCall(asked, """{"port":2,"device":"UDM"}"""));
 
-        Check("...and both at once",
-              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1,"device":"UDM"}""", "yes"));
-
-        // The other half: looser about spelling must not mean looser about meaning.
-        Check("but a different port is still a different call",
-              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":2,"device":"UDM"}""", "yes"));
-
-        Check("and a different device is too",
-              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1,"device":"switch"}""", "yes"));
-
-        Check("and dropping an argument is",
-              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1}""", "yes"));
-
-        Check("and adding one is",
-              !Conversation.Grants(AskedPort().TakeConsent(), cycle,
-                                   """{"port":1,"device":"UDM","force":true}""", "yes"));
+        Check("and an added argument is",
+              !Conversation.SameCall(asked, """{"device":"UDM","port":1,"force":true}"""),
+              "the v0.49.1 half — this is what looped");
 
         // Nested values and arrays reorder too, and a canonical form that only sorted the
         // top level would say two different calls were the same one.

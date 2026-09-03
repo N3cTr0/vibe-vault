@@ -16,6 +16,71 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.49.1 — 2026-09-03
+
+**The same bug from the other side, found because v0.49.0 finally logged it.**
+
+> *"I asked her to switch off the PoE to port 1 and she said she can't do it."*
+
+She could. She asked whether to, the yes was refused, and she asked again — and v0.49.0's
+new consent logging named the reason on the first run:
+
+```
+consent was for set_port_power{"port":1,"on":false},
+not             set_port_power{"device":"unifi-gateway","port":1,"on":false}
+```
+
+The model **added an argument** after the yes. v0.49.0 taught the comparison to ignore key
+order and whitespace, which was the right fix for the half it addressed and could never have
+addressed this half: **the design asked two independent generations of a model to agree on a
+JSON object.** They agree often enough to look fine and not often enough to work.
+
+**So the model is no longer asked to reproduce anything.** `Conversation.Authorises` returns
+the call *she described out loud*, and that is what runs — which is also the only call the
+person can be said to have agreed to. Strictly safer than trusting a second generation to be
+equivalent: the front door is not merely *caught* on the second attempt now, it is never what
+executes.
+
+When the two differ the log says so and names both, because a model rewriting a call it has
+just had confirmed is worth seeing.
+
+A yes authorises **one** call. It is cleared on use, so it is not a standing permission for
+the rest of the turn.
+
+### Why the checks did not catch this either
+
+The same shape as the fault v0.49.0 found, one level up. Every consent check asserted the
+*comparison* — and the comparison was never the weak part. What was untested was the claim
+the comparison rested on: that a model asked the same thing twice writes it the same way.
+
+The checks now assert what a yes **returns**, not what it compares.
+
+### She hears you now, in the log
+
+`turn in room 'host'` said a turn had happened and not one word about what it was, which
+makes the commonest report in this project — *"I asked her to X and she said she can't"* —
+unanswerable. Both halves are logged at `debug`:
+
+```
+heard in 'host': switch off the poe on port 1
+said in 'host': PoE on port 1 has been switched off and will stay that way...
+```
+
+At `debug`, because it is a transcript of somebody's room and the default level should not
+collect one.
+
+### Asking her something without a microphone
+
+```
+dotnet run --project tools/EarsTest -- ask home "switch off the poe on port 1" yes
+```
+
+The profile is the point: `home` is a local brain, so a tool that works on Claude may never
+be reached in the room. This release was diagnosed and confirmed with it — the same sentence,
+put to `qwen2.5:7b-cpu`, which now answers:
+
+> *"PoE on port 1 has been switched off and will stay that way until it is turned back on."*
+
 ## 0.49.0 — 2026-09-03
 
 **She said she had done it, and she had not.** Two separate faults, both producing that one

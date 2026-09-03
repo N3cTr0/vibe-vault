@@ -30,6 +30,11 @@ if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.R
 if (args.Length > 0 && args[0] == "baseline") { Environment.Exit(BaselineChecks.Run()); }
 if (args.Length > 0 && args[0] == "unifi") { Environment.Exit(await UnifiChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "confirm") { await ToolLoopProbe.ConfirmAsync(); return; }
+if (args.Length > 2 && args[0] == "ask")
+{
+    await ToolLoopProbe.AskAsync(args[1], args[2], args.Length > 3 ? args[3] : null);
+    return;
+}
 if (args.Length > 0 && args[0] == "confirmreal") { await ToolLoopProbe.ConfirmRealAsync(); return; }
 if (args.Length > 0 && args[0] == "toolloop") { await ToolLoopProbe.RunAsync(args.Length > 1 && args[1] == "local"); return; }
 // `remotekey` checks it, `remotekey show` prints it, `remotekey roll` replaces it. Nothing

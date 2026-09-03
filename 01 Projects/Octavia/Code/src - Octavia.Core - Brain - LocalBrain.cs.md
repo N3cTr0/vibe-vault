@@ -193,13 +193,27 @@ internal sealed class LocalBrain : IBrain
                     function = new { name, arguments }
                 });
 
-                // The same rule as `ClaudeBrain`, asked of the same place: a yes spoken in
-                // the previous turn, for this exact call, and nothing older.
-                var granted = Conversation.Grants(consent, name, arguments, userText);
+                /* The same rule as `ClaudeBrain`, asked of the same place: a yes spoken in
+                   the previous turn, and nothing older — and the call that runs is the one
+                   she described, not the one written after the yes. This brain needs it
+                   more, not less: a 7B model rewrites its arguments between attempts far
+                   more freely than a large one, which is where the loop was first seen. */
+                var authorised = Conversation.Authorises(consent, name, userText);
+                var granted = authorised is not null;
+                var effective = arguments;
 
-                if (granted) Log.Write($"tool '{name}': confirmed by the last thing said");
+                if (authorised is not null)
+                {
+                    if (!Conversation.SameCall(authorised.Arguments, arguments))
+                        Log.Write($"running {name}{authorised.Arguments} — the call she asked about — " +
+                                  $"rather than {name}{arguments}, which the model wrote after the yes");
 
-                var answer = await Answer(name, arguments, granted, cancel);
+                    effective = authorised.Arguments;
+                    Log.Write($"tool '{name}': confirmed by the last thing said");
+                    consent = null;
+                }
+
+                var answer = await Answer(name, effective, granted, cancel);
 
                 if (!granted && answer.StartsWith("Not done:", StringComparison.Ordinal))
                     history.AwaitYes(name, arguments);
