@@ -20,17 +20,19 @@ She began as a single HTML file (`C:\Projects\talking-avatar.html`) — a three.
 | Room | A shader environment with a full day of lighting — see [[The Room]] |
 | Brain | Any OpenAI-compatible local server, streamed — **the default**; or the Anthropic SDK (`claude-sonnet-5`) |
 | Ears | Silero VAD (ONNX) → Whisper (`Whisper.net`, CPU + CUDA runtimes) |
-| Voice | Windows speech, or Piper out of process — see [[The Voice]] |
-| Lip sync | SAPI phoneme events, or read out of the waveform for any other engine |
+| Voice | **Kokoro `af_heart`**, out of process, and there is no other — chosen by ear out of twenty-two, see [[The Voice]] |
+| Lip sync | Read out of the waveform. No engine has ever given her phoneme timings that survived |
 | Attention | A small local model judges what was addressed to her — see [[The Attention Gate]] |
 | Eyes | One still from the face's camera, only when a question needs it — see [[Eyes]] |
-| Music | WASAPI loopback on the output endpoint, and optionally the microphone for music playing in the room — beat-detected locally, see [[Music]] |
+| Music | Beat detection, locally — but the **server holds no device** since v0.38.0, so a client must report what is playing, and nothing does yet. See [[Music]] |
+| On her own | `Watchman` walks a route on a clock; she learns what normal is for a week before saying anything — see [[Her Rounds]] |
 | Audio | NAudio for capture and playback; a small in-house FFT for analysis |
 | Hands | An MCP client over stdio, so an integration is a server rather than a branch — see [[Roadmap]] stage 12 |
 | Serving | The face socket also answers GETs, so a phone or tablet can load her face from the host itself — see [[Face Protocol]] |
 | Rooms | A face belongs to a *space*, and a conversation on a phone is not the one at the desk — see [[One Being, Many Rooms]] |
-| Secrets | DPAPI, sealed to the current Windows account |
-| Distribution | Two self-contained single-file exes plus one `wwwroot` beside them — see [[Build & Release]] |
+| Secrets | DPAPI, sealed to the current Windows account — the API key, and a password per tool server, never in `config.json`. See [[Conventions & Security Model]] |
+| Controls | `Octavia.Control.exe` — a tray icon and a settings window for the server, in the user's session because a service has no desktop. See [[Her Controls]] |
+| Distribution | **Four** exes plus one `wwwroot` beside them — see [[Build & Release]] |
 
 ## Why she is not a web page
 

@@ -13,11 +13,17 @@ This is the capability the whole architecture was chosen for. A browser page can
 
 ## The chain
 
+> **Half of this chain no longer exists on the server** — v0.38.0, Stage 15 item 3, *"no local devices besides the GPU."* `LoopbackListener` and `MusicWatcher` were deleted with every other device class. **`music` now travels upstream**: a client hears what its own machine is playing and tells her. See [[A Server, And Clients]].
+>
+> **And nothing sends it yet**, so her music sense is dark on every face. The protocol carries it and the analysis still works; what is missing is a client that captures loopback, which a page structurally cannot do — it needs the WPF shell to push it through `window.OctaviaFace.send`. This is the oldest open item in the project.
+
+As it was, and as the arithmetic still is:
+
 ```
-WasapiRecorder (loopback on the render endpoint)
-  → LoopbackListener   downmix to mono, honour the Silent flag
-  → MusicAnalyzer      onset envelope → tempo → phase
-  → MusicWatcher       the decision, and what the face is worth telling
+WasapiRecorder (loopback on the render endpoint)     ← on a client now
+  → downmix to mono, honour the Silent flag          ← was LoopbackListener
+  → MusicAnalyzer      onset envelope → tempo → phase   ← still here, unchanged
+  → the decision, and what the face is worth telling  ← was MusicWatcher
   → music { playing, bpm, energy } / music { beat }
 ```
 

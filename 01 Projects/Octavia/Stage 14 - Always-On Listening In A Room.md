@@ -55,7 +55,7 @@ Two things follow, and they are the whole design:
 
 **Gating is the workhorse; echo cancellation is the bonus that buys barge-in.**
 
-### The client half — [[project-octavia-android]]
+### The client half — [[Octavia Android]]
 
 **1. Half-duplex gating, driven by the client's own playback.**
 
@@ -181,5 +181,5 @@ now.
 
 ## Links
 
-- [[Stage 14 - Two Rooms]] · [[Stage 14 - Lending A Renderer The Device's Senses]] · [[Stage 15 - A server, and clients]]
+- [[Stage 14 - Two Rooms]] · [[Stage 14 - Lending A Renderer The Device's Senses]] · [[Stage 15 - Server And Clients]]
 - [[Octavia]] · [[Octavia Android]]

@@ -63,7 +63,9 @@ Every face→host message is one of three things, and the check is on the sendin
 > pressing inside a listening room must not switch off what somebody deliberately left on.
 > See [[Stage 14 - Always-On Listening In A Room]].
 | **Room** | `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | The sending face's room. |
-| **Being** | `setKey`, `setVoice`, `setVoiceEngine`, `setAvatar`, `setRoomHour`, `setStats` | Any room, echoed to every room — every face is wearing the result. |
+| **Being** | `setKey`, `setAvatar`, `setRoomHour`, `setStats` | Any room, echoed to every room — every face is wearing the result. |
+
+> **The table only ever shrinks, and that is worth noticing.** Three device messages left it in v0.38.0 by ceasing to exist; `setVoice` and `setVoiceEngine` left in v0.40.0 when she stopped having a voice to choose. Both are still *answered* — an old face that sends one is told so, rather than having it land in `default` and come back as *"she did not understand that"*, which is a worse lie than a plain no. The host-only row gained one entry, `rehearseRound`, and it is genuinely about the machine she runs on. See [[Face Protocol]].
 
 `hello` gained `controls` (`host` or `room`) and the page hides its host-only rows accordingly. **That is a hint, not the enforcement**, and both halves are needed: without the guard a remote face drives the hardware anyway, and without the hint a phone shows a microphone button that silently does nothing, which is its own kind of broken.
 

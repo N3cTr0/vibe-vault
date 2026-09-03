@@ -18,9 +18,11 @@ The through-line of the stage: **every silent failure becomes a visible one.** T
 `octavia.log` had no levels, no rotation, and grew forever.
 
 - Levels: `debug` / `info` / `warn` / `error`. Errors carry the whole exception — a message without a stack trace is exactly what you wish you had when the report arrives from elsewhere.
-- Rolls at **1 MB**, keeping `octavia.1.log` through `.3.log`. Small on purpose: the point is that it can be attached to an email.
+- **One file per day since v0.45.0** — `octavia-2026-09-03.log` — and *nothing schedules that*. The day is spliced into the name, so `Log.Today` is simply a different answer after midnight and the rotation happens as a consequence of writing. A server that was asleep at the turn of the day rotates on its first line of the new one exactly as a server that was awake. **When a requirement names a time, ask whether the time is the trigger or just the boundary.**
+- **`LogKeepDays` (14) deletes the rest**, once per day, on the first line written. The purge reads **the file's own timestamp rather than a date out of its name** — which costs nothing and quietly clears the `octavia.log` and `octavia.1.log` every earlier version left behind. `0` keeps everything, which is what somebody chasing a fault across a month types, and must not be read as "keep nothing".
+- Still rolls at **1 MB** *within* a day. Kept and demoted rather than replaced: a day is a good unit for finding things and no unit at all for bounding size, and the day something goes wrong at three in the morning is the day it writes ten gigabytes.
 - The last 300 lines are kept **in memory**, so the Health panel works even when the disk does not.
-- `LogLevel` in config.json; `OCTAVIA_LOG` redirects the file (the test harness uses it so a check can exercise rotation without destroying the real one).
+- `LogLevel` and `LogKeepDays` in config.json, or in [[Her Controls]]; `OCTAVIA_LOG` redirects the whole scheme (the test harness uses it so a check can exercise a fortnight of rotation without touching the real one).
 - **Notices are logged too.** They are the things she thought were worth interrupting for, and by the time a bundle arrives the one that mattered has long since faded off the screen.
 
 ## Crash handling
@@ -37,7 +39,7 @@ And `Task.Forget(what)` replaces every `_ = SomeAsync()`. A discarded task swall
 
 ## The self-test
 
-Reachable from the Health panel or by sending `selfTest`. Twelve checks, each one there because that failure has already happened once:
+Reachable from the Health panel or by sending `selfTest`. Thirteen checks, each one there because that failure has already happened once:
 
 | Check | Answers |
 |---|---|
@@ -52,7 +54,10 @@ Reachable from the Health panel or by sending `selfTest`. Twelve checks, each on
 | Camera | Whether she may open one at all — off is a pass, not a warning |
 | Attention gate | Which model judges, and a loud failure when it differs from the brain's |
 | Music | Switched off, no output device, or listening — the three causes of "she never dances" |
+| **Rounds** | How far through the learning she is, when she last walked, and what came of it |
 | Brain | Local endpoint reachable and model listed; for Claude, only whether a key is stored |
+
+> **The Rounds row exists because the answer is almost always "nothing".** A round that finds nothing and a round that has silently stopped running feel identical from outside — hour after hour of her saying nothing — so the panel a person actually opens has to say *when she last looked*. Green either way: an empty route and a quiet night are both correct outcomes, not faults. The one amber case is a finding she never managed to say. See [[Her Rounds]].
 
 Two deliberate properties:
 
@@ -69,7 +74,7 @@ One zip, saved wherever the person using her chooses:
 README.txt    what is inside, and what to check before sending it
 report.txt    self-test result, system facts, recent log
 config.json   her settings, with anything key-shaped removed
-logs/         octavia.log and its rolled predecessors
+logs/         every log file that survives — the last LogKeepDays of them
 ```
 
 Reachable from the face (**Health → Save**) *and from the tray*, because the moment you most need a bundle is the moment the face is what broke.

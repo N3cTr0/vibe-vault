@@ -31,7 +31,7 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ## When to take them
 
-**After every version bump**, as part of the same change set as the code and the vault sync — see [[Vault upkeep]]. Most releases change no pixels and need nothing; the judgement is only ever "did anything visible move?". A release that changed her appearance and was never photographed cannot be reconstructed from a diff afterwards, and a changelog entry describing the chrome is no substitute for seeing it.
+**After every version bump**, as part of the same change set as the code and the vault sync — see [[Conventions & Security Model#Vault upkeep]]. Most releases change no pixels and need nothing; the judgement is only ever "did anything visible move?". A release that changed her appearance and was never photographed cannot be reconstructed from a diff afterwards, and a changelog entry describing the chrome is no substitute for seeing it.
 
 `tools\check-vault.ps1` reports whether the current version has any shot at all, and names the newest one if not. It **reports rather than fails** — the point is to make you look, not to demand a photograph of a bug fix.
 
@@ -326,6 +326,21 @@ The capture caught a terminal window overlapping at the left edge; that is the s
 
 ---
 
+## The 09/02–09/03 run *(v0.35.0 → v0.46.0)*
+
+Filed under `Screenshots\`. The ones that carry something a diff cannot:
+
+| Shot | What it settles |
+|---|---|
+| `v0.39.1 - her mouth moves again, mid-vowel` | The bug that only a photograph could confirm: her voice played perfectly and her mouth never moved, because a 20 ms clock made every chunk smaller than a viseme frame |
+| `v0.40.0 - speaking in her new voice, mid-sentence` | Kokoro `af_heart`, mouth moving, caption up — the engine replaced with nothing downstream noticing. See [[The Voice]] |
+| `v0.41.0 - she asks before cutting power to a port` | *"Do you want to power cycle port 4 on the UDM?"* and then **stopping**. The confirmation gate, live, against the real gateway. See [[Hands]] |
+| `v0.42.0 - the Rounds row, saying she has nothing to walk yet` | The row that exists so a week of deliberate silence is not mistaken for a broken job. See [[Her Rounds]] |
+| `v0.44.0 - a rehearsal of an hourly finding, said out loud` | What she sounds like when she finds something, without waiting for her to find something |
+| `v0.46.0 - her server's own settings window` | [[Her Controls]], and the header warning that the active profile overrides four of the fields below it |
+
+> **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
+
 ## Gaps
 
 **Stages 1–4** have no screenshots. Those were verified from logs, harness output and the protocol rather than by eye, which was correct for what they were — but it does mean there is no visual record of her before the room.
@@ -335,3 +350,5 @@ The capture caught a terminal window overlapping at the left edge; that is the s
 **v0.13.0–v0.14.x and v0.16.0–v0.19.2** are also unphotographed, though less painfully — 0.19.3 shows where that run of changes ended up, even if not how it got there.
 
 This is the gap that [[#When to take them|the after-every-bump rule]] exists to stop reopening.
+
+**A different kind of gap has opened since.** From v0.10.0 to v0.38.0 the shots were *taken* — the rule held — but this note stopped describing them, so there are roughly thirty images in `Screenshots\` with nothing here saying what they settle. The filenames carry a caption each, and `check-vault.ps1` counts them per version, so nothing is lost; what is missing is the sentence explaining why each one was worth taking. **Taking the photograph and writing down what it proves are two habits, and only the first one stuck.**

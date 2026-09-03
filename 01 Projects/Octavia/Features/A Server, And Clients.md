@@ -179,7 +179,15 @@ The single-instance mutex is `Local\`, so it cannot see across sessions — a se
 
 `LocalServer` asks `--start` before spawning a console of its own, because a service outlives the window that wanted it and comes back after a reboot.
 
-**Not done:** the same start and stop in the client's tray. The shortcuts answer what was asked; the tray is a nicety that can follow.
+~~**Not done:** the same start and stop in the client's tray.~~ **Added, and then removed again — v0.46.0**, at the owner's instruction:
+
+> *"Remove the start stop from the client as the clients should not be able to configure server side things, they should only be able to set what they send out."*
+
+A client is a renderer with a microphone. What it sends and what it draws are its business; the lifetime of a service on another machine is not, and the two usually sharing a box is a coincidence of this setup rather than a licence. It lives in [[Her Controls]] now — a tray of its own, in the user's session, because **a Windows service has no desktop**.
+
+**`LocalServer.Ensure` stays.** Attaching to a server, and starting one when there is none to attach to, is what makes double-clicking her work; that is not configuration, and removing it would break the ordinary case to satisfy a tidy rule.
+
+`ServiceInstalled` and `ControlService` were **deleted rather than moved wholesale**: the part two processes now need went to `Core.ServerControl`, and the part only a client does stayed. Two copies of *"where is `Octavia.Server.exe`"* would be two answers the first time somebody rearranged the folders.
 
 ### Logging her on as you, which was tried the same day *(v0.30.1)*
 

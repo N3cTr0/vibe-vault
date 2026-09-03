@@ -105,10 +105,26 @@ Defaults are the ones in `Core\OctaviaConfig.cs`, not the ones in any particular
 
 | Key | Default | Notes |
 |---|---|---|
-| `VoiceEngine` | `windows` | `windows` or `neural` — see [[The Voice]] |
-| `VoiceName` | first installed | The Windows voice; Settings → Voice |
-| `NeuralVoiceName` | `en_GB-jenny_dioco-medium` | The Piper voice, kept separately |
-| `VoiceRate` | `0` | −10 to 10 |
+| ~~`VoiceEngine`~~, ~~`VoiceName`~~, ~~`NeuralVoiceName`~~ | — | **Deleted in v0.40.0.** She has one voice, chosen by ear out of twenty-two, and there is nothing left for any of the three to say. Old keys in an existing file are simply never read — see [[The Voice]] |
+| `VoiceRate` | `0` | −10 to 10, rising is faster. **The only thing about her voice that is still a setting**, because it is about the listener rather than the speaker |
+
+> **They were deleted rather than kept and ignored**, which is the opposite of what happened to `VoiceEngine` when SAPI went — and right for a different reason. That one was kept because a face could still *send* `setVoiceEngine`, and it had to mean something; the answer to that lives in `OctaviaSession` now, where the message is refused out loud. **A field in a config file is not a message from anybody. It is a promise that this can be configured.**
+
+### Her rounds *(v0.42.0–0.44.0)*
+
+| Key | Default | Notes |
+|---|---|---|
+| `Rounds.Enabled` | `true` | Whether she checks anything on her own — see [[Her Rounds]] |
+| `Rounds.EveryMinutes` | `60` | Clamped to 1–1440 |
+| `Rounds.LearnForDays` | `7` | She says **nothing at all** until this has passed, counted from her first walk rather than from installation |
+| `Rounds.QuietFrom` / `.QuietTo` | `00:00` / `08:30` | Findings inside the window are held, not dropped. Equal values mean no quiet hours. `24:00` is accepted as midnight, because that is what people type |
+
+### Logs
+
+| Key | Default | Notes |
+|---|---|---|
+| `LogLevel` | `info` | `debug` when reproducing a fault |
+| `LogKeepDays` | `14` | **One file per day**; older ones deleted after midnight. `0` keeps everything — see [[Diagnostics]] |
 
 ### Attention
 
@@ -174,6 +190,12 @@ install — that reasoning still holds for an installed copy, which is why case 
 | `<data>\voices\` | The neural speech engine and its models — see [[The Voice]] |
 
 `OCTAVIA_CONFIG` points her at a different settings file entirely. It exists so the test harness can exercise loading and saving without touching the real one.
+
+## There is a window for this now *(v0.46.0)*
+
+`Octavia.Control.exe` — see [[Her Controls]] — edits every key above without a text editor, and **it edits the file rather than a running session**, so it works while she is stopped. That is the case that matters: the moment somebody needs to change a setting is usually the moment the setting is stopping her.
+
+> **It says which keys the active profile overrides**, at the top of the window. A value edited there that the profile also sets is written correctly and then ignored at startup, and letting that happen quietly would be the most confusing thing a settings screen could do.
 
 ## Notes
 

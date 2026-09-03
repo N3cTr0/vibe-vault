@@ -10,6 +10,17 @@ tags: [octavia, architecture]
 > below did not change to allow that — **the rule is what allowed it**, and the split was
 > mostly a matter of moving files. See [[A Server, And Clients]].
 
+> **Four executables since v0.46.0**, and each extra one exists for a reason that could not be
+> designed around:
+>
+> - **`octavia-kokoro.exe`** carries its own native `onnxruntime.dll`, and `Octavia.Core`
+>   carries Microsoft's for Silero and the wake word. Two in one folder is a native collision.
+> - **`Octavia.Control.exe`** is her server's tray icon and settings, and it is separate
+>   because **a Windows service has no desktop** — an icon drawn from session 0 is drawn where
+>   nobody can see it. See [[Her Controls]].
+>
+> Both are the same shape of answer: a process boundary where a namespace would not do.
+
 ## The rule
 
 **The face is a renderer; the host is the being.**
@@ -36,11 +47,13 @@ Octavia.Core.dll — her, and nothing that draws
 ├── Brain/        IBrain -> ClaudeBrain | LocalBrain; Conversation; Speech helpers;
 │   │             Moods; Persona; Situation; AttentionGate
 │   └─ Tools/     ITool, McpClient (stdio JSON-RPC), ToolRegistry (+ the risk policy)
-├── Senses/       MicLevelMeter; ISpeechRecognizer -> WhisperRecognizer | SystemSpeechRecognizer
-│   │             AudioSamples (format decoding), AudioDevices (resolution by name)
-│   ├─ Ears/      SileroVad, WhisperTranscriber, WhisperModelStore, WhisperCompute
-│   └─ Music/     LoopbackListener, MusicAnalyzer, MusicWatcher
-├── Voice/        IVoice -> SapiVoice | NeuralVoice; PiperStore
+├── Senses/       ISpeechRecognizer -> WhisperRecognizer | SystemSpeechRecognizer
+│   │             AudioSamples (format decoding), FaceAudioSource (a client's mic)
+│   ├─ Ears/      SileroVad, WhisperTranscriber, WhisperModelStore, WhisperCompute,
+│   │             WakeWord, WakeWordStore
+│   └─ Music/     MusicAnalyzer — beat detection only; no device since v0.38.0
+├── Voice/        IVoice -> KokoroVoice; KokoroStore, Pacer (the clock a sound card was)
+├── Rounds/       IRound -> ThreatRound; Watchman (the clock), Baseline (what is normal)
 ├── Audio/        Fft, VisemeReader — lip sync read out of the waveform
 ├── Diagnostics/  SelfTest, SystemReport, DiagnosticsBundle
 ├── Face/         IFaceTransport -> FaceHub -> WebSocketFaceServer
@@ -51,8 +64,14 @@ Octavia.Core.dll — her, and nothing that draws
                   dev.js, bridge.js (protocol), face.css, index.html, lib/
 
 Octavia.Server.exe   Program.cs — load, open the socket, wait for ctrl+c
+                     Service.cs — install/start/stop, and --secret
 Octavia.exe          App (tray, single instance), MainWindow (WebView2, hotkey),
                      ClientConfig, Hotkey, Native. No session, and a check says so.
+Octavia.Control.exe  App (tray), SettingsWindow. Her server's controls, in the
+                     user's session because a service has no desktop. No session
+                     either, and the same check says so.
+octavia-kokoro.exe   Her voice. sherpa-onnx in a process of its own, because it
+                     carries a second native onnxruntime.dll.
 ```
 
 `OctaviaSession` is the only place that knows about all of them. It is deliberately the one file with wide knowledge; everything else is narrow.
@@ -67,9 +86,12 @@ These are the whole design. Each was introduced *before* it had a second impleme
 |---|---|---|
 | `IBrain` | `ClaudeBrain`, `LocalBrain` | What she thinks with — *not* what it thinks about; the history is passed in, since v0.24.0 |
 | `ISpeechRecognizer` | `WhisperRecognizer`, `SystemSpeechRecognizer` | What she hears with |
-| `IVoice` | `SapiVoice`, `NeuralVoice` | What she speaks with |
+| `IVoice` | `KokoroVoice` — `SapiVoice` and `NeuralVoice` before it | What she speaks with |
 | `IFaceTransport` | `FaceHub` over `WebSocketFaceServer` | How the face is reached |
 | `ITool` | `McpClient` via `ToolRegistry` | What she can *do* — an integration is a server, not a branch |
+| `IRound` | `ThreatRound` | What she checks **on her own**, on a clock — see [[Her Rounds]] |
+
+> **`IVoice` is the only one of these whose implementation has actually been replaced.** SAPI and Piper were written at the same time, against each other, so the seam had never been asked a question it could fail; swapping Piper for Kokoro in v0.40.0 was the first real test, and it passed — two files changed, and `VisemeReader`, `Pacer`, the state machine and every face were untouched. **Count how many of an interface's implementations were written before the interface**; those do not test it, they are what it was traced around.
 
 **`IFaceTransport` learned to address one face in v0.21.0**, and it is worth saying what did *not* change: `Send(message, to)` defaults `to` to null, and null still means everyone. The session learns that faces are **distinguishable**, not how any of them connected — so the rule at the top of this note still holds exactly as written. `FaceId` is opaque; nothing can be recovered from one about a transport.
 

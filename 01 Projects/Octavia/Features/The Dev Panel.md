@@ -28,7 +28,11 @@ This is the same instinct as the probes in `tools\EarsTest` — see [[Diagnostic
 | Music | playing, tempo, energy, a single beat, and beats at the tempo |
 | Props | headphones `auto` / on / off |
 | Room | the day's keyframe hours |
-| Senses | listening, hush, and the music sense — **these reach the host** |
+| Senses | listening, hush, the music sense, and **Rehearse a round** — these reach the host |
+
+**Rehearse a round** *(v0.44.0)* is the odd one out and earns its place. Her hourly rounds are the only thing she does unasked, and **the correct outcome is silence, for weeks** — so it is the one feature nobody ever sees working until the night it matters. This says what a finding sounds like on demand, through the real delivery path: same room, same voice, same entry in the transcript.
+
+The sentence says out loud that it is a rehearsal, and that is not decoration — it lands in the room's history like any other turn, and a line there claiming a camera was attacked would be read back as fact the next time somebody asked. See [[Her Rounds]].
 
 `Say a line` exists because a single held viseme says nothing about whether a mouth reads as *talking*. Sequence is most of the effect, and this is the cheapest way to see it without a voice.
 
