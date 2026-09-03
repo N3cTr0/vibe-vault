@@ -25,6 +25,20 @@ internal sealed class RoundsConfig
     /// mistyped zero is a busy loop that never happens.
     public int EveryMinutes { get; set; } = 60;
 
+    /// How long she watches before she is willing to say anything, in days.
+    ///
+    /// **Nothing about any particular network is written down anywhere in this project.** She
+    /// learns what normal looks like wherever she is installed and stays silent until she has —
+    /// which is the difference between a thing that works here and a thing that works. A torrent
+    /// box on one site and a camera recorder on another are the same to her: a name that turns
+    /// up often. See `Baseline`.
+    ///
+    /// The week counts from her first observation, not from installation, so a machine that was
+    /// switched off for three days has three more days to watch.
+    ///
+    /// Zero judges from the very first walk, which is only useful in a test.
+    public int LearnForDays { get; set; } = 7;
+
     /// When she stays silent. Findings inside this window are **held, not dropped** — the
     /// point of checking at four in the morning is that somebody hears about it at eight.
     ///

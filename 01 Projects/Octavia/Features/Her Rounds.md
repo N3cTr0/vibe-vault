@@ -46,3 +46,40 @@ Worth remembering for anything else on a schedule — see [[Lessons Learned]].
 ## What is left
 
 The first real round reads UniFi's IPS/IDS feed. The API key reaches **no event history at all** (see [[Hands]]), so it needs a **read-only local UniFi account** — chosen over syslog on 09/03/2026 — put in her config and sealed the way the API key is.
+
+## The first round: the network's security log *(v0.44.0)*
+
+**The design came out of the data, and the plan it replaced was wrong.**
+
+The plan was *"tell him about anything at or above high severity"*. The first eight-hour sample of the real log held **195 events, every one `VERY_HIGH`, at a steady 24 an hour** — and 168 of them came from one machine, which turned out to be the owner's torrent box. Severity is not a filter on that network; it is a constant. A threshold on it would have produced the crying-wolf failure this feature was designed to avoid, arriving by a route nobody had thought of.
+
+> *"I think she should at least learn the system for a week and then start reporting on them, like if this gets installed at a different location my stuff wouldn't apply there."*
+
+So severity is not the signal and volume is not the signal. **Change is** — and what counts as change is learned.
+
+### `Baseline`
+
+**Nothing about any particular network is written down anywhere in this project.** A torrent box on one site and a camera recorder on another are the same thing to it: a name that turns up often.
+
+| | |
+|---|---|
+| Silent for | `Rounds.LearnForDays`, seven by default |
+| Counted from | her **first observation**, not installation — a machine off for three days has three more days to watch |
+| Then speaks for | a source never seen while learning, or a known one far outside what it has ever done |
+| Survives | a restart. She restarts every time somebody compiles, and a week that began again each time would never end |
+
+**A flagged walk is not learned from.** Folding one in is how a slow escalation teaches her to accept it: each hour a little worse than the last, each hour becoming the new normal, and nothing ever said. A check drives four rising hours and asserts she says all four.
+
+The file is readable on purpose — a person should be able to open it and disagree with what she thinks is normal.
+
+### Two APIs on one appliance
+
+The UniFi **Integration API** the rest of [[Hands]] uses has no event history at all: every event-shaped route 404s, proven with a nonsense-path control. The events are on the **legacy** API behind a cookie login — hence the read-only account and the sealed secrets in [[Conventions & Security Model]].
+
+The log **does not name which rule matched**. She can say who, how many, and what changed; not what it was.
+
+### `rehearseRound`
+
+An hourly errand is a thing nobody sees working until the night it matters. The dev panel's **Rehearse a round** says what a finding sounds like on demand, through the real delivery path.
+
+The sentence says it is a rehearsal, and that is not decoration: it lands in the room's history like any other turn, and a line there claiming a camera was attacked would be read as fact the next time somebody asked.

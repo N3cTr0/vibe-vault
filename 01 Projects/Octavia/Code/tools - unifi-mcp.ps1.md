@@ -191,6 +191,122 @@ function Find-Client([string]$query) {
   So the listing reports what the gateway actually knows: link state, negotiated speed, and
   whether the port supplies PoE and is currently doing so.
 #>
+<#
+  The security log, which the API key cannot reach at all.
+
+  **Two different APIs on one appliance.** Everything above uses the official Integration API
+  and an `X-API-KEY`. That API is inventory and control: it has no history of any kind, and
+  every event-shaped route on it 404s - established with a nonsense-path control, so those are
+  real absences rather than the proxy refusing before it routes.
+
+  The events live in the *legacy* API, behind a cookie login. Hence a second credential: a
+  read-only local UniFi account, whose password arrives in the environment from her sealed
+  secret store and is never in `config.json`. See `McpServer.Secrets`.
+
+  The session is cached and re-established on a 401, because a login per call would be a
+  login per hour for ever.
+#>
+$script:session = $null
+$script:csrf = $null
+
+function Connect-Unifi {
+  if (-not $env:UNIFI_USERNAME) { throw 'UNIFI_USERNAME is not set' }
+  if (-not $env:UNIFI_PASSWORD) { throw 'no UNIFI_PASSWORD; store one with `Octavia.Server.exe --secret unifi:UNIFI_PASSWORD`' }
+
+  $body = @{ username = $env:UNIFI_USERNAME; password = $env:UNIFI_PASSWORD; rememberMe = $false } |
+    ConvertTo-Json -Compress
+
+  $login = Invoke-WebRequest -Uri "https://$unifiHost/api/auth/login" -Method Post -Body $body `
+    -ContentType 'application/json' -SkipCertificateCheck -SessionVariable session -TimeoutSec 25
+
+  $script:session = $session
+  $token = $login.Headers['X-Updated-CSRF-Token']
+  if ($token -is [array]) { $token = $token[0] }
+  $script:csrf = $token
+}
+
+function Invoke-Legacy([string]$path, $body) {
+  if (-not $script:session) { Connect-Unifi }
+
+  $call = {
+    $headers = @{ 'Accept' = 'application/json' }
+    if ($script:csrf) { $headers['X-CSRF-Token'] = $script:csrf }
+
+    Invoke-RestMethod -Uri "https://$unifiHost$path" -Method Post -WebSession $script:session `
+      -Headers $headers -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress) `
+      -SkipCertificateCheck -TimeoutSec 30
+  }
+
+  try { & $call }
+  catch {
+    # A session expires quietly and the next call is a 401. One retry, once.
+    Connect-Unifi
+    & $call
+  }
+}
+
+<#
+  What the security log holds since a moment, grouped by who set it off.
+
+  **`format`** decides who the answer is for. `words` is prose for her to read out; `counts`
+  is one `name<TAB>number` per line, which is what `ThreatRound` parses. Two shapes rather
+  than a model being asked to count, and rather than a round being asked to read English.
+
+  The severity is *not* a filter, and that is the finding this tool was built around: every
+  one of the 195 security events in the first eight-hour sample read `VERY_HIGH`. A threshold
+  on severity would have her talking every hour for ever. What matters is whether the pattern
+  changed, which is `Baseline`'s job and not this one's - so this reports, and judges nothing.
+#>
+function Get-Threats([string]$format, $sinceMs) {
+  $since = if ($sinceMs) { [int64]$sinceMs } else { [DateTimeOffset]::UtcNow.AddHours(-1).ToUnixTimeMilliseconds() }
+
+  $rows = @()
+  $page = 0
+
+  # Paged until the rows are older than asked for. A busy network can produce hundreds an
+  # hour, and the endpoint has no "since" of its own.
+  while ($page -lt 10) {
+    $answer = Invoke-Legacy '/proxy/network/v2/api/site/default/system-log/all' `
+      @{ pageNumber = $page; pageSize = 200 }
+
+    $batch = @($answer.data)
+    if ($batch.Count -eq 0) { break }
+
+    $rows += $batch | Where-Object { $_.category -eq 'SECURITY' -and $_.timestamp -ge $since }
+    if (($batch | Measure-Object -Property timestamp -Minimum).Minimum -lt $since) { break }
+
+    $page++
+  }
+
+  # Who set it off. A named client when the gateway knows one, the bare address when it does
+  # not - and never blank, because a blank key would silently merge unrelated sources into
+  # one row and hide exactly the new thing this exists to notice.
+  $named = $rows | ForEach-Object {
+    $who = $_.parameters.SRC_CLIENT.name
+    if (-not $who) { $who = $_.parameters.SRC_CLIENT.hostname }
+    if (-not $who) { $who = $_.parameters.SRC_IP.id }
+    if (-not $who) { $who = 'unattributed' }
+    [pscustomobject]@{ Who = $who }
+  }
+
+  $groups = $named | Group-Object Who | Sort-Object Count -Descending
+
+  if ($format -eq 'counts') {
+    $lines = @("total`t$($rows.Count)")
+    foreach ($g in $groups) { $lines += "$($g.Name)`t$($g.Count)" }
+    return ($lines -join "`n")
+  }
+
+  $when = [DateTimeOffset]::FromUnixTimeMilliseconds($since).LocalDateTime.ToString('HH:mm')
+
+  if ($rows.Count -eq 0) { return "No security events since $when." }
+
+  $lines = @("$($rows.Count) security event(s) since $when, all blocked by Threat Management:")
+  foreach ($g in $groups) { $lines += "  $($g.Name): $($g.Count)" }
+  $lines += 'The log does not name which rule matched; that is only on the Threat Management screen.'
+  $lines -join "`n"
+}
+
 function Get-Ports([string]$query) {
   $site = Get-SiteId
   $devices = (Invoke-Unifi "sites/$site/devices?limit=50").data
@@ -415,6 +531,17 @@ $tools = @(
     }
   },
   @{
+    name        = 'recent_threats'
+    description = 'Read the security log: intrusion attempts the gateway detected and blocked, grouped by which client set them off. Optionally since a moment in time. This is a read of history and changes nothing.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{
+        since  = @{ type = 'number'; description = 'Unix milliseconds. Omitted means the last hour.' }
+        format = @{ type = 'string'; description = "'words' for prose, 'counts' for one name and number per line" }
+      }
+    }
+  },
+  @{
     name        = 'list_cameras'
     description = 'List the UniFi Protect cameras and whether each one is currently reachable. Use this to say what she can and cannot see.'
     inputSchema = @{ type = 'object'; properties = @{} }
@@ -479,6 +606,7 @@ while ($true) {
           'find_client' { Find-Client $callArgs.query }
           'list_ports' { Get-Ports $callArgs.device }
           'power_cycle_port' { Restart-PortPower $callArgs.device $callArgs.port }
+          'recent_threats' { Get-Threats $callArgs.format $callArgs.since }
           'list_cameras' { Get-Cameras }
           'look_at_camera' {
             $seen = Get-CameraView $callArgs.camera

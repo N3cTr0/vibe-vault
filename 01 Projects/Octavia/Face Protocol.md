@@ -135,7 +135,7 @@ message came from**, before acting.
 
 | Class | Messages | Rule |
 |---|---|---|
-| **Host only** | `setWhisperCompute`, `openDataFolder`, `saveDiagnostics` | Acted on only from the `host` room. From anywhere else: refused, answered with a `notice`, logged once. **Three device messages left this list in v0.38.0** — not by being allowed, but by ceasing to exist. What remains is what is genuinely about the machine she runs on. `listen` left it too, and means the same thing everywhere now: *transcribe what I am already sending you*. |
+| **Host only** | `setWhisperCompute`, `openDataFolder`, `saveDiagnostics`, `rehearseRound` | Acted on only from the `host` room. From anywhere else: refused, answered with a `notice`, logged once. **Three device messages left this list in v0.38.0** — not by being allowed, but by ceasing to exist. What remains is what is genuinely about the machine she runs on. `listen` left it too, and means the same thing everywhere now: *transcribe what I am already sending you*. |
 | **Room** | `say`, `talking`, `hush`, `forget`, `sight`, `setCamera`, `setCameraDevice`, `selfTest`, `faceError` | Acted on for the sending face's room only. |
 | **Being** | `setKey`, `setAvatar`, `setRoomHour`, `setStats` | Allowed from any room, and echoed to every room — every face is wearing the result. |
 
@@ -384,6 +384,7 @@ if the stream stops, rather than freezing the last value.
 | `faceError` | `text` | The renderer threw. The host writes it to `octavia.log`, since a face has no console the host can see. |
 | `selfTest` | — | Run the checks and answer with `diagnostics`. Free — it never calls a paid model. |
 | `saveDiagnostics` | — | Ask the host for a bundle. **The host owns the file dialog**; a face never chooses the path. |
+| `rehearseRound` | — | Say what an hourly finding sounds like, through the real delivery path. The sentence names itself a rehearsal, because it lands in the room's history like any other turn. Ignores quiet hours - a person asked for it - and does not touch what she has learned is normal. |
 | `openDataFolder` | — | Show her data folder in Explorer. |
 
 ---

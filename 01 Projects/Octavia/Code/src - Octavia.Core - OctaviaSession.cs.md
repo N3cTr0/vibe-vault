@@ -138,10 +138,18 @@ internal sealed class OctaviaSession : IDisposable
 
         StartHerVoice().Forget("starting her voice");
 
-        /* **The one thing she does that nobody asked for.** No round is registered here yet,
-           so this walks an empty route and says nothing — which is exactly the state to build
-           the machinery in. See `Watchman`, and Stage 18 for why the clock is the small part. */
+        /* **The one thing she does that nobody asked for.** See `Watchman`, and Stage 18 for
+           why the clock was always the small part of it.
+
+           The threat round is registered unconditionally and does nothing on a machine with no
+           UniFi server configured: the tool call comes back as a sentence saying there is no
+           such tool, which is not a `counts` answer and so is not a finding. That is better
+           than conditioning on config here, because it means the round handles a gateway that
+           goes away at three in the morning by the same path as one that was never there. */
+        _threats = new ThreatRound(_tools, config);
+
         _watchman = new Watchman(config, SayUnprompted);
+        _watchman.Add(_threats);
         _watchman.Start();
 
         _face.MessageReceived += OnFaceMessage;
@@ -492,7 +500,7 @@ internal sealed class OctaviaSession : IDisposable
         // `setMicrophone`, `setOutput` and `setMusic` were here until Stage 15 item 3. They
         // protected devices on the machine she runs on, and there are none. What is left is
         // what genuinely is about her machine.
-        "listen", "setWhisperCompute", "openDataFolder", "saveDiagnostics"
+        "listen", "setWhisperCompute", "openDataFolder", "saveDiagnostics", "rehearseRound"
     ];
 
     /// Changes *her*, not a room, so any room may — and every room is told, because every
@@ -757,6 +765,11 @@ internal sealed class OctaviaSession : IDisposable
             case "openDataFolder":
                 OpenDataFolder();
                 break;
+
+            // What a finding sounds like, through the real path. See `Watchman.Rehearse`.
+            case "rehearseRound":
+                Notice(room, _watchman.Rehearse());
+                break;
         }
     }
 
@@ -974,7 +987,13 @@ internal sealed class OctaviaSession : IDisposable
     private string RoundsSummary()
     {
         if (!_config.Rounds.Enabled) return "switched off";
-        if (_watchman.LastWalk is not { } walked) return "none registered yet";
+
+        /* **What she has learned, said first and always.** For the first week she is silent by
+           design, and a week of deliberate silence is indistinguishable from a broken round
+           unless something says which it is. This is that something. */
+        var learning = _threats.Describe(DateTimeOffset.Now);
+
+        if (_watchman.LastWalk is not { } walked) return $"{learning}; not walked yet";
 
         var since = DateTimeOffset.Now - walked;
 
@@ -982,7 +1001,7 @@ internal sealed class OctaviaSession : IDisposable
                  : since.TotalHours < 1 ? $"{(int)since.TotalMinutes} min ago"
                  : $"{since.TotalHours:0.#} h ago";
 
-        return $"walked {when} — {_watchman.LastResult}";
+        return $"{learning}; walked {when} — {_watchman.LastResult}";
     }
 
     /// What she has been *told* is playing, and by whom.
@@ -1339,8 +1358,9 @@ internal sealed class OctaviaSession : IDisposable
     private FaceAudioSource? _faceMic;
     private System.Threading.Timer? _floorTimeout;
 
-    /// Her rounds. Registered with nothing yet, and started all the same - see Stage 18.
+    /// Her rounds, and the one she walks.
     private readonly Watchman _watchman;
+    private readonly ThreatRound _threats;
 
     /// A phone in a pocket with a stuck button must not own her ears indefinitely.
     private static readonly TimeSpan FloorLimit = TimeSpan.FromSeconds(60);

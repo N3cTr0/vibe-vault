@@ -99,6 +99,37 @@ internal sealed class Watchman : IDisposable
         }
     }
 
+    /// Says what a finding sounds like, through the real path, on request.
+    ///
+    /// **Everything about this is the genuine article except the finding itself**: the same
+    /// delivery, the same room, the same voice, the same entry in the room's history. That is
+    /// the point — an hourly errand is a thing nobody sees working until the night it matters,
+    /// and *"what will she actually do"* is a fair question to be able to answer on a Tuesday.
+    ///
+    /// **The sentence says it is a rehearsal**, and that is not decoration: it goes into her
+    /// history like any other turn, and a line there claiming a camera was attacked would be
+    /// read as fact by her the next time somebody asked about it.
+    ///
+    /// It does not touch the baseline, and it ignores quiet hours — a person asked for it, and
+    /// they are plainly awake.
+    public string Rehearse()
+    {
+        var finding = new Finding(
+            "This is a rehearsal, not a real alert. If something new turned up on the network I would " +
+            "tell you like this. Something new: the front door camera, four blocked intrusion attempts " +
+            "in the last hour, where it has had none all week.",
+            "(a rehearsal of her hourly security round, asked for from the dev panel — not a real finding)");
+
+        if (!_deliver(finding))
+        {
+            Log.Write("rounds: a rehearsal was asked for while she was mid-turn");
+            return "She is in the middle of something; ask again in a moment.";
+        }
+
+        Log.Write("rounds: rehearsed a finding");
+        return "That is what a finding sounds like.";
+    }
+
     /// One walk of every round. Public so a check can drive it without waiting an hour.
     ///
     /// `now` is injectable for the same reason, and only that reason. **A quiet window cannot

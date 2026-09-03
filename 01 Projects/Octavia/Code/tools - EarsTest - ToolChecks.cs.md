@@ -89,6 +89,41 @@ internal static class ToolChecks
         var missing = (await registry.CallAsync("house__nonsense", stateArgs)).Text;
         Check("an unknown tool answers rather than throws", missing.Contains("no tool"), missing);
 
+        /* **The risk heuristic reads words, and used to read them wrong.**
+
+           `RiskOf` matched substrings, so a tool for reading the security log — described,
+           accurately, as reporting intrusion attempts the gateway **blocked** — was classed as
+           `Confirm`, because "blocked" contains "lock". That is not a needless question: a
+           `Confirm` tool never runs without a person saying yes, and nothing asks on an hourly
+           round, so the whole feature would silently have done nothing. A check found it; a
+           person would have found a week of unexplained silence.
+
+           It matches word *starts* now, so an ending is allowed and a beginning is not. Both
+           halves are asserted, because the fix must not have made the guard blind. */
+        var reading = Risk("recent_threats", "Read the security log: intrusion attempts the gateway detected and blocked.");
+        Check("'blocked' is not 'lock'", reading == ToolRisk.Read, $"it is {reading}");
+
+        Check("...nor is a clock a lock",
+              Risk("get_clock", "Read the wall clock.") == ToolRisk.Read);
+
+        Check("but a lock is still a lock",
+              Risk("lock_door", "Lock the front door.") == ToolRisk.Confirm);
+
+        Check("...and so is locking",
+              Risk("secure_house", "Handles locking up at night.") == ToolRisk.Confirm);
+
+        Check("...and unlocking",
+              Risk("open_it", "Unlock the gate.") == ToolRisk.Confirm);
+
+        /* `"arm "` used to be spelled with a trailing space to stop it matching "alarm" and
+           "warm" — a hack that word-start matching makes unnecessary, and these are what say
+           so. "disarm" is still caught because it is its own needle. */
+        Check("a warm room is not arming anything",
+              Risk("set_heat", "Make the room warm.") == ToolRisk.Act);
+
+        Check("but arming is", Risk("secure", "Arm the system.") == ToolRisk.Confirm);
+        Check("...and disarming is", Risk("unsecure", "Disarm the system.") == ToolRisk.Confirm);
+
         /* **A sealed secret reaching the child process, without ever being in `config.json`.**
 
            The UniFi threat feed needs a password, and a password does not belong beside an
@@ -192,6 +227,12 @@ internal static class ToolChecks
         }
         return null;
     }
+
+    /// The classifier on its own, with no server in the way. It reads a name and a description
+    /// and nothing else, so it can be asked directly — which is the only way to test the
+    /// wordings that are *not* in this repo, and those are most of them.
+    private static ToolRisk Risk(string name, string description) =>
+        McpClient.RiskOf(name, description);
 
     internal static string? FindPwsh()
     {

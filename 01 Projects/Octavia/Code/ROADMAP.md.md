@@ -2228,4 +2228,46 @@ express "always"** — every wrap-around window covers 24 hours minus a minute.
   category. That is the source the first real round reads.
 - **The round itself** — `ThreatRound`: fetch since the last walk, keep what is at or above a
   configured severity, compose one sentence, and return null the rest of the time.
+
+### The round, built *(09/03/2026, v0.44.0)*
+
+**The design came out of the data rather than out of the plan**, and the plan was wrong.
+
+The first eight-hour sample of the real security log held **195 events, every one `VERY_HIGH`,
+at a steady 24 an hour** — 168 of them from one machine, which turned out to be the owner's
+torrent box. *"Anything at or above high severity"* would have had her talking every hour for
+ever. Severity is not a filter on that network; it is a constant.
+
+> *"I think she should at least learn the system for a week and then start reporting on them,
+> like if this gets installed at a different location my stuff wouldn't apply there."*
+
+So: **`Baseline` learns what normal is, wherever she is installed.** Silent for
+`Rounds.LearnForDays` (seven), counted from her first observation rather than installation. It
+speaks for a source never seen while learning, or a known one far outside what it has ever
+done. **Nothing about any particular network is written down anywhere in this project** — a
+torrent box on one site and a camera recorder on another are the same thing to it.
+
+A flagged walk is **not** learned from, or a slow escalation teaches her to accept it, an hour
+at a time, and nothing is ever said.
+
+**The data lives on the legacy API**, behind the read-only account and v0.43.0's sealed
+secrets; the Integration API has no history at all. The log does not name which rule matched,
+so she can say who, how many and what changed, but not what it was.
+
+**`rehearseRound`** says what a finding sounds like on demand, through the real path — dev
+panel, *Rehearse a round*. The sentence says it is a rehearsal, because it lands in the room's
+history like any other turn.
+
+> **A check found what a person would have found as a week of silence.** `RiskOf` matched
+> substrings, so a tool described as reporting attempts the gateway **blocked** was classed
+> `Confirm` — *"blocked" contains "lock"*. A `Confirm` tool never runs without somebody saying
+> yes, and nothing asks on an hourly round, so the feature would have done nothing at all,
+> quietly. It matches word *starts* now.
+
+### Still open
+
+- **The rule that matched.** Only on the Threat Management screen; the system log does not
+  carry it. Worth finding the endpoint behind that screen if the *what* matters as much as the
+  *who*.
+- **Quiet hours are not yet the owner's.** 22:30–07:30 is a guess in `RoundsConfig`.
 ```

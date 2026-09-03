@@ -53,7 +53,12 @@ internal static class UnifiChecks
                 {
                     Command = pwsh,
                     Args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
-                    Env = env
+                    Env = env,
+
+                    // The security log is behind a cookie login, not the API key — so this
+                    // check exercises the sealed-secret path too, or skips the threat checks
+                    // below when no password has been stored on this machine.
+                    Secrets = ["UNIFI_PASSWORD"]
                 }
             }
         };
@@ -65,7 +70,7 @@ internal static class UnifiChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("all eight tools were listed", tools.Count == 8, $"{tools.Count}");
+        Check("all nine tools were listed", tools.Count == 9, $"{tools.Count}");
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("unifi__")),
               string.Join(", ", tools.Select(t => t.Name)));
 
@@ -145,6 +150,46 @@ internal static class UnifiChecks
 
         Check("...and a device name that matches nothing",
               noDevice.Contains("No PoE device matches"), Head(noDevice));
+
+        /* **The security log, which the API key cannot reach at all.**
+
+           This is the one tool here on the *legacy* API behind a cookie login, so it also
+           proves the sealed password made it through `McpServer.Secrets`. Skipped rather than
+           failed where no password has been stored: a check that goes red on a machine that was
+           never configured for this teaches everyone to ignore red. */
+        if (SecretStore.HasFor("unifi", "UNIFI_PASSWORD"))
+        {
+            var counts = (await registry.CallAsync(
+                "unifi__recent_threats", Args("""{"format":"counts"}"""))).Text;
+
+            /* `total` is the line that is always there, including on an hour with nothing in
+               it. `ThreatRound` treats its absence as *no answer* rather than as zero, which is
+               the difference between a quiet hour and a gateway that has gone away — so the
+               contract between the two files is asserted here rather than assumed. */
+            Check("the security log answers in counts",
+                  counts.Split('\n').Any(l => l.StartsWith("total\t", StringComparison.Ordinal)), Head(counts));
+
+            Check("...and every line is a name and a number",
+                  counts.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                        .All(l => l.Split('\t') is [_, var n] && int.TryParse(n.Trim(), out _)),
+                  Head(counts));
+
+            var words = (await registry.CallAsync(
+                "unifi__recent_threats", Args("""{"format":"words"}"""))).Text;
+
+            Check("...and in words for her to read out",
+                  words.Contains("security event", StringComparison.OrdinalIgnoreCase), Head(words));
+
+            // Reading history is a read, whatever it is reading about. The word "threat" in a
+            // description is exactly the sort of thing that could tip the heuristic.
+            var log = tools.FirstOrDefault(t => t.Name == "unifi__recent_threats");
+            Check("reading the security log is judged a read", log?.Risk == ToolRisk.Read,
+                  log is null ? "the tool is missing" : $"it is {log.Risk}");
+        }
+        else
+        {
+            Console.WriteLine("  ..     no UniFi password stored, so the security log went untested");
+        }
 
         // A search that cannot match, so this asserts the empty answer rather than whatever
         // happens to be plugged in on the day.

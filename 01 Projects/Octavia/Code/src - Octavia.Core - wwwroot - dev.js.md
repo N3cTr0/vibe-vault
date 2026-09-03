@@ -220,6 +220,13 @@ export function createDevPanel({ send, look, onHoldChanged }) {
   button(senseRow, 'Music sense on', () => send({ type: 'setMusic', value: true }));
   button(senseRow, 'Music sense off', () => send({ type: 'setMusic', value: false }));
 
+  /* Her hourly rounds are the one thing she does unasked, and the only thing here that
+     nobody ever sees working: the correct outcome is silence, for weeks. This says what a
+     finding sounds like without waiting for one - the real delivery, the real voice, the
+     real entry in the transcript. The sentence says it is a rehearsal, because it lands in
+     her history and a line there claiming a camera was attacked would be read as fact. */
+  button(senseRow, 'Rehearse a round', () => send({ type: 'rehearseRound' }));
+
   if (current.reduced) {
     const note = el('p', 'devnote',
       'This machine asks for reduced motion, so breathing and dancing are damped. ' +

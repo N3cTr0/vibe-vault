@@ -16,6 +16,77 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.44.0 — 2026-09-03
+
+**She watches the network for a week before she is willing to say anything about it.**
+
+Stage 18's round, and the design came out of the data rather than out of the plan.
+
+The plan was *"tell him about anything at or above high severity"*. The first eight-hour
+sample of the real security log held **195 events, every one of them `VERY_HIGH`, at a steady
+24 an hour** — and 168 of them from a single machine that turned out to be the owner's torrent
+box. Severity is not a filter on that network; it is a constant. A threshold on it would have
+had her announcing something every hour for ever, which is the crying-wolf failure `Finding`
+was written to avoid, arriving by a route nobody had thought of.
+
+> *"I think she should at least learn the system for a week and then start reporting on them,
+> like if this gets installed at a different location my stuff wouldn't apply there."*
+
+So severity is not the signal and volume is not the signal. **Change is** — and what counts as
+change is learned, not configured. **Nothing about any particular network is written down
+anywhere in this project.** A torrent box on one site and a camera recorder on another are the
+same thing to `Baseline`: a name that turns up often.
+
+| | |
+|---|---|
+| `Baseline` | Learns per-source counts, judges departures, survives a restart |
+| `ThreatRound` | Asks the tool, hands the counts to the baseline, turns a departure into a sentence |
+| `recent_threats` | The tool. Reports; judges nothing |
+
+**Silent for `Rounds.LearnForDays`, seven by default**, counted from her first observation
+rather than from installation — a machine switched off for three days has three more days to
+watch. After that she speaks for a source never seen during learning, or a known one far
+outside what it has ever done.
+
+**A flagged walk is not learned from.** Folding one in is how a slow escalation teaches her to
+accept it: each hour a little worse than the last, each hour becoming the new normal, and
+nothing ever said. A check drives four rising hours and asserts she says all four.
+
+### Two APIs on one appliance
+
+The API key reaches no event history at all — every event-shaped route 404s, with a
+nonsense-path control to prove those are real absences. The events are on the **legacy** API
+behind a cookie login, which is what the read-only account and v0.43.0's sealed secrets were
+for. The tool holds a session and re-establishes it on a 401, because a login per call is a
+login per hour for ever.
+
+The log **does not name which rule matched** — only that an attempt from A to B was blocked.
+She can say who, how many, and what changed; not what it was.
+
+### A check caught a fault that a person would have found as a week of silence
+
+`RiskOf` guesses a tool's risk from its wording, and matched substrings. A tool described,
+accurately, as reporting intrusion attempts the gateway **blocked** was classed as `Confirm` —
+because **"blocked" contains "lock"**. That is not a needless question: a `Confirm` tool never
+runs without somebody saying yes, and nothing asks on an hourly round, so the feature would
+have done nothing at all, quietly, for ever.
+
+It matches word *starts* now — an ending is allowed, a beginning is not, so `locking` still
+catches and `blocked` and `clock` do not. That also retired the `"arm "` hack, whose trailing
+space existed to stop it matching "alarm" and "warm". Eight checks pin it in both directions.
+
+### `rehearseRound`
+
+An hourly errand is a thing nobody sees working until the night it matters. This says what a
+finding sounds like on demand, through the real delivery path — same room, same voice, same
+entry in the transcript — with a **Rehearse a round** button in the dev panel.
+
+The sentence says it is a rehearsal, and that is not decoration: it lands in the room's history
+like any other turn, and a line there claiming a camera was attacked would be read as fact the
+next time somebody asked about it.
+
+---
+
 ## 0.43.1 — 2026-09-03
 
 **`--secret` could not actually be used, in two different ways, and both were mine.**

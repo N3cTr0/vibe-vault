@@ -137,11 +137,11 @@ internal sealed class McpClient : IAsyncDisposable
     /// tool as safe — which is how an assistant unlocks a door because a sentence on the
     /// television resembled a request. A read wrongly classed as dangerous costs one
     /// needless question; an unlock wrongly classed as safe costs rather more.
-    private static ToolRisk RiskOf(string name, string description)
+    internal static ToolRisk RiskOf(string name, string description)
     {
         var text = $"{name} {description}".ToLowerInvariant();
 
-        if (text.ContainsAny("unlock", "lock", "disarm", "arm ", "alarm", "garage", "door",
+        if (text.ContainsAny("unlock", "lock", "disarm", "arm", "alarm", "garage", "door",
                              "delete", "remove", "reset", "reboot", "restart", "shutdown",
                              "purge", "wipe", "factory", "payment", "buy", "order"))
             return ToolRisk.Confirm;
@@ -323,7 +323,32 @@ internal sealed class McpClient : IAsyncDisposable
 
 internal static class TextMatch
 {
+    /// True when any needle appears **at the start of a word**.
+    ///
+    /// This was a plain substring match, and a tool for reading the security log — described,
+    /// accurately, as reporting intrusion attempts the gateway *blocked* — was classified as
+    /// `Confirm`, because **"blocked" contains "lock"**. The consequence was not a needless
+    /// question: a `Confirm` tool does not run without a person saying yes, and nothing was
+    /// going to ask on an hourly round, so the feature would simply never have worked.
+    ///
+    /// Word-*start* rather than whole-word, deliberately. "lock" must still catch "locks" and
+    /// "locking", so an ending is allowed and a beginning is not: `clock` and `blocked` are
+    /// other words, `locking` is the same one. It also retired the `"arm "` hack, whose
+    /// trailing space existed to stop it matching "alarm" and "warm".
     public static bool ContainsAny(this string text, params string[] needles) =>
-        needles.Any(n => text.Contains(n, StringComparison.Ordinal));
+        needles.Any(needle => StartsAWord(text, needle));
+
+    private static bool StartsAWord(string text, string needle)
+    {
+        for (var at = text.IndexOf(needle, StringComparison.Ordinal); at >= 0;
+             at = text.IndexOf(needle, at + 1, StringComparison.Ordinal))
+        {
+            // The character before it must not be part of a word. `get_` and the like are
+            // needles with punctuation in them, and start a word the same way.
+            if (at == 0 || !char.IsLetterOrDigit(text[at - 1])) return true;
+        }
+
+        return false;
+    }
 }
 ```

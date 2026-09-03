@@ -421,6 +421,16 @@ Nothing is registered yet, so today she walks an empty route. The rules are alre
   sentence. A model asked hourly whether anything looks concerning will find something
   concerning, every hour, and bill for it.
 
+**The one round she walks is the network's security log**, and she is silent about it for
+`Rounds.LearnForDays` - seven by default - while she learns what normal looks like *there*.
+Nothing about any particular network is written down in this project: a torrent box on one
+site and a camera recorder on another are the same thing to her, a name that turns up often.
+After the week she speaks for a source never seen while learning, or a known one far outside
+what it has ever done. **Health -> Rounds** says how far through the week she is.
+
+To hear what a finding sounds like without waiting for one, the dev panel has **Rehearse a
+round**. It goes through the real path and says out loud that it is a rehearsal.
+
 Switch it off entirely with `Rounds.Enabled: false`.
 
 ## Her voice
