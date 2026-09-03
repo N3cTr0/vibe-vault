@@ -231,11 +231,30 @@ internal static class Program
 
         var (server, variable) = (parts[0].Trim(), parts[1].Trim());
 
-        Console.Write($"Value for {variable} on '{server}' (typing is hidden, Enter to store, empty to cancel): ");
-        var value = ReadHidden();
-        Console.WriteLine();
+        /* Three tries, because the first one is the one that goes wrong.
+           Launching this command *is* a keypress, and if the Enter that ran it is still in
+           the input buffer when the read starts, it is taken as an empty answer and the whole
+           thing exits saying "nothing entered" before the person has typed a character. The
+           buffer is drained below; the retry is what makes that recoverable rather than
+           mystifying if anything else ever does the same. */
+        string? value = null;
 
-        if (value.Length == 0)
+        for (var attempt = 1; attempt <= 3 && string.IsNullOrEmpty(value); attempt++)
+        {
+            Console.Write($"Value for {variable} on '{server}' (typing is hidden, Escape to cancel): ");
+            value = ReadHidden();
+            Console.WriteLine();
+
+            if (value is null)
+            {
+                Console.WriteLine("Cancelled; nothing changed.");
+                return 1;
+            }
+
+            if (value.Length == 0 && attempt < 3) Console.WriteLine("Nothing was typed. Try again.");
+        }
+
+        if (string.IsNullOrEmpty(value))
         {
             Console.WriteLine("Nothing entered; nothing changed.");
             return 1;
@@ -266,10 +285,30 @@ internal static class Program
         return 0;
     }
 
-    /// Reads a line without echoing it, and without leaving it in the console buffer for the
-    /// next person to scroll back to.
-    private static string ReadHidden()
+    /// Reads a secret without echoing it. Null means cancelled; empty means nothing typed.
+    private static string? ReadHidden()
     {
+        /* **`Console.ReadKey` throws outright when input is redirected**, and "does not have a
+           console" covers more than it sounds like: a Run button in an editor, a pipeline, a
+           scheduled task. The first version of this crashed with a stack trace in exactly that
+           case, which is a poor way to learn that the password was never stored.
+
+           A redirected stream is read as a line instead. It is warned about rather than
+           quietly accepted, because a secret arriving down a pipe came from somewhere — a
+           script, a shell history — and that somewhere now has it. */
+        if (Console.IsInputRedirected)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Input is redirected, so the typing cannot be hidden. Whatever fed this");
+            Console.WriteLine("(a shell history, a script) now holds the secret. Prefer a real terminal.");
+            return Console.ReadLine()?.Trim();
+        }
+
+        /* Running this command means pressing Enter, and that keypress can still be sitting in
+           the buffer when the first read happens — taken as an empty answer, reported as
+           "nothing entered", before a character has been typed. */
+        while (Console.KeyAvailable) Console.ReadKey(intercept: true);
+
         var typed = new System.Text.StringBuilder();
 
         while (true)
@@ -277,7 +316,7 @@ internal static class Program
             var key = Console.ReadKey(intercept: true);
 
             if (key.Key == ConsoleKey.Enter) return typed.ToString();
-            if (key.Key == ConsoleKey.Escape) return "";
+            if (key.Key == ConsoleKey.Escape) return null;
 
             if (key.Key == ConsoleKey.Backspace)
             {

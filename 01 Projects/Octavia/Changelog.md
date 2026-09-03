@@ -16,6 +16,32 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.43.1 — 2026-09-03
+
+**`--secret` could not actually be used, in two different ways, and both were mine.**
+
+Reported as *"when I press enter to store the key it says nothing entered, nothing changed"* —
+before a character had been typed.
+
+**Running the command is a keypress.** The Enter that launched it was still in the console's
+input buffer when the read began, and was taken as an empty answer. The buffer is drained
+before the prompt now, and an empty answer is re-prompted twice rather than being fatal.
+
+**And it was handed over as a one-click Run button**, which is the shape of a thing that
+cannot work: `Console.ReadKey` does not return empty when input is redirected, it **throws**,
+so that path exited with a stack trace. Reproduced here rather than guessed at. A redirected
+stream is read as a line now, with a warning that whatever fed it — a script, a shell
+history — is holding the secret.
+
+Neither fault touched `SecretStore`, which is why nothing was written rather than something
+being written wrongly. Verified end to end with a throwaway value, which was then deleted.
+
+> A prompt that can be defeated by the keypress that starts it should have been tried in a
+> real console before it was handed to somebody. Offering a Run button for a thing that needs
+> a keyboard was the wrong shape twice over.
+
+---
+
 ## 0.43.0 — 2026-09-03
 
 **A tool server can be given a secret without it being written in `config.json`.**
