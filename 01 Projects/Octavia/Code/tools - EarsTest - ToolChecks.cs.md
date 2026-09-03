@@ -238,6 +238,28 @@ internal static class ToolChecks
            in every direction that could go wrong rather than only the happy one. The bias
            throughout is towards refusing: a yes misread as a no costs one repeated question,
            and a no misread as a yes costs whatever the tool does. */
+        /* **The system prompt is part of the tool loop, and it went stale for six releases.**
+
+           It said *"You do not yet have eyes, hands, or access to the house. If asked to do
+           something you cannot do, say plainly that you can't do it yet"* — written before
+           Stage 12 and still there after `look_at_camera` gave her eyes in v0.31.0 and
+           `set_port_power` gave her hands in v0.49.0. So the one document that tells her what
+           she is told her to decline the things she could actually do, and a 7B took the
+           instruction: asked to switch a port back on it answered *"Sure, I'll switch on the
+           power to port 1"* and never called anything.
+
+           A capability is added in code and the prompt is a different file, so nothing makes
+           them move together. These are the two halves that matter: she must not be told she
+           has no hands, and she must not claim to have used them. */
+        Check("she is not told she has no hands",
+              !Persona.System.Contains("do not yet have eyes, hands"), "the pre-Stage-12 line is back");
+
+        Check("...and is told to call a tool rather than describe one",
+              Persona.System.Contains("Do not describe calling it"));
+
+        Check("...and never to claim an act she did not perform",
+              Persona.System.Contains("Never say you have done something unless a tool has told you"));
+
         const string door = "house__house_unlock_door";
         const string back = """{"entity":"the back door"}""";
         const string front = """{"entity":"the front door"}""";

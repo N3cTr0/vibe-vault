@@ -18,6 +18,53 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.49.2 — 2026-09-03
+
+**She said the port was back on. It was off.**
+
+> *"She was able to switch off the PoE on port 1, and she switched it on again and said it
+> was on, yet it's still off."*
+
+Correct, and this time the tool was not involved at all. v0.49.1's turn logging shows it in
+four lines:
+
+```
+18:52:26  heard in 'host': Can you switch on the PRV power to port 1?
+18:52:31  said in 'host': Sure, I'll switch on the power to port 1.
+18:53:36  heard in 'host': Yes, please.
+18:53:40  said in 'host': The power on port 1 has been switched on.
+```
+
+No `tool call` line in either turn. **She narrated the action instead of performing it**, then
+reported it done — the worst failure this system can produce, and worse than the report that
+started this whole thread, because by now the tool worked perfectly. Switching *off*, ten
+minutes earlier in the same conversation, called the tool and told the truth.
+
+### The system prompt told her she had no hands
+
+```
+You do not yet have eyes, hands, or access to the house. If asked to do something you
+cannot do, say plainly that you can't do it yet.
+```
+
+Written before Stage 12, and still there after `look_at_camera` gave her eyes in v0.31.0 and
+`set_port_power` gave her hands in v0.49.0. **The one document that tells her what she is had
+been telling her, for six releases, to decline the things she could do** — and a 7B took the
+instruction.
+
+It now says she has tools, that a request needing one should call it rather than describe
+calling it or promise it in a moment, and that she must never say she has done something
+unless a tool has told her it is done.
+
+The exact exchange that failed, replayed against `qwen2.5:7b-cpu`, now calls the tool on both
+turns and answers truthfully — including *"it is already on, so there's nothing to do"*, which
+was true.
+
+> **A capability is added in code; the prompt is a different file.** Nothing made them move
+> together, and nothing failed when they diverged. Three checks pin it now: she is not told
+> she has no hands, she is told to call rather than describe, and she is told never to claim
+> an act she did not perform.
+
 ## 0.49.1 — 2026-09-03
 
 **The same bug from the other side, found because v0.49.0 finally logged it.**

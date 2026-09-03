@@ -346,6 +346,7 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 | `v0.48.0 - the UniFi key sealed, not on show` | `UNIFI_API_KEY` as a masked box with a badge, beside `UNIFI_HOST` still in plain text — the distinction the window now draws by itself |
 | `v0.49.0 - her face at v0.49.0, the release that taught her to check` | Nothing visible changed, and filing it says so. The release is two faults sharing one sentence — a consent rule that never granted, and a tool that reported success without ever looking |
 | `v0.49.1 - her face at v0.49.1, and a yes that finally lands` | The hour after v0.49.0, and the same nothing to see. A yes now runs the call **she described out loud** rather than the one the model writes next — proven on `home`, the local brain she is actually started under |
+| `v0.49.2 - her face at v0.49.2, told what she can actually do` | The third invisible release in a row, and the cause was the least visible thing of all: a system prompt that had told her for six versions she had **no hands**, so she narrated switching a port on and never called anything |
 
 > **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
 

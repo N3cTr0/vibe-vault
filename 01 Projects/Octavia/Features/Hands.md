@@ -381,3 +381,33 @@ dotnet run --project tools/EarsTest -- ask home "switch off the poe on port 1" y
 `qwen2.5:7b-cpu`, after the fix:
 
 > *"PoE on port 1 has been switched off and will stay that way until it is turned back on."*
+
+## The prompt said she had no hands *(v0.49.2)*
+
+> *"She switched it on again and said it was on, yet it's still off."*
+
+Correct, and the tool was not involved. v0.49.1's turn logging shows it in four lines:
+
+```
+18:52:26  heard in 'host': Can you switch on the PRV power to port 1?
+18:52:31  said in 'host': Sure, I'll switch on the power to port 1.
+18:53:36  heard in 'host': Yes, please.
+18:53:40  said in 'host': The power on port 1 has been switched on.
+```
+
+**No tool call in either turn.** She narrated the action and then reported it done. Switching *off*, ten minutes earlier in the same conversation, called the tool and told the truth — so this is not "the tool is broken" and not "the model can't call tools".
+
+### The one document that tells her what she is
+
+```
+You do not yet have eyes, hands, or access to the house. If asked to do something you
+cannot do, say plainly that you can't do it yet.
+```
+
+Written before [[Hands|Stage 12]] and still there after `look_at_camera` gave her eyes in v0.31.0 and `set_port_power` gave her hands in v0.49.0. For six releases the system prompt instructed her to decline exactly the things she had become able to do, and a 7B is far more literal about a system prompt than a large model is.
+
+It now says she has tools, that a request needing one should **call it rather than describe calling it or promise it in a moment**, and that she must **never say she has done something unless a tool has told her it is done**.
+
+Replayed against `qwen2.5:7b-cpu`, the exchange that failed now calls the tool on both turns and answers truthfully — including *"it is already on, so there's nothing to do"*, which was.
+
+> **A capability is added in code; the prompt is a different file.** Nothing made them move together, and nothing failed when they diverged — the drift is invisible because a model given a false statement about itself simply obeys it. Three checks pin it now. See [[Lessons Learned]].
