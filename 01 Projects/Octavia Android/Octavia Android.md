@@ -8,7 +8,8 @@ tags: [octavia, octavia-android, moc]
 > A second face for [[Octavia]], over the protocol her built-in one already speaks. Her server stays on the PC at home; this is her other face — its own room, its own microphone, its own camera, its own voice — reached over the LAN and eventually WireGuard. **This note is the reference point for everything on the phone side.**
 
 - **Repo:** `C:\Projects\Octavia-Android` — git since 08/31/2026, private remote [`N3cTr0/Octavia-Android`](https://github.com/N3cTr0/Octavia-Android)
-- **Current version:** 0.12.0 — **always-on listening**, and with it **full parity: there is nothing the Windows client can do that this cannot.** AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
+- **Current version:** 0.12.2 — **always-on listening**, and with it **full parity: there is nothing the Windows client can do that this cannot.** 0.12.1 fixed watching (she had been following you *backwards*, and vertically not at all); 0.12.2 gave volume-up back to the phone. AGP 9.0.1, Kotlin 2.3.20, `minSdk 28`, `targetSdk 36`, package `com.n3ctr0.octavia`
+- **Confirmed against her v0.40.0 with no change here**, 09/03/2026: her voice engine was replaced underneath this client and `VoicePlayer` opened at **24000 Hz** on its own, because it reads the rate out of `hello` instead of assuming one. `setVoice`/`setVoiceEngine` were struck from the protocol that day and this client never sent them.
 - **Started:** 08/31/2026, out of [[Octavia]]'s Stage 13
 - **Parent project:** [[Octavia]] — her `PROTOCOL.md` is the contract and lives in *her* repo, deliberately not copied here
 - **Written against:** protocol version 1, her **v0.28.1**. Since her v0.26.0 she is a *server* and **every** face is a client — the Windows one included — so this app and the desktop are the same kind of thing, differing only in which devices they lend her.

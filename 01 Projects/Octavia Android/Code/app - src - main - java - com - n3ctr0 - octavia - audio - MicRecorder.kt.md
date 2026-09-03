@@ -41,6 +41,16 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
          *  releasing the button ends the utterance promptly, large enough not to wake the
          *  radio for every syllable. */
         private const val FRAME_BYTES = 1024
+
+        /// Below this peak, nothing in the capture was loud enough to be anybody speaking.
+        ///
+        /// About 1% of full scale. A real room idles above this on room tone alone, so it
+        /// separates *"the microphone is delivering silence"* — muted, misrouted, or a phone
+        /// left in another room — from *"she did not understand you"*, which is a different
+        /// problem with a different fix. It is deliberately not a voice detector: that is
+        /// Silero's job, on her side, and duplicating it here would be a second opinion
+        /// nobody asked for.
+        private const val QUIET = 328
     }
 
     private var record: AudioRecord? = null
@@ -51,6 +61,19 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
     @Volatile private var running = false
 
     @Volatile var bytesSent = 0L
+        private set
+
+    /**
+     * The loudest sample seen since capture began, 0–32767.
+     *
+     * **"Bytes left this device" and "there was anything in them" are different questions,
+     * and only the second one is the one being asked.** A microphone that opens, streams
+     * ten seconds of digital silence and stops looks identical in the log to one that
+     * worked — the byte count is the same either way. Every failure that matters here is
+     * silent: a muted input, a phone in a different room from the person, a permission
+     * granted but routed to a headset nobody is wearing.
+     */
+    @Volatile var peak = 0
         private set
 
     val active: Boolean get() = running
@@ -79,6 +102,7 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
     fun start(cancelEcho: Boolean = false): Boolean {
         if (running) return true
         bytesSent = 0
+        peak = 0
 
         val min = AudioRecord.getMinBufferSize(
             SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
@@ -125,12 +149,34 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
                 if (read <= 0) continue
 
                 bytesSent += read
+                measure(buffer, read)
                 onFrame(if (read == buffer.size) buffer.copyOf() else buffer.copyOf(read))
             }
         }, "octavia-mic").apply { isDaemon = true; start() }
 
         Log.i(TAG, "microphone open at ${SAMPLE_RATE}Hz, buffer ${min * 4}")
         return true
+    }
+
+    /**
+     * The loudest sample in one frame, kept as the loudest of the run.
+     *
+     * Little-endian 16-bit, which is the contract in both directions — the low byte needs
+     * masking or Kotlin's sign extension turns every sample above 127 into a negative
+     * number and the peak becomes noise about the encoding rather than about the room.
+     */
+    private fun measure(buffer: ByteArray, read: Int) {
+        var loudest = peak
+
+        var i = 0
+        while (i + 1 < read) {
+            val sample = ((buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xff)).toShort().toInt()
+            val size = if (sample == Short.MIN_VALUE.toInt()) Short.MAX_VALUE.toInt() else kotlin.math.abs(sample)
+            if (size > loudest) loudest = size
+            i += 2
+        }
+
+        peak = loudest
     }
 
     /**
@@ -184,9 +230,14 @@ class MicRecorder(private val onFrame: (ByteArray) -> Unit) {
         record = null
 
         // 16-bit mono, so two bytes a sample. Logged because "did anything actually leave
-        // this device" is the first question when she says nothing back.
+        // this device" is the first question when she says nothing back — and the peak
+        // because it is the second one, and the byte count cannot answer it. Silence
+        // streams exactly as many bytes as speech does.
         if (bytesSent > 0) {
-            Log.i(TAG, "sent $bytesSent bytes (~${bytesSent * 1000 / (SAMPLE_RATE * 2)}ms)")
+            val loudest = peak * 100 / Short.MAX_VALUE.toInt()
+            Log.i(TAG, "sent $bytesSent bytes (~${bytesSent * 1000 / (SAMPLE_RATE * 2)}ms), " +
+                if (peak < QUIET) "heard nothing above $loudest% — the room was silent to it"
+                else "peak $loudest%")
         }
     }
 }

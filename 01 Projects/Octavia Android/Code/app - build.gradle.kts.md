@@ -24,8 +24,8 @@ android {
            and "is that the build with the fix?" had no answer but a reinstall.
 
            The code is `major*10000 + minor*100 + patch`: monotonic, and readable back. */
-        versionCode = 1200
-        versionName = "0.12.0"
+        versionCode = 1202
+        versionName = "0.12.2"
         // The camera can only be proven on a real camera, so its check is an instrumented
         // test rather than a unit test. Nothing ran on device before this.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

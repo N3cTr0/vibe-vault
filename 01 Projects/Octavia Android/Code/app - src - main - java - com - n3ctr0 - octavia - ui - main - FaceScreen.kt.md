@@ -65,8 +65,12 @@ import com.n3ctr0.octavia.net.FaceSocket
  *
  * So the native chrome is gone and the page is given the whole display. What remains native
  * is what a browser cannot do on a plain `http://` origin: the socket, the microphone and
- * her voice. Push-to-talk moved to the volume key for the same reason — see
- * `MainActivity.dispatchKeyEvent`.
+ * her voice.
+ *
+ * Push-to-talk moved to the volume key here for the same reason, and **moved back** in
+ * v0.12.2: v0.9.0 returned her own buttons and v0.12.0 taught the on-screen one to tap and
+ * hold, so the key was a duplicate that cost a volume control. The page's own button is the
+ * only push-to-talk now.
  *
  * **Set up survives as a long press in the bottom-right corner**, because deleting it
  * outright would be a trap: a key that stops working would leave an app that cannot be

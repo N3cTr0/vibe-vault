@@ -16,6 +16,119 @@ which are `MM/DD/YYYY`.
 
 ---
 
+## 0.12.2 — 2026-09-03
+
+**Volume-up is the phone's volume again.**
+
+It held the floor from v0.7.2, when her page took the whole screen and there was no room for
+a control of ours — *"push-to-talk with no pixels."* That reason expired twice over: **v0.9.0
+gave her buttons back**, and **v0.12.0 taught the on-screen one to tap and hold**. The key had
+been a duplicate of a strictly better control for three versions, while still taking a volume
+key away from whoever was holding the phone.
+
+Removed rather than repaired, on the owner's call — *"it should no longer be needed as a push
+to talk button."* **A shortcut that outlives the reason it existed is a cost with nothing on
+the other side**, and this one was quietly charging that cost every time somebody reached to
+turn her up.
+
+**The pause guard got better by losing its subject.** `onPause` released the floor `if
+(talking)`, a flag only the key ever set. It now asks the view model whether the floor is held
+at all — which covers the case it never did: a finger on her on-screen button when a call
+arrives or the screen locks gets no `pointerup`, so that press could hold the floor
+indefinitely. One line, finally asking the right question.
+
+A stale cross-reference in `FaceScreen`'s header pointed at the handler that no longer exists.
+Fixed in the same change, because that is the exact drift that hid two bugs in `Watcher` this
+morning.
+
+---
+
+
+## 0.12.1 — 2026-09-03
+
+**Her eyes follow you again, and they follow you the right way.** Two separate faults in the
+same twelve lines, both of which made watching look broken from in front of the screen and
+neither of which was visible in a diff.
+
+### She was following you backwards
+
+Reported as *"if I move left she moves right and vice versa"*, and it is a mirror applied
+twice.
+
+`watch.js` reads an **unmirrored** frame. `getUserMedia` hands over raw sensor pixels — the
+mirroring people associate with a selfie preview is CSS on the video element, and
+`drawImage` never sees it. So hers flips exactly once, on the way out, in `(0.5 - x) * 0.8`.
+
+This port flipped `u` as well, in `sample`, on the stated grounds that *"a browser hands
+`watch.js` an already-upright, already-mirrored video"*. Upright, yes. Mirrored, no — and
+**two mirrors cancel**, so she tracked perfectly and leaned the wrong way.
+
+The flip now lives only where hers does, for either lens, so the two clients agree. The
+`front` flag that existed to drive it is gone rather than left unused: a parameter saying
+*the lens matters here* when it does not is the next person's wrong turn.
+
+**Written down because the comment was the bug.** The code did exactly what its comment
+said; the comment was wrong about a browser. Nothing in the file could have revealed that —
+only reading `watch.js` next to it, or standing in front of the camera.
+
+### A reference that moves subtracts the thing it is measuring
+
+Reported first as *"I don't see a difference on the phone"* against the desktop client —
+which was exactly right, and the logs agreed once they were read for decay rather than for
+presence.
+
+### A reference that moves subtracts the thing it is measuring
+
+`watch.js` deflects her from a **constant**: `(0.42 - y) * 0.55`. v0.10.0 replaced that
+constant here with a value that drifts towards wherever the person is, over about six
+seconds, because 0.42 is eye level for a webcam clipped to a monitor and nonsense for a
+handset looking up at you from a desk. The diagnosis was right and is unchanged — measured
+on the 11T Pro the centroid sat at ~0.71, so a fixed 0.42 had her staring at the floor.
+
+**The fix was wrong in a way that reads as working.** A centre that keeps moving towards
+the person removes the person from the signal: `centreY - y` returns to zero however far up
+or down they are. Its own comment said so — *"a steady position decays to level and only
+movement deflects her"* — which describes a motion detector, not gaze. Somebody sitting
+still, which is what somebody in front of a phone mostly does, got nothing.
+
+Measured before, deflection collapsing while motion continued:
+
+```
+gaze 0.23  0.16  0.18  0.08  0.06  -0.05
+```
+
+and after, through nine seconds of **zero** motion:
+
+```
+motion 0.58  gaze 0.33      motion 0.00  gaze 0.34
+motion 0.00  gaze 0.34      motion 0.18  gaze 0.33
+```
+
+**So the reference is calibrated and then frozen.** The first twenty readings — about two
+and a half seconds — settle it on wherever this device is looking from, and after that it
+is as fixed as hers is. Sustained position becomes sustained gaze, which is the feature.
+Re-measured on every `start`, so moving the phone and toggling watching off and on is the
+recalibration gesture and needs no control.
+
+**The header claimed parity it did not have.** *"Same thresholds, same smoothing, same
+mirroring, same rate"* sat above the one line that differed from `watch.js`, which is most
+of why this survived two versions. The exception is named in the header now.
+
+### The microphone says what it heard, not just that it ran
+
+`sent 338560 bytes (~10580ms)` answered *did anything leave this device* and could not
+answer *was there anything in it* — silence streams exactly as many bytes as speech does.
+It now carries the loudest sample of the run: `peak 26%`, or a plain statement that the room
+was silent to it below about 1% of full scale.
+
+Not a voice detector — that is Silero's job on her side, and a second opinion here would be
+one more thing to keep in step. It separates a muted or misrouted input from *she did not
+understand you*, which are different problems with different fixes and looked identical
+for twenty-six versions.
+
+---
+
+
 ## 0.12.0 — 2026-09-02
 
 **Stage 14 item 6: this device can be left listening**, against her v0.28.0. The last thing

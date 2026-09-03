@@ -18,7 +18,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -63,10 +62,6 @@ class MainActivity : ComponentActivity() {
 
     /** The press that is waiting to hear whether it may open the microphone. */
     private var micAsked: CancellableContinuation<Boolean>? = null
-
-    /** Whether the floor is currently held. `ACTION_DOWN` repeats while a key is held, so
-     *  without this every repeat would take the floor again. */
-    private var talking = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -260,54 +255,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Hold volume-up to talk.
+    /* **Volume-up is the phone's volume again, and that is the whole change.**
      *
-     * **Push-to-talk with no pixels.** The screen is her page and nothing else, so there is
-     * nowhere to put a button that would not sit on top of her own controls — and a hardware
-     * key is the more natural gesture for a walkie-talkie anyway.
+     * `dispatchKeyEvent` used to hold the floor while volume-up was held. That was written in
+     * v0.7.2, when her page filled the screen with no room for a control of ours and a
+     * hardware key was the only gesture available — *"push-to-talk with no pixels."*
      *
-     * Push-to-talk rather than always-on, and it is not only about echo: a held key has
-     * already answered *"was that addressed to me?"*, so her attention gate does not apply to
-     * this stream at all, and one talker at a time means one transcription. The release is
-     * the end of the utterance, so she never has to guess where the sentence stopped.
+     * v0.9.0 gave the buttons back and v0.12.0 taught the on-screen one to tap **and** hold,
+     * so the key had been a duplicate of a better control for three versions while still
+     * taking a volume key away from the person holding the phone. **A shortcut that survives
+     * the reason it existed is a cost with nothing on the other side.**
      *
-     * **The cost is that volume-up no longer changes the volume while she is on screen.**
-     * Volume-down still does, and its slider can be dragged back up, so nothing is one-way.
+     * Removed rather than fixed on request: *"it should no longer be needed as a push to
+     * talk button."*
      */
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode != KeyEvent.KEYCODE_VOLUME_UP) return super.dispatchKeyEvent(event)
-
-        when (event.action) {
-            KeyEvent.ACTION_DOWN -> {
-                if (talking) return true    // auto-repeat while the key is held down
-
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                    != PackageManager.PERMISSION_GRANTED
-                ) {
-                    // Asked on the first press rather than at startup: a face that opens
-                    // with a permission dialog in front of it is a worse first impression
-                    // than one that asks when you reach for the microphone.
-                    askMic.launch(Manifest.permission.RECORD_AUDIO)
-                    return true
-                }
-
-                // The key has no way to show a refusal, so it says so in the log rather
-                // than leaving a press that did nothing and explained nothing.
-                val why = model.startTalking()
-                if (why != null) { Log.w("MainActivity", "volume-up refused: $why"); return true }
-                talking = true
-            }
-
-            KeyEvent.ACTION_UP -> {
-                if (!talking) return true
-                talking = false
-                model.stopTalking()
-            }
-        }
-        return true
-    }
-
     /**
      * Ask for the camera, if it has not been granted already.
      *
@@ -366,13 +327,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** A key held while the app goes away would otherwise leave her holding the floor. */
+    /**
+     * The floor is not carried out of the app.
+     *
+     * This guarded a held volume key, which no longer exists. It now asks the view model
+     * whether the floor is held at all — which is **strictly more** than it covered before:
+     * a finger on her on-screen button when a call arrives or the screen locks gets no
+     * `pointerup`, so that press could hold the floor indefinitely and only the key was ever
+     * released. Same one line, asking the question that was always the right one.
+     */
     override fun onPause() {
         super.onPause()
-        if (talking) {
-            talking = false
-            model.stopTalking()
-        }
+        if (model.state.value.talking) model.stopTalking()
     }
 }
 ```
