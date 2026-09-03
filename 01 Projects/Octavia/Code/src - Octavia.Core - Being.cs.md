@@ -59,6 +59,13 @@ internal sealed class Being : IDisposable
     /// leave a process running that looks alive and answers nobody.
     public static Being? Start(OctaviaConfig config)
     {
+        /* Before anything reads a tool server's settings: anything named like a key or a
+           password moves out of `config.json` and into the sealed store. See
+           `SecretStore.SealLoose` — it is a no-op after the first run, and deliberately does
+           nothing at all when this process is LocalSystem. */
+        if (SecretStore.SealLoose(config) is { Count: > 0 } moved)
+            Log.Write($"sealed and removed from config.json: {string.Join(", ", moved)}");
+
         var sockets = new WebSocketFaceServer();
 
         if (!sockets.Start(config.FacePort, config.RemoteAccess))

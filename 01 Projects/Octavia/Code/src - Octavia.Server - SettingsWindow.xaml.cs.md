@@ -48,6 +48,12 @@ public partial class SettingsWindow : Window
         _config = OctaviaConfig.Load();
         _overridden = OverriddenKeys(_config);
 
+        /* The same sweep the server does at startup, because this window is often opened
+           while she is stopped — which is exactly when a plaintext secret would otherwise sit
+           in `config.json` unnoticed until somebody next started her. Idempotent. */
+        if (SecretStore.SealLoose(_config) is { Count: > 0 } moved)
+            Log.Write($"sealed and removed from config.json: {string.Join(", ", moved)}");
+
         Load();
         BuildIntegrations();
     }
@@ -84,9 +90,7 @@ public partial class SettingsWindow : Window
         LocalEndpointBox.Text = _config.LocalEndpoint;
         ModelBox.Text = _config.Model;
         MaxTokensBox.Text = _config.MaxTokens.ToString();
-        KeyNote.Text = SecretStore.ReadApiKey() is { Length: > 0 }
-            ? "A key is stored, sealed to this Windows account. It is never shown again."
-            : "No key stored. Only needed for the Claude brain.";
+        ShowKeyState();
 
         foreach (var model in new[] { "tiny.en", "base.en", "small.en", "medium.en", "large-v3", "large-v3-turbo" })
             WhisperModelBox.Items.Add(model);
@@ -203,6 +207,26 @@ public partial class SettingsWindow : Window
                     VerticalAlignment = VerticalAlignment.Center,
                     Foreground = System.Windows.Media.Brushes.DimGray
                 });
+
+                /* **A secret-shaped name is never drawn**, even here where it is only in
+                   `Env` because sealing it failed or somebody added it by hand. The bundle
+                   redacts these on the way out of the building; a window that puts the same
+                   value on screen — over somebody's shoulder, in a screen share, in a
+                   screenshot — undoes that. `SecretStore.SealLoose` should have moved it
+                   already, so this is the case where that did not work. */
+                if (Sensitive.Looks(key))
+                {
+                    row.Children.Add(new TextBlock
+                    {
+                        Text = "in config.json in plain text — restart her to seal it",
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = System.Windows.Media.Brushes.Crimson,
+                        TextWrapping = TextWrapping.Wrap
+                    });
+
+                    box.Children.Add(row);
+                    continue;
+                }
 
                 var value = new TextBox { Text = server.Env![key] };
                 value.TextChanged += (_, _) => server.Env[key] = value.Text;
@@ -397,19 +421,51 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// Whether a Claude key is stored, said the way an integration's password is said.
+    ///
+    /// **It reads the key rather than testing for the file**, and the difference matters: a
+    /// blob sealed by a different Windows account is *present* and unopenable, which from her
+    /// side is identical to absent and is the commonest way this goes wrong. A row that said
+    /// "stored" for a key she cannot use would send somebody to look at the wrong thing.
+    ///
+    /// `ANTHROPIC_API_KEY` in the environment wins over the file, and is reported as itself —
+    /// otherwise clearing the stored key appears to do nothing.
+    private void ShowKeyState()
+    {
+        if (Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") is { Length: > 0 })
+        {
+            KeyState.Text = "from the environment";
+            KeyState.Foreground = System.Windows.Media.Brushes.SeaGreen;
+            KeyNote.Text = "ANTHROPIC_API_KEY is set on this machine, and is used instead of anything stored here.";
+            return;
+        }
+
+        var stored = SecretStore.ReadApiKey() is { Length: > 0 };
+        var file = File.Exists(Paths.KeyFile);
+
+        KeyState.Text = stored ? "stored" : file ? "unreadable" : "not set";
+        KeyState.Foreground = stored ? System.Windows.Media.Brushes.SeaGreen : System.Windows.Media.Brushes.Crimson;
+
+        KeyNote.Text = stored
+            ? "Sealed to this Windows account. It is never shown again, and never leaves this machine in a diagnostics bundle."
+            : file
+                ? "A key file exists but this account cannot open it — DPAPI seals to whoever wrote it. Store it again."
+                : "Only needed for the Claude brain. The local brain needs no key at all.";
+    }
+
     private void OnStoreKey(object sender, RoutedEventArgs e)
     {
         if (ApiKeyBox.Password.Length == 0) return;
 
         SecretStore.WriteApiKey(ApiKeyBox.Password);
         ApiKeyBox.Clear();
-        KeyNote.Text = "A key is stored, sealed to this Windows account. It is never shown again.";
+        ShowKeyState();
     }
 
     private void OnClearKey(object sender, RoutedEventArgs e)
     {
         SecretStore.ClearApiKey();
-        KeyNote.Text = "No key stored. Only needed for the Claude brain.";
+        ShowKeyState();
     }
 
     private void OnOpenData(object sender, RoutedEventArgs e) =>

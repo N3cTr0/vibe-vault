@@ -97,7 +97,10 @@ Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
 
 Typed with the echo off. Never in `config.json`, never in her log, never on a command line, and deliberately **not** in her Settings panel — that would put it on the wire.
 
-**The UniFi API key stayed in `Env`** rather than being migrated. It is a scoped, read-only, revocable key; the password is an account credential. Treating them identically would have been consistency at the expense of the distinction that matters.
+> [!warning] Reversed in v0.48.0
+> This note used to argue that **the UniFi API key stayed in `Env`** because it is a scoped, read-only, revocable key while the password is an account credential — and that treating them identically would be consistency at the expense of the distinction that matters.
+>
+> That was wrong twice over. The key stopped being read-only in v0.41.0, when it started authorising **cutting power to a switch port**; and "revocable" describes the cleanup, not the exposure. See [[#Anything secret-shaped is sealed (v0.48.0)]].
 
 | | |
 |---|---|
@@ -106,3 +109,35 @@ Typed with the echo off. Never in `config.json`, never in her log, never on a co
 | The key's entropy is frozen | `Octavia.ApiKey.v1` and `apikey.dat` must not be tidied. DPAPI will not open a blob sealed with different entropy, so renaming either logs everybody out of their own key |
 
 **A check that a secret arrived must not be a way to print one.** The mock server reports the *length* and whether it was set, never the value — and the test secret is cleared in a `finally`, because a test that leaves a credential behind has changed the machine it ran on.
+
+---
+
+## Anything secret-shaped is sealed (v0.48.0)
+
+The rule that replaced the judgement call above: **a value whose name says it is a credential does not live in `config.json`.** No exceptions carved out for scope, revocability, or how the key is used today — that reasoning is what left an API key in plain text for eighteen versions while its powers grew underneath it.
+
+`SecretStore.SealLoose` runs at startup, before anything reads a tool server's settings. It moves every secret-shaped `Env` value into the DPAPI store, adds the name to `Secrets`, takes it out of the file and saves. It is a no-op on every run after the first, so it costs nothing to leave in.
+
+| | |
+|---|---|
+| Failure keeps the value | If sealing throws, the value is **left exactly where it was**. Removing it from `Env` after a failed seal loses the credential outright, which is worse than one that is readable |
+| Empty is just removed | A blank secret-shaped value is deleted rather than sealed. There is nothing to protect and an empty `Secrets` entry would read as "stored" |
+| Silent under LocalSystem | DPAPI seals to an account. A service running as the machine would seal a key the person at the keyboard could never replace, so it logs a warning naming the variable and does nothing |
+| The window will not draw one | The settings panel refuses to render a secret-shaped `Env` value as text. It gets a masked box, Store/Clear, and the same badge a password gets |
+
+Sealing is **not** asked about. There is no version of it a person would decline, it needs no input, and it changes nothing except who can read the value.
+
+### What counts as secret-shaped
+
+`Sensitive.Looks` splits a name into words and matches whole words against *key, token, secret, password, credential*, plural-insensitively. One implementation, two callers — the diagnostics redactor and the settings window — because two would eventually be two opinions, and the disagreement only ever surfaces as a secret one of them displayed.
+
+> [!bug] It had been wrong since v0.30.0
+> The original split fired before **every** capital, so `UNIFI_API_KEY` became thirteen single letters and never contained the word "key". **The one name it was written to catch was the one it could not see.**
+>
+> Nothing noticed because its only caller was a redactor, and a redactor's failure is invisible by definition — you do not see the secret it should have removed. Splitting only at a *transition into* a capital fixes it. See [[Lessons Learned]].
+
+`MaxTokens` reads as a secret by name, and a check asserts that on purpose. Nothing about the *name* separates it from `AccessToken` — the **value** does, a budget being a number and a token a string — so the bundle asks both questions and only ever redacts a string. Special-casing the name to make `MaxTokens` look right would take `ApiKeys` and `SessionTokens` down with it.
+
+### Rotate a key that was ever in plain text
+
+Sealing protects it from here on; it does nothing about wherever the file has already been. A key that sat in `config.json` should be **rotated at the source**, not just sealed.

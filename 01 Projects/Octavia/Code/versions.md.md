@@ -18,6 +18,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.48.0 — 2026-09-03
+
+**A key nobody could see, and a key everybody could.** Two questions, one answer.
+
+> *"Inside the settings it doesn't say if the Claude key is stored, we should be able to
+> detect that? Also the UniFi API key is clearly visible, isn't that supposed to be hidden
+> because anyone with the key then has access?"*
+
+Both correct, and they are the same mistake pointing in opposite directions: the window drew
+the secret it should have hidden and hid the fact it was holding the other one.
+
+**The Anthropic key was detected all along** — the window said so in grey hint text below the
+fold, which is indistinguishable from not saying it. It now gets a coloured badge that names
+one of four states, because "no key" and "a key that will not decrypt" want very different
+things from you:
+
+| Stored | Sealed under this account and it reads back |
+| Not set | Nothing to find |
+| Unreadable | A file exists and DPAPI refuses it — sealed by another account, or restored from a backup |
+| From the environment | `ANTHROPIC_API_KEY` is set, and it wins |
+
+**The UniFi API key was in `config.json` in plain text**, in a file whose whole appeal is
+that it is safe to open in front of somebody. `SecretStore.SealLoose` now moves anything
+secret-shaped out of `Env` into the DPAPI store on startup and takes it out of the file, and
+the settings window refuses to draw a secret-shaped value at all. It runs once, is a no-op
+after, and leaves the value exactly where it was if sealing throws — losing a key outright is
+worse than one that is readable.
+
+It does nothing when the process is LocalSystem. DPAPI seals to an account, so a service
+running as the machine would seal a key the person at the keyboard could never replace; it
+logs a warning naming the variable instead.
+
+### The name test had been wrong the whole time
+
+Deciding *what* is secret-shaped moved into `Sensitive` so the redactor and the window could
+not hold two opinions. Lifting it exposed the bug:
+
+```
+(?<!^)(?=[A-Z])     split before every capital
+UNIFI_API_KEY  ->   U | N | I | F | I | A | P | I | K | E | Y
+```
+
+**The one name it was written to catch was the one it could not see.** An all-capitals name
+has a boundary before every letter, so nothing was ever the word "key". It had shipped in the
+diagnostics bundle since 0.30.0, and a redactor's failure is invisible by definition — you
+never see the secret it should have removed. Splitting only at a *transition into* a capital
+gives `UNIFI` `API` `KEY`, and leaves `apiKey`, `ApiKey` and `HTTPServer` reading correctly.
+
+`MaxTokens` still reads as a secret by name, and a check now asserts that on purpose. Nothing
+about the *name* separates it from `AccessToken`; the value does — a budget is a number, a
+token is a string — so the bundle asks both questions. Special-casing the name to fix the
+appearance would take `ApiKeys` and `SessionTokens` down with it.
+
 ## 0.47.0 — 2026-09-03
 
 **One executable again.** `Octavia.Control` lasted a single release.

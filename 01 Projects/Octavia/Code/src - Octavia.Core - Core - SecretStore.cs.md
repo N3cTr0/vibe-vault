@@ -55,6 +55,79 @@ internal static class SecretStore
 
     public static bool HasFor(string server, string variable) => File.Exists(PathFor(server, variable));
 
+    /// Moves any secret-shaped value out of `config.json` and into the sealed store.
+    ///
+    /// **The UniFi API key sat in `Env` in plain text for eighteen versions**, and the note
+    /// written when `Secrets` was added said so out loud — *"already there and already less
+    /// than ideal"* — and then left it. That was the wrong call twice over: the file is
+    /// readable by anything running as this user, the settings window drew it on screen in a
+    /// text box, and by then the key also authorised **cutting power to a switch port**.
+    ///
+    /// It is done here rather than asked about because there is no version of this a person
+    /// would decline, and doing it needs no input: the value is already known, and sealing it
+    /// changes nothing except who can read it.
+    ///
+    /// Idempotent, and **skipped entirely when running as LocalSystem**. DPAPI seals to an
+    /// account, so a service running as the machine would seal a secret the person at the
+    /// keyboard could never replace — which is a worse state than the plaintext it fixes.
+    ///
+    /// Returns the names it sealed, for the log.
+    public static IReadOnlyList<string> SealLoose(OctaviaConfig config)
+    {
+        if (IsLocalSystem())
+        {
+            foreach (var (server, entry) in config.McpServers)
+                foreach (var name in (entry.Env ?? []).Keys.Where(Sensitive.Looks))
+                    Log.Warn($"mcp '{server}': {name} is in config.json in plain text, and this " +
+                             "process runs as LocalSystem so it cannot be sealed safely. " +
+                             "Open her settings as yourself to move it.");
+
+            return [];
+        }
+
+        var sealed_ = new List<string>();
+
+        foreach (var (server, entry) in config.McpServers)
+        {
+            if (entry.Env is not { Count: > 0 }) continue;
+
+            foreach (var name in entry.Env.Keys.Where(Sensitive.Looks).ToList())
+            {
+                var value = entry.Env[name];
+                if (string.IsNullOrWhiteSpace(value)) { entry.Env.Remove(name); continue; }
+
+                try
+                {
+                    WriteFor(server, name, value);
+                }
+                catch (Exception ex)
+                {
+                    // Left exactly where it was. Removing it from `Env` after a failed seal
+                    // would lose the value outright, which is far worse than it being readable.
+                    Log.Warn($"mcp '{server}': could not seal {name}, leaving it in config.json: {ex.Message}");
+                    continue;
+                }
+
+                entry.Env.Remove(name);
+                entry.Secrets = (entry.Secrets ?? []).Append(name).Distinct().ToArray();
+                sealed_.Add($"{server}:{name}");
+            }
+        }
+
+        if (sealed_.Count > 0) config.Save();
+        return sealed_;
+    }
+
+    private static bool IsLocalSystem()
+    {
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return identity.IsSystem;
+        }
+        catch { return false; }
+    }
+
     /// One file per secret, named after the pair. Lower-cased and stripped of anything that
     /// is not a letter, a digit or a dash, so a server called `UniFi/Network` cannot write
     /// outside the data folder.

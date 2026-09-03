@@ -50,8 +50,14 @@ param(
   [Parameter(Mandatory, Position = 0)][string]$Caption,
   [int]$Delay = 2,
   [string]$VaultPath = $(if ($env:OCTAVIA_VAULT) { $env:OCTAVIA_VAULT } else { 'C:\Obsidian Vaults\Vibe Projects' }),
-  [switch]$KeepSize
+  [switch]$KeepSize,
+  [switch]$Settings
 )
+
+# The settings window has its own shape and 1100x780 would stretch it into a window that
+# never existed, so -Settings implies -KeepSize unless the caller overrode the size on
+# purpose. Her face is the thing that has to stay comparable shot to shot.
+if ($Settings) { $KeepSize = $true }
 
 $ErrorActionPreference = 'Stop'
 
@@ -90,13 +96,22 @@ if (-not $version) { throw "no <Version> in $csproj" }
 $shots = Join-Path $VaultPath '01 Projects\Octavia\Screenshots'
 if (-not (Test-Path -LiteralPath $shots)) { throw "no Screenshots folder at '$shots'" }
 
-$octavia = Get-Process Octavia -ErrorAction SilentlyContinue |
+# Her face first, and her server's settings window second. The settings window is a real
+# part of the visual record - two releases running, it was the only thing that changed -
+# and both times it got photographed by hand because this only knew about the client.
+$names = if ($Settings) { 'Octavia.Server', 'Octavia' } else { 'Octavia', 'Octavia.Server' }
+
+$octavia = $names | ForEach-Object { Get-Process $_ -ErrorAction SilentlyContinue } |
            Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 
 if (-not $octavia) {
-  Write-Host 'shoot: Octavia is not running (or her window is hidden to the tray).'
+  Write-Host 'shoot: no Octavia window is open.'
+  Write-Host '       her face:  start the client. her settings: Octavia.Server.exe --settings'
+  Write-Host '       a tray with no window open has no MainWindowHandle, which looks the same from here.'
   exit 1
 }
+
+Write-Host "shoot: photographing $($octavia.ProcessName)"
 
 $handle = $octavia.MainWindowHandle
 

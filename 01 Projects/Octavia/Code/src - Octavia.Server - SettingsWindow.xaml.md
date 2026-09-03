@@ -76,6 +76,25 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
             <TextBlock Style="{StaticResource Hint}"
                        Text="Local costs nothing, needs no key and works with the network down. Claude is the hosted model." />
 
+            <!-- Second on the tab, and it used to be last. A badge saying a key is stored is
+                 worth nothing under four settings and a scrollbar — the window is 660 tall and
+                 this sat below the fold, which is indistinguishable from the window not saying
+                 it at all. That was the actual complaint; the colour was only half the fix. -->
+            <TextBlock Text="Anthropic API key" Style="{StaticResource Head}" />
+            <StackPanel Orientation="Horizontal">
+              <PasswordBox x:Name="ApiKeyBox" Width="300" Padding="4,3" />
+              <Button Content="Store" Padding="12,4" Margin="8,0,0,0" Click="OnStoreKey" />
+              <Button Content="Clear" Padding="12,4" Margin="6,0,0,0" Click="OnClearKey" />
+              <!-- The same badge an integration's password gets. It was a grey hint below
+                   the buttons and read as one more caption; whether a credential is stored
+                   is a state, and states get a colour. -->
+              <TextBlock x:Name="KeyState" VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="SemiBold" />
+            </StackPanel>
+            <TextBlock x:Name="KeyNote" Style="{StaticResource Hint}" />
+
+            <TextBlock Text="Claude model" Style="{StaticResource Head}" />
+            <TextBox x:Name="ModelBox" />
+
             <TextBlock Text="Local model" Style="{StaticResource Head}" />
             <TextBox x:Name="LocalModelBox" />
             <TextBlock Style="{StaticResource Hint}"
@@ -85,19 +104,8 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
             <TextBox x:Name="LocalEndpointBox" />
             <TextBlock Style="{StaticResource Hint}" Text="Ollama, LM Studio, llama-server — anything OpenAI-compatible." />
 
-            <TextBlock Text="Claude model" Style="{StaticResource Head}" />
-            <TextBox x:Name="ModelBox" />
-
             <TextBlock Text="Reply length (max tokens)" Style="{StaticResource Head}" />
             <TextBox x:Name="MaxTokensBox" Width="120" HorizontalAlignment="Left" />
-
-            <TextBlock Text="Anthropic API key" Style="{StaticResource Head}" />
-            <StackPanel Orientation="Horizontal">
-              <PasswordBox x:Name="ApiKeyBox" Width="360" Padding="4,3" />
-              <Button Content="Store" Padding="12,4" Margin="8,0,0,0" Click="OnStoreKey" />
-              <Button Content="Clear" Padding="12,4" Margin="8,0,0,0" Click="OnClearKey" />
-            </StackPanel>
-            <TextBlock x:Name="KeyNote" Style="{StaticResource Hint}" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

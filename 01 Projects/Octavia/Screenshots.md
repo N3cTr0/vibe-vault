@@ -336,8 +336,14 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 | `v0.40.0 - speaking in her new voice, mid-sentence` | Kokoro `af_heart`, mouth moving, caption up — the engine replaced with nothing downstream noticing. See [[The Voice]] |
 | `v0.41.0 - she asks before cutting power to a port` | *"Do you want to power cycle port 4 on the UDM?"* and then **stopping**. The confirmation gate, live, against the real gateway. See [[Hands]] |
 | `v0.42.0 - the Rounds row, saying she has nothing to walk yet` | The row that exists so a week of deliberate silence is not mistaken for a broken job. See [[Her Rounds]] |
+| `v0.43.0 - she runs; the UniFi password is still to be stored` | A declared secret with nothing behind it yet — left **unset** rather than handed `""`, which would have reported a login failure and sent somebody to check the account |
+| `v0.43.1 - the sealed UniFi password reaches her tool server` | The same row after `--secret`, proving the DPAPI value survives the spawn into a child process |
 | `v0.44.0 - a rehearsal of an hourly finding, said out loud` | What she sounds like when she finds something, without waiting for her to find something |
+| `v0.45.0 - a log file per day, and quiet from midnight to 08-30` | Rotation with nothing scheduled — the day is spliced into the filename — and the quiet window the owner asked for |
 | `v0.46.0 - her server's own settings window` | [[Her Controls]], and the header warning that the active profile overrides four of the fields below it |
+| `v0.47.0 - one executable again, her tray and settings` | The merge that undid `Octavia.Control` after a single release: same binary, different mode |
+| `v0.48.0 - the key badge, and no secret on show` | **"Stored", in green, above the fold.** The state was always detected and always below the fold, which is why the report was *"it doesn't say"* |
+| `v0.48.0 - the UniFi key sealed, not on show` | `UNIFI_API_KEY` as a masked box with a badge, beside `UNIFI_HOST` still in plain text — the distinction the window now draws by itself |
 
 > **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
 
@@ -352,3 +358,17 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 This is the gap that [[#When to take them|the after-every-bump rule]] exists to stop reopening.
 
 **A different kind of gap has opened since.** From v0.10.0 to v0.38.0 the shots were *taken* — the rule held — but this note stopped describing them, so there are roughly thirty images in `Screenshots\` with nothing here saying what they settle. The filenames carry a caption each, and `check-vault.ps1` counts them per version, so nothing is lost; what is missing is the sentence explaining why each one was worth taking. **Taking the photograph and writing down what it proves are two habits, and only the first one stuck.**
+
+> **And it reopened immediately after being written down.** v0.43.0 through v0.47.0 were photographed and then went undescribed here for five releases, while this paragraph sat at the bottom of the note complaining about exactly that. Backfilled in v0.48.0. **A lesson written in the same note as the lapse does not prevent the lapse** — the table is the artefact that has to be updated, and noticing it is missing is not something a person does while looking at a different file.
+
+## Photographing the settings window
+
+`shoot.ps1` looks for `Octavia`, the client. Her **settings window belongs to `Octavia.Server`**, so for two releases the shots of it were captured by hand while a committed script sat next to them claiming to be how it is done.
+
+It takes `-Settings` now: server window first, and `-KeepSize` implied, because the settings window has its own shape and the 1100×780 the face is standardised at would stretch it into a window that never existed. Her face stays comparable shot to shot; the settings window is photographed as it is.
+
+```
+pwsh -File tools\shoot.ps1 'the key badge, and no secret on show' -Settings
+```
+
+A tray with **no window open** has no `MainWindowHandle` and is indistinguishable from nothing running, so the failure message names both ways in.

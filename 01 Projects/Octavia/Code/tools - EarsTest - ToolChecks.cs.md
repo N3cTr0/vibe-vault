@@ -124,6 +124,79 @@ internal static class ToolChecks
         Check("but arming is", Risk("secure", "Arm the system.") == ToolRisk.Confirm);
         Check("...and disarming is", Risk("unsecure", "Disarm the system.") == ToolRisk.Confirm);
 
+        /* **A secret-shaped name is recognised, and an ordinary one is left alone.**
+
+           This decides two things now: what a diagnostics bundle blanks on its way out of the
+           building, and what the settings window refuses to draw. Over-redaction is not the
+           safe default — it destroys the thing a bundle exists to carry — so both directions
+           are asserted, including the two that a plain substring match got wrong. */
+        foreach (var name in new[] { "UNIFI_API_KEY", "apiKey", "ApiKey", "Password", "AccessToken", "ClientSecret" })
+            Check($"'{name}' reads as a secret", Sensitive.Looks(name));
+
+        foreach (var name in new[] { "Hotkey", "UNIFI_HOST", "LocalModel", "Monkey" })
+            Check($"'{name}' does not", !Sensitive.Looks(name));
+
+        /* **`MaxTokens` reads as a secret, and that is not the bug it looks like.** The name
+           really does contain the word "token", and nothing about the *name* can tell it apart
+           from `AccessToken`. What tells them apart is the value: a budget is a number, a token
+           is a string. So the bundle asks both questions and only ever redacts a string.
+
+           Asserted in this direction on purpose, so that nobody reads a blanked `MaxTokens` as
+           a flaw in the name test and special-cases it — which would quietly take `ApiKeys` and
+           `SessionTokens` down with it. */
+        Check("'MaxTokens' reads as a secret by name alone", Sensitive.Looks("MaxTokens"));
+
+        /* **Sealing what somebody left in plain text.** The UniFi API key sat in `Env` for
+           eighteen versions with a note saying it was "less than ideal", which is not a plan.
+           `SealLoose` moves anything secret-shaped into the DPAPI store and takes it out of
+           the file, and must leave everything else exactly where it was. */
+        var loose = new OctaviaConfig
+        {
+            McpServers = new Dictionary<string, McpServer>
+            {
+                ["checkhouse"] = new()
+                {
+                    Command = pwsh,
+                    Env = new Dictionary<string, string>
+                    {
+                        ["HOUSE_API_KEY"] = "a-secret-that-should-move",
+                        ["HOUSE_HOST"] = "10.0.0.1"
+                    }
+                }
+            }
+        };
+
+        /* **`SealLoose` saves**, and a check must never save over the real `config.json`.
+           `OCTAVIA_CONFIG` exists for exactly this and is put back in the `finally`. */
+        var realConfig = Environment.GetEnvironmentVariable("OCTAVIA_CONFIG");
+        var scratchConfig = Path.Combine(Path.GetTempPath(), $"octavia-seal-{Guid.NewGuid():N}.json");
+        Environment.SetEnvironmentVariable("OCTAVIA_CONFIG", scratchConfig);
+
+        try
+        {
+            var moved = SecretStore.SealLoose(loose);
+            var house = loose.McpServers["checkhouse"];
+
+            Check("a key in plain text is sealed", moved.Count == 1, string.Join(", ", moved));
+            Check("...and taken out of the settings", !house.Env!.ContainsKey("HOUSE_API_KEY"),
+                  "it is still in Env");
+            Check("...and declared as a secret", house.Secrets?.Contains("HOUSE_API_KEY") == true,
+                  string.Join(",", house.Secrets ?? []));
+            Check("...and can be read back", SecretStore.ReadFor("checkhouse", "HOUSE_API_KEY") == "a-secret-that-should-move");
+            Check("an ordinary setting is untouched", house.Env.TryGetValue("HOUSE_HOST", out var host) && host == "10.0.0.1",
+                  "the host was moved or lost");
+
+            // Running it twice must not double the `Secrets` entry or lose anything.
+            Check("running it again does nothing", SecretStore.SealLoose(loose).Count == 0);
+            Check("...and does not duplicate the declaration", house.Secrets!.Length == 1, $"{house.Secrets.Length}");
+        }
+        finally
+        {
+            SecretStore.ClearFor("checkhouse", "HOUSE_API_KEY");
+            Environment.SetEnvironmentVariable("OCTAVIA_CONFIG", realConfig);
+            try { if (File.Exists(scratchConfig)) File.Delete(scratchConfig); } catch { /* a temp file */ }
+        }
+
         /* **A sealed secret reaching the child process, without ever being in `config.json`.**
 
            The UniFi threat feed needs a password, and a password does not belong beside an

@@ -29,12 +29,12 @@ That is true, and it never required a second **binary**. It required a second **
 
 ## What the window holds
 
-| Brain | Which brain, local model and endpoint, Claude model, reply length, the Anthropic key |
+| Brain | Which brain, **the Anthropic key and its state**, Claude model, local model and endpoint, reply length |
 |---|---|
 | Ears | Speech model, language, compute, wake phrase and threshold, load-on-start |
 | Voice and face | Speaking rate, avatar, room hour, status readout, camera |
 | Rounds | On/off, minutes between checks, **days spent learning**, quiet hours — and how far through the learning she is |
-| Integrations | Per server: enabled, every value it is given, and a Store/Clear per sealed password |
+| Integrations | Per server: enabled, every value it is given, and a Store/Clear per **sealed secret** |
 | Server and logs | Profile, face port, remote access, log level, days of logs kept |
 
 **"Quit this tray" is worded that way deliberately.** A tray whose Quit stopped a service meant to survive a reboot is a trap, and the wording is the whole guard — *Stop her* is four lines above it.
@@ -70,3 +70,37 @@ The check is **file-scoped instead, and weaker on purpose rather than by acciden
 A client is a renderer with a microphone. What it sends and what it draws are its business; the lifetime of a service on another machine is not. See [[A Server, And Clients]].
 
 **`LocalServer.Ensure` stays.** Attaching to a server, and starting one when there is none to attach to, is what makes double-clicking her work — that is not configuration.
+
+---
+
+## Saying whether a credential is there *(v0.48.0)*
+
+> *"Inside the settings it doesn't say if the Claude key is stored, we should be able to detect that? Also the UniFi API key is clearly visible, isn't that supposed to be hidden?"*
+
+Two complaints, opposite directions, one window: it drew the secret it should have hidden and hid the fact it was holding the other one.
+
+### The key state was detected all along
+
+It was *already* on screen — as grey hint text, under the buttons, at the bottom of the Brain tab. The window is 660 tall. **It was below the fold**, which is indistinguishable from the window not saying it.
+
+The colour was only half the fix. The key moved to **second on the tab**, directly under *Which brain*, where it is also where it belongs: the key is what makes choosing `claude` work. A badge nobody scrolls to is not a badge.
+
+Four states, because "no key" and "a key that will not decrypt" want very different things from you:
+
+| Stored | Sealed under this account and it reads back |
+|---|---|
+| Not set | Nothing to find |
+| Unreadable | A file exists and DPAPI refuses it — sealed by another account, or restored from a backup onto a different machine |
+| From the environment | `ANTHROPIC_API_KEY` is set, and it takes precedence over anything stored |
+
+*Unreadable* is the one that earns its place. Before this it presented as *not set*, so the fix looked like "type the key again" — which works, and quietly tells you nothing about why it happened or that it will happen again on the next restore.
+
+### The window will not draw a secret
+
+`UNIFI_API_KEY` used to render as an ordinary text box with the key in it. It now gets the same treatment a password gets — masked box, Store, Clear, and a badge — and the panel refuses to render **any** secret-shaped `Env` value as text, so the next integration inherits this without anyone remembering to. `UNIFI_HOST` and `UNIFI_USERNAME` stay plain, because they are.
+
+Behind it, `SecretStore.SealLoose` had already moved the value out of `config.json` at startup. The window is not hiding a key that is still in the file — there is nothing left to hide. See [[Conventions & Security Model#Anything secret-shaped is sealed (v0.48.0)]].
+
+![[v0.48.0 - the key badge, and no secret on show.png]]
+
+![[v0.48.0 - the UniFi key sealed, not on show.png]]

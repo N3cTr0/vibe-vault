@@ -22,11 +22,6 @@ namespace Octavia.Diagnostics;
 /// said in the room, and README.txt says so before anyone sends it.
 internal static partial class DiagnosticsBundle
 {
-    /// Words that make a setting's value too dangerous to copy out. The API key lives in
-    /// a DPAPI-sealed file that is not in this bundle at all — this is here so the
-    /// guarantee survives someone adding a setting later.
-    private static readonly string[] Sensitive = ["key", "token", "secret", "password"];
-
     public static string SuggestedFileName() =>
         $"octavia-diagnostics-{DateTime.Now:yyyy-MM-dd-HHmm}.zip";
 
@@ -140,22 +135,18 @@ internal static partial class DiagnosticsBundle
         foreach (var (name, value) in node.ToList())
         {
             if (value is JsonObject nested) Redact(nested);
-            else if (IsSensitive(name) && value?.GetValueKind() == System.Text.Json.JsonValueKind.String)
+            else if (Sensitive.Looks(name) && value?.GetValueKind() == System.Text.Json.JsonValueKind.String)
                 node[name] = "[removed]";
         }
     }
 
-    /// A plain substring match blanked `Hotkey` and `MaxTokens`, which are two of the
-    /// most useful lines in the file. Match whole words of the name instead, and only
-    /// ever redact a *string* — a secret is never a number or a boolean.
-    private static bool IsSensitive(string name) =>
-        Words().Split(name)
-               .Where(word => word.Length > 0)
-               .Select(word => word.TrimEnd('s', 'S'))
-               .Any(word => Sensitive.Contains(word, StringComparer.OrdinalIgnoreCase));
+    /* The test itself moved to `Core.Sensitive` in v0.48.0, when the settings window needed
+       the same answer: a name that says "secret" must be redacted *here* and never drawn
+       *there*. Two implementations would have been two opinions, and the disagreement would
+       only ever have shown up as a secret displayed by one of them.
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"(?<!^)(?=[A-Z])|[^A-Za-z0-9]+")]
-    private static partial System.Text.RegularExpressions.Regex Words();
+       Only a *string* is ever redacted, which stays here because it is about this file rather
+       than about the name: a secret is never a number or a boolean. */
 
     /// She may be writing to the log at this moment; a bundle must never fail because
     /// of that.
