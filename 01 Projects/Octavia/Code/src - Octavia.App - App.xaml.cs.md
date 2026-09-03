@@ -144,20 +144,19 @@ public partial class App : Application
         menu.Items.Add("Save diagnostics...", null, (_, _) => _window?.SaveDiagnostics());
         menu.Items.Add("Open data folder", null, (_, _) =>
             System.Diagnostics.Process.Start("explorer.exe", Paths.DataDir));
-        /* Her server, when there is one registered to control.
+        /* **Starting and stopping her left this menu in v0.46.0**, and the reason is a rule
+           rather than a problem with the entries: *"clients should not be able to configure
+           server side things, they should only be able to set what they send out."*
 
-           **This is only offered because stopping her became safe.** The client refuses to
-           stop a *console* server, and that is not squeamishness — three mechanisms were
-           measured and two of them skipped her unwind entirely. The service control manager
-           does it properly, so a menu entry that stops her now means what it says. Absent
-           the service, these are not drawn at all rather than shown greyed: an entry that
-           cannot work is a question a person has to answer every time they open the menu. */
-        if (LocalServer.ServiceInstalled)
-        {
-            menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add("Start her server", null, (_, _) => LocalServer.ControlService(start: true));
-            menu.Items.Add("Stop her server", null, (_, _) => LocalServer.ControlService(start: false));
-        }
+           A client is a renderer with a microphone. Its business is what it sends her and what
+           it draws; the lifetime of a service on somebody else's machine is not that, and the
+           fact that this one usually runs on the same box is a coincidence of the moment
+           rather than a licence. `Octavia.Control` owns it now — a tray of its own, in the
+           user's session, where a service cannot draw one.
+
+           `LocalServer.Ensure` stays. Attaching to a server, and starting one when there is
+           none to attach to, is what makes double-clicking her work; it is not configuration,
+           and removing it would leave the ordinary case broken to satisfy a tidy rule. */
 
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());

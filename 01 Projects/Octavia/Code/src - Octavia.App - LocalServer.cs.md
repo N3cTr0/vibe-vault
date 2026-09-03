@@ -193,28 +193,13 @@ internal static class LocalServer
        up on a phone in another room. */
 
 
-    /// Whether a service is registered for her on this machine.
-    ///
-    /// Asked once, when the tray is built. `--service-status` exits 1 for "not installed"
-    /// and 0 or 2 for a service that exists, which is the whole of the question here.
-    internal static bool ServiceInstalled =>
-        FindServer() is { } exe && Ask(exe, "--service-status") != 1;
+    /* **`ServiceInstalled` and `ControlService` left with the tray entries in v0.46.0.**
 
-    /// Starts or stops her service from the tray.
-    ///
-    /// Fire and forget, on a background thread, because both can take seconds — her ears
-    /// alone are 1.6 GB — and a tray menu that freezes the desktop while it waits is worse
-    /// than one that takes a moment to have an effect.
-    internal static void ControlService(bool start) => Task.Run(() =>
-    {
-        if (FindServer() is not { } exe) return;
-
-        var result = Ask(exe, start ? "--start" : "--stop");
-
-        Log.Write(result == 0
-            ? $"her service was {(start ? "started" : "stopped")} from the tray"
-            : $"the tray could not {(start ? "start" : "stop")} her service (exit {result})");
-    });
+       They were deleted rather than kept unused, and rather than moved wholesale: the finding
+       and the asking are still needed here — `Ensure` starts a server when there is none —
+       so what moved to `Core.ServerControl` is the part *two* processes now need, and what
+       stayed is the part only a client does. Two copies of "where is `Octavia.Server.exe`"
+       would have been two answers the first time somebody rearranged the folders. */
 
     /// Runs the server exe with one switch and hands back its exit code.
     private static int Ask(string exe, string argument)

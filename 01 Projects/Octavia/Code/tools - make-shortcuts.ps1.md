@@ -61,14 +61,16 @@ $repo = Split-Path -Parent $PSScriptRoot
 $tfm  = 'net10.0-windows10.0.19041.0'
 
 if ($Dist) {
-  $serverExe = Join-Path $repo 'dist\Octavia.Server.exe'
-  $clientExe = Join-Path $repo 'dist\Octavia.exe'
+  $serverExe  = Join-Path $repo 'dist\Octavia.Server.exe'
+  $clientExe  = Join-Path $repo 'dist\Octavia.exe'
+  $controlExe = Join-Path $repo 'dist\Octavia.Control.exe'
 } else {
-  $serverExe = Join-Path $repo "src\Octavia.Server\bin\Debug\$tfm\Octavia.Server.exe"
-  $clientExe = Join-Path $repo "src\Octavia.App\bin\Debug\$tfm\Octavia.exe"
+  $serverExe  = Join-Path $repo "src\Octavia.Server\bin\Debug\$tfm\Octavia.Server.exe"
+  $clientExe  = Join-Path $repo "src\Octavia.App\bin\Debug\$tfm\Octavia.exe"
+  $controlExe = Join-Path $repo "src\Octavia.Control\bin\Debug\$tfm\Octavia.Control.exe"
 }
 
-foreach ($exe in @($serverExe, $clientExe)) {
+foreach ($exe in @($serverExe, $clientExe, $controlExe)) {
   if (-not (Test-Path -LiteralPath $exe)) {
     throw "not built: $exe`n  run: dotnet build Octavia.slnx"
   }
@@ -129,6 +131,21 @@ if (-not $NoService) {
     -Description "Stop Octavia's service" `
     -Window 7 -Icon "$serverExe,0"
 }
+
+<#
+  Her controls: a tray icon for the server, and everything about it that is a setting.
+
+  **A separate process because a service has no desktop.** She runs in session 0, where a
+  tray icon would be drawn where nobody can see it - so the thing a person clicks lives in
+  their own session and controls the service from outside.
+
+  Written unconditionally, and it is the shortcut somebody should keep in Startup: the
+  start/stop pair above are still there for a keyboard, but this is the one that also says
+  whether she is running and lets a setting be changed while she is not.
+#>
+Set-Shortcut -Name 'Octavia Controls' -Target $controlExe -Arguments '' `
+  -Description "Octavia's server - tray icon and settings" `
+  -Window 1 -Icon "$controlExe,0"
 
 Write-Output ''
 Write-Output "  server rig : $ProfileName"

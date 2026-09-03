@@ -52,9 +52,31 @@ internal static class SplitChecks
         /* Acceptance 3. The client is a browser that knows where she lives — if it ever
            builds a session again it is not a client, it is a second Octavia, and the two
            would fight over her data folder, her port and her sound card. */
-        foreach (var forbidden in new[] { "new OctaviaSession", "new WhisperRecognizer", "new ClaudeBrain", "new LocalBrain", "new KokoroVoice" })
+        var contains = new[] { "new OctaviaSession", "new WhisperRecognizer", "new ClaudeBrain", "new LocalBrain", "new KokoroVoice" };
+
+        foreach (var forbidden in contains)
             Check($"the client never does `{forbidden}`", !client.Contains(forbidden, StringComparison.Ordinal),
                   "the client has started containing her again");
+
+        /* **The controls are held to the same rule**, and it is easier to break there: that
+           app exists to configure her, so the shortest path to any new setting will always
+           look like constructing the thing that owns it. It writes `config.json` and the
+           sealed secret store instead — the two things the server reads at startup — which is
+           also what lets it work while she is stopped. */
+        var controls = Read(Path.Combine(repo, "src", "Octavia.Control"));
+        Check("there are controls to check", controls.Length > 0, "no .cs found under src/Octavia.Control");
+
+        foreach (var forbidden in contains)
+            Check($"the controls never do `{forbidden}`", !controls.Contains(forbidden, StringComparison.Ordinal),
+                  "the controls have started containing her");
+
+        /* And the client no longer starts or stops her server — v0.46.0, at the owner's
+           instruction: a client sets what it sends out, not what runs on somebody else's
+           machine. `Ensure` stays, because attaching to a server and starting one when there
+           is none is what makes double-clicking her work; it is not configuration. */
+        foreach (var forbidden in new[] { "ControlService", "\"--stop\"", "\"--install\"" })
+            Check($"the client never does `{forbidden}`", !client.Contains(forbidden, StringComparison.Ordinal),
+                  "the client is controlling the server's lifetime again");
 
         /* The fault that made the split necessary to get right rather than merely possible.
            A file dialog needs a dispatcher and somebody looking at it, and the session may
@@ -98,6 +120,25 @@ internal static class SplitChecks
     /// Every source file in a tree, concatenated. Crude, and it is the point: these checks
     /// ask whether a string appears anywhere in a project, which is exactly the shape of the
     /// rule being enforced.
+    /// Comments removed before anything is searched.
+    ///
+    /// **These checks look for code and were reading prose.** Deleting the client's ability to
+    /// stop her server left a comment saying so — naming the method that went — and the check
+    /// asserting it was gone found the sentence describing its removal and went red. The same
+    /// exposure was under every check in this file: this repository comments heavily, and half
+    /// of those comments name the thing they are explaining the absence of.
+    ///
+    /// Not a parser, and it does not need to be. It is wrong about a `//` inside a string
+    /// literal — a URL — and that is harmless here, because nothing searched for is a URL.
+    private static string WithoutComments(string source)
+    {
+        source = System.Text.RegularExpressions.Regex.Replace(
+            source, @"/\*.*?\*/", " ", System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            source, @"//.*?$", " ", System.Text.RegularExpressions.RegexOptions.Multiline);
+    }
+
     private static string Read(string dir, string pattern = "*.cs")
     {
         if (!Directory.Exists(dir)) return "";
@@ -111,7 +152,7 @@ internal static class SplitChecks
             if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") ||
                 file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")) continue;
 
-            text.Append(File.ReadAllText(file)).Append('\n');
+            text.Append(WithoutComments(File.ReadAllText(file))).Append('\n');
         }
 
         return text.ToString();

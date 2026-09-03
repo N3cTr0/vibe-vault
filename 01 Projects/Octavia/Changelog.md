@@ -16,6 +16,59 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.46.0 — 2026-09-03
+
+**Her server has a tray icon and a settings window, and the client stopped controlling her.**
+
+`Octavia.Control` is a fourth project, and it is separate for one hard reason: **a Windows
+service has no desktop.** She runs in session 0, so a tray icon drawn from inside her would be
+drawn where nobody can see it. The thing a person clicks has to live in their session and
+reach the service from outside.
+
+| Tray | Start her · Stop her · Restart her · Settings · Open data folder · Quit these controls |
+|---|---|
+| **Settings** | Brain and models · speech model, language, compute, wake phrase · speaking rate, avatar, camera · rounds, quiet hours, **days spent learning** · every integration's values and passwords · profile, port, remote access, log level and retention |
+
+**It edits `config.json` and the sealed secret store rather than a running session.** That is
+what keeps it working while she is stopped — which is exactly when somebody needs to change
+the setting that is stopping her. `OctaviaConfig.Save` does the careful part, writing only
+changed keys into the *base* of the file so a profile overlay is never baked in.
+
+**A profile overriding a field is said out loud**, at the top of the window, naming which. A
+value edited here that the active profile also sets is written and then ignored, and doing
+that quietly would be the most confusing thing this window could do.
+
+Quitting is worded **"Quit these controls"**. A tray whose Quit stopped a service meant to
+survive a reboot is a trap, and the wording is the whole guard.
+
+### The client stopped starting and stopping her
+
+> *"Remove the start stop from the client as the clients should not be able to configure
+> server side things, they should only be able to set what they send out."*
+
+A client is a renderer with a microphone. What it sends and what it draws are its business;
+the lifetime of a service on another machine is not, and the two usually sharing a box is a
+coincidence of this setup rather than a licence.
+
+**`LocalServer.Ensure` stays.** Attaching to a server, and starting one when there is none to
+attach to, is what makes double-clicking her work — that is not configuration, and removing it
+would break the ordinary case to satisfy a tidy rule.
+
+`ServiceInstalled` and `ControlService` were **deleted rather than moved wholesale**: what two
+processes now need went to `Core.ServerControl`, and what only a client does stayed. Two copies
+of "where is `Octavia.Server.exe`" would be two answers the first time somebody rearranges the
+folders.
+
+### A check that was reading prose
+
+Asserting the client no longer calls `ControlService` went red on **the comment explaining that
+it had been removed**. Every check in `SplitChecks` had the same exposure — this repository
+comments heavily, and half those comments name the thing whose absence they explain. Comments
+are stripped before anything is searched now. Same fault as `"blocked"` containing `"lock"`,
+found twice in one day in two different files.
+
+---
+
 ## 0.45.0 — 2026-09-03
 
 **A log file per day, deleted after a fortnight.** And two smaller things asked for with it.

@@ -34,6 +34,8 @@ Octavia.Core.dll — her
 
 Octavia.Server.exe   a console host: opens the socket and stays out of the way
 Octavia.exe          the Windows client: a window, a tray icon, a hotkey
+Octavia.Control.exe  her server's tray icon and settings - a service has no desktop
+octavia-kokoro.exe   her voice, out of process
 ```
 
 Every subsystem sits behind an interface — `IBrain`, `ISpeechRecognizer`, `IVoice`,
@@ -74,11 +76,36 @@ of its own.
 pwsh -NoProfile -ExecutionPolicy Bypass -File tools\make-shortcuts.ps1
 ```
 
-That writes `Octavia Server.lnk`, `Octavia.lnk`, and — for the service below — `Start
-Octavia.lnk` and `Stop Octavia.lnk`. It overwrites, so re-run it after moving the repo.
+That writes `Octavia Server.lnk`, `Octavia.lnk`, `Octavia Controls.lnk`, and — for the service
+below — `Start Octavia.lnk` and `Stop Octavia.lnk`. It overwrites, so re-run it after moving the repo.
 `-ProfileName cloud` for a second server icon on the hosted brain, `-Dist` to point them at a
 published build, `-Minimised` to keep the server's console out of the way, `-NoService` to
 leave the start/stop pair out.
+
+## Her controls
+
+`Octavia.Control.exe` — a tray icon for **her server**, and a window holding everything about
+it that is a setting: which brain and which models, the speech model and the wake phrase, her
+speaking rate and avatar, her rounds and how long she learns before reporting, every
+integration's settings and passwords, the log level and how many days of logs to keep.
+
+**A separate process because a Windows service has no desktop.** An icon drawn from inside her
+would be drawn in session 0, where nobody can see it — so the thing you click lives in your
+session and controls the service from outside.
+
+It **edits `config.json` and the sealed secret store** rather than talking to a running
+session, which is what keeps it working while she is stopped — exactly when you need to change
+the setting that is stopping her. Most changes take effect on restart, and there is a *Save and
+restart her* button for that.
+
+> **A profile overrides some of these**, and the window says which at the top. A value edited
+> here that the active profile also sets is written and then ignored, which is the most
+> confusing thing this window could do quietly.
+
+**Starting and stopping her left the client's tray in v0.46.0.** A client is a renderer with a
+microphone: what it sends and what it draws are its business, and the lifetime of a service is
+not. That the two usually run on one machine is a coincidence of this setup rather than a
+licence.
 
 ## Running her as a service
 
@@ -152,9 +179,10 @@ rmdir /s /q C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Kokoro -c Release -r win-x64 --self-contained false -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
+dotnet publish src\Octavia.Control -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
 
-**Three projects, not two, since v0.40.0.** `Octavia.Kokoro` is her voice — a small console
+**Four projects since v0.46.0.** `Octavia.Kokoro` is her voice — a small console
 exe that the server starts, writes sentences to and reads audio from. It is separate because
 it carries its own native `onnxruntime.dll` and `Octavia.Core` carries Microsoft's for Silero
 and the wake word; two of those in one folder is a native collision. **Leave her out and the
@@ -166,6 +194,10 @@ installed"* rather than as a missing download.
 > job is to hold a model — and it is published first so the two self-contained publishes
 > after it own every file they share.
 
+`Octavia.Control` is her server's tray icon and settings window, and it is a separate process
+because **a Windows service has no desktop**: an icon drawn from inside her would be drawn in
+session 0, where nobody can see it.
+
 **Then the server, then the client**, into the same folder. Both of those carry
 `Octavia.Core`, so the order only decides which copy of the shared files wins, and they are
 identical — but publishing the client first and the server second would leave the *client's*
@@ -176,8 +208,8 @@ The `rmdir` is not optional politeness: publish overwrites but never deletes, so
 renamed or dropped file lives on in `dist` forever. A stale `lib\three.min.js` survived
 the whole three.js upgrade that way.
 
-Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, `octavia-kokoro.exe`,
-and the `wwwroot` beside them. The face is not embedded in either exe on purpose: you can edit the bust on
+Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, `Octavia.Control.exe`,
+`octavia-kokoro.exe`, and the `wwwroot` beside them. The face is not embedded in either exe on purpose: you can edit the bust on
 the target machine and just reload.
 
 **Only the server needs to go on the machine she lives on.** A client is small and needs
