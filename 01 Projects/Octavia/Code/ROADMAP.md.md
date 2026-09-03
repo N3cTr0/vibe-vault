@@ -2155,7 +2155,7 @@ own as a filename, so hers is found the moment it is there.
 
 ---
 
-## Stage 18 — She speaks first *(asked for 09/03/2026, not started)*
+## Stage 18 — She speaks first *(asked for 09/03/2026; the machinery built 09/03/2026, v0.42.0)*
 
 > **The owner's words:** *"I would like her to be able to review the logs for suspicious
 > threat activity every hour and let me know if she found something concerning."*
@@ -2198,4 +2198,34 @@ IPS/IDS events needs either a **local read-only UniFi account** (legacy cookie-a
 API) or the UDM's **syslog** pointed at this machine. That is the owner's decision about
 credentials, and it gates only the UniFi half: the three pieces above are worth building
 against any source, and syslog needs no credential at all.
+
+### The machinery, built *(09/03/2026, v0.42.0)*
+
+`Watchman` walks a route on a clock and `SayUnprompted` is the turn she begins. **No round is
+registered**, so today she walks an empty route in silence — deliberately, because the clock
+was always the small part and a stub is what let every rule be tested before there was
+anything real to be wrong about.
+
+All four rules above are implemented and checked: it never interrupts (a finding waits five
+minutes and says how long it waited), it is quiet at night (held, not dropped), silence is
+recorded (the log, and a `Rounds` row in Health), and **it never asks the model** — the
+round's own data decides and writes the sentence.
+
+`SayUnprompted` speaks into the room she last attended, and writes both halves into that
+room's history with the trigger in the person's slot, so a follow-up has something to answer
+from.
+
+Two checks were nearly written to fail by the clock, and both are worth keeping in mind for
+anything else on a schedule: the test config sets **no** quiet hours rather than the default
+overnight ones, and `WalkAsync` takes the time as an argument because **a quiet window cannot
+express "always"** — every wrap-around window covers 24 hours minus a minute.
+
+### What is left
+
+- **The read-only UniFi account**, chosen 09/03/2026 over syslog. A local, read-only admin
+  made in the UniFi UI, put in her config and sealed the way the API key is; she then uses the
+  legacy cookie-authenticated API, which does carry the IPS/IDS feed with severity and
+  category. That is the source the first real round reads.
+- **The round itself** — `ThreatRound`: fetch since the last walk, keep what is at or above a
+  configured severity, compose one sentence, and return null the rest of the time.
 ```

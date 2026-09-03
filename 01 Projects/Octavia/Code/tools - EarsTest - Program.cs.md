@@ -25,6 +25,7 @@ if (args.Length > 0 && args[0] == "rooms") { Environment.Exit(await RoomChecks.R
 if (args.Length > 0 && args[0] == "embedder") { Environment.Exit(EmbedderChecks.Run()); }
 if (args.Length > 0 && args[0] == "split") { Environment.Exit(SplitChecks.Run()); }
 if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.RunAsync()); }
+if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "unifi") { Environment.Exit(await UnifiChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "confirm") { await ToolLoopProbe.ConfirmAsync(); return; }
 if (args.Length > 0 && args[0] == "toolloop") { await ToolLoopProbe.RunAsync(args.Length > 1 && args[1] == "local"); return; }
@@ -173,6 +174,10 @@ failures += SplitChecks.Run();
 Console.WriteLine();
 Console.WriteLine("tools:");
 failures += await ToolChecks.RunAsync();
+
+Console.WriteLine();
+Console.WriteLine("her rounds:");
+failures += await RoundChecks.RunAsync();
 
 Console.WriteLine();
 Console.WriteLine("the wake word:");

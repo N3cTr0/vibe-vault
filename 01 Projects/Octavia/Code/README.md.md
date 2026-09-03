@@ -299,6 +299,9 @@ megabytes of downloaded artefacts, none of it source.
 | `WhisperLanguage` | `en` | ISO code, or `auto` to detect per utterance |
 | `RecognitionCulture` | `en-US` | Windows recognizer only |
 | `VoiceRate` | `0` | -10 to 10, rising is faster. The only thing about her voice that is still a setting — see *Her voice* |
+| `Rounds.Enabled` | `true` | Whether she checks anything on her own — see *Her rounds* |
+| `Rounds.EveryMinutes` | `60` | Minutes between walks. Clamped to 1–1440 |
+| `Rounds.QuietFrom` / `.QuietTo` | `22:30` / `07:30` | When she stays silent. Findings inside the window are held, not dropped. Equal values mean no quiet hours |
 | `Hotkey` | `Ctrl+Alt+O` | *Moved to `client.json` in v0.26.0; the copy here is read once to carry it over* |
 | `MinConfidence` | `0.35` | Raise it if she answers the television, lower it if she ignores you |
 | `MinUtteranceChars` | `2` | Shorter transcripts are treated as noise |
@@ -369,6 +372,26 @@ onto a real character by identity, with no translation layer in between to get w
 
 Her expression is read from the text of each sentence as she speaks it — locally, for
 free. The `emotion` message exists so a model can override that later.
+
+## Her rounds
+
+**The one thing she does that nobody asked for.** On a clock — hourly by default — she checks
+whatever rounds are registered, and *almost always says nothing*, which is the point.
+
+Nothing is registered yet, so today she walks an empty route. The rules are already there:
+
+- **She never interrupts.** A finding that arrives while she is answering somebody waits up to
+  five minutes, then says how long it waited.
+- **She is quiet at night.** `Rounds.QuietFrom`–`QuietTo`, 22:30 to 07:30 by default. Findings
+  inside the window are **held, not dropped**, and reported when it ends.
+- **Silence is visible.** Every walk is logged, and **Health → Rounds** says when she last
+  looked and what came of it. A round that finds nothing and a round that has silently stopped
+  running feel identical otherwise.
+- **The model is not asked whether to speak.** The round's own data decides, and writes the
+  sentence. A model asked hourly whether anything looks concerning will find something
+  concerning, every hour, and bill for it.
+
+Switch it off entirely with `Rounds.Enabled: false`.
 
 ## Her voice
 

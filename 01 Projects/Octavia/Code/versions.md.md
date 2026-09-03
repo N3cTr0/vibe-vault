@@ -18,6 +18,64 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.42.0 — 2026-09-03
+
+**She can speak first.** Stage 18, the machinery half.
+
+Everything she had ever said was a reply — to a held button, a typed line, a wake word — and
+`OctaviaSession` was built around that: one turn in flight, one room attended, a floor
+somebody had taken. `Watchman` is the other thing. It walks a route on a clock, and **its
+normal and correct outcome is that she says nothing at all.**
+
+No round is registered yet, so today it walks an empty route in silence. That is deliberate:
+the clock is the small part, and building it against a stub is what let every rule below be
+tested before there was anything real to be wrong about.
+
+### Four rules, each because the obvious version is worse
+
+| | |
+|---|---|
+| **It never interrupts** | A finding that arrives mid-turn waits up to five minutes and says how long it waited. Cutting across somebody to announce a port scan is worse than the port scan. |
+| **It is quiet at night** | An hourly job that can talk is an hourly job that can wake the house. Findings inside the window are **held, not dropped** — the point of checking at four in the morning is that somebody hears about it at eight. |
+| **Silence is recorded** | Every walk is logged, and the health panel gained a `Rounds` row saying when she last looked and what came of it. |
+| **It never asks the model** | The round's own data decides whether to speak, and composes the sentence. |
+
+That last one is the defence against crying wolf. **A model asked hourly whether anything
+looks concerning will find something concerning**, and it will cost a turn every hour to do
+it. The threshold belongs in the data — a severity the source itself reported. The model's job
+starts afterwards, when a person asks a follow-up, and the finding is in the room's history
+for it to answer from.
+
+### The turn she begins
+
+`SayUnprompted` is `RespondTo` entered from the other end, and much smaller, because the brain
+is not involved. It speaks into **the room she last attended** rather than the host room —
+announcing into an empty study because the study is "hers" would be correct and useless — and
+it writes both halves into that room's history, with what prompted her in the person's slot.
+That is not a lie about who spoke: a round's finding genuinely is an input arriving from
+somewhere other than a microphone, and without it *"what did you find?"* a minute later has
+nothing to answer from. It also keeps `Conversation` paired, which drops exchanges two at a
+time and warns that an orphaned assistant turn is rejected outright by some providers.
+
+### Two checks that would otherwise have failed by the clock
+
+- **`Loud()` sets no quiet hours at all** rather than the default 22:30–07:30. A suite run
+  late at night would otherwise find every *"she says it"* check failing, correctly, for a
+  reason with nothing to do with what was being tested.
+- **`WalkAsync` takes the time as an argument.** A quiet window cannot express *always* —
+  every wrap-around window covers 24 hours minus a minute — so proving a finding is held
+  overnight would have had a one-minute hole in it. **A check that fails once a day is worse
+  than no check.**
+
+Nineteen checks, all but one about her keeping quiet.
+
+### Not built yet: anything to walk
+
+The UniFi threat feed needs a read-only local account, because the API key reaches no event
+history at all — see Stage 12 for the probe table. That is the next piece.
+
+---
+
 ## 0.41.0 — 2026-09-03
 
 **She can restart the power on a PoE port, and she has to be told yes first.**

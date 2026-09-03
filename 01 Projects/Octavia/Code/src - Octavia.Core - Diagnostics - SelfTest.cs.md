@@ -40,6 +40,8 @@ internal static class SelfTest
         checks.AddRange([SpeechModel(config), Voice(config, host), Avatar(config),
                          Music(config, host), Camera(config), Gate(config)]);
 
+        if (host.Running) checks.Add(Rounds(config, host));
+
         checks.Add(await BrainAsync(config, host, cancel));
 
         // Only meaningful for a local brain; a cloud brain has no placement to get wrong.
@@ -268,6 +270,26 @@ internal static class SelfTest
 
     /// Reports the engine she is *actually* speaking with. Checking SAPI while the
     /// neural engine is running would answer a question nobody asked.
+    /// **The row that exists because the answer is almost always "nothing".**
+    ///
+    /// A round that finds nothing and a round that silently stopped running feel identical
+    /// from the outside — hour after hour of her saying nothing — so the panel a person
+    /// actually opens has to say *when she last looked*. Green either way: an empty route and
+    /// a quiet night are both correct outcomes, not faults. The one amber case is a finding
+    /// she never managed to say.
+    private static Check Rounds(OctaviaConfig config, HostSnapshot host)
+    {
+        if (!config.Rounds.Enabled)
+            return new Check("Rounds", true, "switched off",
+                "Set Rounds.Enabled in config.json to have her check things on her own.");
+
+        var stuck = host.Rounds.StartsWith("walked", StringComparison.Ordinal) &&
+                    host.Rounds.Contains("could not be said");
+
+        return new Check("Rounds", !stuck, host.Rounds,
+            stuck ? "She found something and was talking the whole time it waited." : "");
+    }
+
     private static Check Voice(OctaviaConfig config, HostSnapshot host)
     {
         /* **One voice to check now.** The Windows branch this replaces asked `SapiVoice`

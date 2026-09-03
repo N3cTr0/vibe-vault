@@ -114,6 +114,9 @@ internal sealed class OctaviaConfig
     /// is still a preference, because it is about the listener rather than the speaker.
     public int VoiceRate { get; set; }
 
+    /// What she checks on her own, and when she is allowed to say so. See `Watchman`.
+    public RoundsConfig Rounds { get; set; } = new();
+
     /// A .vrm file in %APPDATA%\Octavia\avatars. Empty means the plaster bust, which
     /// is not a placeholder so much as the fallback that always works. The default is
     /// empty because a fresh machine has no characters on it yet.

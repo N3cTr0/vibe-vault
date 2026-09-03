@@ -14,6 +14,7 @@ using Octavia.Core;
 using Octavia.Brain;
 using Octavia.Diagnostics;
 using Octavia.Face;
+using Octavia.Rounds;
 using Octavia.Senses;
 using Octavia.Senses.Music;
 using Octavia.Voice;
@@ -136,6 +137,12 @@ internal sealed class OctaviaSession : IDisposable
         Listen(_voice);
 
         StartHerVoice().Forget("starting her voice");
+
+        /* **The one thing she does that nobody asked for.** No round is registered here yet,
+           so this walks an empty route and says nothing — which is exactly the state to build
+           the machinery in. See `Watchman`, and Stage 18 for why the clock is the small part. */
+        _watchman = new Watchman(config, SayUnprompted);
+        _watchman.Start();
 
         _face.MessageReceived += OnFaceMessage;
 
@@ -955,7 +962,28 @@ internal sealed class OctaviaSession : IDisposable
         Listening: _openFace is not null,
         FaceBuilt: _faceBuilt,
         Faces: _face.Status,
-        Music: MusicSummary());
+        Music: MusicSummary(),
+        Rounds: RoundsSummary());
+
+    /// When she last walked her rounds, and what came of it.
+    ///
+    /// **This row exists because the normal answer is "nothing".** A round that finds nothing
+    /// and a round that has silently stopped running produce exactly the same experience — she
+    /// says nothing, hour after hour — and the only difference visible anywhere is whether she
+    /// looked. So the time is reported first and the result second.
+    private string RoundsSummary()
+    {
+        if (!_config.Rounds.Enabled) return "switched off";
+        if (_watchman.LastWalk is not { } walked) return "none registered yet";
+
+        var since = DateTimeOffset.Now - walked;
+
+        var when = since.TotalMinutes < 1 ? "just now"
+                 : since.TotalHours < 1 ? $"{(int)since.TotalMinutes} min ago"
+                 : $"{since.TotalHours:0.#} h ago";
+
+        return $"walked {when} — {_watchman.LastResult}";
+    }
 
     /// What she has been *told* is playing, and by whom.
     ///
@@ -1310,6 +1338,9 @@ internal sealed class OctaviaSession : IDisposable
     private FaceId? _floor;
     private FaceAudioSource? _faceMic;
     private System.Threading.Timer? _floorTimeout;
+
+    /// Her rounds. Registered with nothing yet, and started all the same - see Stage 18.
+    private readonly Watchman _watchman;
 
     /// A phone in a pocket with a stuck button must not own her ears indefinitely.
     private static readonly TimeSpan FloorLimit = TimeSpan.FromSeconds(60);
@@ -1901,6 +1932,73 @@ internal sealed class OctaviaSession : IDisposable
         _ => ex.Message.Length > 140 ? ex.Message[..140] : ex.Message
     };
 
+    /// **A turn she begins.**
+    ///
+    /// Everything else in this file assumes somebody asked: the floor was taken, a room was
+    /// attending, `_responding` was set by a request arriving. This is the same machinery
+    /// entered from the other end, and it is deliberately much smaller than `RespondTo`,
+    /// because the model is not involved. The round already decided what matters and wrote
+    /// the sentence; see `Finding`.
+    ///
+    /// **Returns false rather than waiting or interrupting.** A finding that arrives while
+    /// she is answering somebody is not urgent enough to cut across them — `Watchman` holds
+    /// it and asks again. Cutting in would be the single fastest way to make an hourly
+    /// errand something the owner switches off.
+    private bool SayUnprompted(Finding finding)
+    {
+        if (_disposed || _responding || _voice.IsSpeaking) return false;
+
+        /* The room she last attended, not the host room. That is where the person she is
+           talking to actually was — announcing a network alert into an empty study because
+           the study is "hers" would be correct and useless. */
+        var room = RoomNamed(_attending);
+
+        _responding = true;
+        _ears?.Mute();
+
+        try
+        {
+            /* Both halves go into the history, in that order, and the person's slot holds
+               what prompted her. It is not a lie about who spoke: a round's finding genuinely
+               is an input arriving from somewhere other than a microphone, and without it
+               *"what did you find?"* a minute later has nothing to answer from.
+
+               It also keeps `Conversation` paired. That class drops whole exchanges two at a
+               time and says so — a lone assistant turn would eventually leave an orphan at
+               the front, which some providers reject outright. */
+            room.History.Add("user", finding.Trigger);
+            room.History.Add("assistant", finding.Sentence);
+
+            SetState(room, AgentState.Speaking);
+            ToRoom(room.Id, new { type = "caption", who = "Octavia", text = finding.Sentence });
+            ToRoom(room.Id, new { type = "turn", who = "octavia", text = finding.Sentence });
+            Feel(room, Moods.Read(finding.Sentence));
+
+            // Sentence by sentence, the same way a streamed reply is spoken, so a long
+            // finding starts being heard before the last clause is synthesised.
+            var pending = new StringBuilder(finding.Sentence);
+            foreach (var sentence in Speech.DrainSentences(pending)) _voice.Say(sentence);
+
+            // Whatever had no full stop on the end of it. A composed sentence usually does;
+            // a dropped clause would be a silent truncation, which is the failure this
+            // project keeps finding.
+            if (pending.Length > 0) _voice.Say(pending.ToString());
+
+            Log.Write($"unprompted, in room '{room.Id}': {finding.Sentence}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("she could not say what a round found", ex);
+            return false;
+        }
+        finally
+        {
+            _responding = false;
+            if (!_voice.IsSpeaking) OnVoiceFinished();
+        }
+    }
+
     private void Hush()
     {
         _turn?.Cancel();
@@ -1998,6 +2096,7 @@ internal sealed class OctaviaSession : IDisposable
         // bookkeeping: skipping it leaves an MCP server running after she closes.
         // Blocking here is deliberate — Dispose has no async form to hand this to, and
         // an orphaned process is worse than a two-second wait on the way out.
+        _watchman.Dispose();
         _floorTimeout?.Dispose();
         _faceMic?.Dispose();
 

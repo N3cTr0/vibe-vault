@@ -53,6 +53,7 @@ internal static class SystemReport
             // One row, not two. "Voice engine" said which of several she was using; there is
             // one, and its name is already the whole of what "Voice" reports.
             new("Voice", string.IsNullOrEmpty(host.Voice) ? "not started yet" : host.Voice),
+            new("Rounds", host.Running ? host.Rounds : "she was not running when this was taken"),
             new("Faces attached", Attachments(host)),
             new("Log level", Log.Threshold.ToString().ToLowerInvariant()),
             new("Errors logged", $"{Log.Errors} error(s), {Log.Warnings} warning(s) this run")
@@ -214,7 +215,12 @@ internal sealed record HostSnapshot(
     bool FaceBuilt,
     FaceStatus Faces,
     bool Running = true,
-    string Music = "off")
+    string Music = "off",
+
+    /// What her last walk of the rounds found. **A round whose normal outcome is silence is
+    /// indistinguishable from a broken one**, so the health panel says when she last looked
+    /// and what came of it - see `Watchman`.
+    string Rounds = "none")
 {
     /// A bundle taken with `--diagnostics` when she is not up: everything about the
     /// machine still applies, but nothing about a session that never started does.
