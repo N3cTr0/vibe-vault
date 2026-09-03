@@ -158,20 +158,10 @@ source-path: src\Octavia.Core\wwwroot\index.html
         <span class="hint">Drop a <code>.vrm</code> in her avatars folder to add one.</span>
       </label>
 
-      <label class="field-row" for="voiceEngine">
-        <span class="label">Speech</span>
-        <select id="voiceEngine">
-          <option value="windows">Windows voices</option>
-          <option value="neural">Neural voice</option>
-        </select>
-        <span class="hint">The neural voice sounds far better and downloads about 80&nbsp;MB the first time.</span>
-      </label>
-
-      <label class="field-row" for="voice">
-        <span class="label">Voice</span>
-        <select id="voice"></select>
-        <span class="hint" id="voiceHint">Windows speech voices installed on this machine.</span>
-      </label>
+      <!-- Two rows used to live here: an engine to pick, and a voice within it. Stage 16
+           auditioned twenty-two voices and one was chosen, so both became menus over a list
+           of one. The Voice pill in the status strip still names her, which is all that is
+           left to say - and the same reasoning that hid the camera row in v0.39.2. -->
 
       <label class="field-row" for="microphone" data-host-only>
         <span class="label">Microphone</span>

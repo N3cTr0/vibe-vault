@@ -26,7 +26,7 @@ Octavia.Core.dll — her
 ├── Brain/       Claude or a local model, streamed a sentence at a time
 ├── Senses/      microphone level (NAudio) + VAD + speech recognition
 │   └── Music/   WASAPI loopback and the beat detection it feeds
-├── Voice/       Windows speech or a neural engine, behind IVoice
+├── Voice/       Kokoro, out of process, behind IVoice
 ├── Audio/       FFT and the lip sync read out of the waveform
 ├── Diagnostics/ self-test, system report, and the bundle you can send
 ├── Face/        the socket every renderer speaks over, and the page it serves
@@ -121,9 +121,9 @@ because a service outlives the window that wanted it.
 > One consequence worth knowing: a service logged on as an account **stops starting when that
 > account's password changes**, and says so in the Windows event log rather than in hers.
 
-> **Run the client on the machine the server is on**, unless you are using the neural voice.
-> Her voice plays through the *server's* sound card for the host room; a Windows (SAPI) voice
-> cannot be streamed to a client at all. See Stage 15 item 3 in `ROADMAP.md`.
+> **Her voice comes out of whichever face plays it.** The server has no sound card — see
+> Stage 15 item 3 in `ROADMAP.md` — so a room with nothing subscribed to her audio hears
+> nothing, and that is the correct outcome rather than a fault. Run a client, anywhere.
 
 She runs on a local model by default, so there is nothing to pay for and no key to paste —
 see [Profiles](#profiles). To use Claude instead, switch to the `cloud` profile and put a
@@ -148,22 +148,35 @@ Build a portable copy that carries its own .NET:
 
 ```
 rmdir /s /q C:\Projects\Octavia\dist
+dotnet publish src\Octavia.Kokoro -c Release -r win-x64 --self-contained false -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.Server -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 dotnet publish src\Octavia.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishReadyToRun=true -o C:\Projects\Octavia\dist
 ```
 
-**The server first and the client second**, into the same folder. Both carry `Octavia.Core`,
-so the order only decides which copy of the shared files wins, and they are identical — but
-publishing the client first and the server second would leave the *client's* `wwwroot` in
-place, which is the same files today and would silently stop being so the moment one of them
-stopped shipping the page.
+**Three projects, not two, since v0.40.0.** `Octavia.Kokoro` is her voice — a small console
+exe that the server starts, writes sentences to and reads audio from. It is separate because
+it carries its own native `onnxruntime.dll` and `Octavia.Core` carries Microsoft's for Silero
+and the wake word; two of those in one folder is a native collision. **Leave her out and the
+server runs and cannot speak**, which her self-test reports as *"octavia-kokoro.exe is not
+installed"* rather than as a missing download.
+
+> It publishes **framework-dependent** on purpose. Self-contained would put a second copy of
+> the .NET runtime beside the one the server already carries, for an executable whose whole
+> job is to hold a model — and it is published first so the two self-contained publishes
+> after it own every file they share.
+
+**Then the server, then the client**, into the same folder. Both of those carry
+`Octavia.Core`, so the order only decides which copy of the shared files wins, and they are
+identical — but publishing the client first and the server second would leave the *client's*
+`wwwroot` in place, which is the same files today and would silently stop being so the moment
+one of them stopped shipping the page.
 
 The `rmdir` is not optional politeness: publish overwrites but never deletes, so a
 renamed or dropped file lives on in `dist` forever. A stale `lib\three.min.js` survived
 the whole three.js upgrade that way.
 
-Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, and the `wwwroot`
-beside them. The face is not embedded in either exe on purpose: you can edit the bust on
+Copy the whole `dist` folder — `Octavia.Server.exe`, `Octavia.exe`, `octavia-kokoro.exe`,
+and the `wwwroot` beside them. The face is not embedded in either exe on purpose: you can edit the bust on
 the target machine and just reload.
 
 **Only the server needs to go on the machine she lives on.** A client is small and needs
@@ -253,7 +266,7 @@ switch a running server — stop it first.
 
 ## Where her data lives
 
-Everything she owns — config, key, log, Whisper models, Piper voices, avatars and the
+Everything she owns — config, key, log, Whisper models, her voice, avatars and the
 WebView2 profile — sits in one folder, resolved at startup in this order:
 
 1. `OCTAVIA_DATA`, if set.
@@ -285,10 +298,7 @@ megabytes of downloaded artefacts, none of it source.
 | `WhisperModel` | `large-v3-turbo` | `large-v3` when accuracy beats latency; `small.en` on weak CPUs |
 | `WhisperLanguage` | `en` | ISO code, or `auto` to detect per utterance |
 | `RecognitionCulture` | `en-US` | Windows recognizer only |
-| `VoiceEngine` | `windows` | `windows` or `neural`. Settings → Speech |
-| `VoiceName` | first installed | The Windows voice. Settings → Voice |
-| `NeuralVoiceName` | `en_GB-jenny_dioco-medium` | The Piper voice, kept separately so switching engines loses neither |
-| `VoiceRate` | `0` | -10 to 10 |
+| `VoiceRate` | `0` | -10 to 10, rising is faster. The only thing about her voice that is still a setting — see *Her voice* |
 | `Hotkey` | `Ctrl+Alt+O` | *Moved to `client.json` in v0.26.0; the copy here is read once to carry it over* |
 | `MinConfidence` | `0.35` | Raise it if she answers the television, lower it if she ignores you |
 | `MinUtteranceChars` | `2` | Shorter transcripts are treated as noise |
@@ -362,25 +372,31 @@ free. The `emotion` message exists so a model can override that later.
 
 ## Her voice
 
-Two engines behind one interface, chosen under **Settings → Speech**:
+**Kokoro `af_heart`, and nothing else.** There is no engine to choose and no voice to pick;
+Settings has no row for either. Twenty-two candidates read the same paragraph in Stage 16 and
+this one was chosen by ear, so it lives in `KokoroStore.cs` as a constant rather than a
+setting. `VoiceRate` is the only thing about her voice you can still change, because it is
+about the listener rather than the speaker.
 
-| Engine | Sounds like | Cost |
-|---|---|---|
-| Windows speech | A 2010 satnav | Installed already, starts instantly |
-| Neural (Piper) | A person | ~80 MB downloaded once; 280–530 ms to first audio |
+| | |
+|---|---|
+| Model | Kokoro 82M, `kokoro-multi-lang-v1_0`, speaker 3 |
+| Cost | 350 MB downloaded once, into `<data>\voices` |
+| Speed | RTF 0.34–0.47 on CPU — about 2.5× faster than she speaks |
+| Output | Raw 16-bit mono PCM at 24 kHz |
 
-The neural engine runs **out of process** — sentences on its standard input, raw audio
-on its standard output — for the same reason the local brain does: a second ONNX runtime
-inside this process would sit beside Whisper's CUDA-linked one, and native dependency
-collisions are not worth the milliseconds. It is downloaded on first use, into
-`<data>\voices`, from the Piper project's own GitHub release. That is an
-executable rather than a model file, so it happens only when you ask for the neural
-voice, and the URL is in `PiperStore.cs` where you can read it.
+It runs **out of process**, as `octavia-kokoro.exe` — sentences on its standard input, raw
+audio on its standard output. Same reason the local brain does: sherpa-onnx carries its own
+native `onnxruntime.dll` and `Octavia.Core` carries Microsoft's for Silero and the wake word,
+and two of those in one folder is a native collision. **It is a third publish** — see *Moving
+her to another PC*. Leave it out and the server runs and cannot speak, which her self-test
+reports as *"octavia-kokoro.exe is not installed"* rather than as a missing download.
 
-She starts on the Windows voice and upgrades herself when the neural engine is ready, so
-a first run talks immediately instead of sitting mute through a download.
+A first run is **silent until the model lands**, and says so rather than pretending. There is
+nothing to fall back to: her Windows voice went in v0.37.0 because it synthesised straight to
+a sound card, and the server has none.
 
-**Lip sync comes out of the audio, not the engine.** Piper reports no phoneme timings,
+**Lip sync comes out of the audio, not the engine.** Kokoro reports no phoneme timings,
 and neither will most of what might replace it — so the mouth is read from the sound she
 is actually making: loudness for the jaw, and the balance of energy across three
 formant-ish bands for the lips, measured as each buffer reaches the sound card so the

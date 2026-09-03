@@ -50,8 +50,9 @@ internal static class SystemReport
             new("Silero VAD", File.Exists(WhisperModelStore.SileroPath) ? "present" : "MISSING"),
             new("CUDA runtime", CudaPresent() ? "present" : "not installed (CPU only)"),
             new("Ears", host.Ears),
-            new("Voice", string.IsNullOrEmpty(host.Voice) ? "none selected" : host.Voice),
-            new("Voice engine", config.VoiceEngine),
+            // One row, not two. "Voice engine" said which of several she was using; there is
+            // one, and its name is already the whole of what "Voice" reports.
+            new("Voice", string.IsNullOrEmpty(host.Voice) ? "not started yet" : host.Voice),
             new("Faces attached", Attachments(host)),
             new("Log level", Log.Threshold.ToString().ToLowerInvariant()),
             new("Errors logged", $"{Log.Errors} error(s), {Log.Warnings} warning(s) this run")

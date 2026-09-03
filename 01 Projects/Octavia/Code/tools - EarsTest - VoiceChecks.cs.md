@@ -75,13 +75,26 @@ internal static class VoiceChecks
             $"loud {loud.Openness:0.00} vs soft {soft.Openness:0.00}");
         Check("openness stays in range", loud.Openness is >= 0 and <= 1, $"{loud.Openness:0.00}");
 
-        // --- the engine's own list ------------------------------------
-        Check("piper names tidy up for a menu",
-            PiperStore.Pretty("en_GB-jenny_dioco-medium") == "Jenny Dioco (en-GB, medium)",
-            PiperStore.Pretty("en_GB-jenny_dioco-medium"));
-        Check("an odd name survives tidying", PiperStore.Pretty("nonsense") == "nonsense",
-            PiperStore.Pretty("nonsense"));
-        Check("the catalogue is not empty", PiperStore.Catalogue.Count > 0, "no voices listed");
+        /* --- the one voice --------------------------------------------
+
+           `Speaker` is an index into `voices.bin` and **belongs to the model, not to us** —
+           the same class of constant as openWakeWord's `/10 + 2`. Nothing enforces it,
+           nothing errors, and a wrong one produces a perfectly good voice belonging to
+           somebody else. Written down here so a change has to be deliberate. */
+        Check("her voice is the one that was chosen", KokoroStore.Voice == "af_heart", KokoroStore.Voice);
+        Check("and it is that voice's own index", KokoroStore.Speaker == 3, $"{KokoroStore.Speaker}");
+
+        // A viseme frame is 512 samples; her clock delivers 20 ms. If a rate ever made
+        // 20 ms *bigger* than a frame, the carry above would stop being exercised at all
+        // and the bug it exists for could come back unnoticed.
+        Check("her rate keeps a clock tick smaller than a viseme frame",
+            KokoroStore.SampleRate * 20 / 1000 < VisemeReader.FrameSamples,
+            $"{KokoroStore.SampleRate * 20 / 1000} samples per tick vs {VisemeReader.FrameSamples}");
+
+        // The engine is shipped, not downloaded — so a missing one is a broken install, and
+        // saying which is the difference between waiting and going to look for a file.
+        Check("her voice engine is installed", KokoroStore.EnginePath() is not null,
+            "octavia-kokoro.exe is not beside her or in a working tree; README.md publishes three projects");
 
         /* **The chunk size must not be able to silence her mouth** — v0.39.1.
 

@@ -19,7 +19,7 @@ namespace Octavia.Senses;
 /// which phrase it is listening for. So adding a second wake word later costs about a
 /// megabyte, not four.
 ///
-/// **Downloaded rather than shipped**, exactly as Whisper and Piper are, and for the same
+/// **Downloaded rather than shipped**, exactly as Whisper and her voice are, and for the same
 /// reason: a repository is not a good place to keep binaries that a release page already
 /// versions. Unlike Whisper this is a few megabytes, so it happens once and quickly.
 internal static class WakeWordStore

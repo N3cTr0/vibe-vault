@@ -93,24 +93,25 @@ internal sealed class OctaviaConfig
     /// Only used by the "windows" recognizer.
     public string RecognitionCulture { get; set; } = "en-US";
 
-    /// "neural" for Piper, and there is nothing else since v0.37.0.
-    ///
-    /// It used to default to `"windows"` — SAPI, on every machine and needing no download.
-    /// That voice synthesises straight to a sound card, and the server has none since Stage
-    /// 15 item 3, so it could not reach a single face. **A setting that can only be wrong is
-    /// worse than no setting**, but the field stays: an existing `config.json` says
-    /// `"windows"`, and reading that has to mean something rather than crashing. It is
-    /// answered with a notice and ignored.
-    public string VoiceEngine { get; set; } = "neural";
+    /* **Which voice she has is no longer a setting.**
 
-    /// A SAPI voice name, or a Piper voice like "en_GB-jenny_dioco-medium", depending
-    /// on the engine above.
-    public string? VoiceName { get; set; }
+       `VoiceEngine`, `VoiceName` and `NeuralVoiceName` were here: an engine to pick, and a
+       voice within it. Stage 16 auditioned twenty-two and the owner chose one, so there is
+       nothing left for any of the three to say. They are **deleted rather than kept and
+       ignored**, which is the opposite of what happened to `VoiceEngine` when SAPI went —
+       and the right call for a different reason. That one was kept because a face could
+       still *send* `setVoiceEngine`, and it had to mean something; the answer to that lives
+       in `OctaviaSession` now, where the message is refused out loud. A field in a config
+       file is not a message from anybody. It is a promise that this can be configured.
 
-    /// The neural engine's own choice, kept separately so switching engines back and
-    /// forth does not lose either selection.
-    public string NeuralVoiceName { get; set; } = "en_GB-jenny_dioco-medium";
+       Old keys left in an existing `config.json` are simply not read: nothing here is
+       strict about unmapped members, so a file that still says `"NeuralVoiceName"` loads
+       exactly as before and quietly stops meaning anything.
 
+       See `KokoroStore`, where the choice that replaced them is written down. */
+
+    /// How fast she speaks: -10 to 10, rising is faster. The one thing about her voice that
+    /// is still a preference, because it is about the listener rather than the speaker.
     public int VoiceRate { get; set; }
 
     /// A .vrm file in %APPDATA%\Octavia\avatars. Empty means the plaster bust, which

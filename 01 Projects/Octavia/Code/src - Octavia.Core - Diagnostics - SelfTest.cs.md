@@ -278,17 +278,20 @@ internal static class SelfTest
            The advice changed with it. "Switch to Windows speech under Settings" was the
            fallback for a machine that could not download the model, and there is no longer
            anywhere to fall back to — so it says what is actually true instead. */
-        if (!PiperStore.HasEngine)
-            return new Check("Voice", false, "the neural speech engine is not installed",
-                "It downloads the first time she starts, which needs internet once. " +
-                "Until it arrives she has no voice at all — there is no longer a Windows one.");
+        // The engine is an executable that ships beside her rather than one she downloads,
+        // so a missing one is a broken install and not a missing prerequisite. Saying which
+        // is the difference between waiting for a download and going to look for a file.
+        if (KokoroStore.EnginePath() is null)
+            return new Check("Voice", false, "octavia-kokoro.exe is not installed",
+                "It ships beside her — see README.md, which publishes three projects, not two.");
 
-        if (!PiperStore.HasVoice(config.NeuralVoiceName))
-            return new Check("Voice", false, $"'{config.NeuralVoiceName}' has not been downloaded",
-                "Pick it again under Settings > Voice and she will fetch it.");
+        if (!KokoroStore.HasVoice)
+            return new Check("Voice", false, "her voice has not been downloaded",
+                "It arrives the first time she starts, which needs internet once and about " +
+                "350 MB. Until then she has no voice at all.");
 
         // Running means it started; the snapshot carries what the session actually has.
-        return new Check("Voice", true, host.Running ? host.Voice : PiperStore.Pretty(config.NeuralVoiceName));
+        return new Check("Voice", true, host.Running ? host.Voice : $"Kokoro ({KokoroStore.Voice})");
     }
 
     /// Deliberately free. The local brain is asked whether it is there; Claude is not

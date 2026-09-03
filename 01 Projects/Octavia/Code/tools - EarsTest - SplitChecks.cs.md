@@ -52,7 +52,7 @@ internal static class SplitChecks
         /* Acceptance 3. The client is a browser that knows where she lives — if it ever
            builds a session again it is not a client, it is a second Octavia, and the two
            would fight over her data folder, her port and her sound card. */
-        foreach (var forbidden in new[] { "new OctaviaSession", "new WhisperRecognizer", "new ClaudeBrain", "new LocalBrain", "new NeuralVoice", "new SapiVoice" })
+        foreach (var forbidden in new[] { "new OctaviaSession", "new WhisperRecognizer", "new ClaudeBrain", "new LocalBrain", "new KokoroVoice" })
             Check($"the client never does `{forbidden}`", !client.Contains(forbidden, StringComparison.Ordinal),
                   "the client has started containing her again");
 

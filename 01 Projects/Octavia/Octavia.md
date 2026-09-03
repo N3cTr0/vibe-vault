@@ -8,7 +8,7 @@ tags: [octavia, moc]
 > An always-on desktop companion with a language model behind her — **a local one by default**, Claude when asked for: a headless .NET **server** owns the microphone, the voice, the API key and the conversation; clients render her face and do nothing else. Built toward a fully animated — eventually photoreal — 3D face that hears you locally, reacts to music, and later sees and acts. **This note is the reference point for everything Octavia.**
 
 - **Repo:** `C:\Projects\Octavia` on **`N3CTR0-PC`** — git, with a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) (both since 08/30/2026). She moved off the [[Claude Dev VM]] that day; see [[Moving To The New Machine]].
-- **Current version:** 0.28.1 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.39.2 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
 - **A second face exists:** [[Octavia Android]], her phone/tablet client, in its own repo since 08/31/2026.
 - **Started:** 08/29/2026, from a single-file HTML prototype (`C:\Projects\talking-avatar.html`)
 - **Distribution:** two self-contained single-file exes in `dist\` — `Octavia.Server.exe` and `Octavia.exe` (see [[Build & Release]])
@@ -28,6 +28,30 @@ tags: [octavia, moc]
 > reached her**, in twenty-six versions, because her ears had four separate *silent* ways to
 > lose an utterance. That is written up in [[Lessons Learned]] and is the thing to remember
 > from this stage, not the feature.
+
+> **Then 0.29.0 → 0.39.2 happened in one day, 09/02–09/03/2026**, and it is the largest
+> single run this project has had. Read [[Changelog]] for the detail; the shape of it:
+>
+> - **She has hands** (0.29.0) and can use them on the house — UniFi cameras included, so she
+>   describes what is at the gate rather than the name of the camera (0.31.0).
+> - **She runs as a Windows service** (0.30.0).
+> - **The server holds no local device at all** (0.38.0, Stage 15 item 3). Her microphone, her
+>   voice, her sound card and every device class are gone from the server — clients own them
+>   now, and `listen` means one thing everywhere. See [[A Server, And Clients]].
+> - **A wake word in front of Whisper** (0.39.0), so she stops transcribing the room to find
+>   out whether it was talking to her. `WakePhrase` is empty until hers is trained.
+>
+> **One open item is worth knowing about before it bites:** `music` is now reported *upstream*
+> by a client, because a page cannot capture loopback — and **nothing sends it yet**, so her
+> music sense is dark on every face.
+
+> **Whisper was on the wrong model for this machine, 09/03/2026.** `large-v3-turbo` was chosen
+> to leave GPU headroom for the face renderer — and this box has a **GT 730**, which the CUDA
+> runtime will not touch, so it ran on eight CPU threads at **0.4× realtime**: slower than
+> speech arrives, which an always-on listening room can never keep up with. `small.en` measures
+> **1.8× realtime** on the same probe and produced a *word-for-word identical* transcript. The
+> `home` profile is on `small.en` now; `cloud` and `live` still name the large model, for the
+> GPU box that has not been bought. See [[Lessons Learned]].
 
 ## Core notes
 

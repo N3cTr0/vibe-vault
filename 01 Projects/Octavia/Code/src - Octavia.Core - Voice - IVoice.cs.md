@@ -62,9 +62,20 @@ internal interface IVoice : IDisposable
     /// What this engine calls itself, for the face and the diagnostics report.
     string EngineName { get; }
 
-    IReadOnlyList<string> InstalledVoices();
-    string CurrentVoice { get; }
-    bool SelectVoice(string? name);
+    /* **There is no voice to choose, so there is nothing here to choose it with.**
+
+       `InstalledVoices`, `CurrentVoice` and `SelectVoice` were the shape of a menu: an
+       engine with a catalogue, a current selection, and a way to move between them. Stage 16
+       auditioned twenty-two voices and the owner picked one — *"I only want that 1 voice, we
+       don't need the rest"* — so the catalogue is one entry long and the selection can only
+       ever be it.
+
+       A picker over a list of one is the same fault as the `setOutput` messages struck from
+       PROTOCOL.md and the camera row hidden in v0.39.2: a control that cannot do anything,
+       offered anyway. The honest version is not a disabled menu, it is no menu — and the
+       seam stays exactly as useful, because what `IVoice` is actually for is letting the
+       engine be replaced without `OctaviaSession` noticing. That happened in this very
+       release, from Piper to Kokoro, and nothing below this line changed. */
 
     void Say(string sentence);
     void Hush();

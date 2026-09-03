@@ -18,6 +18,98 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.40.0 — 2026-09-03
+
+**Stage 16. She has a new voice, and it is the only one she has.**
+
+Twenty-two candidates read the same paragraph — ten Piper voices including the three `high`
+models that were never on her shortlist, twelve Kokoro ones — and the owner listened and
+picked **Kokoro's `af_heart`**. Then he said the thing that shaped the release: *"I only want
+that 1 voice, we don't need the rest."*
+
+So this is not a voice added. It is a **choice removed**, and most of the diff is deletion:
+
+| Gone | What it was |
+|---|---|
+| `NeuralVoice`, `PiperStore` | The engine that lost |
+| `VoiceEngine`, `VoiceName`, `NeuralVoiceName` | Three config fields describing a choice that no longer exists |
+| `IVoice.InstalledVoices`, `.CurrentVoice`, `.SelectVoice` | The shape of a menu |
+| `setVoice`, `setVoiceEngine` | Struck from PROTOCOL.md |
+| Two rows in Settings, `voices[]` and `voiceEngine` in `hello` | A picker over a list of one |
+
+**The two messages are answered, not dropped.** An old face is still out there — a phone that
+has not been updated, a browser with the page cached — and a message that lands in `default`
+comes back as *"she did not understand that"*, which is a worse lie than a plain no. Both now
+say she has one voice and what it is called.
+
+**The config fields are deleted rather than kept and ignored**, which is the opposite of what
+happened to `VoiceEngine` when SAPI went — and right for a different reason. That one was kept
+because a face could still *send* it and that had to mean something. A field in a config file
+is not a message from anybody; it is a promise that this can be configured. Old keys in an
+existing `config.json` are simply never read.
+
+### The engine
+
+`src/Octavia.Kokoro` is a **third publish** — see README.md, and note that leaving it out
+gives a server that runs and cannot speak. It is a separate executable for the standing
+reason: sherpa-onnx carries its own native `onnxruntime.dll` and `Octavia.Core` carries
+Microsoft's for Silero and the wake word, and two of those in one folder is a native
+collision. Sentences go in on stdin, raw PCM comes out on stdout — deliberately the shape
+Piper had, because that side was already written and proven.
+
+**Nothing downstream changed.** `VisemeReader` reads 24 kHz PCM exactly as it read 22.05 kHz,
+`Pacer` did not change by one line, and `OctaviaSession` never learns which engine it got.
+That was the claim `IVoice` was written to make, and this is the first time it has been
+tested by actually replacing the engine.
+
+**Real-time was the constraint most likely to break** under a model four times the size, so
+it was measured rather than assumed: **RTF 0.34–0.47** on this machine with no GPU — about
+two and a half times faster than she says it.
+
+**She can be stopped mid-word now**, which Piper could not do. A hush there meant reading the
+rest of the sentence out of the pipe and discarding it while the machine went on synthesising
+audio nobody would ever hear. The callback that generates her audio is the same one that
+checks whether she has been interrupted.
+
+**It costs 350 MB, once**, against Piper's 80. A first run is silent until it lands, and says
+so through `Trouble` — a longer wait makes that honesty matter more, not less.
+
+> **`kokoro-multi-lang-v1_1` is a trap, and it cost a 365 MB download to find out.** Newer
+> than `v1_0` and 103 speakers against 53, so it looks like the obvious archive. A hundred of
+> them are Chinese; it contributes three English women. Every English voice worth hearing is
+> in the older, smaller release.
+
+`MouthTap` went too — dead since v0.36.0, when `Pacer` took over the tap and nothing
+constructed it again.
+
+---
+
+## 0.39.2 — 2026-09-03
+
+**A face that cannot open a camera no longer offers to choose one.** On a handset her
+settings panel drew *two* camera menus: the shell's, which works, and hers, which read
+"Not known yet" above a paragraph explaining that this face was loaded over plain HTTP and
+can never enumerate a device. A control apologising for itself, listed first, is the one
+somebody tries.
+
+**The row is hidden rather than explained.** `canOpenACamera` is already the page's answer
+to *could this face ever open one*, and it is false on any `http://` LAN origin — so the
+picker is drawn only where it can be populated and acted on. The desktop is a secure
+context over loopback and is untouched. Whichever face in the room owns a camera answers a
+`look`, and it chooses with its own setting; on the phone that is the app's own picker,
+sitting directly above where hers used to be.
+
+The hint's third branch went with it. It existed only to explain the case that no longer
+renders, and a dead branch describing behaviour nothing performs is how the last two of
+these hid.
+
+**Found by driving the phone rather than by reading the diff**, which is the note worth
+keeping: nothing about this is visible in `bridge.js`. It needed the panel open on a
+handset, next to the working picker, to look wrong.
+
+---
+
+
 ## 0.39.1 — 2026-09-02
 
 **Her mouth stopped moving in v0.36.0, and it was one number.** Reported, found, fixed.

@@ -65,7 +65,6 @@ internal static class RoomChecks
                 Brain = "local",
                 LocalEndpoint = model.Endpoint,
                 LocalModel = "stub",
-                VoiceEngine = "windows",
                 Music = false,
                 MusicFromRoom = false,
                 ListenOnStart = false,

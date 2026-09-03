@@ -231,9 +231,7 @@ const captionEl = el('caption');
 const speakerEl = el('speaker');
 const stateLabel = el('stateLabel');
 const entries = el('entries');
-const voiceSel = el('voice');
 const avatarSel = el('avatar');
-const engineSel = el('voiceEngine');
 const micSel = el('microphone');
 const outSel = el('output');
 const computeSel = el('whisperCompute');
@@ -820,19 +818,16 @@ function applyHello(msg) {
 
   wantKey(!msg.hasKey);
 
-  // The host labels its own voices now: a Piper file name and a SAPI name need very
-  // different tidying, and only the host knows which engine it is running.
-  const voices = (msg.voices || []).map(v =>
-    typeof v === 'string' ? { value: v, label: v.replace(/^Microsoft\s+/i, '') } : v);
+  /* **`voice` is what she sounds like, not what she could sound like.**
 
-  fill(voiceSel, voices, msg.voice);
-  const chosen = voices.find(v => v.value === msg.voice);
-  pill('pillVoice', msg.voice ? 'ok' : 'dead', chosen ? chosen.label : (msg.voice || '—'));
+     This used to fill a menu from `msg.voices` and set an engine dropdown beside it. Stage
+     16 ended with one voice chosen by ear, so the host stopped sending a list and both
+     controls went with it — see the note where they used to be in `index.html`. The pill
+     is what remains, and it is enough: a name, and whether she has one at all.
 
-  if (msg.voiceEngine) engineSel.value = msg.voiceEngine;
-  el('voiceHint').textContent = msg.voiceEngine === 'neural'
-    ? 'Downloaded on first use. Choosing one she does not have yet fetches it.'
-    : 'Windows speech voices installed on this machine.';
+     A first run has no voice for several minutes while 350 MB arrives, and `dead` is the
+     honest reading of that rather than a fault. */
+  pill('pillVoice', msg.voice ? 'ok' : 'dead', msg.voice || '—');
 
   fill(avatarSel,
     [{ value: '', label: 'Plaster bust' }]
@@ -1297,6 +1292,25 @@ keyIn.addEventListener('keydown', e => { if (e.key === 'Enter') el('saveKey').cl
    so this list is empty until she has looked once. Saying so is the difference between a
    menu that is waiting and a menu that looks broken. */
 async function listCameras() {
+  /* **A face that cannot open a camera does not get to choose one.**
+
+     This picker names the camera *this face* opens for a `look`. On a plain `http://` LAN
+     origin there is no `getUserMedia` at all, so it could never be populated and its value
+     could never be acted on — it rendered as "Not known yet" above a paragraph explaining
+     why it does not work, which is a control apologising for itself.
+
+     On a handset it was worse than useless: the shell that actually owns the camera draws
+     its own picker, in this same panel, from `renderDeviceSettings`. Two camera menus, one
+     of them working — and the broken one listed first is the one somebody tries.
+
+     The rule this follows is the same one the microphone button follows: **a control is
+     shown to the face that can carry it out**, not to every face in the room. Whichever
+     face here owns a camera answers a `look`, and it chooses with its own setting. */
+  if (!canOpenACamera) {
+    cameraSel.closest('.field-row')?.style.setProperty('display', 'none');
+    return;
+  }
+
   let found = [];
 
   try {
@@ -1311,14 +1325,11 @@ async function listCameras() {
       .concat(found.map(label => ({ value: label, label }))),
     wantedCamera);
 
+  // Only one branch left: a face that cannot open a camera never reaches here, so the
+  // "loaded over plain HTTP" explanation went with the row it was apologising for.
   el('cameraHint').textContent = found.length
     ? 'Which one she looks through.'
-    : canOpenACamera
-      ? 'A browser will not name the cameras until she has been allowed to look once. Ask her something that needs eyes, allow it, then come back.'
-      // The same distinction as the watch button. An empty list here has two very different
-      // causes, and telling somebody on a phone to "allow it once" sends them looking for a
-      // permission prompt that can never appear.
-      : 'This face cannot open a camera at all — it was loaded over plain HTTP, and a browser only offers cameras to a secure origin. The setting still applies to this room; whichever face here owns a camera answers.';
+    : 'A browser will not name the cameras until she has been allowed to look once. Ask her something that needs eyes, allow it, then come back.';
 }
 
 cameraChk.addEventListener('change', () => send({ type: 'setCamera', value: cameraChk.checked }));
@@ -1330,9 +1341,7 @@ cameraSel.addEventListener('change', () => {
   send({ type: 'setCameraDevice', value: cameraSel.value });
 });
 
-voiceSel.addEventListener('change', () => send({ type: 'setVoice', value: voiceSel.value }));
 avatarSel.addEventListener('change', () => send({ type: 'setAvatar', value: avatarSel.value }));
-engineSel.addEventListener('change', () => send({ type: 'setVoiceEngine', value: engineSel.value }));
 micSel.addEventListener('change', () => send({ type: 'setMicrophone', value: micSel.value }));
 outSel.addEventListener('change', () => send({ type: 'setOutput', value: outSel.value }));
 computeSel.addEventListener('change', () => send({ type: 'setWhisperCompute', value: computeSel.value }));

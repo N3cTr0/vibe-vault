@@ -116,24 +116,26 @@ internal sealed class OctaviaSession : IDisposable
             ? new LocalBrain(config, _tools)
             : new ClaudeBrain(config, _tools);
         Log.Write($"brain: {_brain.Description}");
-        /* **The neural voice, and only the neural voice.**
+        /* **One voice, and it is hers.**
 
            This used to start with `SapiVoice` and upgrade, so a first run could talk while
-           the 80 MB neural model downloaded rather than sitting mute. That was right for as
-           long as the server had speakers.
-
-           It has none now, and SAPI **synthesises to a sound card** — its `AudioFormat` is
-           null, which is the interface's way of saying it cannot be streamed to anybody. So
-           on this server it is not a lesser voice, it is *no voice at all*: it would speak
-           into a device that does not exist while every face waited in silence.
+           the neural model downloaded rather than sitting mute. That was right for as long as
+           the server had speakers. It has none, and SAPI **synthesises to a sound card** —
+           its `AudioFormat` was null, the interface's own way of saying it cannot be streamed
+           to anybody — so on this server it was not a lesser voice but no voice at all.
 
            A first run is therefore quiet until the model arrives, and says so through
            `Trouble` rather than pretending. Honest silence beats a voice nobody can hear.
-           See Stage 15 item 3. */
-        _voice = new NeuralVoice(config);
+           The model is 350 MB now rather than 80, which makes that wait longer and the
+           honesty about it more important, not less.
+
+           The instance made here speaks to nobody: it exists so `_voice` is never null while
+           the real one is downloading, and it is replaced the moment `StartHerVoice`
+           succeeds. See Stage 15 item 3, and Stage 16 for why this one and no other. */
+        _voice = new KokoroVoice(config);
         Listen(_voice);
 
-        UseNeuralVoice().Forget("starting the neural voice");
+        StartHerVoice().Forget("starting her voice");
 
         _face.MessageReceived += OnFaceMessage;
 
@@ -431,54 +433,39 @@ internal sealed class OctaviaSession : IDisposable
 
     // ---- her voice -------------------------------------------
 
-    /// Swaps the engine under a running session. Everything downstream — the face, the
-    /// state machine, the mouth — is fed through `IVoice`, so neither knows it happened.
-    private async Task UseNeuralVoice()
+    /// Starts her voice, once, when the model is on disk and the engine will run.
+    ///
+    /// This used to be a *swap* — she began on Windows speech and upgraded herself when the
+    /// neural model finished downloading. There has been nothing to upgrade from since
+    /// v0.37.0, so what is left is the second half of that manoeuvre with nothing before it.
+    /// Everything downstream — the face, the state machine, the mouth — is fed through
+    /// `IVoice` and none of it can tell which engine it got, which is what made replacing
+    /// Piper with Kokoro in Stage 16 a change to two files instead of twenty.
+    private async Task StartHerVoice()
     {
-        var neural = new NeuralVoice(_config);
-        Listen(neural);
+        var voice = new KokoroVoice(_config);
+        Listen(voice);
 
         try
         {
-            await neural.StartAsync(_config.NeuralVoiceName);
+            await voice.StartAsync();
         }
         catch (Exception ex)
         {
-            Log.Error("the neural voice would not start", ex);
-            Notice("Her neural voice could not start; staying with the Windows one.");
-            neural.Dispose();
+            Log.Error("her voice would not start", ex);
+            Notice("Her voice could not start, so she will be silent until it is fixed. " +
+                   "Her log says why.");
+            voice.Dispose();
             return;
         }
 
         var previous = _voice;
         previous.Hush();
-        _voice = neural;
+        _voice = voice;
         previous.Dispose();
 
-        Log.Write($"voice engine: {neural.EngineName}");
+        Log.Write($"voice: {voice.EngineName}");
         Announce();
-    }
-
-    /// **There is one voice now**, and asking for the other says so rather than obliging.
-    ///
-    /// `windows` meant `SapiVoice`, which synthesises straight to a sound card and cannot be
-    /// streamed. On a server with no sound card that is not a choice between two voices, it
-    /// is a choice between a voice and silence — so the setting is answered honestly instead
-    /// of being quietly ignored, which is the failure mode this project keeps writing down.
-    private void SelectVoiceEngine(string? engine)
-    {
-        if (!string.Equals(engine, "neural", StringComparison.OrdinalIgnoreCase))
-        {
-            Log.Write($"voice engine '{engine}' asked for; there is only the neural one now");
-            Notice("She has one voice now. The Windows voice needed a sound card, " +
-                      "and the server has none — see Stage 15 item 3.");
-            return;
-        }
-
-        _config.VoiceEngine = "neural";
-        _config.Save();
-
-        UseNeuralVoice().Forget("switching to the neural voice");
     }
 
     // ---- face to host ----------------------------------------
@@ -640,26 +627,16 @@ internal sealed class OctaviaSession : IDisposable
                 SaveKey(Text(message, "value"));
                 break;
 
-            case "setVoice":
-                var voice = Text(message, "value");
-                if (_voice.SelectVoice(voice))
-                {
-                    if (_voice is NeuralVoice) _config.NeuralVoiceName = voice ?? "";
-                    else _config.VoiceName = voice;
-                    _config.Save();
-                    Announce();
-                }
-                else if (_voice is NeuralVoice && voice is { Length: > 0 })
-                {
-                    // A voice that is not downloaded yet: the engine fetches it and
-                    // announces itself when it is ready.
-                    _config.NeuralVoiceName = voice;
-                    _config.Save();
-                }
-                break;
+            /* **She has one voice, and these two answer rather than oblige.**
 
+               Struck rather than deleted, for the reason `setVoiceEngine` already was: an
+               old face is still out there — a phone that has not been updated, a browser
+               with the page cached — and a message that lands in `default` is reported as
+               "she did not understand that", which is a worse lie than a plain no. */
+            case "setVoice":
             case "setVoiceEngine":
-                SelectVoiceEngine(Text(message, "value"));
+                Notice(room, $"She has one voice now — {_voice.EngineName}. It was chosen by ear " +
+                             "out of twenty-two, and there is nothing to pick between.");
                 break;
 
             case "setAvatar":
@@ -834,13 +811,9 @@ internal sealed class OctaviaSession : IDisposable
         hasKey = _brain.IsReady || !_brain.NeedsApiKey,
         model = _brain.Description,
         profile = _config.Profile,
-        voices = _voice.InstalledVoices().Select(name => new
-        {
-            value = name,
-            label = _voice is NeuralVoice ? PiperStore.Pretty(name) : name.Replace("Microsoft ", "")
-        }),
-        voice = _voice.CurrentVoice,
-        voiceEngine = _voice is NeuralVoice ? "neural" : "windows",
+        // What she sounds like, to say on the panel — not a list to choose from. `voices`
+        // and `voiceEngine` are gone with the picker they fed; see `IVoice`.
+        voice = _voice.EngineName,
         ears = _ears?.EngineName ?? "not started",
         /* Per face, because "is she listening" is a question about a *room*. The desk asks
            about this machine's microphone; a handset asks whether the stream it is sending

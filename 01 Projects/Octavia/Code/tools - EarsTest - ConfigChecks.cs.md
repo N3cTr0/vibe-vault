@@ -59,7 +59,7 @@ internal static class ConfigChecks
             // The regression that started this: saving while a profile was applied
             // used to bake the overlay into the base and every later run inherited it.
             var running = OctaviaConfig.Load("dev");
-            running.VoiceName = "Test Voice";
+            running.WhisperLanguage = "fr";
             running.Save();
 
             var saved = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
@@ -69,8 +69,8 @@ internal static class ConfigChecks
                 $"WhisperModel={saved["WhisperModel"]}");
             Check("save keeps the file's own profile", (string?)saved["Profile"] == "live",
                 $"Profile={saved["Profile"]}");
-            Check("save still records the voice", (string?)saved["VoiceName"] == "Test Voice",
-                $"VoiceName={saved["VoiceName"]}");
+            Check("save still records the change", (string?)saved["WhisperLanguage"] == "fr",
+                $"WhisperLanguage={saved["WhisperLanguage"]}");
             Check("save keeps both profiles", saved["Profiles"]?.AsObject().Count == 2,
                 $"Profiles={saved["Profiles"]}");
 
@@ -94,13 +94,13 @@ internal static class ConfigChecks
                 $"Brain={afterSettings["Brain"]}");
 
             // Two saves in a row: the second must not undo the first.
-            settings.VoiceName = "Second Voice";
+            settings.WhisperLanguage = "de";
             settings.Save();
             var afterTwice = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
             Check("a second save keeps the first", (string?)afterTwice["AvatarFile"] == "chosen.vrm",
                 $"AvatarFile={afterTwice["AvatarFile"]}");
-            Check("a second save records its own change", (string?)afterTwice["VoiceName"] == "Second Voice",
-                $"VoiceName={afterTwice["VoiceName"]}");
+            Check("a second save records its own change", (string?)afterTwice["WhisperLanguage"] == "de",
+                $"WhisperLanguage={afterTwice["WhisperLanguage"]}");
         }
         finally
         {
@@ -133,7 +133,7 @@ internal static class ConfigChecks
             },
             ["Brain"] = "claude",
             ["WhisperModel"] = "large-v3-turbo",
-            ["VoiceName"] = "Original Voice"
+            ["WhisperLanguage"] = "en"
         };
 
         File.WriteAllText(path, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));

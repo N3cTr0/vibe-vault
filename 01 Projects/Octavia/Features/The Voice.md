@@ -134,28 +134,47 @@ She starts on the neural voice directly. That used to be an upgrade she performe
 
 > **Seven checks were deleted rather than ported.** They asserted the mapping from Windows' 21 viseme ids onto the five VRM mouth shapes — a mapping that lived inside `SapiVoice`. The neural voice never sees a viseme id: `VisemeReader` derives her mouth from the waveform, which is exactly why it stays in step with audio that is *streamed* rather than played. A rewritten version would have asserted arithmetic nothing performs.
 
-## The audition *(09/03/2026 — Stage 16)*
+## One voice, chosen by ear *(v0.40.0, Stage 16)*
 
 *"I need to search for a free or commercial voice for Octavia, the one she has now I don't like."*
+Then, once he had heard them: *"I like number 1"* — and *"I only want that 1 voice, we don't need the rest."*
 
-Nothing here has changed yet. `tools/VoiceAudition` renders one paragraph in twenty-two candidate voices into `data\auditions`, because **which one is nicer is an ear, not a specification** — see [[Roadmap]] Stage 16.
+Twenty-two candidates read the same paragraph: ten Piper voices including the three `high` models that were never on her shortlist, and twelve Kokoro ones. He picked **Kokoro `af_heart`**.
 
-The tool is free-standing on purpose: it does not reference `Octavia.Core`. sherpa-onnx carries its own native `onnxruntime.dll` and Octavia.Core carries Microsoft's for Silero and the wake word, so the challenger is auditioned in a process that has never met the incumbent.
+So Stage 16 is not a voice added. It is **a choice removed**, and most of the change is deletion.
 
-### The two candidates
+| Gone | What it was |
+|---|---|
+| `NeuralVoice`, `PiperStore` | The engine that lost — deleted as `SapiVoice` was in v0.37.0 |
+| `VoiceEngine`, `VoiceName`, `NeuralVoiceName` | Three config fields describing a choice that no longer exists |
+| `IVoice.InstalledVoices`, `.CurrentVoice`, `.SelectVoice` | The shape of a menu |
+| `setVoice`, `setVoiceEngine` | Struck from [[Face Protocol]] |
+| Two Settings rows, `voices[]` and `voiceEngine` in `hello` | A picker over a list of one |
+| `MouthTap` | Dead since v0.36.0, when `Pacer` took over the tap |
 
-| | Piper, a different voice | Kokoro |
-|---|---|---|
-| Work to switch | one line of config | a new `IVoice`, roughly a day |
-| Disk | 60–114 MB per voice | 350 MB once, every voice included |
-| Streamable | yes, already proven | yes — chunked callback, raw PCM |
-| Her mouth | unchanged | unchanged — PCM at 24 kHz, read the same way |
-| Offline, private, free | yes | yes |
+**The two messages are answered rather than dropped.** An old face is still out there — a phone that has not been updated, a browser with the page cached — and a message that lands in `default` comes back as *"she did not understand that"*, which is a worse lie than a plain no.
 
-Ten Piper voices, including the three `high` models that were never on her shortlist — `high` is a larger model at the same sample rate, and the likeliest place for the incumbent engine to have a better answer hiding.
+**The config fields were deleted rather than kept and ignored**, which is the opposite of what happened to `VoiceEngine` when SAPI went, and right for a different reason. That one was kept because a face could still *send* it and that had to mean something. **A field in a config file is not a message from anybody — it is a promise that this can be configured.**
 
-Twelve Kokoro voices, at 82M parameters against a Piper voice's ~20M. It clears every constraint Stage 16 wrote down *before* the search began, which is why it is the only new engine on the sheet. **Measured rather than assumed:** on this machine with no GPU it synthesised the audition paragraph at an RTF of **0.34–0.47** — about two and a half times faster than she says it, so "real-time, sentence by sentence" survives a model four times the size.
+### The engine
 
-Hosted voices — ElevenLabs and the like — were left off deliberately: per-character billing on someone who talks all evening, network latency on every sentence, and an outage becoming muteness rather than plainness.
+`Octavia.Kokoro` is a separate executable and a **third publish**; leave it out and the server runs and cannot speak. Same standing rule as [[The Brain]]'s local model: sherpa-onnx carries its own native `onnxruntime.dll`, `Octavia.Core` carries Microsoft's for Silero and the wake word, and two of those in one folder is a native collision.
 
-> **`kokoro-multi-lang-v1_1` is a trap.** Newer than `v1_0` and 103 speakers against 53, so it looks like the obvious download. One hundred of them are Chinese; it contributes three English women. The English catalogue is in **`v1_0`**. See [[Lessons Learned]].
+The wire between them is deliberately the shape Piper's was — sentences in on stdin, raw PCM out on stdout, silence meaning the end — **because that side was already written and proven**. Swapping the engine changed two files and no behaviour downstream.
+
+| | |
+|---|---|
+| Model | Kokoro 82M, `kokoro-multi-lang-v1_0`, speaker 3 |
+| Cost | 350 MB once, against Piper's 80 |
+| Speed | RTF 0.34–0.47 on CPU, no GPU — about 2.5× faster than she speaks |
+| Output | Raw 16-bit mono PCM at 24 kHz |
+
+**Nothing downstream changed.** `VisemeReader` reads 24 kHz exactly as it read 22.05 kHz, `Pacer` did not change by one line, and `OctaviaSession` never learns which engine it got. That was the claim `IVoice` was written to make, and **this is the first time it was tested by actually replacing the engine**.
+
+**Real-time was the constraint most likely to break** under a model four times the size, so it was measured rather than assumed.
+
+### She can be stopped mid-word now
+
+Piper could not be interrupted. A hush there meant reading the rest of the sentence out of the pipe and throwing it away, with the machine still synthesising audio nobody would ever hear. The callback that generates her audio is now the same one that checks whether she has been interrupted, so a hush stops her inside the word — which needed the child process to read stdin on a different thread from the one generating, or the hush could not be *seen* until the sentence it was interrupting had finished.
+
+> **`kokoro-multi-lang-v1_1` is a trap**, and it cost a 365 MB download to find out. Newer than `v1_0` and 103 speakers against 53. A hundred of them are Chinese; it contributes three English women. The English catalogue is in `v1_0`. See [[Lessons Learned]].
