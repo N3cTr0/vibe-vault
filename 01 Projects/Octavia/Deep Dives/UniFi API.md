@@ -116,3 +116,47 @@ The signature is on the Threat Management screen in the UI, so something serves 
 | Read-only account, password DPAPI-sealed via `McpServer.Secrets` | The system log only — see [[Conventions & Security Model]] |
 
 Both live in `tools\unifi-mcp.ps1`. One server rather than two: they are two applications on one appliance at one address, so when it is unreachable both are, and there is no independence to preserve.
+
+---
+
+## A full survey of the appliance *(09/03/2026, v0.49.2)*
+
+*"Go through the API docs for the UniFi UDM and see everything that is available."* Probed against the appliance rather than read from a documentation page, because this firmware is the only authority on this firmware — and because a documented claim nobody tested is exactly what cost a stored account password (see [[Conventions & Security Model#The credential that was never needed (v0.49.1)]]).
+
+**UDM SE · Network `10.6.102` · Protect `7.2.105`.** There is **no OpenAPI spec** for either on this build; both `openapi.json` and `swagger.json` 404.
+
+### Only two applications are installed
+
+`access`, `talk`, `connect`, `drive` and `innerspace` all answer `200` with **1236 bytes of `text/html`** — the UniFi OS shell page, identical for every path, which is the catch-all and not an API. Worth writing down because a naive probe scoring on status code alone would report five applications that are not there.
+
+### Network — available and unused
+
+| `networks` | The seven VLANs: Default, VPN_SA, VPN_USA, LTE, IoT (10), Camera (20), Management (30) |
+|---|---|
+| `firewall/policies` | **66 policies, 25 enabled**, with `action`, `source`, `destination`, `ipProtocolScope`, `loggingEnabled` |
+| `vpn/servers` | WireGuard and OpenVPN, both currently disabled |
+| `radius/profiles` | Two |
+| `hotspot/vouchers` | Guest vouchers; empty here |
+| `info` | Application version |
+
+**Two more actions exist, and neither was known.** Established the same way `POWER_CYCLE` was — by sending a deliberately invalid action and reading the refusal, which names the valid set:
+
+- **Device:** `RESTART` — reboot an access point or the gateway itself.
+- **Client:** `AUTHORIZE_GUEST_ACCESS`, `UNAUTHORIZE_GUEST_ACCESS` — grant or revoke a single client's access.
+
+### Protect — available and unused
+
+| `nvrs` | The UDM as an NVR, carrying **`armMode`** (arm/disarm state, breach counters) and doorbell message settings |
+|---|---|
+| `viewers`, `lights`, `sensors`, `chimes` | Supported collections, all empty — the hardware is not here |
+| `files/asset-files` | Empty |
+| camera fields | `smartDetectSettings` (person, animal; smoke and CO **audio** detection), `osdSettings`, `ledSettings`, `videoMode`, `hdrType`, `micVolume`, `isMicEnabled` |
+
+`cameras/{id}/rtsps-stream` answers `200` and returns `{high: null, medium: null, low: null, package: null}` — the endpoint is real and **RTSPS is simply not switched on for that camera** in Protect. It is a UI toggle, not an API limitation.
+
+### Confirmed absent
+
+- **Protect has no event feed either.** `events`, `subscribe/events` and `subscribe/devices` all 404. They first appeared to exist because a fast probe got `429` — *rate limited* — which is not `404`, and reading it as "present" would have been wrong. Re-probed with delays, they are genuinely gone. So the [[Hands|"not available: a threat or event feed"]] finding holds on **both** integration surfaces.
+- Network: no `wlans`, `port-forwards`, `traffic-rules`, `qos-rules`, `dns/records`, `speedtest`, `isp-metrics`, `events`, `alarms`, `settings`, `users`, `tags`, `subnets`, `vpn/clients`.
+
+> **`OPTIONS` is not evidence of writability here.** Every path — including plainly read-only ones — answers the same `HEAD, GET, DELETE, PATCH, POST, PUT`. That is the UniFi OS proxy being permissive, not the endpoint describing itself. Writability has to be established per endpoint, and the consequential ones (firewall policies, `armMode`) were **not** tested, because a survey should not change the thing it is surveying.
