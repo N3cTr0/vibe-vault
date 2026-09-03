@@ -287,6 +287,67 @@ internal static class ToolChecks
         Check("and nothing is pending before she asks",
               !Conversation.Grants(new Conversation().TakeConsent(), door, back, "yes"));
 
+        /* **The two sides come from two separate generations, and this file used to hide it.**
+
+           Every check above hands `back` to both `AwaitYes` and `Grants` — the same string,
+           so a comparison of raw bytes could not fail and the suite was green for eighteen
+           releases while consent was refused 127 times in a row in the field. A model asked
+           the same thing twice writes it twice: `{"device": "UDM", "port": 1}` when it asks,
+           `{"port": 1, "device": "UDM"}` after the yes. Those are the two lines actually
+           logged on 09/03/2026, and the second one is what nothing ever ran.
+
+           So the pairs below deliberately differ as *text* and agree as *JSON*. The
+           entity-mismatch checks above still hold, because they differ as both. */
+        const string cycle = "unifi__power_cycle_port";
+        const string asked = """{"device": "UDM", "port": 1}""";
+
+        Conversation AskedPort()
+        {
+            var talk = new Conversation();
+            talk.AwaitYes(cycle, asked);
+            return talk;
+        }
+
+        Check("a yes survives the keys arriving in another order",
+              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port": 1, "device": "UDM"}""", "yes"),
+              "this is the one that was broken");
+
+        Check("...and the whitespace changing",
+              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"device":"UDM","port":1}""", "yes"));
+
+        Check("...and both at once",
+              Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1,"device":"UDM"}""", "yes"));
+
+        // The other half: looser about spelling must not mean looser about meaning.
+        Check("but a different port is still a different call",
+              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":2,"device":"UDM"}""", "yes"));
+
+        Check("and a different device is too",
+              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1,"device":"switch"}""", "yes"));
+
+        Check("and dropping an argument is",
+              !Conversation.Grants(AskedPort().TakeConsent(), cycle, """{"port":1}""", "yes"));
+
+        Check("and adding one is",
+              !Conversation.Grants(AskedPort().TakeConsent(), cycle,
+                                   """{"port":1,"device":"UDM","force":true}""", "yes"));
+
+        // Nested values and arrays reorder too, and a canonical form that only sorted the
+        // top level would say two different calls were the same one.
+        Check("nesting is compared the same way",
+              Conversation.SameCall("""{"a":{"x":1,"y":2},"b":[1,2]}""", """{"b":[1,2],"a":{"y":2,"x":1}}"""));
+
+        Check("but an array's order is part of it",
+              !Conversation.SameCall("""{"b":[1,2]}""", """{"b":[2,1]}"""));
+
+        // `off` and `on` are one boolean apart and cut power to different things.
+        Check("switching off is not switching on",
+              !Conversation.SameCall("""{"port":1,"on":false}""", """{"port":1,"on":true}"""));
+
+        // Arguments that will not parse must not all collapse into one another.
+        Check("unparsable arguments are not all the same call",
+              !Conversation.SameCall("{not json", "{also not json"));
+
         return failures;
     }
 

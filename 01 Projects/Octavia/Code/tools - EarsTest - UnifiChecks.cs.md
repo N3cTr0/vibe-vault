@@ -39,9 +39,9 @@ internal static class UnifiChecks
         var pwsh = ToolChecks.FindPwsh();
         if (pwsh is null) { Console.WriteLine("  skipped: pwsh not found"); return 0; }
 
-        if (Configured() is not { } env)
+        if (Configured() is not { } configured)
         {
-            Console.WriteLine("  skipped: no 'unifi' server with a key in her config");
+            Console.WriteLine("  skipped: no 'unifi' server with a reachable key in her config");
             return 0;
         }
 
@@ -53,12 +53,12 @@ internal static class UnifiChecks
                 {
                     Command = pwsh,
                     Args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
-                    Env = env,
+                    Env = configured.Env,
 
-                    // The security log is behind a cookie login, not the API key — so this
-                    // check exercises the sealed-secret path too, or skips the threat checks
-                    // below when no password has been stored on this machine.
-                    Secrets = ["UNIFI_PASSWORD"]
+                    // Whatever she seals, sealed the same way — so this exercises the real
+                    // secret path rather than a copy of it, and the threat checks below skip
+                    // by themselves when no password has been stored on this machine.
+                    Secrets = [.. configured.Secrets]
                 }
             }
         };
@@ -70,7 +70,7 @@ internal static class UnifiChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("all nine tools were listed", tools.Count == 9, $"{tools.Count}");
+        Check("all ten tools were listed", tools.Count == 10, $"{tools.Count}");
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("unifi__")),
               string.Join(", ", tools.Select(t => t.Name)));
 
@@ -87,13 +87,30 @@ internal static class UnifiChecks
            classification silently drops to `Act`, which she may perform on her own. So both
            directions are pinned here: the reads must stay reads, and the one write must stay
            a `Confirm`. */
-        var shouldRead = tools.Where(t => t.Name != "unifi__power_cycle_port" && t.Risk != ToolRisk.Read).ToList();
+        string[] writes = ["unifi__power_cycle_port", "unifi__set_port_power"];
+
+        var shouldRead = tools.Where(t => !writes.Contains(t.Name) && t.Risk != ToolRisk.Read).ToList();
         Check("every read is judged a read", shouldRead.Count == 0,
               string.Join(", ", shouldRead.Select(t => $"{t.Name} is {t.Risk}")));
 
-        var cycle = tools.FirstOrDefault(t => t.Name == "unifi__power_cycle_port");
-        Check("cutting power to a port is judged a confirm", cycle?.Risk == ToolRisk.Confirm,
-              cycle is null ? "the tool is missing" : $"it is {cycle.Risk}");
+        foreach (var written in writes)
+        {
+            var write = tools.FirstOrDefault(t => t.Name == written);
+            Check($"{written} is judged a confirm", write?.Risk == ToolRisk.Confirm,
+                  write is null ? "the tool is missing" : $"it is {write.Risk}");
+        }
+
+        /* **Neither of those classifications is a guess any more, and that is the point.**
+
+           `set_port_power` came out `Confirm` on the heuristic — but only because the sentence
+           pointing at the other tool contains the word "reboot". A description is prose, and
+           prose gets edited; the tool would have gone quietly to `Act`, which she performs on
+           her own, the first time somebody tidied that line. Both now say `destructiveHint`
+           and the reads say `readOnlyHint`, so the wording carries the meaning and not the
+           safety. The heuristic stays underneath for servers that annotate nothing. */
+        var guessed = McpClient.RiskOf("set_port_power", "Switch the PoE power on one port off, and leave it off.");
+        Check("the annotation is what makes the write a confirm, not the wording",
+              guessed != ToolRisk.Confirm, $"the heuristic alone says {guessed}");
 
         var status = (await registry.CallAsync("unifi__get_status", Empty())).Text;
         Check("the gateway answers", status.Contains("client(s) connected"), Head(status));
@@ -151,13 +168,57 @@ internal static class UnifiChecks
         Check("...and a device name that matches nothing",
               noDevice.Contains("No PoE device matches"), Head(noDevice));
 
-        /* **The security log, which the API key cannot reach at all.**
+        /* `set_port_power` gets the same treatment, and for the same reason: every one of
+           these stops before the PUT, so the suite exercises the guards without a camera
+           anywhere losing power. The one path not checked here is the change itself, which
+           is a probe — see `ToolLoopProbe`. */
+        var offUnasked = (await registry.CallAsync(
+            "unifi__set_port_power", Args("""{"port":4,"on":false}"""))).Text;
 
-           This is the one tool here on the *legacy* API behind a cookie login, so it also
-           proves the sealed password made it through `McpServer.Secrets`. Skipped rather than
-           failed where no password has been stored: a check that goes red on a machine that was
-           never configured for this teaches everyone to ignore red. */
-        if (SecretStore.HasFor("unifi", "UNIFI_PASSWORD"))
+        Check("a port is not switched off without a yes",
+              offUnasked.Contains("needs the person to say yes"), Head(offUnasked));
+
+        var noSuchPort = (await registry.CallAsync(
+            "unifi__set_port_power", Args("""{"port":99,"on":false}"""), confirmed: true)).Text;
+
+        Check("...a port that does not exist is refused", noSuchPort.Contains("no port 99"), Head(noSuchPort));
+
+        var notPoe = (await registry.CallAsync(
+            "unifi__set_port_power", Args("""{"port":9,"on":false}"""), confirmed: true)).Text;
+
+        Check("...and a port with no PoE has nothing to switch",
+              notPoe.Contains("does not supply PoE"), Head(notPoe));
+
+        /* Neither direction is assumed. A tool that took `on` as "anything present is true"
+           would read a missing argument as *switch it on*, and one that defaulted the other
+           way would read it as *cut the power* — so it refuses instead of picking. */
+        var noDirection = (await registry.CallAsync(
+            "unifi__set_port_power", Args("""{"port":4}"""), confirmed: true)).Text;
+
+        Check("...and it will not guess on or off", noDirection.Contains("On, or off?"), Head(noDirection));
+
+        /* The two writes must not be describable as each other. They are one word apart in
+           English and very different in effect: one reboots a camera, the other leaves it
+           dark until somebody says otherwise. The descriptions point at each other so the
+           model can tell them apart, and that is what this pins. */
+        var cycleTool = tools.First(t => t.Name == "unifi__power_cycle_port");
+        var setTool = tools.First(t => t.Name == "unifi__set_port_power");
+
+        Check("the cycle points at the switch for leaving a port off",
+              cycleTool.Description.Contains("set_port_power"), Head(cycleTool.Description));
+
+        Check("...and the switch points back for rebooting something",
+              setTool.Description.Contains("power_cycle_port"), Head(setTool.Description));
+
+        /* **The security log, which the API key reaches after all.**
+
+           This block used to be wrapped in `if (SecretStore.HasFor("unifi", "UNIFI_PASSWORD"))`
+           and headed "the API key cannot reach it at all" — which nobody had tried. The key
+           reaches the legacy API perfectly well, so the login, the session, the CSRF token and
+           a stored UniFi *account password* were all buying nothing. They are gone in v0.49.0
+           and this runs unconditionally, which is the other half of the point: the skip meant
+           the checks below only ran on a machine that had a password stored, so the day the
+           password stopped being needed was a day this would have gone quiet rather than red. */
         {
             var counts = (await registry.CallAsync(
                 "unifi__recent_threats", Args("""{"format":"counts"}"""))).Text;
@@ -185,10 +246,6 @@ internal static class UnifiChecks
             var log = tools.FirstOrDefault(t => t.Name == "unifi__recent_threats");
             Check("reading the security log is judged a read", log?.Risk == ToolRisk.Read,
                   log is null ? "the tool is missing" : $"it is {log.Risk}");
-        }
-        else
-        {
-            Console.WriteLine("  ..     no UniFi password stored, so the security log went untested");
         }
 
         // A search that cannot match, so this asserts the empty answer rather than whatever
@@ -235,8 +292,19 @@ internal static class UnifiChecks
         return failures;
     }
 
-    /// Her configured `unifi` server, or null when there is not one to test.
-    private static Dictionary<string, string>? Configured()
+    /// Her configured `unifi` server — its plain settings and the names of its sealed
+    /// secrets — or null when there is not one to test.
+    ///
+    /// **It reads the config the way she reads it, which it did not used to.** This looked
+    /// for `UNIFI_API_KEY` in `Env` and skipped the entire file when it was not there. In
+    /// v0.48.0 the key was sealed and removed from `Env` — correctly — and every check in
+    /// here quietly stopped running, reporting *"skipped: no 'unifi' server with a key"* on
+    /// the one machine that has both. A skip reads like a machine that was never set up, so
+    /// nothing about it looked wrong.
+    ///
+    /// Taking `Secrets` and letting `ToolRegistry` fill them is also the more honest test:
+    /// it is the path production uses, so it fails if sealing itself breaks.
+    private static (Dictionary<string, string> Env, List<string> Secrets)? Configured()
     {
         try
         {
@@ -246,14 +314,24 @@ internal static class UnifiChecks
             using var json = JsonDocument.Parse(File.ReadAllText(file));
 
             if (!json.RootElement.TryGetProperty("McpServers", out var servers) ||
-                !servers.TryGetProperty("unifi", out var unifi) ||
-                !unifi.TryGetProperty("Env", out var env))
+                !servers.TryGetProperty("unifi", out var unifi))
                 return null;
 
-            var read = env.EnumerateObject()
-                          .ToDictionary(p => p.Name, p => p.Value.GetString() ?? "");
+            var env = unifi.TryGetProperty("Env", out var e) && e.ValueKind == JsonValueKind.Object
+                ? e.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString() ?? "")
+                : [];
 
-            return read.TryGetValue("UNIFI_API_KEY", out var key) && key.Length > 0 ? read : null;
+            var secrets = unifi.TryGetProperty("Secrets", out var s) && s.ValueKind == JsonValueKind.Array
+                ? s.EnumerateArray().Select(v => v.GetString() ?? "").Where(v => v.Length > 0).ToList()
+                : [];
+
+            // The key has to be reachable one way or the other, and sealed is now the normal
+            // way. Without it the server starts and every call answers "UNIFI_API_KEY is not
+            // set", which would be nine failures describing one missing credential.
+            var haveKey = (env.TryGetValue("UNIFI_API_KEY", out var plain) && plain.Length > 0) ||
+                          SecretStore.ReadFor("unifi", "UNIFI_API_KEY") is { Length: > 0 };
+
+            return haveKey ? (env, secrets) : null;
         }
         catch
         {

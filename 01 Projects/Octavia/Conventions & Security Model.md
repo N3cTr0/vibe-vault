@@ -92,7 +92,7 @@ And two rules learned the expensive way.
 So `McpServer` may declare `Secrets`: environment variable names whose values are filled at spawn from `SecretStore`, DPAPI-sealed to the Windows account that wrote them.
 
 ```
-Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+Octavia.Server.exe --secret unifi:UNIFI_API_KEY
 ```
 
 Typed with the echo off. Never in `config.json`, never in her log, never on a command line, and deliberately **not** in her Settings panel — that would put it on the wire.
@@ -141,3 +141,23 @@ Sealing is **not** asked about. There is no version of it a person would decline
 ### Rotate a key that was ever in plain text
 
 Sealing protects it from here on; it does nothing about wherever the file has already been. A key that sat in `config.json` should be **rotated at the source**, not just sealed.
+
+## The credential that was never needed *(v0.49.0)*
+
+The note above spends several paragraphs on how the UniFi **account password** should be stored, and concludes correctly: DPAPI-sealed, filled at spawn, never in `config.json`. All of that was right.
+
+**It should never have been there at all.**
+
+The password existed because the security log lives on UniFi's older `/proxy/network/api`, and the finding written down was *"the API key cannot reach it"*. What was actually measured was that every **integration**-API event route 404s — probed carefully, with a nonsense-path control to prove the 404s were real. The conclusion was then extended one step past the experiment, and nobody tested the older API with the key.
+
+The key authenticates there perfectly well. Reads *and* writes — the v0.49.0 PoE switch writes device configuration through the same path.
+
+So a real UniFi account credential sat sealed in the store for months, guarding nothing, when it is worth considerably more to an attacker than the scoped key beside it. Removed, along with the login, the session, the CSRF token and the 401 retry that existed only to renew them.
+
+> **`UNIFI_USERNAME` and `UNIFI_PASSWORD` are read by nothing.** The stored secret file and the read-only UniFi account can both be deleted.
+
+**What generalises:** an exemption and an extra credential are opposite mistakes with the same cause — a claim about capability written down once and never re-tested. The v0.41.0 note said the key was read-only, and it stopped being read-only two releases later. This note said the key could not reach the legacy API, and it always could. **Write down what was measured, not what follows from it**, because the inference is what gets quoted later. See [[Lessons Learned]].
+
+### The read-only account was still worth having
+
+Not as a mistake to undo entirely. It proved the sealed-secret path end to end, and `Secrets` exists and is correct because of it — the machinery that now protects `UNIFI_API_KEY` was built for a password that turned out to be unnecessary. Worth separating: **the mechanism earned its place; the credential did not.**

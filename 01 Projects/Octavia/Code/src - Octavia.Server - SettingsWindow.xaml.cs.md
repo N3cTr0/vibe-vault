@@ -302,7 +302,13 @@ public partial class SettingsWindow : Window
     private static IEnumerable<string> Avatars()
     {
         try { return Directory.EnumerateFiles(Paths.AvatarDir, "*.vrm").Select(Path.GetFileName)!; }
-        catch { return []; }
+        catch (Exception ex)
+        {
+            // An empty dropdown and an unreadable folder look identical on screen, and only
+            // one of them is the person's fault.
+            Log.Warn($"could not list avatars in {Paths.AvatarDir}: {ex.Message}");
+            return [];
+        }
     }
 
     private static void Select(ComboBox box, string? value)

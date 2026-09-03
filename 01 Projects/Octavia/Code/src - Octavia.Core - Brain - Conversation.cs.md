@@ -7,6 +7,10 @@ source-path: src\Octavia.Core\Brain\Conversation.cs
 # src\Octavia.Core\Brain\Conversation.cs
 
 ```csharp
+using System.Text;
+using System.Text.Json;
+using Octavia.Core;
+
 namespace Octavia.Brain;
 
 internal sealed record Utterance(string Role, string Text)
@@ -80,14 +84,103 @@ internal sealed class Conversation
     /// misread as a yes costs whatever the tool does. So agreement must be present *and*
     /// disagreement must be absent — "yes, but not the garage" is not consent, and neither
     /// is "no, go ahead" however unlikely a person is to say it.
+    ///
+    /// **The arguments are compared as JSON, not as text.** They were compared as raw
+    /// strings until v0.49.0, which sounds equivalent and is not: the two sides come from
+    /// two separate generations, and a model that writes `{"port": 1}` once will write
+    /// `{"port":1}` or `{"device":"UDM SE","port":1}` the next time. Same call, different
+    /// bytes, consent refused — so the question was asked again, and again. Every refusal
+    /// says why, because this failed silently for eighteen releases.
     internal static bool Grants(Consent? pending, string tool, string arguments, string said)
     {
         if (pending is null) return false;
-        if (pending.Tool != tool || pending.Arguments != arguments) return false;
+
+        if (pending.Tool != tool)
+        {
+            Log.Write($"consent was for '{pending.Tool}', not '{tool}'; asking again");
+            return false;
+        }
+
+        if (!SameCall(pending.Arguments, arguments))
+        {
+            Log.Write($"consent was for {tool}{pending.Arguments}, not {tool}{arguments}; asking again");
+            return false;
+        }
 
         var words = Words(said);
-        if (words.Any(Refuses)) return false;
-        return words.Any(Agrees) || Phrase(said);
+        if (words.Any(Refuses))
+        {
+            Log.Write($"'{said}' reads as a refusal; leaving {tool} alone");
+            return false;
+        }
+
+        if (words.Any(Agrees) || Phrase(said)) return true;
+
+        Log.Write($"'{said}' is neither a yes nor a no; leaving {tool} alone");
+        return false;
+    }
+
+    /// Two argument objects that mean the same call, whatever order or spacing they arrived in.
+    internal static bool SameCall(string a, string b) =>
+        string.Equals(a, b, StringComparison.Ordinal) || Canonical(a) == Canonical(b);
+
+    /// A stable text for one JSON value: keys sorted, no whitespace, recursively.
+    ///
+    /// Unparsable arguments fall back to their trimmed text rather than throwing — a call
+    /// whose arguments would not parse is refused elsewhere, and this is not the place to
+    /// discover it.
+    private static string Canonical(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var builder = new StringBuilder();
+            Write(document.RootElement, builder);
+            return builder.ToString();
+        }
+        catch (JsonException)
+        {
+            return json.Trim();
+        }
+    }
+
+    private static void Write(JsonElement element, StringBuilder builder)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                builder.Append('{');
+                var first = true;
+                foreach (var property in element.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal))
+                {
+                    if (!first) builder.Append(',');
+                    first = false;
+                    builder.Append(JsonSerializer.Serialize(property.Name)).Append(':');
+                    Write(property.Value, builder);
+                }
+                builder.Append('}');
+                break;
+
+            case JsonValueKind.Array:
+                builder.Append('[');
+                var firstItem = true;
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (!firstItem) builder.Append(',');
+                    firstItem = false;
+                    Write(item, builder);
+                }
+                builder.Append(']');
+                break;
+
+            /* Numbers go through their raw text: 1 and 1.0 are different bytes and the same
+               port, but `GetRawText` keeps whichever the model wrote, and normalising them
+               to a double would make 1 and 1.0000000000000002 the same call. Ports are
+               integers; this is the conservative half of a rule biased towards refusing. */
+            default:
+                builder.Append(element.GetRawText());
+                break;
+        }
     }
 
     private static IEnumerable<string> Words(string said) =>

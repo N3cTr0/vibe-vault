@@ -174,7 +174,7 @@ internal sealed class ClaudeBrain : IBrain
                     }
                     catch (Exception ex)
                     {
-                        Log.Write($"claude stream failed: {ex}");
+                        Log.Error("claude stream failed", ex);
                         failed = true;
                         break;
                     }
@@ -230,11 +230,22 @@ internal sealed class ClaudeBrain : IBrain
                 /* A yes spoken in the previous turn, and only the previous one.
                    `Conversation` holds the rule; both brains ask it the same question. */
                 var raw = arguments.GetRawText();
+
+                Log.Debug($"tool call: {call.Name}{raw}");
                 var granted = Conversation.Grants(consent, call.Name, raw, userText);
 
                 if (granted) Log.Write($"tool '{call.Name}': confirmed by the last thing said");
 
                 var answer = await _tools.CallAsync(call.Name, arguments, granted, cancel);
+
+                /* **What the tool actually said, next to what she then says about it.**
+
+                   Without this line the log records that a tool was called and nothing about
+                   how it went, so *"she said she power-cycled the port and the camera never
+                   blinked"* could not be told apart from *"the gateway refused and she said
+                   it anyway"* — which is the exact question this cost a session to answer.
+                   Truncated, because a client list is a page and a camera is 20 KB. */
+                Log.Debug($"tool answer: {call.Name} -> {Speech.Brief(answer.Text)}");
 
                 // Refused for want of a yes, so remember what was asked about. She is about
                 // to put the question; the answer has one turn to arrive.

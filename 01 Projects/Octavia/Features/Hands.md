@@ -239,3 +239,91 @@ Two facts about the API, both **established by probing rather than assumed**:
 > **A check written to test the script found the guard instead.** Calling the tool with a nonsense port expecting the script's refusal returned the *registry's* refusal — the call never reached the script, because a `Confirm` tool does not run without a yes. See [[Lessons Learned]].
 
 Confirmed live against the real gateway: asked to cycle port 4, she said *"Do you want to power cycle port 4 on the UDM?"* and stopped, and the log recorded `needs confirmation; not run`.
+
+## She said she had done it, and she had not *(v0.49.0)*
+
+> *"I asked her to power cycle port 1 on the UDM, she said she did it but the camera that gets its power from it remained operational the whole time."*
+
+**Two independent faults, both producing exactly that sentence.** Either one alone would have been enough, which is part of why it took a session to find: fixing the obvious one would not have fixed the symptom.
+
+### One: the tool never ran
+
+`power_cycle_port` is a `Confirm`, so it needs a spoken yes. The rule that recognises one compared the call's arguments as **raw text** — and the two sides come from two separate generations of a model. The log, once it was asked to say:
+
+```
+tool call: unifi__power_cycle_port{"device": "UDM", "port": 1}   ← when she asks
+tool call: unifi__power_cycle_port{"port": 1, "device": "UDM"}   ← after the yes
+```
+
+Same call. Different key order. Refused.
+
+**127 refusals and one grant in the whole log history** — and the single grant was `house__house_unlock_door` on the mock, which takes no arguments, so there was nothing for the byte comparison to disagree about. The feature described in *[[Hands#A spoken yes, and how narrowly it counts (v0.32.0)|A spoken yes]]* above had essentially never worked outside its own test.
+
+`Conversation.Grants` compares them as JSON now — keys sorted, whitespace ignored, and nothing else relaxed. A different port, a different device, an argument added or dropped is still a different call, because the reason that rule exists is that *"yes"* about the back door is not consent to open the front one.
+
+### Two: it asserted its own success
+
+The tool posted the action, piped the response to `Out-Null`, and returned *"Power-cycled port 1"* without ever looking. It watches the port now — and caught a real failure the first time it ran:
+
+> *"Something's off. The gateway took the request but the power never actually dropped, so whatever's on port 1 didn't reboot. You'll probably need to check it from the UniFi console directly."*
+
+**That is the sentence the original report should have produced.** See [[Lessons Learned]].
+
+### Why the checks were green throughout
+
+Every consent check handed the **same C# string** to both sides of the comparison:
+
+```csharp
+talk.AwaitYes(door, back);
+Conversation.Grants(Asked().TakeConsent(), door, back, "yes");
+```
+
+A byte-for-byte match cannot fail against itself. The checks were not weak about the rule; they were **testing a situation that never occurs**, and the situation that does occur — two generations of the same call — was the one thing they could not express. They now differ as text and agree as meaning.
+
+## Switching a port off, and leaving it off *(v0.49.0)*
+
+> *"I want to be able to ask her to switch off PoE on certain ports and switch them on again."*
+
+`set_port_power` takes a `port` and an `on`. **It will not guess the direction**: a missing `on` is a question, not a default, because one default reboots a camera and the other leaves it dark.
+
+| `power_cycle_port` | Off and back on by itself. For rebooting something |
+|---|---|
+| `set_port_power` | Off, or on, and it stays there. For leaving something without power |
+
+The two descriptions point at each other, and a check pins that they do — they are one word apart in English and very different in effect.
+
+### It is on the other API
+
+The v0.41.0 note above says leaving a port off *"is not possible through this API at all"*, and that was true and remains true — re-established this release by asking for seven more actions and reading every refusal, all of which name the valid set as exactly `POWER_CYCLE`.
+
+What was wrong was the unstated leap from *this API cannot* to *it cannot be done*. The older `/proxy/network/api` — the one the UniFi web UI itself calls — holds `port_overrides[].poe_mode`, and setting it to `off` or `auto` does exactly what was asked. It is a **configuration** change, so it survives a reboot, which is the point and also the reason to be careful with it.
+
+Two things it does not pretend about: `auto` is UniFi's default rather than necessarily what the port was on before, so an unusual previous mode is named in the reply instead of being silently flattened; and a port with no override row is left alone rather than having one invented, because a row it did not write is a row it does not know how to put back.
+
+`power_cycle_port` now refuses a port whose PoE is switched off, and one that is on but has nothing drawing from it — the gateway answers that second case with a bare `422`.
+
+## One credential instead of two *(v0.49.0)*
+
+The security log lived behind a username and password, on the stated belief that **the API key could not reach the legacy API**. Half of that was true: it *accepts* a cookie session. The untested half was wrong — it accepts `X-API-KEY` just as readily, for reads and for writes.
+
+So a real UniFi **account password** — worth considerably more to an attacker than the key is — sat in the secret store buying nothing. The login, the session, the CSRF token and the 401 retry that existed only to renew them are gone. `UNIFI_USERNAME` and `UNIFI_PASSWORD` are read by nothing; the stored password and the read-only account can both be deleted.
+
+**A wrong conclusion drawn from a real experiment.** Every *integration* route genuinely 404s, and that was measured carefully with a nonsense-path control. The finding was then extended one step past what it measured. See [[Lessons Learned]].
+
+## Risk is declared, not guessed *(v0.49.0)*
+
+`RiskOf` reads a tool's prose for dangerous words, and everything above about the wording being the safety was true. `set_port_power` came out `Confirm` — but **only because a sentence pointing at the other tool contained the word "reboot"**. Tidying that line would have dropped a tool that cuts power to `Act`, which she performs unasked, and nothing would have noticed.
+
+Every tool in the UniFi server now carries MCP's standard `annotations`: `readOnlyHint` on the eight reads, `destructiveHint` on the two writes. The heuristic still runs underneath for servers that annotate nothing, and it is only ever allowed to be *more* careful — a declared `destructiveHint: false` is ignored outright, so a third-party server cannot talk its way out of a question.
+
+A check asserts the annotation is what makes the difference, by confirming the heuristic alone says `Act`.
+
+## Every call and every answer is in the log *(v0.49.0)*
+
+The question this release answers — *did the tool run, and what did it say* — could not be answered from the log at all. It recorded that a tool was called and nothing about how it went.
+
+| `debug` | `tool call: unifi__power_cycle_port{"port": 1}` — the arguments as sent |
+| `debug` | `tool answer: ... -> ` the reply, folded to one line and truncated |
+| `info` | every consent decision, **with its reason**: wrong tool, different arguments, read as a refusal, or neither a yes nor a no |
+
+Both brains, the same lines. The consent reasons are the ones that matter: a refusal used to be entirely silent, which is how a rule could fail 127 times without anybody being able to see it.

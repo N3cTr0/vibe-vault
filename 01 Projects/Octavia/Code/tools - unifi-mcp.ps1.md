@@ -26,7 +26,16 @@ source-path: tools\unifi-mcp.ps1
     find_client       search the connected list by name, address or MAC
     list_ports        switch ports: link, speed, and whether PoE is supplying power
     power_cycle_port  **writes.** Restarts PoE power on one port - off, then on again
+    set_port_power    **writes.** Switches one port's PoE off, or on, and leaves it there
+    recent_threats    the security log, grouped by which client set it off
     list_cameras      UniFi Protect's cameras and whether they are reachable
+    look_at_camera    a still from one camera, as a picture
+
+  **Two APIs, not one.** Everything reads through the official local Integration API. The one
+  thing that API cannot do is leave a port switched off - its only port action is
+  `POWER_CYCLE`, confirmed by asking for eight others and reading the refusals - so
+  `set_port_power` reaches the older `/proxy/network/api` that the UniFi web UI itself uses.
+  Same appliance, same key, older contract; see `Set-PortPower`.
 
   **No Home Assistant required.** The UDM answers this API itself, locally, with a key made
   in its own UI - so network sensing is available a long time before the house is.
@@ -72,6 +81,10 @@ $protect = "https://$unifiHost/proxy/protect/integration/v1"
 # should still start, list its tools, and say what is wrong when one is called - the
 # registry logs a failed start as a missing integration, which is a worse diagnosis.
 $script:siteId = $null
+
+# The older API names its site "default" where the integration API uses a UUID. Resolved
+# on first write, and only then, because nothing that only reads ever needs it.
+$script:legacySite = $null
 
 function Invoke-Unifi([string]$path, [string]$root = $base) {
   if (-not $apiKey) { throw 'UNIFI_API_KEY is not set' }
@@ -194,55 +207,30 @@ function Find-Client([string]$query) {
 <#
   The security log, which the API key cannot reach at all.
 
-  **Two different APIs on one appliance.** Everything above uses the official Integration API
-  and an `X-API-KEY`. That API is inventory and control: it has no history of any kind, and
-  every event-shaped route on it 404s - established with a nonsense-path control, so those are
-  real absences rather than the proxy refusing before it routes.
+  **Two different APIs on one appliance, and one credential between them.** Everything above
+  uses the official Integration API. That API is inventory and control: it has no history of
+  any kind, and every event-shaped route on it 404s - established with a nonsense-path
+  control, so those are real absences rather than the proxy refusing before it routes.
 
-  The events live in the *legacy* API, behind a cookie login. Hence a second credential: a
-  read-only local UniFi account, whose password arrives in the environment from her sealed
-  secret store and is never in `config.json`. See `McpServer.Secrets`.
+  The events live in the *legacy* API, the one the UniFi web UI itself calls.
 
-  The session is cached and re-established on a 401, because a login per call would be a
-  login per hour for ever.
+  > **This used to log in with a username and password**, on the belief that the older API
+  > was behind a cookie session and the key could not reach it. Half of that was true - it
+  > *accepts* a cookie session - and the untested half was wrong: it accepts `X-API-KEY` just
+  > as readily, on reads and on writes. So the second credential bought nothing, and what it
+  > cost was a real UniFi *account* password sitting in the secret store, which is worth more
+  > to an attacker than the key is. Removed in v0.49.0, along with the session, the CSRF
+  > token and the 401 retry that existed only to renew them.
+
+  `UNIFI_USERNAME` and `UNIFI_PASSWORD` are no longer read by anything here. The stored
+  password can be deleted, and the read-only account with it.
 #>
-$script:session = $null
-$script:csrf = $null
-
-function Connect-Unifi {
-  if (-not $env:UNIFI_USERNAME) { throw 'UNIFI_USERNAME is not set' }
-  if (-not $env:UNIFI_PASSWORD) { throw 'no UNIFI_PASSWORD; store one with `Octavia.Server.exe --secret unifi:UNIFI_PASSWORD`' }
-
-  $body = @{ username = $env:UNIFI_USERNAME; password = $env:UNIFI_PASSWORD; rememberMe = $false } |
-    ConvertTo-Json -Compress
-
-  $login = Invoke-WebRequest -Uri "https://$unifiHost/api/auth/login" -Method Post -Body $body `
-    -ContentType 'application/json' -SkipCertificateCheck -SessionVariable session -TimeoutSec 25
-
-  $script:session = $session
-  $token = $login.Headers['X-Updated-CSRF-Token']
-  if ($token -is [array]) { $token = $token[0] }
-  $script:csrf = $token
-}
-
 function Invoke-Legacy([string]$path, $body) {
-  if (-not $script:session) { Connect-Unifi }
+  if (-not $apiKey) { throw 'UNIFI_API_KEY is not set' }
 
-  $call = {
-    $headers = @{ 'Accept' = 'application/json' }
-    if ($script:csrf) { $headers['X-CSRF-Token'] = $script:csrf }
-
-    Invoke-RestMethod -Uri "https://$unifiHost$path" -Method Post -WebSession $script:session `
-      -Headers $headers -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress) `
-      -SkipCertificateCheck -TimeoutSec 30
-  }
-
-  try { & $call }
-  catch {
-    # A session expires quietly and the next call is a 401. One retry, once.
-    Connect-Unifi
-    & $call
-  }
+  Invoke-RestMethod -Uri "https://$unifiHost$path" -Method Post -SkipCertificateCheck -TimeoutSec 30 `
+    -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+    -ContentType 'application/json' -Body ($body | ConvertTo-Json -Compress)
 }
 
 <#
@@ -347,31 +335,20 @@ function Get-Ports([string]$query) {
 }
 
 <#
-  Power-cycling a PoE port: off, then on again, as one action.
+  Which device supplies PoE, and its port detail - the question `list_ports`,
+  `power_cycle_port` and `set_port_power` all had to answer separately.
 
-  **POWER_CYCLE is the only thing the API will do to a port**, and that is worth knowing
-  rather than working around - it was established by sending a deliberately invalid action
-  and reading the refusal, which named the valid set as exactly `POWER_CYCLE`. There is no
-  way through this API to switch a port off and leave it off. For a request to kill power to
-  something indefinitely, this is not the tool and there isn't one.
+  No device named: the one that actually has PoE ports. With a single such appliance that
+  is unambiguous; with two it asks rather than guessing, because guessing wrong here cuts
+  power to something in another room.
 
-  It is a `Confirm` on the brain side: whatever is on the far end of that cable - a camera, an
-  access point, a door reader - loses power and reboots, and the gateway will not say what
-  that is. `UnifiChecks` pins the classification so that rewording this description cannot
-  quietly downgrade it.
+  Returns either a `[pscustomobject]` with `Device`/`Detail`, or a string, which the caller
+  hands straight back to her. "Answer or explanation" rather than an exception: every other
+  failure in this file is text she can read out, and this one is no different.
 #>
-function Restart-PortPower([string]$query, $port) {
-  if ($null -eq $port) { return 'Which port? The port number is required.' }
-
-  $index = 0
-  if (-not [int]::TryParse("$port", [ref]$index)) { return "'$port' is not a port number." }
-
-  $site = Get-SiteId
+function Resolve-PoeDevice([string]$query, [string]$site) {
   $devices = (Invoke-Unifi "sites/$site/devices?limit=50").data
 
-  # No device named: the one that actually has PoE ports. With a single such appliance that
-  # is unambiguous; with two it asks rather than guessing, because guessing wrong here cuts
-  # power to something in another room.
   $candidates = @()
   foreach ($device in $devices) {
     if ($query -and $device.name -notlike "*$query*" -and $device.model -notlike "*$query*") { continue }
@@ -391,23 +368,234 @@ function Restart-PortPower([string]$query, $port) {
     return "More than one device supplies PoE ($(($candidates.Device.name) -join ', ')). Say which one."
   }
 
-  $chosen = $candidates[0]
+  $candidates[0]
+}
+
+<#
+  How one PoE port reads right now.
+
+  `poe.enabled` is the setting and `poe.state` is the draw, and they are not the same
+  question: a port switched on with nothing plugged in reads enabled with state DOWN. The
+  draw also lags the setting by a few seconds, so anything verifying a *switch* watches
+  `enabled` and anything verifying a *cycle* watches `state`.
+#>
+function Read-Port([string]$site, [string]$deviceId, [int]$index) {
+  $detail = Invoke-Unifi "sites/$site/devices/$deviceId"
+  $detail.interfaces.ports | Where-Object { $_.idx -eq $index }
+}
+
+<#
+  The same device, as the older API sees it - which is where `port_overrides` lives.
+
+  The two APIs do not share identifiers: the integration API's device id is a UUID and the
+  older one's `_id` is a Mongo id, and nothing maps between them but the MAC. So this
+  matches on that, and refuses rather than guesses when it cannot.
+#>
+function Get-LegacyDevice($device) {
+  if (-not $script:legacySite) {
+    $sites = Invoke-RestMethod -Uri "https://$unifiHost/proxy/network/api/self/sites" `
+      -SkipCertificateCheck -TimeoutSec 20 `
+      -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' }
+    if (-not $sites.data) { return 'The gateway did not list any sites on its own API.' }
+    $script:legacySite = $sites.data[0].name
+  }
+
+  $all = Invoke-RestMethod -Uri "https://$unifiHost/proxy/network/api/s/$($script:legacySite)/stat/device" `
+    -SkipCertificateCheck -TimeoutSec 30 `
+    -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' }
+
+  $mac = "$($device.macAddress)".Replace('-', ':').ToLowerInvariant()
+  $match = $all.data | Where-Object { "$($_.mac)".ToLowerInvariant() -eq $mac }
+
+  if (-not $match) {
+    return "The gateway's own API does not list $($device.name), so its ports cannot be changed from here."
+  }
+
+  [pscustomobject]@{ Site = $script:legacySite; Device = $match }
+}
+
+<#
+  Power-cycling a PoE port: off, then on again, as one action.
+
+  **POWER_CYCLE is the only thing the *integration* API will do to a port**, established by
+  sending a deliberately invalid action and reading the refusal, which named the valid set as
+  exactly `POWER_CYCLE`. Re-confirmed in v0.49.0 against seven more guesses; the answer has
+  not moved. Leaving a port off is `set_port_power`, which reaches another API to do it.
+
+  It is a `Confirm` on the brain side: whatever is on the far end of that cable - a camera, an
+  access point, a door reader - loses power and reboots, and the gateway will not say what
+  that is. `UnifiChecks` pins the classification so that rewording this description cannot
+  quietly downgrade it.
+
+  **The answer is read back rather than asserted.** Until v0.49.0 this posted the action,
+  piped the response to `Out-Null` and reported success - so a refusal that did not throw,
+  and every failure short of an exception, read as "done". The port is watched afterwards and
+  the reply says what was actually seen.
+#>
+function Restart-PortPower([string]$query, $port) {
+  if ($null -eq $port) { return 'Which port? The port number is required.' }
+
+  $index = 0
+  if (-not [int]::TryParse("$port", [ref]$index)) { return "'$port' is not a port number." }
+
+  $site = Get-SiteId
+  $chosen = Resolve-PoeDevice $query $site
+  if ($chosen -is [string]) { return $chosen }
+
   $target = $chosen.Detail.interfaces.ports | Where-Object { $_.idx -eq $index }
 
   if (-not $target) { return "$($chosen.Device.name) has no port $index." }
-  if (-not $target.poe) { return "Port $index on $($chosen.Device.name) does not supply PoE, so there is no power to cycle." }
+  if (-not $target.poe) {
+    return "Port $index on $($chosen.Device.name) does not supply PoE, so there is no power to cycle."
+  }
+  if (-not $target.poe.enabled) {
+    return "Port $index on $($chosen.Device.name) has its PoE switched off, so there is no power to cycle. " +
+           'Switch it back on first.'
+  }
+
+  <# **Enabled is not the same as supplying**, and the gateway is stricter than it reads.
+     A port that is switched on but has nothing drawing from it - empty socket, or a device
+     still coming up after being switched back on - answers a POWER_CYCLE with a bare 422.
+     Asking first turns that into a sentence worth hearing. #>
+  if ($target.poe.state -ne 'UP') {
+    return "Port $index on $($chosen.Device.name) is switched on but nothing is drawing power from it, " +
+           'so there is nothing to restart.'
+  }
 
   # What it looked like before, so the answer can be compared against something rather than
   # just asserting success.
   $before = if ($target.state -eq 'UP') { "was linked at $($target.speedMbps) Mbps" } else { 'had nothing linked' }
 
-  Invoke-RestMethod -Uri "$base/sites/$site/devices/$($chosen.Device.id)/interfaces/ports/$index/actions" `
-    -Method Post -SkipCertificateCheck -TimeoutSec 30 `
-    -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
-    -ContentType 'application/json' -Body '{"action":"POWER_CYCLE"}' | Out-Null
+  <# `Invoke-WebRequest` throws on any 4xx or 5xx, so a status check after the call is dead
+     code - which is exactly what the first draft of this contained. The refusal has to be
+     caught to be read, and `-SkipHttpErrorCheck` would hand back the body without the
+     exception at the cost of checking every status by hand. #>
+  try {
+    Invoke-WebRequest -Uri "$base/sites/$site/devices/$($chosen.Device.id)/interfaces/ports/$index/actions" `
+      -Method Post -SkipCertificateCheck -TimeoutSec 30 `
+      -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+      -ContentType 'application/json' -Body '{"action":"POWER_CYCLE"}' | Out-Null
+  }
+  catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    return "The gateway refused to cycle port $index on $($chosen.Device.name) (HTTP $code). " +
+           'Nothing on it was restarted.'
+  }
 
-  "Power-cycled port $index on $($chosen.Device.name). It $before. Whatever is on it has lost " +
-  "power and is starting again - give it a minute before asking whether it is back."
+  <# The draw usually drops inside two seconds, and watching for it is the difference between
+     "the request was accepted" and "the power actually went off".
+
+     **Twelve attempts rather than six**, because a gateway asked to cycle the same port
+     several times in a few minutes takes noticeably longer to act on it, and a window that
+     is merely usually long enough turns into her reporting a failure that did not happen.
+     The loop exits the moment the draw goes, so the common case still answers in about a
+     second; the ceiling only matters when something is actually wrong, and eleven seconds
+     is comfortably inside the thirty the tool call is allowed. #>
+  $went = $false
+  foreach ($attempt in 1..12) {
+    Start-Sleep -Milliseconds 900
+    $now = Read-Port $site $chosen.Device.id $index
+    if ($now.poe.state -ne 'UP') { $went = $true; break }
+  }
+
+  if (-not $went) {
+    return "The gateway accepted the request for port $index on $($chosen.Device.name), but the port never " +
+           'stopped drawing power, so nothing on it was rebooted. Worth checking on the console.'
+  }
+
+  "Power-cycled port $index on $($chosen.Device.name), and watched the power actually drop. It $before. " +
+  'Whatever is on it is starting again - give it a minute before asking whether it is back.'
+}
+
+<#
+  Switching one port's PoE off, and on again, and leaving it that way.
+
+  **This is the other API.** The integration API cannot do it - its only port action is
+  `POWER_CYCLE` - so this reaches the older `/proxy/network/api` that the UniFi web UI itself
+  uses, and edits `port_overrides[].poe_mode` on the device: `off` to cut it, `auto` to give
+  it back. That is a *configuration* change and it survives a reboot, which is the point and
+  also the reason it is worth being careful with.
+
+  **It authenticates with the API key, not the account.** The key reaches these endpoints and
+  is allowed to write; the `Octavia` account is deliberately read-only and a `PUT` under it
+  comes back `api.err.NoPermission`. So this needs no password, and the read-only account
+  stays read-only.
+
+  Two things it does not pretend about. `auto` is UniFi's default, not necessarily what the
+  port was on before - the previous mode is named in the reply so an unusual one is visible
+  rather than silently flattened. And a port with no override row is left alone rather than
+  having one invented, because a row this did not write is a row it does not know how to
+  put back.
+#>
+function Set-PortPower([string]$query, $port, $on) {
+  if ($null -eq $port) { return 'Which port? The port number is required.' }
+  if ($null -eq $on) { return 'On, or off? That has to be said.' }
+
+  $index = 0
+  if (-not [int]::TryParse("$port", [ref]$index)) { return "'$port' is not a port number." }
+
+  $wanted = [bool]$on
+  $mode = if ($wanted) { 'auto' } else { 'off' }
+
+  $site = Get-SiteId
+  $chosen = Resolve-PoeDevice $query $site
+  if ($chosen -is [string]) { return $chosen }
+
+  $target = $chosen.Detail.interfaces.ports | Where-Object { $_.idx -eq $index }
+  if (-not $target) { return "$($chosen.Device.name) has no port $index." }
+  if (-not $target.poe) {
+    return "Port $index on $($chosen.Device.name) does not supply PoE, so there is nothing to switch."
+  }
+
+  if ([bool]$target.poe.enabled -eq $wanted) {
+    $already = if ($wanted) { 'already on' } else { 'already off' }
+    return "PoE on port $index of $($chosen.Device.name) is $already. Nothing to do."
+  }
+
+  $legacy = Get-LegacyDevice $chosen.Device
+  if ($legacy -is [string]) { return $legacy }
+
+  $rows = @($legacy.Device.port_overrides)
+  $row = $rows | Where-Object { $_.port_idx -eq $index }
+  if (-not $row) {
+    return "Port $index on $($chosen.Device.name) has no port configuration to edit, so its PoE cannot be " +
+           'switched from here. It can be changed on the UniFi console.'
+  }
+
+  $was = if ($row.poe_mode) { $row.poe_mode } else { 'unset' }
+  if ($row.PSObject.Properties.Name -contains 'poe_mode') { $row.poe_mode = $mode }
+  else { $row | Add-Member -NotePropertyName poe_mode -NotePropertyValue $mode }
+
+  $body = @{ port_overrides = $rows } | ConvertTo-Json -Depth 12
+  $result = Invoke-RestMethod -Method Put -SkipCertificateCheck -TimeoutSec 30 `
+    -Uri "https://$unifiHost/proxy/network/api/s/$($legacy.Site)/rest/device/$($legacy.Device._id)" `
+    -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+    -ContentType 'application/json' -Body $body
+
+  if ($result.meta.rc -ne 'ok') {
+    $why = if ($result.meta.msg) { ": $($result.meta.msg)" } else { '' }
+    return "The gateway refused to change port $index$why."
+  }
+
+  # Same reason as the cycle: accepted is not done. The setting lands within a few seconds.
+  $seen = $null
+  foreach ($attempt in 1..8) {
+    Start-Sleep -Milliseconds 900
+    $seen = Read-Port $site $chosen.Device.id $index
+    if ([bool]$seen.poe.enabled -eq $wanted) { break }
+  }
+
+  if ([bool]$seen.poe.enabled -ne $wanted) {
+    $reads = if ($seen.poe.enabled) { 'on' } else { 'off' }
+    return "The gateway accepted the change to port $index on $($chosen.Device.name), but the port still " +
+           "reads $reads. Worth checking on the console."
+  }
+
+  $note = if ($wanted -and $was -ne 'auto' -and $was -ne 'off') { " It was set to '$was' before, not 'auto'." } else { '' }
+  $tail = if ($wanted) { 'it has power again' } else { 'it stays off until it is switched back on' }
+  $now = if ($wanted) { 'on' } else { 'off' }
+
+  "PoE on port $index of $($chosen.Device.name) is now $now, and $tail.$note"
 }
 
 <#
@@ -488,21 +676,25 @@ function Get-CameraView([string]$query) {
 $tools = @(
   @{
     name        = 'list_devices'
+    annotations = @{ readOnlyHint = $true }
     description = 'List the UniFi network hardware - gateway and access points - with model, state, address and firmware version.'
     inputSchema = @{ type = 'object'; properties = @{} }
   },
   @{
     name        = 'list_clients'
+    annotations = @{ readOnlyHint = $true }
     description = 'List everything currently connected to the network, wired and wireless, with name, address and how long it has been connected. This is how to answer who or what is at home.'
     inputSchema = @{ type = 'object'; properties = @{} }
   },
   @{
     name        = 'get_status'
+    annotations = @{ readOnlyHint = $true }
     description = 'Read overall network health: gateway load, memory, uptime, current throughput, and how many devices and clients are present.'
     inputSchema = @{ type = 'object'; properties = @{} }
   },
   @{
     name        = 'find_client'
+    annotations = @{ readOnlyHint = $true }
     description = 'Search the connected clients by name, IP address or MAC and report what matches.'
     inputSchema = @{
       type       = 'object'
@@ -512,6 +704,7 @@ $tools = @(
   },
   @{
     name        = 'list_ports'
+    annotations = @{ readOnlyHint = $true }
     description = 'Read the switch ports on a network device: whether each one has a link, how fast, and whether it supplies PoE power and is currently doing so. The gateway does not report which client is on which port, so this cannot say what a port feeds.'
     inputSchema = @{
       type       = 'object'
@@ -520,7 +713,8 @@ $tools = @(
   },
   @{
     name        = 'power_cycle_port'
-    description = 'Restart the PoE power on one switch port - it goes off and comes back on again. Whatever is plugged into that port loses power and reboots, and the gateway cannot say what that is. The port cannot be left switched off; off-and-on is the only thing the hardware will do.'
+    annotations = @{ destructiveHint = $true }
+    description = 'Restart the PoE power on one switch port - it goes off and comes back on again by itself, which is how to reboot whatever is plugged into it. That device loses power, and the gateway cannot say what it is. To switch a port off and leave it off, use set_port_power instead.'
     inputSchema = @{
       type       = 'object'
       properties = @{
@@ -531,7 +725,22 @@ $tools = @(
     }
   },
   @{
+    name        = 'set_port_power'
+    annotations = @{ destructiveHint = $true }
+    description = 'Switch the PoE power on one switch port off, or back on again, and leave it that way. Whatever is plugged into that port loses power for as long as it is off, and the gateway cannot say what that is. This changes the port configuration and survives a reboot. To reboot something rather than leave it off, use power_cycle_port.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{
+        port   = @{ type = 'integer'; description = 'Port number, as shown by list_ports' }
+        on     = @{ type = 'boolean'; description = 'true to give the port power, false to cut it' }
+        device = @{ type = 'string'; description = 'Device name or part of one. Omitted picks the only device that supplies PoE.' }
+      }
+      required   = @('port', 'on')
+    }
+  },
+  @{
     name        = 'recent_threats'
+    annotations = @{ readOnlyHint = $true }
     description = 'Read the security log: intrusion attempts the gateway detected and blocked, grouped by which client set them off. Optionally since a moment in time. This is a read of history and changes nothing.'
     inputSchema = @{
       type       = 'object'
@@ -543,11 +752,13 @@ $tools = @(
   },
   @{
     name        = 'list_cameras'
+    annotations = @{ readOnlyHint = $true }
     description = 'List the UniFi Protect cameras and whether each one is currently reachable. Use this to say what she can and cannot see.'
     inputSchema = @{ type = 'object'; properties = @{} }
   },
   @{
     name        = 'look_at_camera'
+    annotations = @{ readOnlyHint = $true }
     description = 'Look through one UniFi Protect camera and see what is there now. Give the camera name, or part of it. Returns a picture.'
     inputSchema = @{
       type       = 'object'
@@ -606,6 +817,7 @@ while ($true) {
           'find_client' { Find-Client $callArgs.query }
           'list_ports' { Get-Ports $callArgs.device }
           'power_cycle_port' { Restart-PortPower $callArgs.device $callArgs.port }
+          'set_port_power' { Set-PortPower $callArgs.device $callArgs.port $callArgs.on }
           'recent_threats' { Get-Threats $callArgs.format $callArgs.since }
           'list_cameras' { Get-Cameras }
           'look_at_camera' {

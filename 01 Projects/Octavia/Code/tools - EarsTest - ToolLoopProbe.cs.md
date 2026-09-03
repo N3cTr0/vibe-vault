@@ -173,5 +173,35 @@ internal static class ToolLoopProbe
 
         if (said.Count == 0) Console.WriteLine("    FAILED: she said nothing at all");
     }
+
+    /// The confirm cycle against the *real* gateway and the *real* model.
+    ///
+    ///     dotnet run --project tools/EarsTest -- confirmreal
+    ///
+    /// `ConfirmAsync` drives the same shape against the mock house on the local brain, and
+    /// it passed throughout the eighteen releases in which this was broken — because the
+    /// mock's tool takes no arguments, so the raw-text comparison it was hiding had nothing
+    /// to disagree about. This one asks for a port number, which is what exposed it.
+    ///
+    /// **It power-cycles port 1**, so it is a probe and never a check.
+    public static async Task ConfirmRealAsync()
+    {
+        var config = OctaviaConfig.Load("cloud");
+        if (string.IsNullOrWhiteSpace(SecretStore.ReadApiKey()))
+        {
+            Console.WriteLine("  skipped: no API key on this machine");
+            return;
+        }
+
+        await using var registry = new ToolRegistry(config);
+        await registry.StartAsync();
+
+        using var claude = new ClaudeBrain(config, registry);
+        Console.WriteLine($"  == {claude.Description}, against the real gateway ==");
+
+        var talk = new Conversation();
+        await Say(claude, talk, "Power cycle port 1 on the UDM.");
+        await Say(claude, talk, "yes");
+    }
 }
 ```

@@ -420,19 +420,21 @@ free. The `emotion` message exists so a model can override that later.
 An MCP server's configuration lives in `config.json`, and **`Env` is where tokens go** — never
 `Args`, because an argument is visible in the process list to every account on the machine.
 
-That is fine for an API key and wrong for a password. So a server may also declare `Secrets`:
+Since v0.48.0 that is not a choice a person makes: **anything secret-shaped in `Env` is sealed
+and removed from the file on startup**, whether or not it was declared. `Secrets` is the list
+of names to fill at spawn:
 
 ```json
 "unifi": {
-  "Env": { "UNIFI_HOST": "10.1.1.1", "UNIFI_USERNAME": "Octavia" },
-  "Secrets": [ "UNIFI_PASSWORD" ]
+  "Env": { "UNIFI_HOST": "10.1.1.1" },
+  "Secrets": [ "UNIFI_API_KEY" ]
 }
 ```
 
 Each name is filled at spawn from a DPAPI-sealed file in her data folder. Store one with:
 
 ```
-Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+Octavia.Server.exe --secret unifi:UNIFI_API_KEY
 ```
 
 It is typed with the echo off and never appears in `config.json`, in her log, or on a command

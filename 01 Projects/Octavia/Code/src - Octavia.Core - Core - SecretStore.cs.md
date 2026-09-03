@@ -125,7 +125,15 @@ internal static class SecretStore
             using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
             return identity.IsSystem;
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            /* Answering "no" lets the sealing go ahead, which is the right way to be wrong:
+               under LocalSystem it fails loudly at the DPAPI call instead, where the message
+               names the account. Silently answering "yes" would skip sealing on a machine
+               that could have done it. */
+            Log.Warn($"could not read the current Windows account ({ex.Message}); assuming it is not LocalSystem");
+            return false;
+        }
     }
 
     /// One file per secret, named after the pair. Lower-cased and stripped of anything that

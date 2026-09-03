@@ -16,6 +16,105 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.49.0 — 2026-09-03
+
+**She said she had done it, and she had not.** Two separate faults, both producing that one
+symptom, and neither of them where it was looked for.
+
+> *"I asked her to power cycle port 1 on the UDM, she said she did it but the camera that
+> gets its power from it remained operational the whole time."*
+
+**The tool never ran.** `power_cycle_port` is a `Confirm`, so it needs a spoken yes — and the
+rule that recognises one compared the call's arguments as *raw text*. The two sides come from
+two separate generations of a model, so they are the same call written twice. The log, once
+it was asked:
+
+```
+tool call: unifi__power_cycle_port{"device": "UDM", "port": 1}   ← when she asks
+tool call: unifi__power_cycle_port{"port": 1, "device": "UDM"}   ← after the yes
+```
+
+Same call. Different key order. Consent refused, every time, for eighteen releases —
+**127 refusals and one grant in the whole log history**, and the single grant was a mock tool
+that takes no arguments. `Conversation.Grants` compares them as JSON now: keys sorted,
+whitespace ignored, and *only* that. A different port, a different device, an argument added
+or dropped is still a different call.
+
+**The checks could not have caught it**, which is the more useful half. Every consent check
+handed the same C# string to both sides of the comparison, so a byte-for-byte match could not
+fail. They now differ as text and agree as meaning, which is the situation that actually
+occurs.
+
+**And the tool asserted its own success.** It posted the action, piped the response to
+`Out-Null`, and returned "Power-cycled port 1" without ever looking. It watches the port now
+and says what it saw — which immediately caught a real one:
+
+> *"The gateway took the request but the power never actually dropped, so whatever's on
+> port 1 didn't reboot. You'll probably need to check the console."*
+
+That is the sentence the original report should have produced.
+
+### Switching a port off, and leaving it off
+
+> *"I want to be able to ask her to switch off PoE on certain ports and switch them on
+> again."*
+
+`set_port_power` — `port`, and `on` true or false. It will not guess the direction: a missing
+`on` is a question, not a default, because one default reboots a camera and the other leaves
+it dark.
+
+The integration API cannot do this. Its only port action is `POWER_CYCLE`, re-established
+this release by asking for seven others and reading the refusals, all of which name the valid
+set as exactly that. So this reaches the older `/proxy/network/api` the UniFi web UI itself
+calls, and sets `port_overrides[].poe_mode` to `off` or `auto`. It is a configuration change:
+it survives a reboot, which is the point.
+
+`power_cycle_port` now refuses a port whose PoE is switched off, and one that is on but has
+nothing drawing from it — the gateway answers that second case with a bare `422`.
+
+### One credential instead of two
+
+The security log lived behind a username and password on the belief that the API key could
+not reach the legacy API. Half true: it *accepts* a cookie session. The untested half was
+wrong — it accepts `X-API-KEY` just as readily, for reads and writes both.
+
+So a real UniFi **account password**, worth considerably more to an attacker than the key,
+was in the secret store buying nothing. The login, the session, the CSRF token and the 401
+retry are gone. `UNIFI_USERNAME` and `UNIFI_PASSWORD` are read by nothing; the stored password
+and the read-only account can both be deleted.
+
+### Risk is declared now, not guessed
+
+`RiskOf` reads a tool's prose for dangerous words. `set_port_power` classified as `Confirm`
+only because a sentence pointing at the *other* tool contained "reboot" — so tidying that line
+would have silently dropped a tool that cuts power to `Act`, which she performs unasked.
+
+Every tool in the UniFi server now carries MCP's standard `annotations`: `readOnlyHint` on the
+eight reads, `destructiveHint` on the two writes. A declared risk wins; a missing one still
+falls through to the heuristic, and `destructiveHint: false` is ignored outright, so a
+third-party server can only ever make her *more* careful.
+
+### From the audit
+
+- **`EarsTest -- unifi` had been skipping entirely since v0.48.0.** Sealing the key removed
+  it from `Env`, which is where the check looked for it, so all thirty assertions reported
+  *"skipped: no unifi server with a key"* — indistinguishable from a machine never set up for
+  it. It reads `Secrets` the way she does now, and the threat checks no longer hide behind a
+  password that no longer exists.
+- **The face's receive loop swallowed every error.** `catch (Exception) { return; }` dropped a
+  renderer without a word; the send loop next to it had already been fixed this exact way. A
+  face that died on an unexpected error looked identical to one that closed politely.
+- **Every tool call and answer is logged** — the arguments at `debug`, the answer truncated to
+  one line, and each consent decision with its reason. None of that existed, which is why the
+  question this release answers cost a session to answer at all.
+- `claude stream failed` was logged at `info`, so it did not appear when filtering for errors.
+- Dead field `_lastSentLevel`, left over from when the server owned a microphone: the only
+  compiler warning in 19,000 lines, and now none.
+- `src/Octavia.Control/` — build output of a project merged away in v0.47.0, untracked, still
+  on disk and still turning up in searches.
+- Silent failures given a line: an unreadable avatar folder, and a Windows identity that
+  cannot be read before sealing.
+
 ## 0.48.0 — 2026-09-03
 
 **A key nobody could see, and a key everybody could.** Two questions, one answer.

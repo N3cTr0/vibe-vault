@@ -125,10 +125,45 @@ internal sealed class McpClient : IAsyncDisposable
                 ? JsonNode.Parse(s.GetRawText())?.AsObject() ?? []
                 : [];
 
-            tools.Add(new Tool($"{Name}__{name}", description, schema, RiskOf(name!, description), Name));
+            var declared = DeclaredRisk(entry);
+            if (declared is null)
+                Log.Debug($"mcp '{Name}': {name} declares no risk; guessed {RiskOf(name!, description)}");
+
+            tools.Add(new Tool($"{Name}__{name}", description, schema,
+                               declared ?? RiskOf(name!, description), Name));
         }
 
         return tools;
+    }
+
+    /// The risk a server states about its own tool, via MCP's standard `annotations`.
+    ///
+    /// **A server knows what its tool does; `RiskOf` is guessing.** The guess reads the
+    /// description for dangerous words, which means a tool is dangerous for as long as
+    /// nobody rewrites its prose — `set_port_power` classified as `Confirm` only because a
+    /// sentence pointing at the other tool happened to contain "reboot". That is not a
+    /// property anything should depend on when the cost of a wrong answer is cutting power
+    /// to a camera without asking.
+    ///
+    /// Only `destructiveHint: true` and `readOnlyHint: true` are honoured, and only those.
+    /// A *missing* annotation falls through to the guess rather than being read as "safe",
+    /// because most servers in the world do not set one; and `destructiveHint: false` is
+    /// ignored outright, so a third-party server cannot talk its way out of a question the
+    /// heuristic wants to ask. The annotation can only ever make her *more* careful.
+    private static ToolRisk? DeclaredRisk(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("annotations", out var notes) || notes.ValueKind != JsonValueKind.Object)
+            return null;
+
+        if (notes.TryGetProperty("destructiveHint", out var destructive) &&
+            destructive.ValueKind == JsonValueKind.True)
+            return ToolRisk.Confirm;
+
+        if (notes.TryGetProperty("readOnlyHint", out var readOnly) &&
+            readOnly.ValueKind == JsonValueKind.True)
+            return ToolRisk.Read;
+
+        return null;
     }
 
     /// Guessing risk from a name is crude, and it is deliberately biased towards asking.

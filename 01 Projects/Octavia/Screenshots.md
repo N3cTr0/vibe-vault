@@ -344,6 +344,7 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 | `v0.47.0 - one executable again, her tray and settings` | The merge that undid `Octavia.Control` after a single release: same binary, different mode |
 | `v0.48.0 - the key badge, and no secret on show` | **"Stored", in green, above the fold.** The state was always detected and always below the fold, which is why the report was *"it doesn't say"* |
 | `v0.48.0 - the UniFi key sealed, not on show` | `UNIFI_API_KEY` as a masked box with a badge, beside `UNIFI_HOST` still in plain text — the distinction the window now draws by itself |
+| `v0.49.0 - her face at v0.49.0, the release that taught her to check` | Nothing visible changed, and filing it says so. The release is two faults sharing one sentence — a consent rule that never granted, and a tool that reported success without ever looking |
 
 > **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
 

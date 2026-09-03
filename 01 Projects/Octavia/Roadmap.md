@@ -1090,8 +1090,9 @@ the first tool in the project that changes anything — `list_ports` to see them
 Two facts about the API, both established by probing rather than assumed:
 
 - **`POWER_CYCLE` is the only action a port accepts.** Sending a deliberately invalid one
-  made the gateway name the valid set. So off-and-back-on is one atomic action, and **leaving
-  a port switched off is not possible through this API at all.**
+  made the gateway name the valid set. So off-and-back-on is one atomic action, and ~~leaving
+  a port switched off is not possible through this API at all.~~ **not through *this* API —
+  see v0.49.0 below, which reaches another one.**
 - **The gateway does not say what is on a port.** A wired client carries an `uplinkDeviceId`
   and no port index, so "port 4 is the front door camera" is not available here — and both
   the listing and the tool description say so, because a model that infers the mapping from
@@ -1099,8 +1100,51 @@ Two facts about the API, both established by probing rather than assumed:
 
 **The classification is the safety, so it is pinned by a check.** `RiskOf` guesses from the
 wording, and the only thing between *"restart the power on port 4"* and her doing it unasked
-is the word "Restart" in that description. `UnifiChecks` now asserts both directions — the
-seven reads stay `Read`, the one write stays `Confirm`.
+is the word "Restart" in that description. `UnifiChecks` asserts both directions — the reads
+stay `Read`, the writes stay `Confirm`.
+
+> **Since v0.49.0 the guess is a fallback rather than the guard.** Every tool here declares
+> MCP `annotations` — `readOnlyHint` on the eight reads, `destructiveHint` on the two writes
+> — so the wording carries the meaning and no longer carries the safety. The heuristic still
+> runs for servers that annotate nothing, and a declared `destructiveHint: false` is ignored,
+> so an annotation can only ever make her more careful.
+
+### Switching a port off, and leaving it off *(09/03/2026, v0.49.0)*
+
+*"I want to be able to ask her to switch off PoE on certain ports and switch them on again."*
+
+`set_port_power` takes a `port` and an `on`, and refuses to guess the direction — a missing
+`on` is a question, because one default reboots a camera and the other leaves it dark.
+
+**It is on the other API.** The integration API's only port action is still `POWER_CYCLE`,
+re-established by asking for seven more and reading every refusal. So this calls the older
+`/proxy/network/api` that the UniFi web UI itself uses and sets `port_overrides[].poe_mode`
+to `off` or `auto` — a configuration change, which is why it survives a reboot.
+
+**One credential, not two.** The security log was behind a username and password on the
+belief that the key could not reach the legacy API. It can, for reads and writes both, so a
+real UniFi *account* password was in the secret store buying nothing. The login, session,
+CSRF token and 401 retry are gone with it.
+
+### The confirm that never confirmed *(09/03/2026, v0.49.0)*
+
+*"She said she did it but the camera remained operational the whole time."* She had not done
+it: `Conversation.Grants` compared the call's arguments as **raw text**, and the two sides
+come from two separate generations of a model.
+
+```
+tool call: unifi__power_cycle_port{"device": "UDM", "port": 1}   ← when she asks
+tool call: unifi__power_cycle_port{"port": 1, "device": "UDM"}   ← after the yes
+```
+
+Same call, different key order, consent refused — **127 refusals against one grant** across
+the whole log history, and that grant was a mock tool taking no arguments. Compared as JSON
+now, and every consent check in `ToolChecks` used to hand the *same C# string* to both sides,
+so a byte comparison could not fail. They differ as text and agree as meaning now.
+
+The other half: `power_cycle_port` asserted its own success, piping the response to
+`Out-Null`. It watches the port and reports what it saw — and caught a genuine failure the
+first time it ran.
 
 ### Not available: a threat or event feed *(probed 09/03/2026)*
 
@@ -1119,6 +1163,13 @@ The Integration API is inventory and control; it has no history. Reaching IPS/ID
 means either a **local read-only UniFi account** and the legacy cookie-authenticated API, or
 pointing the UDM's **syslog** at this machine and reading it here. That is a decision about
 credentials and is the owner's, not a detail to pick.
+
+> **The account turned out to be unnecessary *(v0.49.0)*.** "The API key cannot reach one"
+> was true of every *integration* route above and was quietly generalised to the legacy API,
+> which nobody tested. The key authenticates there perfectly well — reads and writes both —
+> so the account, its password in the secret store, the cookie session, the CSRF token and
+> the 401 retry all existed to solve a problem that was not there. A wrong conclusion drawn
+> from a real experiment, by extending it one step past what it measured.
 
 **And the harder half is not UniFi at all**: *"every hour ... let me know if she found
 something concerning"* needs a scheduler and the ability to **speak first**, neither of which

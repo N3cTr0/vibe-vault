@@ -63,7 +63,6 @@ internal sealed class OctaviaSession : IDisposable
     /// never runs the code that reports errors, so silence is the only symptom the host can
     /// observe — and silence is what nothing was watching for. See ROADMAP.md stage 10a.
     internal bool FaceSpoke => _faceSpoke;
-    private float _lastSentLevel = -1f;
     private bool _disposed;
 
     // ---- rooms -----------------------------------------------

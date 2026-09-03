@@ -290,7 +290,12 @@ internal sealed class LocalBrain : IBrain
             parsed = JsonDocument.Parse("{}").RootElement.Clone();
         }
 
+        Log.Debug($"tool call: {name}{arguments}");
+
         var answer = await _tools!.CallAsync(name, parsed, confirmed, cancel);
+
+        // Both brains run the same loop, so both leave the same trail. See `ClaudeBrain.Brief`.
+        Log.Debug($"tool answer: {name} -> {Speech.Brief(answer.Text)}");
 
         /* The text only. **This brain has no eyes** — the same sentence `IBrain` already
            uses about `Situation.Image` — so a picture would be bytes it cannot read and a

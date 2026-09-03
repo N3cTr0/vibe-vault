@@ -303,8 +303,23 @@ internal sealed class WebSocketFaceServer : IDisposable
             {
                 result = await socket.ReceiveAsync(buffer, _stopping.Token);
             }
-            catch (Exception)
+            catch (OperationCanceledException)
             {
+                // She is shutting down. Not a fault.
+                return;
+            }
+            catch (Exception ex) when (ex is WebSocketException or ObjectDisposedException)
+            {
+                // A face that went away mid-receive is routine and stays quiet.
+                return;
+            }
+            catch (Exception ex)
+            {
+                /* The same fault the send loop had, and the fix there did not reach here:
+                   a catch-all dropped the face without a word, so a renderer that died on
+                   an unexpected error looked exactly like one that closed politely. The
+                   only symptom was that she stopped hearing that room. */
+                Log.Error($"face {face.Id} receive failed", ex);
                 return;
             }
 

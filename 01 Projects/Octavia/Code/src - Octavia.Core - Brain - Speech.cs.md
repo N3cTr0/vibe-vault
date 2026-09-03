@@ -15,6 +15,17 @@ namespace Octavia.Brain;
 /// Turning a token stream into things worth saying out loud.
 internal static partial class Speech
 {
+    /// One line of a tool's answer, for the log.
+    ///
+    /// Newlines folded so a multi-line reply stays one entry — a log where a single event
+    /// spans twelve lines is a log nobody greps — and truncated, because a client list is a
+    /// page and a camera is 20 KB of base64.
+    public static string Brief(string text)
+    {
+        var flat = string.Join(" ", text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)).Trim();
+        return flat.Length <= 160 ? flat : $"{flat[..160]}...";
+    }
+
     /// Pulls every complete sentence out of the buffer, leaving the partial tail.
     public static IEnumerable<string> DrainSentences(StringBuilder pending)
     {
