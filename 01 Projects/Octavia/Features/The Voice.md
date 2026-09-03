@@ -5,22 +5,27 @@ tags: [octavia, feature]
 
 # The Voice
 
-*v0.1.0 with Windows speech; the neural engine and audio-derived lip sync in v0.7.0 (Stage 6).*
+*v0.1.0 with Windows speech; audio-derived lip sync in v0.7.0 (Stage 6); **Kokoro `af_heart`, and only that, since v0.40.0 (Stage 16)**.*
 
-## Two engines, one interface
+> **Read this note from the bottom for what is true today.** It is written in the order things
+> happened, and both engines it opens with have since been deleted — SAPI in v0.37.0, Piper in
+> v0.40.0. **She has exactly one voice now and no picker**; see [[#One voice, chosen by ear (v0.40.0, Stage 16)|the last section]].
+> The history is kept because each removal was decided for a different reason and those reasons
+> are the useful part.
 
-`IVoice` joins `IBrain` and `ISpeechRecognizer` as a seam — see [[Architecture]]. `OctaviaSession` never learns which engine it has, and the engine can be swapped **under a running session**.
+## One interface, and engines that came and went
 
-| Engine | Sounds like | Cost |
-|---|---|---|
-| `SapiVoice` — Windows speech | A 2010 satnav | Installed already, starts instantly |
-| `NeuralVoice` — Piper | A person | ~80 MB once; 280–530 ms to first audio |
+`IVoice` joins `IBrain` and `ISpeechRecognizer` as a seam — see [[Architecture]]. `OctaviaSession` never learns which engine it has, and the engine can be swapped **under a running session**. That was a claim for three versions and is now a fact: v0.40.0 replaced the engine outright and changed nothing downstream.
 
-Windows speech is not deprecated scaffolding. It is on every machine, needs nothing downloaded, and starts instantly — the fallback that always works, exactly like the plaster bust in [[The Face]].
+| Engine | Sounds like | Cost | Fate |
+|---|---|---|---|
+| `SapiVoice` — Windows speech | A 2010 satnav | Installed already, starts instantly | **Deleted v0.37.0** — cannot be streamed, so with no sound card it was no voice at all |
+| `NeuralVoice` — Piper | A person | ~80 MB once; 280–530 ms to first audio | **Deleted v0.40.0** — lost a listening test to Kokoro |
+| `Octavia.Kokoro` — Kokoro `af_heart` | The one he picked | 350 MB once; RTF 0.34–0.47 | **Current, and the only one** |
 
-**She starts on Windows speech and upgrades herself** once the neural engine is ready, so a first run talks immediately rather than sitting mute through a download.
+*What follows about Windows speech and Piper is history, not behaviour.* Windows speech was the fallback that always works — the plaster bust of [[The Face]] — and she used to start on it and upgrade herself once the neural engine was ready, so a first run talked immediately rather than sitting mute through a download. Neither is true any more: a first run is silent until the model lands, and says so.
 
-## Piper, out of process
+## Piper, out of process *(history — deleted v0.40.0)*
 
 Same reasoning as [[The Brain]]'s local model: a second ONNX runtime inside this process would sit beside Whisper's CUDA-linked one, and native dependency collisions are not worth the milliseconds saved.
 
@@ -74,9 +79,11 @@ That is fine while both halves are on one machine and it is the sharp edge of th
 
 The exemption that went with it: the host used to refuse to stream audio to the page it hosted, because that page shared this machine's speakers and streaming would have been her talking over herself. There is no such page now.
 
-## Still true from v0.1.0
+## ~~Still true from v0.1.0~~ — *not any more*
 
-The SAPI path still reports real viseme events, mapped to jaw openness *and* to a VRM mouth shape — see [[The Avatar Interface]]. And `Settle()` still clamps its queue counter after a `Hush`, because SAPI's cancellation events fire once per cancelled sentence and used to drive it negative.
+This said the SAPI path still reported real viseme events, mapped to jaw openness and to a VRM mouth shape. **`SapiVoice` was deleted in v0.37.0 and nothing reports viseme ids now** — her mouth is derived from the waveform by `VisemeReader`, which is exactly why it survived the engine being replaced. The seven checks asserting that id mapping went with it; see [[The Avatar Interface]].
+
+`Settle()`'s queue clamp was also SAPI's, guarding cancellation events that fired once per cancelled sentence and drove the counter negative. It went the same way.
 
 ## Where her voice comes out *(v0.35.0 — Stage 15 item 3)*
 

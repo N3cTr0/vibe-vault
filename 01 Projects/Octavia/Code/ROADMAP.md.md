@@ -1083,6 +1083,49 @@ flag. `list_cameras` therefore reports what is reachable rather than what exists
 the loop landed in v0.29.0, and the owner switched a camera on. `look_at_camera` returns an
 MCP image block, and she describes what is in it.
 
+### She can change something now *(09/03/2026, v0.41.0)*
+
+*"Is it possible to get Octavia to switch off a PoE port and back on again?"* Yes, and it is
+the first tool in the project that changes anything — `list_ports` to see them, and
+`power_cycle_port`, which is a `Confirm`: she asks plainly and stops.
+
+Two facts about the API, both established by probing rather than assumed:
+
+- **`POWER_CYCLE` is the only action a port accepts.** Sending a deliberately invalid one
+  made the gateway name the valid set. So off-and-back-on is one atomic action, and **leaving
+  a port switched off is not possible through this API at all.**
+- **The gateway does not say what is on a port.** A wired client carries an `uplinkDeviceId`
+  and no port index, so "port 4 is the front door camera" is not available here — and both
+  the listing and the tool description say so, because a model that infers the mapping from
+  names will be confidently wrong about which camera it is about to reboot.
+
+**The classification is the safety, so it is pinned by a check.** `RiskOf` guesses from the
+wording, and the only thing between *"restart the power on port 4"* and her doing it unasked
+is the word "Restart" in that description. `UnifiChecks` now asserts both directions — the
+seven reads stay `Read`, the one write stays `Confirm`.
+
+### Not available: a threat or event feed *(probed 09/03/2026)*
+
+Asked for an hourly review of the logs for suspicious activity. **The API key cannot reach
+one.** Every event-shaped route 404s, and a nonsense-path control confirms those are real
+404s rather than the proxy refusing before it routes:
+
+| Tried | Answer |
+|---|---|
+| `integration/v1/sites/{id}/events`, `/alerts`, `/threats`, `/ips/events`, `/logs`, `/notifications`, `/anomalies` | 404 |
+| `/proxy/network/api/s/default/stat/event`, `/stat/alarm`, `/stat/ips/event` — GET and POST | 404 |
+| `/proxy/network/v2/api/site/default/...` alerts and events | 404 |
+| `protect/integration/v1/events`, `/alarms` | 404 |
+
+The Integration API is inventory and control; it has no history. Reaching IPS/IDS events
+means either a **local read-only UniFi account** and the legacy cookie-authenticated API, or
+pointing the UDM's **syslog** at this machine and reading it here. That is a decision about
+credentials and is the owner's, not a detail to pick.
+
+**And the harder half is not UniFi at all**: *"every hour ... let me know if she found
+something concerning"* needs a scheduler and the ability to **speak first**, neither of which
+she has. Everything she has ever said was a reply. See Stage 18.
+
 **The seam was text-only and is not any more.** `IToolProvider.CallAsync` returned a string,
 and `McpClient` carried a comment saying an image block *"would need the vision path and is
 left for whenever that matters"*. A camera is when it matters, because the useful answer to
@@ -2109,4 +2152,50 @@ own as a filename, so hers is found the moment it is there.
   press does not pay for the model — right when a press was the only way in, and now worth
   re-asking: with a wake word, the 1.6 GB could stay unloaded until the phrase is heard. That
   is a bigger change than it sounds and belongs on its own.
+
+---
+
+## Stage 18 — She speaks first *(asked for 09/03/2026, not started)*
+
+> **The owner's words:** *"I would like her to be able to review the logs for suspicious
+> threat activity every hour and let me know if she found something concerning."*
+
+It reads like a UniFi feature and it is not. The UniFi half is a source of data, and Stage 12
+already knows how to add one. **The new thing is that she does something nobody asked for**,
+and everything she has ever said has been a reply — to a held button, a typed line, a wake
+word. `OctaviaSession` has no timer that means anything, no notion of a turn she started, and
+no way to decide that the honest answer is to stay quiet.
+
+Three pieces, and they are separable:
+
+| | |
+|---|---|
+| **A clock** | Something fires on a schedule inside the server. Small, and the least interesting part. |
+| **A turn she begins** | `Say` without a `say`. The state machine, the floor, the rooms and `_attending` all assume somebody asked; each of those assumptions has to be re-read rather than worked around. |
+| **The judgement to stay silent** | The whole value of *"let me know if you found something concerning"* is the hours she says nothing. |
+
+### What has to be designed before any of it is written
+
+- **Which room does she speak into?** She attends one room at a time and a turn takes the
+  floor. An hourly errand that seizes the floor mid-conversation is worse than no errand.
+  Most likely it must wait, not interrupt — which means a queue, and a report that can be
+  stale by the time it is delivered.
+- **Silence is the normal outcome, and an unfired job looks exactly like a broken one.** This
+  project has written that lesson down twice already. Whatever this becomes, *"I checked and
+  there was nothing"* has to be visible somewhere without being said out loud.
+- **Crying wolf ends the feature.** A model asked hourly whether anything looks concerning
+  will find something concerning. The threshold belongs in the data — a named severity from
+  the source — not in the model's opinion of a log line.
+- **Quiet hours.** An hourly job that can talk is an hourly job that can wake the house.
+- **Cost.** Twenty-four turns a day against the hosted brain is a bill; against the local one
+  it is free and worse at judgement. The local brain is probably right here, precisely
+  because the decision should be *"does this line say CRITICAL"* rather than an essay.
+
+### And the data is not there yet
+
+The UniFi Integration API has no event history at all — see the table under Stage 12. Getting
+IPS/IDS events needs either a **local read-only UniFi account** (legacy cookie-authenticated
+API) or the UDM's **syslog** pointed at this machine. That is the owner's decision about
+credentials, and it gates only the UniFi half: the three pieces above are worth building
+against any source, and syslog needs no credential at all.
 ```

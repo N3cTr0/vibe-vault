@@ -65,20 +65,30 @@ internal static class UnifiChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("all six tools were listed", tools.Count == 6, $"{tools.Count}");
+        Check("all eight tools were listed", tools.Count == 8, $"{tools.Count}");
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("unifi__")),
               string.Join(", ", tools.Select(t => t.Name)));
 
-        /* The check this file exists for.
+        /* The check this file exists for, and it cuts both ways now.
 
-           Every tool here reads and changes nothing, so every one must classify as Read —
-           and that is not a property of the code, it is a property of the *wording*.
-           `RiskOf` looks for its dangerous words first, so a description that gains a
-           "restart", a "reset" or an "order" would quietly turn a network status query into
-           something she stops to ask permission for. Nothing else would notice. */
-        var wrong = tools.Where(t => t.Risk != ToolRisk.Read).ToList();
-        Check("every tool is judged a read", wrong.Count == 0,
-              string.Join(", ", wrong.Select(t => $"{t.Name} is {t.Risk}")));
+           Risk is not a property of the code, it is a property of the *wording*: `RiskOf`
+           reads the name and description and looks for its dangerous words first. That used
+           to mean one hazard — a description gaining a "restart" or a "reset" would turn a
+           status query into something she stops to ask permission for.
+
+           Since `power_cycle_port` the opposite hazard is the serious one. **The only thing
+           standing between "restart the power on port 4" and her doing it unasked is the
+           word "Restart" in that description.** Reword it to something gentler and the
+           classification silently drops to `Act`, which she may perform on her own. So both
+           directions are pinned here: the reads must stay reads, and the one write must stay
+           a `Confirm`. */
+        var shouldRead = tools.Where(t => t.Name != "unifi__power_cycle_port" && t.Risk != ToolRisk.Read).ToList();
+        Check("every read is judged a read", shouldRead.Count == 0,
+              string.Join(", ", shouldRead.Select(t => $"{t.Name} is {t.Risk}")));
+
+        var cycle = tools.FirstOrDefault(t => t.Name == "unifi__power_cycle_port");
+        Check("cutting power to a port is judged a confirm", cycle?.Risk == ToolRisk.Confirm,
+              cycle is null ? "the tool is missing" : $"it is {cycle.Risk}");
 
         var status = (await registry.CallAsync("unifi__get_status", Empty())).Text;
         Check("the gateway answers", status.Contains("client(s) connected"), Head(status));
@@ -88,6 +98,53 @@ internal static class UnifiChecks
 
         var cameras = (await registry.CallAsync("unifi__list_cameras", Empty())).Text;
         Check("Protect answers on the same key", cameras.Contains("camera"), Head(cameras));
+
+        var ports = (await registry.CallAsync("unifi__list_ports", Empty())).Text;
+        Check("the ports are listed with their PoE state", ports.Contains("PoE"), Head(ports));
+        Check("...and it says it cannot see what is on them",
+              ports.Contains("does not report which client is on which port"), Head(ports));
+
+        /* **Nothing here ever cuts power to a real port**, and that is deliberate rather than
+           an omission. A green suite must not be able to reboot a camera, and a test that
+           power-cycles whatever happens to be on port 4 today is a test nobody dares run
+           twice.
+
+           Two things are worth asserting, and the first one caught the second being written
+           wrongly: an earlier version of this called the tool with a bad port and expected
+           the script's refusal, and got the *registry's* refusal instead, because
+           `power_cycle_port` never reached the script at all without a yes. That is the
+           guard working, so it is now the check. */
+        var unasked = (await registry.CallAsync(
+            "unifi__power_cycle_port", Args("""{"port":4}"""))).Text;
+
+        Check("power is not cut without a yes", unasked.Contains("needs the person to say yes"),
+              Head(unasked));
+
+        /* And with the yes given, the script's own refusals - which stop one line before the
+           POST, so they exercise argument handling, device resolution and the port lookup
+           without touching anything. `confirmed: true` is the flag a real turn sets only
+           after somebody has actually said it out loud; see `Conversation.Grants`. */
+        var noPort = (await registry.CallAsync(
+            "unifi__power_cycle_port", Args("""{"port":99}"""), confirmed: true)).Text;
+
+        Check("...and a port that does not exist is refused", noPort.Contains("no port 99"), Head(noPort));
+
+        var noPoe = (await registry.CallAsync(
+            "unifi__power_cycle_port", Args("""{"port":9}"""), confirmed: true)).Text;
+
+        Check("...and so is a port with no PoE on it",
+              noPoe.Contains("does not supply PoE"), Head(noPoe));
+
+        /* A device name that matches nothing. This line existed and was broken: it read
+           `return if (...) {...} else {...}`, which PowerShell *parses* — `if` is taken as a
+           command name — and then fails at runtime with "the term 'if' is not recognized".
+           A parse check said the file was clean. Only running it says otherwise. */
+        var noDevice = (await registry.CallAsync(
+            "unifi__power_cycle_port",
+            Args("""{"port":4,"device":"zzz-no-such-switch"}"""), confirmed: true)).Text;
+
+        Check("...and a device name that matches nothing",
+              noDevice.Contains("No PoE device matches"), Head(noDevice));
 
         // A search that cannot match, so this asserts the empty answer rather than whatever
         // happens to be plugged in on the day.

@@ -8,7 +8,8 @@ tags: [octavia, moc]
 > An always-on desktop companion with a language model behind her — **a local one by default**, Claude when asked for: a headless .NET **server** owns the microphone, the voice, the API key and the conversation; clients render her face and do nothing else. Built toward a fully animated — eventually photoreal — 3D face that hears you locally, reacts to music, and later sees and acts. **This note is the reference point for everything Octavia.**
 
 - **Repo:** `C:\Projects\Octavia` on **`N3CTR0-PC`** — git, with a private GitHub remote at [`N3cTr0/Octavia`](https://github.com/N3cTr0/Octavia) (both since 08/30/2026). She moved off the [[Claude Dev VM]] that day; see [[Moving To The New Machine]].
-- **Current version:** 0.39.2 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+- **Current version:** 0.41.0 (pre-release `0.x` scheme — see [[Conventions & Security Model]])
+  - *This line is hand-kept and drifted three times on 09/03/2026 alone, because two sessions were working in her repo at once. **Trust [[Changelog]]**, which is generated from `versions.md` on every sync and cannot drift. Worth making this line generated too.*
 - **A second face exists:** [[Octavia Android]], her phone/tablet client, in its own repo since 08/31/2026.
 - **Started:** 08/29/2026, from a single-file HTML prototype (`C:\Projects\talking-avatar.html`)
 - **Distribution:** two self-contained single-file exes in `dist\` — `Octavia.Server.exe` and `Octavia.exe` (see [[Build & Release]])
@@ -41,9 +42,21 @@ tags: [octavia, moc]
 > - **A wake word in front of Whisper** (0.39.0), so she stops transcribing the room to find
 >   out whether it was talking to her. `WakePhrase` is empty until hers is trained.
 >
+> - **Stage 16: a new voice, and only that one** (0.40.0). Twenty-two candidates read the same
+>   paragraph and **Kokoro's `af_heart`** was chosen by ear. Most of the diff is deletion —
+>   `NeuralVoice`, `PiperStore`, three config fields, and `setVoice`/`setVoiceEngine` struck
+>   from the protocol, because *"I only want that 1 voice."* Her audio is **24 kHz** now.
+>
 > **One open item is worth knowing about before it bites:** `music` is now reported *upstream*
 > by a client, because a page cannot capture loopback — and **nothing sends it yet**, so her
 > music sense is dark on every face.
+
+> **The phone needed no change for any of it, and that is the load-bearing result.** Checked
+> against 0.40.0 on the 11T Pro: `VoicePlayer` read the new rate out of `hello` and opened at
+> **24000 Hz** on its own, her voice played with **0 frames dropped**, and the readout says
+> `Kokoro (af_heart)`. The two struck messages were never sent by that client. **A face that
+> reads the format instead of assuming it survives an engine being replaced underneath it** —
+> which is what `IVoice` was written to claim and had never actually been tested against.
 
 > **Whisper was on the wrong model for this machine, 09/03/2026.** `large-v3-turbo` was chosen
 > to leave GPU headroom for the face renderer — and this box has a **GT 730**, which the CUDA

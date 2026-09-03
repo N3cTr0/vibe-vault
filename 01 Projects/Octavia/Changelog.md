@@ -16,6 +16,54 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.41.0 — 2026-09-03
+
+**She can restart the power on a PoE port, and she has to be told yes first.**
+
+Two tools on the UniFi server, which until now was entirely read-only — *"is it possible to
+get Octavia to switch off a poe port and back on again?"*
+
+| | |
+|---|---|
+| `list_ports` | Link, speed, and whether each port supplies PoE and is currently doing so |
+| `power_cycle_port` | **The first tool in the project that changes anything.** Off, then on |
+
+**`POWER_CYCLE` is the only thing the API will do to a port**, and that was established
+rather than assumed: sending a deliberately invalid action made the gateway name the valid
+set, which is exactly `POWER_CYCLE`. So off-and-back-on is available as one action and
+*leaving a port off is not possible through this API at all*. Anyone who wants that is
+looking for a tool that does not exist rather than one that is missing.
+
+**The gateway does not say what is plugged into a port.** A wired client carries an
+`uplinkDeviceId` — which appliance it hangs off — and no port index, so "port 4 is the front
+door camera" is not a fact available here. Both the listing and the tool description say so,
+because the alternative is a model inferring the mapping from names and being confidently
+wrong about which camera it is about to reboot.
+
+### The classification is the safety, so it is pinned
+
+`RiskOf` guesses risk from the *wording* of a name and description. That was already a hazard
+in one direction — a read gaining the word "reset" becomes something she stops to ask about —
+and this release adds the serious one. **The only thing standing between "restart the power on
+port 4" and her doing it unasked is the word "Restart" in that description.** Soften it and
+the classification silently drops to `Act`, which she may perform on her own.
+
+So `UnifiChecks` now pins both directions: the seven reads must stay `Read`, and the one write
+must stay `Confirm`.
+
+> **A check written to test the script found the guard instead.** Calling `power_cycle_port`
+> with a nonsense port expecting the script's refusal returned the *registry's* refusal — the
+> call never reached the script, because a `Confirm` tool does not run without a yes. That is
+> the guard working, so it became the check, and the script's own refusals are tested with
+> `confirmed: true` behind it.
+
+**Nothing in the suite ever cuts power to a real port.** The write path is exercised only
+where it refuses — a port that does not exist, and a port with no PoE — which reaches the
+argument handling, the device resolution and the port lookup, and stops one line before the
+POST. A green suite that can reboot a camera is a suite nobody dares run twice.
+
+---
+
 ## 0.40.0 — 2026-09-03
 
 **Stage 16. She has a new voice, and it is the only one she has.**

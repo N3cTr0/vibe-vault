@@ -12,18 +12,21 @@ source-path: tools\unifi-mcp.ps1
   An MCP server for the UniFi network, over the official local Integration API.
 
 .DESCRIPTION
-  The first real tool server in the project, and deliberately the first: it is entirely
-  read-only, so the brain-side tool loop can be written and watched against something that
-  has nothing in the house to break.
+  The first real tool server in the project, and deliberately the first: it was entirely
+  read-only to begin with, so the brain-side tool loop could be written and watched against
+  something that had nothing in the house to break.
 
   It speaks JSON-RPC 2.0 over stdio exactly as `mock-mcp.ps1` does, because that one was
-  written to be the shape a real server would take. Five tools, all reads:
+  written to be the shape a real server would take. Eight tools - seven reads and, since
+  v0.41.0, **one that changes something**:
 
-    list_devices   the network hardware, with state and firmware
-    list_clients   everything connected, which is also how presence is answered
-    get_status     gateway load, memory, uptime and current throughput
-    find_client    search the connected list by name, address or MAC
-    list_cameras   UniFi Protect's cameras and whether they are reachable
+    list_devices      the network hardware, with state and firmware
+    list_clients      everything connected, which is also how presence is answered
+    get_status        gateway load, memory, uptime and current throughput
+    find_client       search the connected list by name, address or MAC
+    list_ports        switch ports: link, speed, and whether PoE is supplying power
+    power_cycle_port  **writes.** Restarts PoE power on one port - off, then on again
+    list_cameras      UniFi Protect's cameras and whether they are reachable
 
   **No Home Assistant required.** The UDM answers this API itself, locally, with a key made
   in its own UI - so network sensing is available a long time before the house is.
@@ -177,6 +180,121 @@ function Find-Client([string]$query) {
 }
 
 <#
+  The switch ports, and the one thing this server can change.
+
+  **The API does not say what is plugged into a port.** A wired client carries an
+  `uplinkDeviceId` - which appliance it hangs off - and no port index, so "port 4 is the
+  front door camera" is not a fact available here. That is said out loud in the listing and
+  again in the tool description, because the alternative is a model inferring the mapping
+  from names and being confidently wrong about which camera it is about to power off.
+
+  So the listing reports what the gateway actually knows: link state, negotiated speed, and
+  whether the port supplies PoE and is currently doing so.
+#>
+function Get-Ports([string]$query) {
+  $site = Get-SiteId
+  $devices = (Invoke-Unifi "sites/$site/devices?limit=50").data
+
+  $wanted = if ($query) {
+    $devices | Where-Object { $_.name -like "*$query*" -or $_.model -like "*$query*" }
+  } else {
+    $devices
+  }
+
+  if (-not $wanted) { return "There is no network device matching '$query'." }
+
+  $lines = @()
+
+  foreach ($device in $wanted) {
+    $detail = Invoke-Unifi "sites/$site/devices/$($device.id)"
+    $ports = $detail.interfaces.ports | Sort-Object idx
+    if (-not $ports) { $lines += "$($device.name): no ports reported."; continue }
+
+    $powered = @($ports | Where-Object { $_.poe }).Count
+    $lines += "$($device.name) ($($device.model)): $($ports.Count) ports, $powered of them PoE."
+
+    foreach ($p in $ports) {
+      $link = if ($p.state -eq 'UP') { "up at $($p.speedMbps) Mbps" } else { 'nothing linked' }
+
+      $poe = if (-not $p.poe) { 'no PoE' }
+             elseif (-not $p.poe.enabled) { "PoE $($p.poe.standard), switched off" }
+             elseif ($p.poe.state -eq 'UP') { "PoE $($p.poe.standard), powering something" }
+             else { "PoE $($p.poe.standard), on but nothing drawing" }
+
+      $lines += "  port $($p.idx) ($($p.connector)): $link; $poe"
+    }
+  }
+
+  $lines += ''
+  $lines += 'The gateway does not report which client is on which port, so it cannot say what any port feeds.'
+  $lines -join "`n"
+}
+
+<#
+  Power-cycling a PoE port: off, then on again, as one action.
+
+  **POWER_CYCLE is the only thing the API will do to a port**, and that is worth knowing
+  rather than working around - it was established by sending a deliberately invalid action
+  and reading the refusal, which named the valid set as exactly `POWER_CYCLE`. There is no
+  way through this API to switch a port off and leave it off. For a request to kill power to
+  something indefinitely, this is not the tool and there isn't one.
+
+  It is a `Confirm` on the brain side: whatever is on the far end of that cable - a camera, an
+  access point, a door reader - loses power and reboots, and the gateway will not say what
+  that is. `UnifiChecks` pins the classification so that rewording this description cannot
+  quietly downgrade it.
+#>
+function Restart-PortPower([string]$query, $port) {
+  if ($null -eq $port) { return 'Which port? The port number is required.' }
+
+  $index = 0
+  if (-not [int]::TryParse("$port", [ref]$index)) { return "'$port' is not a port number." }
+
+  $site = Get-SiteId
+  $devices = (Invoke-Unifi "sites/$site/devices?limit=50").data
+
+  # No device named: the one that actually has PoE ports. With a single such appliance that
+  # is unambiguous; with two it asks rather than guessing, because guessing wrong here cuts
+  # power to something in another room.
+  $candidates = @()
+  foreach ($device in $devices) {
+    if ($query -and $device.name -notlike "*$query*" -and $device.model -notlike "*$query*") { continue }
+    $detail = Invoke-Unifi "sites/$site/devices/$($device.id)"
+    if ($detail.interfaces.ports | Where-Object { $_.poe }) {
+      $candidates += [pscustomobject]@{ Device = $device; Detail = $detail }
+    }
+  }
+
+  # Written as an assignment rather than `return if (...)`, which *parses* - PowerShell reads
+  # `if` there as a command name - and then throws at runtime. See Lessons Learned.
+  if ($candidates.Count -eq 0) {
+    $answer = if ($query) { "No PoE device matches '$query'." } else { 'No device here supplies PoE.' }
+    return $answer
+  }
+  if ($candidates.Count -gt 1) {
+    return "More than one device supplies PoE ($(($candidates.Device.name) -join ', ')). Say which one."
+  }
+
+  $chosen = $candidates[0]
+  $target = $chosen.Detail.interfaces.ports | Where-Object { $_.idx -eq $index }
+
+  if (-not $target) { return "$($chosen.Device.name) has no port $index." }
+  if (-not $target.poe) { return "Port $index on $($chosen.Device.name) does not supply PoE, so there is no power to cycle." }
+
+  # What it looked like before, so the answer can be compared against something rather than
+  # just asserting success.
+  $before = if ($target.state -eq 'UP') { "was linked at $($target.speedMbps) Mbps" } else { 'had nothing linked' }
+
+  Invoke-RestMethod -Uri "$base/sites/$site/devices/$($chosen.Device.id)/interfaces/ports/$index/actions" `
+    -Method Post -SkipCertificateCheck -TimeoutSec 30 `
+    -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+    -ContentType 'application/json' -Body '{"action":"POWER_CYCLE"}' | Out-Null
+
+  "Power-cycled port $index on $($chosen.Device.name). It $before. Whatever is on it has lost " +
+  "power and is starting again - give it a minute before asking whether it is back."
+}
+
+<#
   Protect answers on the same appliance, to the same key, with a flat array rather than the
   Network API's paged envelope - so this one reads `$cameras` directly and not `.data`.
 
@@ -277,6 +395,26 @@ $tools = @(
     }
   },
   @{
+    name        = 'list_ports'
+    description = 'Read the switch ports on a network device: whether each one has a link, how fast, and whether it supplies PoE power and is currently doing so. The gateway does not report which client is on which port, so this cannot say what a port feeds.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{ device = @{ type = 'string'; description = 'Device name or part of one. Omitted means every device.' } }
+    }
+  },
+  @{
+    name        = 'power_cycle_port'
+    description = 'Restart the PoE power on one switch port - it goes off and comes back on again. Whatever is plugged into that port loses power and reboots, and the gateway cannot say what that is. The port cannot be left switched off; off-and-on is the only thing the hardware will do.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{
+        port   = @{ type = 'integer'; description = 'Port number, as shown by list_ports' }
+        device = @{ type = 'string'; description = 'Device name or part of one. Omitted picks the only device that supplies PoE.' }
+      }
+      required   = @('port')
+    }
+  },
+  @{
     name        = 'list_cameras'
     description = 'List the UniFi Protect cameras and whether each one is currently reachable. Use this to say what she can and cannot see.'
     inputSchema = @{ type = 'object'; properties = @{} }
@@ -339,6 +477,8 @@ while ($true) {
           'list_clients' { Get-Clients }
           'get_status' { Get-Status }
           'find_client' { Find-Client $callArgs.query }
+          'list_ports' { Get-Ports $callArgs.device }
+          'power_cycle_port' { Restart-PortPower $callArgs.device $callArgs.port }
           'list_cameras' { Get-Cameras }
           'look_at_camera' {
             $seen = Get-CameraView $callArgs.camera

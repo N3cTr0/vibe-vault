@@ -215,3 +215,27 @@ That is worth noticing generally: a permission system's weakest point can be the
 ### Proven twice, both free
 
 `ToolChecks` asserts what the predicate decides — ten cases, every direction that could go wrong. `EarsTest -- confirm` asserts the decision is actually *reached*, driving the whole exchange as a two-turn conversation against the mock house on the local brain, so it costs nothing and unlocks nothing real.
+
+## She can change something now *(v0.41.0)*
+
+*"Is it possible to get Octavia to switch off a poe port and back on again?"*
+
+`power_cycle_port` is **the first tool in the project that changes anything**. Until it, every tool she had was a read, which was deliberate — the tool loop was written and watched against something that had nothing in the house to break.
+
+| | |
+|---|---|
+| `list_ports` | Link, speed, and whether each port supplies PoE and is doing so |
+| `power_cycle_port` | Off, then on. A `Confirm` — she asks plainly and stops |
+
+Two facts about the API, both **established by probing rather than assumed**:
+
+- **`POWER_CYCLE` is the only action a port accepts.** Sending a deliberately invalid one made the gateway name the valid set. Off-and-back-on is one atomic action, and leaving a port switched off is not possible through this API at all.
+- **The gateway does not say what is on a port.** A wired client carries an `uplinkDeviceId` and no port index. Both the listing and the tool description say so, because a model that infers the mapping from names will be confidently wrong about which camera it is about to reboot.
+
+### The classification is the safety
+
+`RiskOf` guesses risk from the *wording* of a name and description. That was already a hazard in one direction — a read gaining the word "reset" becomes something she stops to ask about. This is the serious direction: **the only thing between "restart the power on port 4" and her doing it unasked is the word "Restart" in that description.** Soften it and the classification drops silently to `Act`, which she may perform on her own. Both directions are now pinned by checks.
+
+> **A check written to test the script found the guard instead.** Calling the tool with a nonsense port expecting the script's refusal returned the *registry's* refusal — the call never reached the script, because a `Confirm` tool does not run without a yes. See [[Lessons Learned]].
+
+Confirmed live against the real gateway: asked to cycle port 4, she said *"Do you want to power cycle port 4 on the UDM?"* and stopped, and the log recorded `needs confirmation; not run`.
