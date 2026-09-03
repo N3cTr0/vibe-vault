@@ -84,3 +84,25 @@ And two rules learned the expensive way.
 **Test that a setting persists, not that it applies.** The settings menu looked entirely correct — dropdown, log line, face changing — while saving nothing at all.
 
 **Measure the input before doubting the algorithm.** When something that works offline fails against a real device, the device is a suspect. A capture diagnostic should report signal *quality* beside frame count: "we received everything" and "what we received is usable" are different claims, and only the second one was false. See [[Music]].
+
+## Secrets a tool server needs *(v0.43.0)*
+
+`Env` is where tokens go and `Args` never is — an argument is visible in the process list to every account on the machine. That rule is right for an API key and **not sufficient for a password**, because `Env` values live in `config.json` in plain text.
+
+So `McpServer` may declare `Secrets`: environment variable names whose values are filled at spawn from `SecretStore`, DPAPI-sealed to the Windows account that wrote them.
+
+```
+Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+```
+
+Typed with the echo off. Never in `config.json`, never in her log, never on a command line, and deliberately **not** in her Settings panel — that would put it on the wire.
+
+**The UniFi API key stayed in `Env`** rather than being migrated. It is a scoped, read-only, revocable key; the password is an account credential. Treating them identically would have been consistency at the expense of the distinction that matters.
+
+| | |
+|---|---|
+| Missing is not empty | A declared secret with nothing stored is left **unset**. A server handed `""` reports a login failure, which sends somebody to check the account when nothing was ever stored |
+| Sealed to an account | DPAPI. A secret written by a person and read by a service running as LocalSystem is unopenable, and indistinguishable from absent — same trap as the API key |
+| The key's entropy is frozen | `Octavia.ApiKey.v1` and `apikey.dat` must not be tidied. DPAPI will not open a blob sealed with different entropy, so renaming either logs everybody out of their own key |
+
+**A check that a secret arrived must not be a way to print one.** The mock server reports the *length* and whether it was set, never the value — and the test secret is cleared in a `finally`, because a test that leaves a credential behind has changed the machine it ran on.

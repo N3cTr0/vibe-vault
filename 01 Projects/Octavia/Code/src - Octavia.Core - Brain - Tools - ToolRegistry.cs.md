@@ -85,7 +85,7 @@ internal sealed class ToolRegistry : IAsyncDisposable
             }
 
             var client = await McpClient.StartAsync(
-                name, server.Command, server.Args ?? [], server.Env, cancel);
+                name, server.Command, server.Args ?? [], Environment(name, server), cancel);
 
             if (client is not null) _providers.Add(new McpToolProvider(client));
         }
@@ -95,6 +95,37 @@ internal sealed class ToolRegistry : IAsyncDisposable
             var tools = await ListAsync(cancel);
             Log.Write($"tools: {tools.Count} from {_providers.Count} server(s)");
         }
+    }
+
+    /// What the child process is started with: the plain values from `config.json`, plus any
+    /// sealed secrets it declared.
+    ///
+    /// **Nothing here is ever logged.** The name of a secret is, and whether one was found —
+    /// which is the whole of what a person needs to tell *"I never stored it"* apart from
+    /// *"the account is wrong"*, and neither answer requires printing the value.
+    private static IReadOnlyDictionary<string, string>? Environment(string name, McpServer server)
+    {
+        if (server.Secrets is not { Length: > 0 }) return server.Env;
+
+        var environment = new Dictionary<string, string>(server.Env ?? []);
+
+        foreach (var variable in server.Secrets)
+        {
+            if (SecretStore.ReadFor(name, variable) is { Length: > 0 } value)
+            {
+                environment[variable] = value;
+                continue;
+            }
+
+            /* Left unset rather than set to empty. A server handed `""` reports a login
+               failure, which sends somebody to check the account and the password when the
+               real answer is that nothing was ever stored — or that it was stored by a
+               different Windows account, which DPAPI treats the same as absent. */
+            Log.Warn($"mcp '{name}': no stored secret for {variable}; " +
+                     $"set one with `Octavia.Server.exe --secret {name}:{variable}`");
+        }
+
+        return environment;
     }
 
     public async Task<IReadOnlyList<Tool>> ListAsync(CancellationToken cancel = default)

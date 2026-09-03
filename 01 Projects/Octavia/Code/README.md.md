@@ -98,6 +98,7 @@ start.
 |---|---|
 | `--start` / `--stop` | what the desktop shortcuts call |
 | `--service-status` | `0` running, `1` not installed, `2` stopped |
+| `--secret <server>:<VAR>` | Stores a password a tool server needs, sealed to this account — see *Secrets a tool server needs* |
 | `--install` / `--uninstall` | asks Windows for administrator rights, once |
 
 The client prefers the service: it asks `--start` before spawning a console of its own,
@@ -372,6 +373,35 @@ onto a real character by identity, with no translation layer in between to get w
 
 Her expression is read from the text of each sentence as she speaks it — locally, for
 free. The `emotion` message exists so a model can override that later.
+
+## Secrets a tool server needs
+
+An MCP server's configuration lives in `config.json`, and **`Env` is where tokens go** — never
+`Args`, because an argument is visible in the process list to every account on the machine.
+
+That is fine for an API key and wrong for a password. So a server may also declare `Secrets`:
+
+```json
+"unifi": {
+  "Env": { "UNIFI_HOST": "10.1.1.1", "UNIFI_USERNAME": "Octavia" },
+  "Secrets": [ "UNIFI_PASSWORD" ]
+}
+```
+
+Each name is filled at spawn from a DPAPI-sealed file in her data folder. Store one with:
+
+```
+Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+```
+
+It is typed with the echo off and never appears in `config.json`, in her log, or on a command
+line. A declared secret with nothing stored is **left unset rather than passed empty** — a
+server handed `""` reports a login failure and sends you to check the account, when the real
+answer is that nothing was stored.
+
+> **DPAPI seals to a Windows account.** A secret stored by you and read back by a service
+> running as LocalSystem is unopenable, and looks exactly like never having been stored. Same
+> rule as the API key: log the service on as yourself.
 
 ## Her rounds
 

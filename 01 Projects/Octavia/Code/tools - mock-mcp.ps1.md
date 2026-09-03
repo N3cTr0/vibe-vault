@@ -40,6 +40,11 @@ $tools = @(
     }
   },
   @{
+    name        = 'house_secret_check'
+    description = 'Report whether a sealed secret reached this server, without printing it.'
+    inputSchema = @{ type = 'object'; properties = @{} }
+  },
+  @{
     name        = 'house_set_light'
     description = 'Turn a light on or off, or set its brightness.'
     inputSchema = @{
@@ -103,6 +108,14 @@ while ($true) {
         'house_get_state'   { "$entity is on, at 60 percent." }
         'house_set_light'   { "Set $entity to $(if ($args.on) { 'on' } else { 'off' })." }
         'house_unlock_door' { "Unlocked $entity." }
+
+        # Whether a sealed secret reached this process, and how long it was - never the
+        # value. A check that a secret was delivered must not be a way to print one.
+        'house_secret_check' {
+          if ($env:HOUSE_PASSWORD) { "secret arrived, $($env:HOUSE_PASSWORD.Length) characters" }
+          else { 'no secret arrived' }
+        }
+
         default             { "No such tool: $name" }
       }
 

@@ -27,6 +27,18 @@ internal sealed class McpServer
     /// the environment is not, and neither ends up in her log.
     public Dictionary<string, string>? Env { get; set; }
 
+    /// Environment variables whose values are **not** in this file.
+    ///
+    /// Each name here is filled at spawn time from `SecretStore`, DPAPI-sealed to the Windows
+    /// account that wrote it — so a password reaches the child process without ever being
+    /// written in `config.json` beside the things that are safe to read over somebody's
+    /// shoulder. Set one with `Octavia.Server.exe --secret <server>:<VARIABLE>`.
+    ///
+    /// A name listed here that has no stored secret is left unset rather than passed empty:
+    /// a server that finds no password can say so, where one handed `""` reports a login
+    /// failure and sends everybody looking at the account instead of at the storage.
+    public string[]? Secrets { get; set; }
+
     /// Off without deleting the entry, so a misbehaving integration can be silenced
     /// without losing how it was configured.
     public bool Enabled { get; set; } = true;

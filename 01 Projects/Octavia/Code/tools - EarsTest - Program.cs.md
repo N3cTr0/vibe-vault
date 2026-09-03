@@ -26,6 +26,7 @@ if (args.Length > 0 && args[0] == "embedder") { Environment.Exit(EmbedderChecks.
 if (args.Length > 0 && args[0] == "split") { Environment.Exit(SplitChecks.Run()); }
 if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
+if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "unifi") { Environment.Exit(await UnifiChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "confirm") { await ToolLoopProbe.ConfirmAsync(); return; }
 if (args.Length > 0 && args[0] == "toolloop") { await ToolLoopProbe.RunAsync(args.Length > 1 && args[1] == "local"); return; }

@@ -40,6 +40,10 @@ internal static class Program
         /* Managing the service is also outside the check, and for a plainer reason: every
            one of these is *about* a running server, so refusing them because one is running
            would be exactly backwards. */
+        // Also outside the check: storing a secret is something you do *because* she is
+        // running badly, and refusing it while she is up would be the wrong way round.
+        if (ValueArgument(args, "--secret") is { } secret) return StoreSecret(secret);
+
         if (Has(args, "--install")) return Service.Install(profile);
         if (Has(args, "--uninstall")) return Service.Uninstall();
         if (Has(args, "--start")) return Service.Start();
@@ -203,6 +207,88 @@ internal static class Program
     /// A switch with no value of its own.
     private static bool Has(string[] args, string name) =>
         args.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    /// Stores one secret a tool server needs, sealed to this Windows account.
+    ///
+    /// **It is typed here and nowhere else.** Not into `config.json`, which sits in plain text
+    /// beside things that are safe to read over a shoulder; not onto a command line, which
+    /// every account on the machine can see in the process list; and not into her Settings
+    /// panel, which would put it on the wire. Read with the echo off, sealed, and forgotten.
+    ///
+    ///     Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+    ///
+    /// The name is the same pair that appears in `McpServer.Secrets`, so there is one
+    /// spelling of it and not two.
+    private static int StoreSecret(string name)
+    {
+        var parts = name.Split(':', 2);
+
+        if (parts.Length != 2 || parts.Any(string.IsNullOrWhiteSpace))
+        {
+            Console.Error.WriteLine("Usage: --secret <server>:<VARIABLE>, for example unifi:UNIFI_PASSWORD");
+            return 2;
+        }
+
+        var (server, variable) = (parts[0].Trim(), parts[1].Trim());
+
+        Console.Write($"Value for {variable} on '{server}' (typing is hidden, Enter to store, empty to cancel): ");
+        var value = ReadHidden();
+        Console.WriteLine();
+
+        if (value.Length == 0)
+        {
+            Console.WriteLine("Nothing entered; nothing changed.");
+            return 1;
+        }
+
+        try
+        {
+            SecretStore.WriteFor(server, variable, value);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not store it: {ex.Message}");
+            return 3;
+        }
+
+        Console.WriteLine($"Stored, sealed to {Environment.UserName} on this machine.");
+        Console.WriteLine($"Add \"Secrets\": [\"{variable}\"] to the '{server}' entry in config.json if it is not there,");
+        Console.WriteLine("then restart her. The value is never written to config.json or to her log.");
+
+        /* The one piece of advice that stops the commonest failure. DPAPI seals to an
+           account, so a secret stored by a person and read back by a service running as
+           LocalSystem is unopenable — indistinguishable, from the server's side, from never
+           having been stored at all. README says the same about the API key. */
+        Console.WriteLine();
+        Console.WriteLine("If her service logs on as LocalSystem rather than as you, it will not be able");
+        Console.WriteLine("to open this. services.msc -> Octavia -> Log On -> This account.");
+
+        return 0;
+    }
+
+    /// Reads a line without echoing it, and without leaving it in the console buffer for the
+    /// next person to scroll back to.
+    private static string ReadHidden()
+    {
+        var typed = new System.Text.StringBuilder();
+
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+
+            if (key.Key == ConsoleKey.Enter) return typed.ToString();
+            if (key.Key == ConsoleKey.Escape) return "";
+
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (typed.Length > 0) typed.Length--;
+                continue;
+            }
+
+            // Control characters are not part of a password and would otherwise be stored.
+            if (!char.IsControl(key.KeyChar)) typed.Append(key.KeyChar);
+        }
+    }
 
     /// What the service is doing, in one line, for a person rather than a script.
     private static int ReportService()

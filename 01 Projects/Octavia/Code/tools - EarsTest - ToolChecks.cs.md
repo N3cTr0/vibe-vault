@@ -44,7 +44,8 @@ internal static class ToolChecks
                 ["house"] = new()
                 {
                     Command = pwsh,
-                    Args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script]
+                    Args = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
+                    Secrets = ["HOUSE_PASSWORD"]
                 }
             }
         };
@@ -56,7 +57,7 @@ internal static class ToolChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("tools were listed", tools.Count == 3, $"{tools.Count}");
+        Check("tools were listed", tools.Count == 4, $"{tools.Count}");
 
         // Names are prefixed by server, so two integrations may both offer get_state.
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("house__")),
@@ -87,6 +88,41 @@ internal static class ToolChecks
         // able to be told it was wrong.
         var missing = (await registry.CallAsync("house__nonsense", stateArgs)).Text;
         Check("an unknown tool answers rather than throws", missing.Contains("no tool"), missing);
+
+        /* **A sealed secret reaching the child process, without ever being in `config.json`.**
+
+           The UniFi threat feed needs a password, and a password does not belong beside an
+           API key in a file that is safe to read over somebody's shoulder. So a server may
+           declare `Secrets`, and the values are filled at spawn from `SecretStore`.
+
+           Checked in both directions, because the failure that matters is silent: a server
+           handed nothing reports a login failure, which sends a person to check the account
+           when the real answer is that nothing was ever stored — or that it was stored by a
+           different Windows account, which DPAPI treats identically. The mock reports the
+           *length* and never the value; a check that a secret arrived must not be a way to
+           print one. */
+        var before = (await registry.CallAsync("house__house_secret_check", stateArgs)).Text;
+        Check("with nothing stored, no secret arrives", before.Contains("no secret"), before);
+
+        SecretStore.WriteFor("house", "HOUSE_PASSWORD", "not-a-real-password");
+
+        try
+        {
+            await using var sealedRegistry = new ToolRegistry(config);
+            await sealedRegistry.StartAsync();
+
+            var after = (await sealedRegistry.CallAsync("house__house_secret_check", stateArgs)).Text;
+            Check("a stored secret reaches the server", after.Contains("secret arrived"), after);
+            Check("...whole, and not truncated", after.Contains("19 characters"), after);
+        }
+        finally
+        {
+            // Never left behind: a test that stores a credential and forgets it is a test
+            // that has changed the machine it ran on.
+            SecretStore.ClearFor("house", "HOUSE_PASSWORD");
+        }
+
+        Check("...and is cleared away afterwards", !SecretStore.HasFor("house", "HOUSE_PASSWORD"));
 
         /* A spoken yes, and how narrowly it counts.
 

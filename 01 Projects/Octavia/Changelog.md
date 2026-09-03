@@ -16,6 +16,57 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.43.0 — 2026-09-03
+
+**A tool server can be given a secret without it being written in `config.json`.**
+
+The UniFi threat feed needs a login, because the API key reaches no event history at all.
+The owner made a read-only local account for it — and a **password does not belong beside an
+API key in a file that is safe to read over somebody's shoulder.** The key already being
+there was not a reason to repeat the mistake to stay consistent with it.
+
+So `McpServer` gained `Secrets`: a list of environment variable names whose values are filled
+at spawn from `SecretStore`, DPAPI-sealed to the Windows account that wrote them. The value is
+never in `config.json`, never in her log, and never on a command line — where every account on
+the machine could read it out of the process list, which is the same reason `Env` exists at
+all rather than `Args`.
+
+`SecretStore` is named secrets now rather than one hard-coded API key file. **The key's own
+entropy and filename are unchanged and must stay that way**: DPAPI will not open a blob sealed
+with different entropy, so a tidy-up there would log everybody out of their own key with no
+way back but pasting it again.
+
+### Typed once, in the one place it cannot leak
+
+```
+Octavia.Server.exe --secret unifi:UNIFI_PASSWORD
+```
+
+Read with the echo off, sealed, and forgotten. Not into Settings, which would put it on the
+wire; not onto a command line; not into the config file.
+
+It also says the thing that causes the commonest failure, at the moment somebody is standing
+in front of it: **DPAPI seals to an account**, so a secret stored by a person and read back by
+a service running as LocalSystem is unopenable — and, from the server's side, indistinguishable
+from never having been stored.
+
+### Missing is not empty
+
+A declared secret with nothing stored is **left unset rather than passed as `""`**. A server
+handed an empty password reports a login failure, which sends somebody to check the account
+and the account's password when the real answer is that nothing was ever stored. The log says
+which variable was missing and the exact command that stores it.
+
+### Checked in both directions
+
+The mock house server gained `house_secret_check`, which reports whether a secret arrived and
+**how long it was — never the value.** A check that a secret was delivered must not be a way
+to print one. Both directions are asserted, because the failure that matters here is silent,
+and the stored test secret is cleared in a `finally`: a test that leaves a credential behind
+has changed the machine it ran on.
+
+---
+
 ## 0.42.0 — 2026-09-03
 
 **She can speak first.** Stage 18, the machinery half.
