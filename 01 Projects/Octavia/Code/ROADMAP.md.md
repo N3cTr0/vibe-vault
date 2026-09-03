@@ -412,7 +412,7 @@ state and her mood.
 adapter — no CUDA, three cores — and both routes need a real NVIDIA card. Unreal, the
 MetaHuman and Audio2Face all wait for that machine. Nothing else in this stage does.
 
-## Stage 9 — Eyes and hands *(gate done 08/30/2026; eyes built; a camera arrived 09/01/2026, still unopened)*
+## Stage 9 — Eyes and hands *(gate done 08/30/2026; eyes built; a USB webcam plugged in 09/01/2026, never yet used)*
 
 - Camera frames to the brain on demand (Sonnet is multimodal; "can you see me?" works).
 - Presence detection locally so she notices you arrive.
@@ -704,7 +704,7 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
 
 ---
 
-## Stage 11a — She should hear the room, not just the machine *(found 08/31/2026)*
+## ~~Stage 11a — She should hear the room, not just the machine~~ *(found, built and verified 08/31/2026, v0.16.0)*
 
 **Her music sense taps WASAPI loopback, which is what *this computer* is playing.** Music
 from a speaker in the same room — another PC, a phone, a hi-fi — never reaches it. It
