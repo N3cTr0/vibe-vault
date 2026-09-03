@@ -411,3 +411,41 @@ It now says she has tools, that a request needing one should **call it rather th
 Replayed against `qwen2.5:7b-cpu`, the exchange that failed now calls the tool on both turns and answers truthfully — including *"it is already on, so there's nothing to do"*, which was.
 
 > **A capability is added in code; the prompt is a different file.** Nothing made them move together, and nothing failed when they diverged — the drift is invisible because a model given a false statement about itself simply obeys it. Three checks pin it now. See [[Lessons Learned]].
+
+## Three more, after asking the appliance what it would allow *(v0.50.0)*
+
+A [[UniFi API#A full survey of the appliance (09/03/2026, v0.49.2)|full survey]] came first, probed rather than read. Thirteen tools now — nine reads and four writes.
+
+### `list_firewall_rules` — read, and only read
+
+**Reading the firewall is nearly all of the value and none of the risk.** A wrong sentence about a rule costs a sentence; a wrong change to one can take the house off the internet from another room, with no undo she can offer. There is no code here that writes one, and the classification is pinned so that stays true by accident as well as by intent.
+
+**66 rules, 65 enabled, and listing them plainly is useless.** They are the default matrix between six zones, so the names repeat — "Allow All Traffic" nine times — and a flat list is thirty-five lines that say nothing. It answers by zone pair, naming the **catch-all**:
+
+```
+Internal to External: allow by default (Allow All Traffic), with 3 more specific rules before it
+External to Internal: block by default (Block All Traffic), with 2 more specific rules before it
+```
+
+UniFi walks rules in order, so the last one decides whatever the specific rules did not match. Reporting "allow and block" — true of nearly every pair here — is not an answer to anything.
+
+Anything added by hand is called out separately, because on this gateway exactly one thing has been: **`VPN Emby`, Vpn to Internal, allow, currently off** — which nobody had mentioned and the tool found on its first run.
+
+### The search that could not ask the only question anyone asks
+
+The first version matched the query as one substring, and *"what does the firewall do between the hotspot and my internal network"* arrives as `Hotspot Internal` — not a substring of any rule name or either zone. So it answered **"no firewall rule matches"**, and the model, handed *no rules*, concluded there were none and told her the Hotspot could reach the Internal network. The opposite of the truth, stated confidently.
+
+Every word must now match something about a rule, so `Hotspot Internal` means rules touching both zones. **A search that cannot express "between these two" is worse than no search**, because its empty answer is indistinguishable from an empty firewall. See [[Lessons Learned]].
+
+### `restart_device` and `set_client_access`
+
+| a port | `POWER_CYCLE`, and nothing else |
+|---|---|
+| a device | `RESTART`, and nothing else |
+| a client | `AUTHORIZE_GUEST_ACCESS`, `UNAUTHORIZE_GUEST_ACCESS` |
+
+All three established the same way — an invalid action, and the gateway names the valid set.
+
+**Restarting the gateway is not restarting an access point**, and the reply says which one you are getting: the UDM is the router, the switch, the DNS server and the thing the tool is talking through. It is also the one write here that does **not** verify afterwards, deliberately — a restarting device is unreachable for minutes, and polling would hold the call open past its timeout to prove only that a reboot is slow. It reports that the request was accepted, which is exactly what it knows.
+
+> **Neither happy path was fired.** The suite exercises both to their guards and stops: nothing in it reboots a gateway or cuts a client off, for the same reason nothing power-cycles a real port. The action names are proven; the effects are the owner's to try on something they choose.

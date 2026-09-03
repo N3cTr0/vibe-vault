@@ -70,7 +70,7 @@ internal static class UnifiChecks
         if (!registry.Any) return failures;
 
         var tools = await registry.ListAsync();
-        Check("all ten tools were listed", tools.Count == 10, $"{tools.Count}");
+        Check("all thirteen tools were listed", tools.Count == 13, $"{tools.Count}");
         Check("names are namespaced", tools.All(t => t.Name.StartsWith("unifi__")),
               string.Join(", ", tools.Select(t => t.Name)));
 
@@ -87,7 +87,7 @@ internal static class UnifiChecks
            classification silently drops to `Act`, which she may perform on her own. So both
            directions are pinned here: the reads must stay reads, and the one write must stay
            a `Confirm`. */
-        string[] writes = ["unifi__power_cycle_port", "unifi__set_port_power"];
+        string[] writes = ["unifi__power_cycle_port", "unifi__set_port_power", "unifi__restart_device", "unifi__set_client_access"];
 
         var shouldRead = tools.Where(t => !writes.Contains(t.Name) && t.Risk != ToolRisk.Read).ToList();
         Check("every read is judged a read", shouldRead.Count == 0,
@@ -201,6 +201,62 @@ internal static class UnifiChecks
            English and very different in effect: one reboots a camera, the other leaves it
            dark until somebody says otherwise. The descriptions point at each other so the
            model can tell them apart, and that is what this pins. */
+        /* **The firewall, which is read-only on purpose and has to stay that way.**
+
+           It is the one tool here that reads something a person would be alarmed to have
+           changed by accident, and the protection is that no code exists to change it. That
+           is only true for as long as nobody adds it, so the classification is pinned like
+           everything else — and the summary is asserted for shape, because 66 rules rendered
+           flat is 35 near-identical lines and the useful answer is the zone pairs. */
+        var fw = (await registry.CallAsync("unifi__list_firewall_rules", Empty())).Text;
+
+        Check("the firewall reads as zones rather than 66 rules",
+              fw.Contains(" to ") && fw.Contains("firewall rules"), Head(fw));
+
+        Check("...and it says it cannot change anything",
+              fw.Contains("cannot change it"), Head(fw));
+
+        Check("...and names a rule somebody added by hand, or says there are none",
+              fw.Contains("added by hand") || fw.Contains("Nobody has added"), Head(fw));
+
+        var fwOne = (await registry.CallAsync(
+            "unifi__list_firewall_rules", Args("""{"query":"zzz-no-such-zone"}"""))).Text;
+
+        Check("...and an unknown zone lists the real ones",
+              fwOne.Contains("The zones are"), Head(fwOne));
+
+        /* The two new writes, up to their guards and no further. **Nothing here reboots a
+           gateway or cuts a client off**, for the same reason nothing power-cycles a real
+           port: a green suite must not be able to take the house off the internet. */
+        var noDevice2 = (await registry.CallAsync(
+            "unifi__restart_device", Args("""{"device":"zzz-no-such-device"}"""), confirmed: true)).Text;
+
+        Check("restarting a device that does not exist is refused",
+              noDevice2.Contains("no network device matching"), Head(noDevice2));
+
+        var restartUnasked = (await registry.CallAsync(
+            "unifi__restart_device", Args("""{"device":"UDM"}"""))).Text;
+
+        Check("...and nothing reboots without a yes",
+              restartUnasked.Contains("needs the person to say yes"), Head(restartUnasked));
+
+        var noClient = (await registry.CallAsync(
+            "unifi__set_client_access", Args("""{"client":"zzz-nothing","on":false}"""), confirmed: true)).Text;
+
+        Check("cutting off a client that does not exist is refused",
+              noClient.Contains("Nothing connected matches"), Head(noClient));
+
+        var noWay = (await registry.CallAsync(
+            "unifi__set_client_access", Args("""{"client":"zzz-nothing"}"""), confirmed: true)).Text;
+
+        Check("...and it will not guess on or off either", noWay.Contains("On, or off?"), Head(noWay));
+
+        var cutUnasked = (await registry.CallAsync(
+            "unifi__set_client_access", Args("""{"client":"zzz-nothing","on":false}"""))).Text;
+
+        Check("...and nothing is cut off without a yes",
+              cutUnasked.Contains("needs the person to say yes"), Head(cutUnasked));
+
         var cycleTool = tools.First(t => t.Name == "unifi__power_cycle_port");
         var setTool = tools.First(t => t.Name == "unifi__set_port_power");
 

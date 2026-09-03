@@ -16,6 +16,72 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.50.0 — 2026-09-03
+
+**Three more things she can do, after asking the appliance what it would allow.**
+
+A full survey of the UDM came first — probed rather than read, because there is no OpenAPI
+spec on this firmware for either application and because a documented claim nobody tested is
+what put an unnecessary account password in the secret store for months. Full findings in the
+vault's UniFi API deep dive. The short of it: **only Network `10.6.102` and Protect `7.2.105`
+are installed** — `access`, `talk`, `connect`, `drive` and `innerspace` answer `200` with 1236
+bytes of the UniFi OS HTML shell, identical for every path, which a probe scoring on status
+alone would report as five applications that are not there.
+
+### `list_firewall_rules` — read, and only read
+
+Reading the firewall is nearly all of the value and none of the risk. A wrong sentence about a
+rule costs a sentence; a wrong *change* can take the house off the internet from another room
+with no undo she can offer. There is no code here that writes one.
+
+**66 rules, 65 enabled, and listing them plainly is useless.** They are the default matrix
+between six zones, so the names repeat — "Allow All Traffic" nine times, "Block Invalid
+Traffic" six — and a flat list is thirty-five lines that say nothing. It answers by zone pair,
+and names the **catch-all** rather than the set of actions present:
+
+```
+Internal to External: allow by default (Allow All Traffic), with 3 more specific rules before it
+External to Internal: block by default (Block All Traffic), with 2 more specific rules before it
+```
+
+UniFi walks the rules in order, so the last one decides anything the specific rules did not
+match. Reporting "allow and block" — true of nearly every pair — is not an answer.
+
+Anything a person added by hand is called out separately, because on this gateway exactly one
+thing has been: **`VPN Emby`, Vpn to Internal, allow, currently off.**
+
+### `restart_device` and `set_client_access`
+
+`RESTART` is the only action a device accepts and `AUTHORIZE_GUEST_ACCESS` /
+`UNAUTHORIZE_GUEST_ACCESS` the only two a client accepts — both established the way
+`POWER_CYCLE` was, by sending an invalid action and reading the refusal.
+
+**Restarting the gateway is not like restarting an access point**, and the reply says which
+one you are getting: the UDM is the router, the switch, the DNS server and the thing the tool
+is talking through, so rebooting it takes the network down with it. It is also the one write
+here that does not verify afterwards, deliberately — a device that is restarting is
+unreachable for minutes, and polling would hold the call open past its timeout to prove only
+that a reboot is slow. It says the request was accepted, which is exactly what it knows.
+
+### A search that could not ask the only question anyone asks
+
+The first version matched the query as one substring. *"What does the firewall do between the
+hotspot and my internal network"* reaches the tool as `Hotspot Internal`, which is not a
+substring of any rule name or either zone — so it answered **"no firewall rule matches"**, and
+the model, handed *no rules*, concluded there were none and said the Hotspot could reach the
+Internal network. Confidently, and backwards.
+
+Every word must now match something about a rule, so `Hotspot Internal` means rules touching
+both zones. **A search that cannot express "between these two" is worse than no search**: its
+empty answer is indistinguishable from an empty firewall.
+
+### What was not tested, and why
+
+The two new writes were exercised to their guards and no further. Nothing in the suite reboots
+a gateway or cuts a client off, for the same reason nothing power-cycles a real port — a green
+suite must not be able to take the house off the internet. The action names are proven; the
+happy path of each is not, and is the owner's to try on something they choose.
+
 ## 0.49.2 — 2026-09-03
 
 **She said the port was back on. It was off.**

@@ -17,19 +17,35 @@ source-path: tools\unifi-mcp.ps1
   something that had nothing in the house to break.
 
   It speaks JSON-RPC 2.0 over stdio exactly as `mock-mcp.ps1` does, because that one was
-  written to be the shape a real server would take. Eight tools - seven reads and, since
-  v0.41.0, **one that changes something**:
+  written to be the shape a real server would take. Thirteen tools - nine reads and, since
+  v0.41.0, **four that change something**:
 
-    list_devices      the network hardware, with state and firmware
-    list_clients      everything connected, which is also how presence is answered
-    get_status        gateway load, memory, uptime and current throughput
-    find_client       search the connected list by name, address or MAC
-    list_ports        switch ports: link, speed, and whether PoE is supplying power
-    power_cycle_port  **writes.** Restarts PoE power on one port - off, then on again
-    set_port_power    **writes.** Switches one port's PoE off, or on, and leaves it there
-    recent_threats    the security log, grouped by which client set it off
-    list_cameras      UniFi Protect's cameras and whether they are reachable
-    look_at_camera    a still from one camera, as a picture
+    list_devices         the network hardware, with state and firmware
+    list_clients         everything connected, which is also how presence is answered
+    get_status           gateway load, memory, uptime and current throughput
+    find_client          search the connected list by name, address or MAC
+    list_ports           switch ports: link, speed, and whether PoE is supplying power
+    list_firewall_rules  which zones reach which, and anything added by hand
+    recent_threats       the security log, grouped by which client set it off
+    list_cameras         UniFi Protect's cameras and whether they are reachable
+    look_at_camera       a still from one camera, as a picture
+
+    power_cycle_port     **writes.** Restarts PoE power on one port - off, then on again
+    set_port_power       **writes.** Switches one port's PoE off, or on, and leaves it there
+    restart_device       **writes.** Reboots an access point, or the gateway itself
+    set_client_access    **writes.** Lets one client onto the network, or takes it off
+
+  **What the API will do, established by asking it rather than reading about it.** Sending a
+  deliberately invalid action makes the gateway name the valid set, which is how all three of
+  these were settled and how they stay settled when the firmware moves:
+
+    a port    POWER_CYCLE, and nothing else
+    a device  RESTART, and nothing else
+    a client  AUTHORIZE_GUEST_ACCESS, UNAUTHORIZE_GUEST_ACCESS
+
+  The firewall is **read and never written**. Reading it is nearly all of the value and none
+  of the risk: a wrong sentence about a rule costs a sentence, and a wrong change to one can
+  take the house off the internet from another room with no undo she can offer.
 
   **Two APIs, not one.** Everything reads through the official local Integration API. The one
   thing that API cannot do is leave a port switched off - its only port action is
@@ -599,6 +615,258 @@ function Set-PortPower([string]$query, $port, $on) {
 }
 
 <#
+  The firewall, read and never written.
+
+  **Reading it is almost all of the value and none of the risk**, which is why it is the
+  whole of this tool. A wrong answer about a rule costs a sentence; a wrong *change* to one
+  can take the house off the internet from another room, and there is no undo she can offer.
+
+  **66 policies and 35 of them enabled, and listing them plainly is useless.** They are the
+  default matrix between six zones, so the names repeat - "Allow All Traffic" appears nine
+  times, "Block Invalid Traffic" six - and a flat list is thirty-five lines that say nothing.
+  What a person means by "what is my firewall doing" is the *zone pairs*: Internal to
+  External allows everything, Hotspot to Internal blocks it. So that is what it answers.
+
+  **Anything not SYSTEM_DEFINED is called out first**, because on this gateway nothing is,
+  and the first rule somebody adds by hand is the one they will later ask about.
+#>
+function Get-Firewall([string]$query) {
+  $site = Get-SiteId
+
+  $zones = @{}
+  foreach ($z in (Invoke-Unifi "sites/$site/firewall/zones?limit=50").data) { $zones[$z.id] = $z.name }
+
+  $all = (Invoke-Unifi "sites/$site/firewall/policies?limit=200").data
+  if (-not $all) { return 'The gateway returned no firewall policies at all.' }
+
+  $named = $all | ForEach-Object {
+    $from = if ($_.source.zoneId -and $zones[$_.source.zoneId]) { $zones[$_.source.zoneId] } else { 'anywhere' }
+    $to = if ($_.destination.zoneId -and $zones[$_.destination.zoneId]) { $zones[$_.destination.zoneId] } else { 'anywhere' }
+    [pscustomobject]@{
+      Name = $_.name; From = $from; To = $to
+      Action = $_.action.type; Enabled = [bool]$_.enabled
+      Logging = [bool]$_.loggingEnabled
+      Index = [int64]$_.index
+      Custom = ($_.metadata.origin -ne 'SYSTEM_DEFINED')
+    }
+  }
+
+  <# **Every word has to match something, rather than the whole phrase matching one thing.**
+
+     The obvious `-like "*$query*"` reads fine and fails on the only question anyone actually
+     asks: *"what does the firewall do between the hotspot and my internal network"* arrives
+     as `Hotspot Internal`, which is not a substring of any rule name or either zone, so it
+     answered "no firewall rule matches". A model handed *no rules* concluded there were none
+     and said the Hotspot could reach the Internal network - the exact opposite of the truth,
+     confidently. **A search that cannot express "between these two" is worse than no search**,
+     because its empty answer is indistinguishable from an empty firewall. #>
+  if ($query) {
+    $words = @($query -split '[^A-Za-z0-9_-]+' | Where-Object { $_.Length -gt 0 })
+
+    $hits = @($named | Where-Object {
+      $rule = $_
+      # Every word must appear somewhere in the rule. "Hotspot Internal" therefore means
+      # rules touching both zones, and "block hotspot" means blocking rules touching one.
+      @($words | Where-Object {
+        $rule.Name -like "*$_*" -or $rule.From -like "*$_*" -or $rule.To -like "*$_*" -or
+        $rule.Action -like "*$_*"
+      }).Count -eq $words.Count
+    })
+
+    if ($hits.Count -eq 0) {
+      return "No firewall rule mentions all of '$query'. The zones are: " +
+             "$((($zones.Values | Sort-Object) -join ', ')). Rules are named things like " +
+             "'Allow All Traffic' and 'Block Invalid Traffic'."
+    }
+
+    $lines = @("$($hits.Count) firewall rule(s) matching '$query':")
+    foreach ($r in ($hits | Sort-Object From, To, Name)) {
+      $state = if ($r.Enabled) { 'on' } else { 'off' }
+      $lines += "  $($r.From) to $($r.To): $($r.Action.ToLowerInvariant()) - $($r.Name) ($state)"
+    }
+    return $lines -join "`n"
+  }
+
+  $on = @($named | Where-Object { $_.Enabled })
+  $custom = @($named | Where-Object { $_.Custom })
+
+  $lines = @("$($all.Count) firewall rules, $($on.Count) of them switched on, across these zones: " +
+             "$((($zones.Values | Sort-Object) -join ', ')).")
+  $lines += ''
+  $lines += 'What the enabled rules do, by zone:'
+
+  <# Grouped, because the interesting fact is "Internal to External allows everything" and
+     the nine rules adding up to it are not.
+
+     **The last rule by index is the answer**, not the set of actions present. UniFi walks
+     them in order and the catch-all at the end decides anything the specific rules did not
+     match, so a pair with both an allow and a block reported as "allow and block" says
+     nothing at all - it is true of nearly every pair here. The catch-all is named, and the
+     rules sitting in front of it are counted rather than listed. #>
+  foreach ($g in ($on | Group-Object { "$($_.From) to $($_.To)" } | Sort-Object Name)) {
+    $ordered = @($g.Group | Sort-Object Index)
+    $last = $ordered[-1]
+    $before = $ordered.Count - 1
+
+    $tail = if ($before -eq 0) { '' }
+            elseif ($before -eq 1) { ', with 1 more specific rule before it' }
+            else { ", with $before more specific rules before it" }
+
+    $lines += "  $($g.Name): $($last.Action.ToLowerInvariant()) by default ($($last.Name))$tail"
+  }
+
+  $lines += ''
+  if ($custom.Count -eq 0) {
+    $lines += 'Every one of them is a UniFi default. Nobody has added a rule of their own here.'
+  } else {
+    $lines += "$($custom.Count) rule(s) were added by hand rather than by UniFi:"
+    foreach ($r in $custom) {
+      $state = if ($r.Enabled) { 'on' } else { 'off' }
+      $lines += "  $($r.From) to $($r.To): $($r.Action.ToLowerInvariant()) - $($r.Name) ($state)"
+    }
+  }
+
+  $logging = @($named | Where-Object { $_.Logging })
+  if ($logging.Count -eq 0) {
+    $lines += 'None of them log what they block, so the security log will not say which rule matched.'
+  }
+
+  $lines += 'This reads the firewall and cannot change it.'
+  $lines -join "`n"
+}
+
+<#
+  Any network device by name, for the tools that are not about PoE.
+
+  `Resolve-PoeDevice` answers a narrower question and is kept separate on purpose: a restart
+  is meaningful for an access point that supplies no power at all, and folding the two would
+  have this refuse the most likely thing anyone asks it to reboot.
+#>
+function Resolve-Device([string]$query) {
+  $site = Get-SiteId
+  $devices = (Invoke-Unifi "sites/$site/devices?limit=50").data
+  if (-not $devices) { return 'The gateway lists no devices.' }
+
+  if (-not $query) {
+    if ($devices.Count -eq 1) { return $devices[0] }
+    return "Which one? There is: $((($devices.name) -join ', '))."
+  }
+
+  $hits = @($devices | Where-Object { $_.name -like "*$query*" -or $_.model -like "*$query*" })
+  if ($hits.Count -eq 0) { return "There is no network device matching '$query'. There is: $((($devices.name) -join ', '))." }
+  if ($hits.Count -gt 1) { return "More than one device matches '$query': $((($hits.name) -join ', ')). Say which." }
+  $hits[0]
+}
+
+<#
+  Restarting a piece of network hardware.
+
+  `RESTART` is the only action a *device* accepts, established the same way the port's was -
+  by sending an invalid one and reading the refusal.
+
+  **Restarting the gateway is not like restarting an access point**, and the difference is
+  worth a sentence rather than a shrug: the UDM is the router, the switch, the DNS server and
+  the thing this tool is talking through. Rebooting it takes the whole network down for
+  several minutes, this server's own connection with it, and any call she is in the middle of.
+  So the gateway is named explicitly in the answer, and a person confirming a reboot is told
+  which of the two they are getting.
+
+  Nothing is verified afterwards, and that is a deliberate exception to the rule the two PoE
+  tools follow. A device that is restarting is unreachable for minutes; polling for it would
+  hold the tool call open long past its timeout and prove only that a reboot is slow. What is
+  checked is that the request was *accepted* - and the wording says exactly that much, rather
+  than claiming the reboot has finished.
+#>
+function Restart-Device([string]$query) {
+  $site = Get-SiteId
+  $chosen = Resolve-Device $query
+  if ($chosen -is [string]) { return $chosen }
+
+  $isGateway = $chosen.model -like '*Dream Machine*' -or $chosen.model -like '*UDM*' -or $chosen.model -like '*Gateway*'
+
+  try {
+    Invoke-RestMethod -Uri "$base/sites/$site/devices/$($chosen.id)/actions" `
+      -Method Post -SkipCertificateCheck -TimeoutSec 30 `
+      -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+      -ContentType 'application/json' -Body '{"action":"RESTART"}' | Out-Null
+  }
+  catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    return "The gateway refused to restart $($chosen.name) (HTTP $code). It is still running."
+  }
+
+  if ($isGateway) {
+    "$($chosen.name) has been told to restart. It is the gateway, so the whole network - " +
+    'including this connection - goes down with it for a few minutes. Nothing else will answer until it is back.'
+  } else {
+    "$($chosen.name) has been told to restart. It takes a couple of minutes to come back, and " +
+    'anything connected through it is offline until then.'
+  }
+}
+
+<#
+  Letting one client onto the network, or taking it off.
+
+  `AUTHORIZE_GUEST_ACCESS` and `UNAUTHORIZE_GUEST_ACCESS` are the only two actions a *client*
+  accepts. They move `access.type` between `DEFAULT` and the blocked state, which is what is
+  read back afterwards - the answer says what the gateway reports, not what was asked for.
+
+  **The client is found the way a person names one**, by part of a name, an address or a MAC,
+  because nobody says "unauthorise 4efb4cde-b0ae-3e7d-beef-d71091482222". An ambiguous name
+  lists the matches rather than picking, for the same reason the PoE tools do: guessing wrong
+  cuts off the wrong person's device.
+#>
+function Set-ClientAccess([string]$query, $on) {
+  if (-not $query) { return 'Which device? Give a name, an address or a MAC.' }
+  if ($null -eq $on) { return 'On, or off? That has to be said.' }
+
+  $wanted = [bool]$on
+  $site = Get-SiteId
+  $clients = (Invoke-Unifi "sites/$site/clients?limit=200").data
+
+  $hits = @($clients | Where-Object {
+    $_.name -like "*$query*" -or $_.ipAddress -like "*$query*" -or $_.macAddress -like "*$query*"
+  })
+
+  if ($hits.Count -eq 0) { return "Nothing connected matches '$query'." }
+  if ($hits.Count -gt 1) {
+    return "More than one thing matches '$query': $((($hits.name) -join ', ')). Say which."
+  }
+
+  $client = $hits[0]
+  $action = if ($wanted) { 'AUTHORIZE_GUEST_ACCESS' } else { 'UNAUTHORIZE_GUEST_ACCESS' }
+
+  try {
+    Invoke-RestMethod -Uri "$base/sites/$site/clients/$($client.id)/actions" `
+      -Method Post -SkipCertificateCheck -TimeoutSec 30 `
+      -Headers @{ 'X-API-KEY' = $apiKey; 'Accept' = 'application/json' } `
+      -ContentType 'application/json' -Body "{`"action`":`"$action`"}" | Out-Null
+  }
+  catch {
+    $code = $_.Exception.Response.StatusCode.value__
+    $why = if ($code -eq 400) {
+      ' The gateway would only do this for a client on a guest network, and this one is not on it.'
+    } else { '' }
+    return "The gateway refused to change access for $($client.name) (HTTP $code).$why It is unchanged."
+  }
+
+  # Accepted is not done, the same as everywhere else here.
+  $seen = $null
+  foreach ($attempt in 1..8) {
+    Start-Sleep -Milliseconds 900
+    $seen = ((Invoke-Unifi "sites/$site/clients?limit=200").data | Where-Object { $_.id -eq $client.id })
+    if (-not $seen) { break }
+    if ($wanted -and $seen.access.type -eq 'DEFAULT') { break }
+    if (-not $wanted -and $seen.access.type -ne 'DEFAULT') { break }
+  }
+
+  $now = if (-not $seen) { 'gone from the network entirely' } else { "reported as '$($seen.access.type)'" }
+  $did = if ($wanted) { 'allowed onto the network' } else { 'taken off the network' }
+
+  "$($client.name) at $($client.ipAddress) has been $did, and the gateway now has it $now."
+}
+
+<#
   Protect answers on the same appliance, to the same key, with a flat array rather than the
   Network API's paged envelope - so this one reads `$cameras` directly and not `.data`.
 
@@ -739,6 +1007,38 @@ $tools = @(
     }
   },
   @{
+    name        = 'list_firewall_rules'
+    annotations = @{ readOnlyHint = $true }
+    description = 'Read the firewall: which zones can reach which, what is allowed or blocked between them, and whether anybody has added a rule by hand. Give part of a rule or zone name to see just those. This reads the firewall and cannot change it.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{ query = @{ type = 'string'; description = 'Part of a rule name or a zone name, such as Internal or Hotspot. Omitted means a summary of all of them.' } }
+    }
+  },
+  @{
+    name        = 'restart_device'
+    annotations = @{ destructiveHint = $true }
+    description = 'Restart a piece of network hardware - an access point, or the gateway itself. Anything connected through it goes offline for a few minutes. Restarting the gateway takes the entire network down, including this connection. This reboots the hardware; to reboot something plugged into a port instead, use power_cycle_port.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{ device = @{ type = 'string'; description = 'Device name or part of one, as shown by list_devices' } }
+      required   = @('device')
+    }
+  },
+  @{
+    name        = 'set_client_access'
+    annotations = @{ destructiveHint = $true }
+    description = 'Allow one connected device onto the network, or take it off. Name it the way a person would - part of its name, its IP address or its MAC. Taking a device off cuts its connection until it is allowed back on. The gateway only does this for clients on a guest network.'
+    inputSchema = @{
+      type       = 'object'
+      properties = @{
+        client = @{ type = 'string'; description = 'Name, IP address or MAC, or part of one' }
+        on     = @{ type = 'boolean'; description = 'true to allow it onto the network, false to cut it off' }
+      }
+      required   = @('client', 'on')
+    }
+  },
+  @{
     name        = 'recent_threats'
     annotations = @{ readOnlyHint = $true }
     description = 'Read the security log: intrusion attempts the gateway detected and blocked, grouped by which client set them off. Optionally since a moment in time. This is a read of history and changes nothing.'
@@ -818,6 +1118,9 @@ while ($true) {
           'list_ports' { Get-Ports $callArgs.device }
           'power_cycle_port' { Restart-PortPower $callArgs.device $callArgs.port }
           'set_port_power' { Set-PortPower $callArgs.device $callArgs.port $callArgs.on }
+          'list_firewall_rules' { Get-Firewall $callArgs.query }
+          'restart_device' { Restart-Device $callArgs.device }
+          'set_client_access' { Set-ClientAccess $callArgs.client $callArgs.on }
           'recent_threats' { Get-Threats $callArgs.format $callArgs.since }
           'list_cameras' { Get-Cameras }
           'look_at_camera' {
