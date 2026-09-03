@@ -21,6 +21,13 @@ using SherpaOnnx;
            spoken and everything queued behind it.
      out   raw 16-bit little-endian mono PCM on stdout, at the rate printed on stderr,
            written as it is generated rather than when the utterance is finished.
+     mark  after each utterance, `\x01end <n>` on stderr, where n is the running total of
+           samples written to stdout since this process started. That is the boundary
+           nothing else could supply: audio is written as it is generated, so the stream
+           itself has no gap or header to say where one sentence stops and the next begins.
+           **The count travels with the marker rather than the host counting stderr against
+           stdout**, because they are two pipes with two buffers and their order relative to
+           each other is not a promise. A number is a fact whenever it arrives.
      log   everything else on stderr, which the host drains into her log.
 
    Deliberately the same shape Piper had, because that side was already written and proven:
@@ -93,6 +100,10 @@ Console.Error.WriteLine($"kokoro ready: {tts.SampleRate} Hz, {tts.NumSpeakers} s
 var queue = new BlockingCollection<string>(new ConcurrentQueue<string>());
 var abandoned = 0;
 
+/* Every sample written to stdout since startup. Only ever touched on the speaking thread,
+   which is the only thread that writes audio. */
+var produced = 0L;
+
 var speaking = new Thread(() =>
 {
     // Held in a local rather than made per utterance: a delegate passed to native code and
@@ -120,6 +131,7 @@ var speaking = new Thread(() =>
         {
             audio.Write(pcm, 0, pcm.Length);
             audio.Flush();
+            produced += count;
         }
         catch (IOException)
         {
@@ -150,6 +162,13 @@ var speaking = new Thread(() =>
         {
             Console.Error.WriteLine($"could not say it: {ex.Message}");
         }
+
+        /* Where this utterance's audio ends. Emitted even when the utterance was abandoned
+           mid-word, and even when it produced nothing at all: the host counts these to know
+           which sentence is being heard, and a missing one would put every sentence after it
+           permanently out of step. A boundary that lands in the same place as the last is
+           still a boundary. */
+        Console.Error.WriteLine($"{Control}end {produced}");
 
         if (Volatile.Read(ref abandoned) != 0 && queue.Count == 0) Volatile.Write(ref abandoned, 0);
     }

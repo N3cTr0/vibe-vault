@@ -84,6 +84,12 @@ source-path: src\Octavia.Core\wwwroot\index.html
       <span id="speaker">&nbsp;</span>
       <p id="caption" class="muted">Press the microphone, or say her name.</p>
     </div>
+
+    <!-- What survived the status readout going off by default: the version, and whether
+         she is thinking here or somewhere else. Two facts that change, in the corner,
+         faint enough to be furniture — rather than five that mostly do not, in a panel
+         across the room she is standing in. -->
+    <span id="stamp" aria-hidden="true"></span>
   </div>
 
   <div id="console">

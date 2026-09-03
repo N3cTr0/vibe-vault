@@ -30,8 +30,11 @@ namespace Octavia.Voice;
 /// `Program.cs`.
 internal sealed class KokoroVoice : IVoice
 {
-    /// Playback drained and nothing new arriving for this long ends the utterance. The
-    /// engine marks nothing, so quiet is the only signal there is.
+    /// Playback drained and nothing new arriving for this long ends the *run*.
+    ///
+    /// The engine marks the end of each utterance and says nothing about the end of a reply,
+    /// which is the right division: it is handed sentences one at a time and has no idea
+    /// whether another is coming. Quiet is still the only signal for that.
     private static readonly TimeSpan Settled = TimeSpan.FromMilliseconds(320);
 
     /// A control word rather than something to say. Speech text has its control characters
@@ -69,6 +72,57 @@ internal sealed class KokoroVoice : IVoice
     {
         get => _aloud;
         set => _aloud = value;
+    }
+
+    /* ---- which sentence she is actually on ------------------------------------------
+
+       **The engine says where each utterance's audio ends; the `Pacer` says how far the
+       audio has got.** Neither alone is a speech clock. Sentences are handed to the engine
+       and generated as fast as it can manage, so nothing upstream of here knows what is
+       being *heard* — which is how a caption that followed the writing ended up showing the
+       last sentence while she was still saying the first.
+
+       Both counts are in samples and both are absolute since the engine started, so they
+       are directly comparable and there is no arithmetic to get wrong. They are resynced at
+       the top of each speaking run rather than accumulated for ever, because a hush throws
+       away buffered audio that was counted as received and will never be paced. */
+    private long _receivedSamples;
+    private long _pacedSamples;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<long> _bounds = new();
+    private int _spoken;
+
+    /// Raised as each sentence *finishes being heard*, with its index in the current run.
+    public event Action<int>? Spoke;
+
+    /// The sample count on an end-of-utterance marker, or null for an ordinary log line.
+    ///
+    /// `\x01end <n>`. The marker carries the count rather than the host counting stderr
+    /// against stdout, because those are two pipes with two buffers and their order relative
+    /// to one another is not a promise. A number is a fact whenever it arrives.
+    internal static long? Boundary(string line) =>
+        line.Length > 5 && line[0] == Control &&
+        line.AsSpan(1).StartsWith("end ", StringComparison.Ordinal) &&
+        long.TryParse(line.AsSpan(5), out var edge)
+            ? edge
+            : null;
+
+    /// Every boundary the paced audio has now passed.
+    ///
+    /// Called from two threads — the stderr reader and the clock — because either can be the
+    /// one that makes a boundary true: a short sentence is already fully paced by the time
+    /// its marker arrives, and a long one is marked long before it is heard.
+    private void Crossed()
+    {
+        while (true)
+        {
+            lock (_gate)
+            {
+                if (!_bounds.TryPeek(out var edge) || Interlocked.Read(ref _pacedSamples) < edge) return;
+                _bounds.TryDequeue(out _);
+            }
+
+            Spoke?.Invoke(_spoken++);
+        }
     }
 
     public event Action<double, string?>? Viseme;
@@ -135,6 +189,16 @@ internal sealed class KokoroVoice : IVoice
             _engine.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data is not { Length: > 0 }) return;
+
+                // A boundary rather than something to log. At one per sentence these would
+                // otherwise be most of what the log contains.
+                if (Boundary(e.Data) is { } edge)
+                {
+                    _bounds.Enqueue(edge);
+                    Crossed();
+                    return;
+                }
+
                 Log.Debug($"kokoro: {e.Data}");
 
                 var at = e.Data.IndexOf(" Hz", StringComparison.Ordinal);
@@ -191,6 +255,9 @@ internal sealed class KokoroVoice : IVoice
                 _lastAudio = DateTime.UtcNow;
                 _awaitingAudio = false;
                 _buffer?.AddSamples(buffer, 0, read);
+
+                // 16-bit mono, so two bytes is one sample — the unit the engine counts in.
+                Interlocked.Add(ref _receivedSamples, read / 2);
             }
         }
         catch (Exception ex) when (!_disposed)
@@ -204,6 +271,15 @@ internal sealed class KokoroVoice : IVoice
     /// with what is heard rather than with what has been generated.
     private void OnAudioPlayed(ReadOnlySpan<byte> pcm)
     {
+        /* **This is the speech clock.** The `Pacer` pulls at the sample rate, so audio
+           arriving here is audio that is being heard right now — which is the whole reason
+           this method is where the sentence count advances rather than anywhere upstream. */
+        if (pcm.Length > 0)
+        {
+            Interlocked.Add(ref _pacedSamples, pcm.Length / 2);
+            Crossed();
+        }
+
         /* Tee to any face that asked for her voice, before the visemes are read, so the two
            leave from the same buffer at the same instant.
 
@@ -290,6 +366,17 @@ internal sealed class KokoroVoice : IVoice
 
             if (!_speaking)
             {
+                /* A run starts counted from where the last one ended, not from zero.
+
+                   The engine's totals are absolute since it launched, so the two sides stay
+                   comparable — but a hush throws away buffered audio that was *received* and
+                   will never be *paced*, which would leave the paced count permanently short
+                   and every sentence after it firing late. Resyncing here, while nothing is
+                   in flight, is the one moment both counts are known to agree. */
+                _bounds.Clear();
+                _spoken = 0;
+                Interlocked.Exchange(ref _pacedSamples, Interlocked.Read(ref _receivedSamples));
+
                 _speaking = true;
                 Started?.Invoke();
             }

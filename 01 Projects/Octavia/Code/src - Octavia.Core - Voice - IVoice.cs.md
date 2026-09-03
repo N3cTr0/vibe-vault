@@ -19,6 +19,14 @@ internal interface IVoice : IDisposable
     event Action<double, string?>? Viseme;
 
     /// She has started an utterance, and has finished everything queued.
+    /// Raised as each sentence finishes being *heard*, with its index in the current run.
+    ///
+    /// **Not when it was handed over.** A voice that generates faster than it speaks — which
+    /// is every voice worth having — makes those two different moments, and anything drawing
+    /// what she is saying needs the second one. A voice that cannot tell them apart simply
+    /// never raises this, and a caption that follows it stays where it is.
+    event Action<int>? Spoke;
+
     event Action? Started;
     event Action? Finished;
 

@@ -16,6 +16,115 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.51.0 — 2026-09-03
+
+**The caption follows her voice, properly this time.**
+
+v0.50.1 shipped this by following the *writing* and was reverted the same evening, because
+the host re-captions after each sentence and that looks like a speech clock without being
+one — `Say` hands a line to the engine and returns. A brain that outruns its voice therefore
+put the last sentence on screen while she was still saying the first.
+
+Nothing in the system knew where her voice was. Three of the four pieces existed:
+
+| `Pacer` | Pulls audio at the sample rate, so **paced samples is a true speech clock**. It was built to be her clock when the sound card went away, and it still is |
+|---|---|
+| the face | Receives audio paced and in order |
+| `KokoroVoice` | Sees every frame through the tap, so it can count |
+| **missing** | Nothing said where one utterance's audio ended and the next began |
+
+### The marker
+
+`octavia-kokoro` now writes `\x01end <n>` on stderr after each utterance, where `n` is the
+running total of samples written to stdout since it launched.
+
+**The count travels with the marker rather than the host counting stderr against stdout**,
+because those are two pipes with two buffers and their order relative to each other is not a
+promise. A number is a fact whenever it arrives.
+
+It is emitted even for an utterance that was abandoned mid-word, and even for one that
+produced no audio at all. The host counts these to know which sentence is being heard, so a
+missing one would put every sentence after it permanently out of step; a boundary landing in
+the same place as the last is still a boundary.
+
+### The clock
+
+`KokoroVoice` keeps two totals in samples, both absolute since the engine launched so they
+are directly comparable: what has been **received** from stdout, and what the `Pacer` has
+**released** — the second being audio that is being heard right now. When the paced count
+passes a boundary, `Spoke(index)` says that sentence has been heard.
+
+Both counts resync at the top of each speaking run rather than accumulating for ever, because
+a hush throws away buffered audio that was counted as received and will never be paced, which
+would leave the paced count permanently short and every later sentence firing late.
+
+### The cue
+
+`sayingAt` carries the **character range** of that sentence within the caption text the face
+already has — not the sentence itself. Two copies of a sentence are two things that can
+disagree; an offset into the one already on screen cannot.
+
+It is sent from both directions, because either side can be the one that is late: a brain
+that outruns the voice composes the sentence long before the cue, and a brain that lags it
+gets the cue for a sentence that does not exist yet. Whichever arrives second lands.
+
+The face scrolls the range into view, one line of lead-in above it, and only when it is
+actually outside the box. Not `scrollIntoView`, which scrolls every scrollable ancestor and
+would move the whole page to chase a caption that was already visible.
+
+### The room to herself
+
+Three things, and they are one thing.
+
+**The status readout is off by default.** It was on, because it answers most of the questions
+somebody asks about her — true on the day she is set up, and false every day after, when the
+answers are the same as yesterday's and five lines of telemetry are lying across the room she
+is standing in.
+
+**What survived of it is a version and a word**, bottom right, at 28% opacity: `0.51.0 · local`.
+Those are the two facts that actually change. `local` or `cloud` is *where the thinking
+happens* rather than which model — cloud is the one worth saying out loud, because it means
+her side of the conversation is leaving the building. Re-read on every `hello`, since the
+profile can be switched under her and a stale `local` is worse than no word at all.
+
+The setting still exists and still turns the panel back on. The default moved; the choice did
+not.
+
+### Smoother than the browser's own
+
+> *"Make it smoother, it was still jumping."*
+
+`scrollTo({behavior:'smooth'})` moved eighty pixels in about three frames. Its duration is the
+browser's business and is tuned for a person clicking a link, where *getting there* is the
+point. Here the travel is the point — she is reading a line out loud, and the caption should
+arrive about when she does.
+
+So the tween is ours: `easeInOutCubic`, scaled by distance and capped, over a request-animation
+frame loop. A sentence-length hop is now four hundred milliseconds across ten frames rather
+than sixty across one.
+
+A hand on the wheel cancels it. Without that, reaching in to re-read a line is a tug of war
+with an animation still running, which feels like the caption fighting back.
+
+### Watched, this time
+
+```
+t=1.2   93 chars   scrollTop 0
+t=19.2  357 chars  scrollTop 0     ← the whole reply has arrived, the caption has not moved
+t=23.5  357 chars  scrollTop 237   ← she is still speaking
+t=25.5  357 chars  scrollTop 316
+```
+
+The text stopped growing at 19.2 seconds and the caption went on advancing for another six.
+Nothing but the audio clock could have moved it.
+
+`EarsTest -- voice` pins the two-process contract: three markers parsed and eight things that
+must not be mistaken for one, including her engine's own log lines and the marker without its
+control character. **That seam is the one most likely to rot silently** — a marker that
+stopped being recognised would not throw, would not log, and would not stop her speaking. The
+caption would simply go back to sitting still, which is what it did before any of this
+existed and is therefore invisible.
+
 ## 0.50.1 — 2026-09-03
 
 **A long answer used to cover her up.**

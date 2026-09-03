@@ -146,9 +146,15 @@ internal sealed class OctaviaConfig
     public bool MusicFromRoom { get; set; }
 
     /// Whether the status readout — voice, ears, brain, music, profile — is shown over
-    /// her top-left corner. On by default because it answers most of the questions
-    /// someone asks about her; off is the setting for actually looking at her.
-    public bool ShowStats { get; set; } = true;
+    /// her top-left corner.
+    ///
+    /// **Off by default since v0.51.0.** It was on, on the argument that it answers most of
+    /// the questions somebody asks about her — which is true on the day she is set up and
+    /// false every day after, when the answer is the same as it was yesterday and the panel
+    /// is five lines of telemetry across the room she is standing in. What survived of that
+    /// argument is the version and the brain, which are the two that change; they are a
+    /// faded line in the corner now. See `index.html`.
+    public bool ShowStats { get; set; } = false;
 
     /// Whether the face offers its dev panel, which drives every performance she can
     /// give by hand. Null follows the profile — on for `dev`, off for `live` — which is

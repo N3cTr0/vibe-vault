@@ -28,6 +28,7 @@ if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.Ru
 if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "baseline") { Environment.Exit(BaselineChecks.Run()); }
+if (args.Length > 0 && args[0] == "voice") { Environment.Exit(VoiceChecks.Run()); }
 if (args.Length > 0 && args[0] == "unifi") { Environment.Exit(await UnifiChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "confirm") { await ToolLoopProbe.ConfirmAsync(); return; }
 if (args.Length > 2 && args[0] == "ask")
@@ -187,6 +188,10 @@ Console.WriteLine();
 Console.WriteLine("her rounds:");
 failures += await RoundChecks.RunAsync();
 failures += BaselineChecks.Run();
+
+Console.WriteLine();
+Console.WriteLine("her voice:");
+failures += VoiceChecks.Run();
 
 Console.WriteLine();
 Console.WriteLine("the wake word:");

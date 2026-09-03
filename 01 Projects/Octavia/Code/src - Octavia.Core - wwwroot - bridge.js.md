@@ -246,6 +246,7 @@ const cameraSel = el('cameraDevice');
 const keyIn = el('key');
 const keyRow = el('keyrow');
 const statsChk = el('stats');
+const stampEl = el('stamp');
 const textIn = el('text');
 const hushBtn = el('hush');
 
@@ -414,6 +415,12 @@ function receive(msg) {
 
     case 'caption':
       caption(msg.text, msg.who, msg.tentative);
+      break;
+
+    // Which sentence she is *hearing herself say*. See showSaying().
+    case 'sayingAt':
+      captionRange = { from: msg.from, to: msg.to };
+      showSaying();
       break;
 
     case 'turn':
@@ -856,6 +863,12 @@ function applyHello(msg) {
     statsChk.checked = !!msg.stats;
     document.body.classList.toggle("no-stats", !msg.stats);
   }
+
+  /* The corner stamp. Re-read on every `hello`, because the profile can be switched under
+     her and the brain moves with it — a version that is right and a "local" that is stale
+     is worse than neither, since the whole point of the word is that it says where her
+     side of the conversation is going. */
+  if (msg.version) stampEl.textContent = msg.where ? `${msg.version} · ${msg.where}` : msg.version;
 
   if (msg.cameraDevice !== undefined) wantedCamera = msg.cameraDevice;
 
@@ -1370,25 +1383,72 @@ document.addEventListener('keydown', e => {
 
 /* ── placard, transcript, notices ────────────────────────── */
 
-/* **It does not follow her voice, because nothing here knows where her voice is.**
+/* **The caption follows her voice, and only her voice.**
 
-   The first version of this tailed to the bottom on every update, on the reasoning that
-   the host re-captions after each sentence so the text must grow in step with the
-   speaking. It does not. `KokoroVoice.Say` writes a line to the engine's stdin and
-   returns immediately — the *`Pacer`* is what makes audio real time — so the caption is
-   paced by how fast the brain **generates**, and a brain that outruns the voice puts the
-   last sentence on screen while she is still saying the first.
+   The first attempt followed the *writing*: the host re-captions after each sentence, which
+   looks like a speech clock and is not one, because `Say` hands a line to the engine and
+   returns. A brain that outruns its voice therefore put the last sentence on screen while
+   she was still saying the first — *"it didn't follow her, I was watching."*
 
-   Watched happening, on the second turn after it shipped: *"it didn't follow her, she was
-   still saying the top stuff when it switched to the bottom."*
+   So the host now says which sentence is being heard, as `sayingAt` with the character
+   range of that sentence in the text already on screen. Behind it: the engine marks where
+   each utterance's audio ends, and `KokoroVoice` compares those marks against the audio the
+   `Pacer` has actually released. Nothing here estimates anything.
 
-   So it holds at the top of each reply, which is where she starts, and moves only when a
-   person moves it. A caption that sits still is merely limited; one that jumps to a line
-   she has not reached is **wrong**, and it is wrong once per sentence.
-
-   Following it properly needs a signal that does not exist yet: the engine marking where
-   each utterance's audio ends, and the paced position crossing it. See ROADMAP.md. */
+   A range rather than the sentence itself, because the words are already here and two
+   copies of a sentence are two things that can disagree. */
 let captionShown = '';
+let captionRange = null;
+
+/* Somebody who has asked the system for less movement gets the jump, which is the honest
+   trade: the cut is abrupt and the glide is motion, and only one of those is optional.
+   Read once — the same call `face.js` makes for her breathing. */
+const captionStill = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let captionGlide = null;
+
+/* **The browser's own smooth scroll was not smooth enough**, and the measurement says why:
+   `scrollTo({behavior:'smooth'})` moved eighty pixels in about three frames. Its duration
+   is the browser's business and it is tuned for a person clicking a link, where getting
+   there is the point. Here the *travel* is the point — she is reading a line out loud and
+   the caption should arrive about when she does.
+
+   So the tween is ours: eased both ends, and long enough to read as movement rather than
+   as a new position. Scaled by distance so a short hop is not given the same second as a
+   long one, and capped so a big jump does not become a journey. */
+function glide(to) {
+  if (captionGlide) cancelAnimationFrame(captionGlide);
+
+  const from = captionEl.scrollTop;
+  const travel = to - from;
+  if (Math.abs(travel) < 1) return;
+
+  if (captionStill) { captionEl.scrollTop = to; captionEdges(); return; }
+
+  const ms = Math.min(1100, 420 + Math.abs(travel) * 4);
+  const began = performance.now();
+
+  const step = now => {
+    const p = Math.min(1, (now - began) / ms);
+
+    // easeInOutCubic: leaves slowly, arrives slowly, and does neither in the middle.
+    const eased = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+    captionEl.scrollTop = from + travel * eased;
+    captionEdges();
+
+    captionGlide = p < 1 ? requestAnimationFrame(step) : null;
+  };
+
+  captionGlide = requestAnimationFrame(step);
+}
+
+/* A hand on the wheel wins. Without this, reaching in to re-read a line is a tug of war
+   with an animation that is still running, which feels like the caption fighting back. */
+for (const stop of ['wheel', 'pointerdown', 'touchstart'])
+  captionEl.addEventListener(stop, () => {
+    if (captionGlide) { cancelAnimationFrame(captionGlide); captionGlide = null; }
+  }, { passive: true });
 
 /* Which edges have text beyond them. A few pixels of slack, because sub-pixel line
    heights mean "at the bottom" is almost never exactly zero. */
@@ -1401,6 +1461,50 @@ function captionEdges() {
 
 captionEl.addEventListener('scroll', captionEdges);
 
+/* Bring the sentence she is on into view, and no further.
+   `scrollIntoView` is the obvious call and the wrong one: it scrolls every scrollable
+   ancestor, so on a short reply it moves the whole page to chase a caption that was
+   already visible. This moves one box, only when the sentence is actually outside it. */
+function showSaying() {
+  if (!captionRange) return;
+
+  const node = captionEl.firstChild;
+  if (!node || node.nodeType !== Node.TEXT_NODE) return;
+
+  const len = node.textContent.length;
+  const from = Math.min(captionRange.from, len);
+  const to = Math.min(captionRange.to, len);
+  if (to <= from) return;
+
+  const r = document.createRange();
+  r.setStart(node, from);
+  r.setEnd(node, to);
+
+  const box = captionEl.getBoundingClientRect();
+  const line = r.getBoundingClientRect();
+  if (!line.height) return;
+
+  // Its top, less one line of lead-in, so the sentence she is on is not jammed against
+  // the top edge with everything she has already said hidden behind it.
+  const lead = parseFloat(getComputedStyle(captionEl).lineHeight) || 0;
+  const above = line.top - box.top + captionEl.scrollTop - lead;
+  const below = line.bottom - box.bottom + captionEl.scrollTop;
+
+  let top = null;
+  if (line.top < box.top) top = Math.max(0, above + lead);
+  else if (line.bottom > box.bottom) top = below;
+  if (top === null) return;
+
+  /* Glided rather than cut. A sentence is worth about one line, and a one-line jump every
+     few seconds reads as a twitch beside a face that is otherwise breathing — the movement
+     is what tells you it moved, so it has to be the movement that carries the meaning.
+
+     `scrollTo` rather than `scroll-behavior` in the stylesheet, because a new turn has to
+     snap: gliding from the middle of the last answer up to the top of this one animates
+     past text she is not saying, which is the very thing this release was about. */
+  glide(top);
+}
+
 function caption(text, who, tentative, extra) {
   const shown = text || '…';
 
@@ -1410,6 +1514,7 @@ function caption(text, who, tentative, extra) {
      one turn leaves the scroll exactly where the person put it. */
   const fresh = !shown.startsWith(captionShown);
   captionShown = shown;
+  if (fresh) captionRange = null;
 
   captionEl.textContent = shown;
   captionEl.className = !text ? 'muted' : (extra || '');
@@ -1417,8 +1522,16 @@ function caption(text, who, tentative, extra) {
 
   // After `className`, which has just wiped all three of these off.
   captionEl.classList.toggle('long', captionEl.scrollHeight > captionEl.clientHeight + 1);
-  if (fresh) captionEl.scrollTop = 0;
+  // A new turn snaps, and cancels anything still gliding through the last one.
+  if (fresh) {
+    if (captionGlide) { cancelAnimationFrame(captionGlide); captionGlide = null; }
+    captionEl.scrollTop = 0;
+  }
   captionEdges();
+
+  // The text she is on may have only just arrived — the cue naming it can land before the
+  // words do, whenever the voice is keeping up with the writing.
+  showSaying();
 
   speakerEl.textContent = who || ' ';
   stayAwhile();

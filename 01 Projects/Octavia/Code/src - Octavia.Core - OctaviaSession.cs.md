@@ -433,7 +433,16 @@ internal sealed class OctaviaSession : IDisposable
         voice.Viseme += (openness, shape) =>
             ToRoom(_attending, new { type = "viseme", value = openness, shape });
 
-        voice.Started += () => SetState(RoomNamed(_attending), AgentState.Speaking);
+        voice.Started += () =>
+        {
+            SetState(RoomNamed(_attending), AgentState.Speaking);
+            Saying(0);
+        };
+
+        // Each sentence, as it finishes being heard. `Spoke(k)` means she has just moved on
+        // to k+1 — see `KokoroVoice`, where the two counts that establish it are kept.
+        voice.Spoke += finished => Saying(finished + 1);
+
         voice.Finished += OnVoiceFinished;
 
         // A voice engine that would not start is about *her*, not about a room, so every
@@ -846,6 +855,15 @@ internal sealed class OctaviaSession : IDisposable
         musicAvailable = _musicHere.Known,
         camera = room.Camera,
         stats = _config.ShowStats,
+
+        /* The two facts from the status readout that actually change, kept when the rest of
+           it went off by default. A face draws them small in a corner rather than as a panel.
+
+           `where` is *where the thinking happens*, not which model — "cloud" is the one worth
+           saying out loud, because it means her side of the conversation is leaving the
+           building. `Description` already carries the model name for anyone who wants it. */
+        version = Diagnostics.SystemReport.Version,
+        where = _config.Brain == "claude" ? "cloud" : "local",
 
         // What a face has to know to play her voice, announced rather than assumed. The
         // rate comes from the live voice's own model config, so it changes with the voice
@@ -1905,6 +1923,9 @@ internal sealed class OctaviaSession : IDisposable
 
         var reply = new StringBuilder();
 
+        lock (_sayingGate) _saying.Clear();
+        Volatile.Write(ref _sayingNow, 0);
+
         try
         {
             /* `DateTimeOffset.Now`, read here rather than anywhere earlier: the answer has to
@@ -1919,10 +1940,29 @@ internal sealed class OctaviaSession : IDisposable
             {
                 if (cancel.IsCancellationRequested) break;
 
-                reply.Append(reply.Length > 0 ? " " : "").Append(sentence);
+                if (reply.Length > 0) reply.Append(' ');
+                var from = reply.Length;
+                reply.Append(sentence);
+
+                /* Where this sentence sits in the text the face is about to be given, so a
+                   cue can name it without sending the words a second time. Two copies of the
+                   same sentence are two things that can disagree; an offset into the one the
+                   face already has cannot. */
+                int index;
+                lock (_sayingGate)
+                {
+                    index = _saying.Count;
+                    _saying.Add((from, reply.Length));
+                }
+
                 ToRoom(room.Id, new { type = "caption", who = "Octavia", text = reply.ToString() });
                 Feel(room, Moods.Read(sentence));
                 _voice.Say(sentence);
+
+                // She may already be waiting on this one: on a slow brain the voice catches
+                // up with the writing, and the cue that would have named it fired before it
+                // existed.
+                if (index == Volatile.Read(ref _sayingNow)) Saying(index);
             }
 
             if (reply.Length > 0)
@@ -2039,6 +2079,35 @@ internal sealed class OctaviaSession : IDisposable
     {
         _turn?.Cancel();
         _voice.Hush();
+    }
+
+    /* ---- which sentence she is on ---------------------------------------------------
+
+       Written on the turn's thread as each sentence is composed, read on the voice's clock
+       thread as each one is heard. Character offsets into the caption text rather than the
+       text itself: the face already has the words, and is only being told which of them she
+       has reached. */
+    private readonly List<(int From, int To)> _saying = [];
+    private readonly object _sayingGate = new();
+    private int _sayingNow;
+
+    /// Tell the room which sentence she is speaking, if it has been composed yet.
+    ///
+    /// Silently does nothing when it has not — a brain that outruns its voice is the normal
+    /// case and a brain that lags it is the other one, so this is called from both sides and
+    /// whichever arrives second is the one that lands.
+    private void Saying(int index)
+    {
+        Volatile.Write(ref _sayingNow, index);
+
+        (int From, int To) where;
+        lock (_sayingGate)
+        {
+            if (index < 0 || index >= _saying.Count) return;
+            where = _saying[index];
+        }
+
+        ToRoom(_attending, new { type = "sayingAt", from = where.From, to = where.To });
     }
 
     private void OnVoiceFinished()

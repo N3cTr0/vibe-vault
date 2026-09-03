@@ -196,6 +196,18 @@ body.quiet #placard{opacity:0}
 /* Overheard: present, legible, clearly not conversation. */
 #caption.overheard{opacity:.5;font-style:italic;font-size:var(--t-caption-quiet)}
 #caption.err{color:var(--alert)}
+/* Bottom right, inside the stage, and deliberately hard to notice. It sits *under* the
+   placard's z-index so a three-line caption is never competing with it, and it does not
+   fade with the room the way the placard does — the version is not part of the
+   conversation, it is a label on the machine. */
+#stamp{
+  position:absolute;right:var(--s5);bottom:calc(var(--s4) / 2);z-index:1;
+  font-family:var(--mono);font-size:10px;letter-spacing:var(--track);
+  color:var(--room-ink);opacity:.28;pointer-events:none;user-select:none;
+  transition:color 1s linear,opacity .4s ease;
+}
+#stamp:empty{opacity:0}
+
 #speaker{
   font-family:var(--mono);font-size:10px;letter-spacing:var(--track);text-transform:uppercase;
   color:var(--room-ink);opacity:.45;margin-bottom:8px;transition:color 1s linear;

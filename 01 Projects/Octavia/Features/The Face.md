@@ -92,25 +92,60 @@ Three lines is `3.75em` against a `1.25` line-height, so it is three lines at ev
 
 ![[v0.50.1 - three lines at the bottom, holding where she started.png]]
 
-### The second half of the request is not built, and the first attempt was wrong
+### And then it did follow her *(v0.51.0)*
 
-*"Depending on where she is with saying it"* was shipped and immediately reverted, because the reasoning behind it was false.
-
-`OctaviaSession` re-captions after each sentence, which looked like a speech clock — so the first version tailed to the bottom on every update. It is not one. **`KokoroVoice.Say` writes a line to the engine's stdin and returns**; the [[The Voice|`Pacer`]] is what makes audio real time. So the caption is paced by how fast the *brain generates*, and a brain that outruns the voice puts the last sentence on screen while she is still saying the first.
+The first attempt at *"depending on where she is with saying it"* followed the **writing** and was reverted the same evening. `OctaviaSession` re-captions after each sentence, which looks like a speech clock and is not one: `Say` hands a line to the engine and returns. A brain that outruns its voice put the last sentence on screen while she was still saying the first.
 
 > *"It didn't follow her, I was watching — she was still saying the top stuff when it switched to the bottom."*
 
-Caught on the second turn after it shipped, by the person watching her rather than by anything in the suite.
+Three of the four pieces already existed. The [[The Voice|`Pacer`]] pulls audio at the sample rate, so paced samples is a **true** speech clock — it was built to be her clock when the sound card went away. The face receives audio paced and in order. `KokoroVoice` sees every frame through the tap. What nothing said was **where one utterance's audio ended and the next began**.
 
-It holds at the top of each reply now, which is where she starts, and moves only when a person moves it. **A caption that sits still is merely limited; one that jumps to a line she has not reached is wrong, once per sentence.**
-
-### What following her would actually need
-
-No signal in the system says where her voice is. The pieces exist and one is missing:
-
-| The `Pacer` | Already pulls audio at real time, so *paced samples* is a true speech clock |
+| the engine | writes `\x01end <n>` on stderr after each utterance — the running total of samples it has written to stdout |
 |---|---|
-| The engine | Streams audio per utterance but **marks no boundary**, so nothing knows which samples belong to which sentence |
-| The face | Receives audio paced, and could advance a line when the played position crosses a boundary |
+| `KokoroVoice` | keeps two totals: received from stdout, and released by the `Pacer`. When the paced count passes a boundary, `Spoke(index)` fires |
+| `OctaviaSession` | sends `sayingAt` with that sentence's **character range** in the caption text |
+| the face | scrolls the range into view, one line of lead-in above it, and only when it is outside the box |
 
-So it needs `octavia-kokoro` to emit an end-of-utterance marker, `KokoroVoice` to record the paced offset it lands at, and a cue to the face. That is a change to the audio path and is written down rather than guessed at — see [[Roadmap]].
+**The count travels with the marker** rather than the host counting stderr against stdout: those are two pipes with two buffers and their order relative to each other is not a promise. A number is a fact whenever it arrives.
+
+**A range, not the sentence.** The face already has the words and is only being told which of them she has reached; two copies of a sentence are two things that can disagree.
+
+**The cue is sent from both directions**, because either side can be late: a brain that outruns the voice composes a sentence long before its cue, and a brain that lags gets a cue for a sentence that does not exist yet. Whichever arrives second lands.
+
+Not `scrollIntoView` — that scrolls every scrollable ancestor, so on a short reply it moves the whole page to chase a caption that was already visible.
+
+![[v0.51.0 - mid-sentence, on the line she is actually saying.png]]
+
+Eight sentences, composed in one burst at 22:20:45; the caption is on Mars and Venus with Mercury scrolled above and the next line faded. Watched in the browser too, which is the measurement that matters:
+
+```
+t=19.2  357 chars  scrollTop 0     ← the whole reply has arrived, the caption has not moved
+t=23.5  357 chars  scrollTop 237   ← she is still speaking
+t=25.5  357 chars  scrollTop 316
+```
+
+The text stopped growing at 19.2 seconds and the caption went on advancing for another six.
+
+> **`EarsTest -- voice` pins the two-process contract** — three markers parsed, eight things that must not be mistaken for one. That seam is the likeliest in the project to rot silently: a marker that stopped being recognised would not throw, would not log and would not stop her speaking. The caption would go back to sitting still, which is what it did before any of this existed. See [[Lessons Learned]].
+
+### Smoother than the browser's own *(same release)*
+
+> *"Make it smoother, it was still jumping."*
+
+`scrollTo({behavior:'smooth'})` moved eighty pixels in about three frames. Its duration is the browser's business and is tuned for a person clicking a link, where *getting there* is the point. Here the **travel** is the point — she is reading a line out loud and the caption should arrive about when she does.
+
+So the tween is ours: `easeInOutCubic` over a `requestAnimationFrame` loop, scaled by distance and capped, so a short hop is not given the same second as a long one. A sentence-length move is now four hundred milliseconds across ten frames rather than sixty across one.
+
+A hand on the wheel cancels it. Without that, reaching in to re-read a line is a tug of war with an animation that is still running, which feels like the caption fighting back.
+
+### The room to herself *(same release)*
+
+The status readout is **off by default** now. It was on, because it answers most of the questions somebody asks about her — true on the day she is set up, and false every day after, when the answers are the same as yesterday's and five lines of telemetry are lying across the room she is standing in.
+
+What survived of it is a version and a word, bottom right at 28% opacity: `0.51.0 · local`. Those are the two facts that actually change.
+
+**`local` or `cloud` is where the *thinking* happens**, not which model — cloud is the one worth saying out loud, because it means her side of the conversation is leaving the building. Re-read on every `hello`, since the profile can be switched under her and a stale `local` is worse than no word at all.
+
+The setting still exists and still turns the panel back on. The default moved; the choice did not.
+
+![[v0.51.0 - the room to herself, with a version in the corner.png]]
