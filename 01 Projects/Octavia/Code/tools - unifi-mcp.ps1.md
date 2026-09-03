@@ -636,8 +636,16 @@ function Get-Firewall([string]$query) {
   $zones = @{}
   foreach ($z in (Invoke-Unifi "sites/$site/firewall/zones?limit=50").data) { $zones[$z.id] = $z.name }
 
-  $all = (Invoke-Unifi "sites/$site/firewall/policies?limit=200").data
+  <# **A page, and it says so when it is only a page.** 66 rules today and 200 asked for, so
+     this is not a live problem — but a firewall answered from a truncated list is the one
+     shape of wrong answer worth guarding against here, because it reads exactly like a
+     complete one. Somebody asking what their firewall does and being told about the first
+     two hundred rules has been told something false. #>
+  $page = Invoke-Unifi "sites/$site/firewall/policies?limit=200"
+  $all = $page.data
   if (-not $all) { return 'The gateway returned no firewall policies at all.' }
+
+  $missing = if ($page.totalCount -gt $all.Count) { $page.totalCount - $all.Count } else { 0 }
 
   $named = $all | ForEach-Object {
     $from = if ($_.source.zoneId -and $zones[$_.source.zoneId]) { $zones[$_.source.zoneId] } else { 'anywhere' }
@@ -729,6 +737,11 @@ function Get-Firewall([string]$query) {
   $logging = @($named | Where-Object { $_.Logging })
   if ($logging.Count -eq 0) {
     $lines += 'None of them log what they block, so the security log will not say which rule matched.'
+  }
+
+  if ($missing -gt 0) {
+    $lines += "This is the first $($all.Count) rules of $($page.totalCount); $missing were not read, so " +
+              'treat the summary above as incomplete.'
   }
 
   $lines += 'This reads the firewall and cannot change it.'

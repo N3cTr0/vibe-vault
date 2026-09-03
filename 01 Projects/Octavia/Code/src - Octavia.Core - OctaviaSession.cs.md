@@ -1854,7 +1854,13 @@ internal sealed class OctaviaSession : IDisposable
 
         _responding = true;
         _attending = room.Id;
+        /* Cancelled *and* disposed before it is replaced. Only the cancel was here, so every
+           turn left one behind — collectable rather than a handle leak, but a source with
+           anything still linked to it is exactly the case where that stops being true, and
+           `McpClient` links one per tool call. Disposing after the cancel is the documented
+           order: the callbacks have already run. */
         _turn?.Cancel();
+        _turn?.Dispose();
         _turn = new CancellationTokenSource();
         var cancel = _turn.Token;
 
@@ -2050,15 +2056,40 @@ internal sealed class OctaviaSession : IDisposable
             ToRoom(room.Id, new { type = "turn", who = "octavia", text = finding.Sentence });
             Feel(room, Moods.Read(finding.Sentence));
 
+            /* **A round speaks, so a round has to say where it is.**
+
+               `Say` raises `Started`, which cues the caption to sentence zero — and until
+               this was written that read `_saying` still holding the *last conversation
+               turn's* offsets, which describe text nobody is looking at any more. Mostly it
+               clamped to nothing and did nothing, which is the worst kind of wrong: correct
+               by accident, and waiting for a finding long enough to land inside the stale
+               range. Rounds use the same list as a turn does. */
+            lock (_sayingGate) _saying.Clear();
+            Volatile.Write(ref _sayingNow, 0);
+
             // Sentence by sentence, the same way a streamed reply is spoken, so a long
             // finding starts being heard before the last clause is synthesised.
             var pending = new StringBuilder(finding.Sentence);
-            foreach (var sentence in Speech.DrainSentences(pending)) _voice.Say(sentence);
+            var said = 0;
+
+            void Speak(string sentence)
+            {
+                var from = finding.Sentence.IndexOf(sentence, said, StringComparison.Ordinal);
+                if (from >= 0)
+                {
+                    lock (_sayingGate) _saying.Add((from, from + sentence.Length));
+                    said = from + sentence.Length;
+                }
+
+                _voice.Say(sentence);
+            }
+
+            foreach (var sentence in Speech.DrainSentences(pending)) Speak(sentence);
 
             // Whatever had no full stop on the end of it. A composed sentence usually does;
             // a dropped clause would be a silent truncation, which is the failure this
             // project keeps finding.
-            if (pending.Length > 0) _voice.Say(pending.ToString());
+            if (pending.Length > 0) Speak(pending.ToString());
 
             Log.Write($"unprompted, in room '{room.Id}': {finding.Sentence}");
             return true;
@@ -2107,6 +2138,9 @@ internal sealed class OctaviaSession : IDisposable
             where = _saying[index];
         }
 
+        var listening = FacesIn(_attending);
+        Log.Debug($"saying sentence {index} of {_saying.Count} in '{_attending}' " +
+                  $"({where.From}-{where.To}) to {listening.Length} face(s)");
         ToRoom(_attending, new { type = "sayingAt", from = where.From, to = where.To });
     }
 

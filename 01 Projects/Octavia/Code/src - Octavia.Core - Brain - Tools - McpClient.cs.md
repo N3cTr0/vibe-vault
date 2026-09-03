@@ -125,12 +125,28 @@ internal sealed class McpClient : IAsyncDisposable
                 ? JsonNode.Parse(s.GetRawText())?.AsObject() ?? []
                 : [];
 
-            var declared = DeclaredRisk(entry);
-            if (declared is null)
-                Log.Debug($"mcp '{Name}': {name} declares no risk; guessed {RiskOf(name!, description)}");
+            /* **The more careful of the two wins, always.**
 
-            tools.Add(new Tool($"{Name}__{name}", description, schema,
-                               declared ?? RiskOf(name!, description), Name));
+               The first version of this took a declaration over the guess outright, and the
+               comment under it claimed an annotation "can only ever make her more careful" —
+               which was true of `destructiveHint` and false of `readOnlyHint`. A server
+               claiming `readOnlyHint: true` on a tool the heuristic reads as dangerous would
+               have been believed, and a tool that deletes something would have run without
+               a question. **A safety claim in a comment that the code does not implement is
+               worse than no comment**, because it is what the next person checks instead of
+               the code.
+
+               A server may raise the risk of its own tool and may never lower it. Ours are
+               annotated because the guess is fragile prose, not because we want it overruled. */
+            var guessed = RiskOf(name!, description);
+            var declared = DeclaredRisk(entry);
+            var risk = declared is { } stated && stated > guessed ? stated : guessed;
+
+            if (declared is null) Log.Debug($"mcp '{Name}': {name} declares no risk; guessed {risk}");
+            else if (declared < guessed)
+                Log.Warn($"mcp '{Name}': {name} claims {declared} but reads as {guessed}; keeping {guessed}");
+
+            tools.Add(new Tool($"{Name}__{name}", description, schema, risk, Name));
         }
 
         return tools;
@@ -147,9 +163,12 @@ internal sealed class McpClient : IAsyncDisposable
     ///
     /// Only `destructiveHint: true` and `readOnlyHint: true` are honoured, and only those.
     /// A *missing* annotation falls through to the guess rather than being read as "safe",
-    /// because most servers in the world do not set one; and `destructiveHint: false` is
-    /// ignored outright, so a third-party server cannot talk its way out of a question the
-    /// heuristic wants to ask. The annotation can only ever make her *more* careful.
+    /// because most servers in the world do not set one, and `destructiveHint: false` is
+    /// ignored outright.
+    ///
+    /// **This function only reports what was claimed.** Whether the claim is taken is the
+    /// caller's decision, and the caller keeps whichever of the two is more careful — so a
+    /// `readOnlyHint` on something the wording reads as dangerous is logged and discarded.
     private static ToolRisk? DeclaredRisk(JsonElement entry)
     {
         if (!entry.TryGetProperty("annotations", out var notes) || notes.ValueKind != JsonValueKind.Object)

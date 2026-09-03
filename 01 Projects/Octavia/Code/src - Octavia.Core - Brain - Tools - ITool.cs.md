@@ -18,6 +18,10 @@ namespace Octavia.Brain.Tools;
 /// has misheard "turn the lights off" is one token away from having misheard something
 /// worse, and the difference between a wrong answer and a dark house is that the second
 /// one happened without anybody agreeing to it.
+/// **The order is load-bearing: greater means more careful.** `McpClient` takes the higher
+/// of what a server declares and what the wording suggests, so that a server may raise the
+/// risk of its own tool and never lower it. Reordering these silently changes which of the
+/// two wins; `ToolChecks` asserts the order for that reason.
 internal enum ToolRisk
 {
     /// Reads state and changes nothing. Ask her anything.

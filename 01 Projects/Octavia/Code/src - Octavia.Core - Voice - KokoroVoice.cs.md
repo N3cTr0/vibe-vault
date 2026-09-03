@@ -91,6 +91,10 @@ internal sealed class KokoroVoice : IVoice
     private readonly System.Collections.Concurrent.ConcurrentQueue<long> _bounds = new();
     private int _spoken;
 
+    /// Held only while cues are being emitted, and never together with `_gate` around a
+    /// handler. Separate from `_gate` so that draining cannot block `Say` or `Hush`.
+    private readonly object _emitGate = new();
+
     /// Raised as each sentence *finishes being heard*, with its index in the current run.
     public event Action<int>? Spoke;
 
@@ -108,20 +112,46 @@ internal sealed class KokoroVoice : IVoice
 
     /// Every boundary the paced audio has now passed.
     ///
-    /// Called from two threads — the stderr reader and the clock — because either can be the
-    /// one that makes a boundary true: a short sentence is already fully paced by the time
-    /// its marker arrives, and a long one is marked long before it is heard.
+    /// **Called from two threads** — the stderr reader and the clock — because either can be
+    /// the one that makes a boundary true: a short sentence is already fully paced by the
+    /// time its marker arrives, and a long one is marked long before it is heard.
+    ///
+    /// Which makes the counter the delicate part, and the first version of this got it
+    /// wrong: the dequeue was locked and `_spoken++` was not, so two threads could take one
+    /// boundary each and then both read the same index. A lost increment there does not
+    /// throw — it puts the caption on the wrong sentence, intermittently, which is the exact
+    /// failure this whole feature exists to prevent.
+    ///
+    /// So the index is taken under the same lock as the boundary, and **one thread emits at
+    /// a time** so the cues arrive in order. `TryEnter` rather than `lock`, because the
+    /// other caller is the audio clock and a clock that waits is a clock that stutters —
+    /// a skipped drain costs nothing, since the next frame is twenty milliseconds away and
+    /// calls this again.
     private void Crossed()
     {
-        while (true)
-        {
-            lock (_gate)
-            {
-                if (!_bounds.TryPeek(out var edge) || Interlocked.Read(ref _pacedSamples) < edge) return;
-                _bounds.TryDequeue(out _);
-            }
+        if (!Monitor.TryEnter(_emitGate)) return;
 
-            Spoke?.Invoke(_spoken++);
+        try
+        {
+            while (true)
+            {
+                int index;
+
+                lock (_gate)
+                {
+                    if (!_bounds.TryPeek(out var edge) || Interlocked.Read(ref _pacedSamples) < edge) return;
+                    _bounds.TryDequeue(out _);
+                    index = _spoken++;
+                }
+
+                // Outside `_gate` on purpose: a handler that reached back into this class
+                // would deadlock against `Say` and `Hush`, which hold it.
+                Spoke?.Invoke(index);
+            }
+        }
+        finally
+        {
+            Monitor.Exit(_emitGate);
         }
     }
 

@@ -71,7 +71,12 @@ internal static class ToolChecks
 
         Check("a read is judged a read", read?.Risk == ToolRisk.Read, $"{read?.Risk}");
         Check("a light is judged an act", act?.Risk == ToolRisk.Act, $"{act?.Risk}");
-        Check("an unlock demands confirming", danger?.Risk == ToolRisk.Confirm, $"{danger?.Risk}");
+        /* The mock declares `readOnlyHint: true` on its door lock — a server lying about
+           itself, which is the case that matters, because an annotation is written by
+           whoever wrote the server. The wording still reads as an unlock, and the more
+           careful of the two is what survives. */
+        Check("an unlock demands confirming even when the server claims it is read-only",
+              danger?.Risk == ToolRisk.Confirm, $"{danger?.Risk}");
 
         var stateArgs = JsonDocument.Parse("""{"entity":"the hall lamp"}""").RootElement;
         var answer = (await registry.CallAsync("house__house_get_state", stateArgs)).Text;
@@ -238,6 +243,19 @@ internal static class ToolChecks
            in every direction that could go wrong rather than only the happy one. The bias
            throughout is towards refusing: a yes misread as a no costs one repeated question,
            and a no misread as a yes costs whatever the tool does. */
+        /* **A server may raise the risk of its own tool, and may never lower it.**
+
+           `McpClient` keeps the higher of what a server declares and what the wording
+           suggests, which rests entirely on the enum being ordered least-careful first. The
+           first version took the declaration outright, under a comment claiming an
+           annotation "can only ever make her more careful" — true of `destructiveHint` and
+           false of `readOnlyHint`, so a server could have claimed read-only on something
+           that deletes and had it run without a question. **A safety claim in a comment the
+           code does not implement is worse than no comment**, because it is what the next
+           person checks instead of the code. */
+        Check("the risk order is least careful first",
+              ToolRisk.Read < ToolRisk.Act && ToolRisk.Act < ToolRisk.Confirm);
+
         /* **The system prompt is part of the tool loop, and it went stale for six releases.**
 
            It said *"You do not yet have eyes, hands, or access to the house. If asked to do

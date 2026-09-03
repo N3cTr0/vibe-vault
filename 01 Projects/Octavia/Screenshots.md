@@ -352,6 +352,7 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 | `v0.51.0 - mid-sentence, on the line she is actually saying` | Eight sentences composed in one burst, and the caption sitting on Mars and Venus with Mercury scrolled above and the next line faded. **Where her voice is, not where the writing got to** — the engine marks each utterance's audio and the `Pacer` says how far it has been heard |
 | `v0.51.0 - the room to herself, with a version in the corner` | The same thing after three refinements: the status readout off by default, the version faint in a corner, and the line she is on sharp between two faded ones. **That turned out to be the wrong corner** — see the next row |
 | `v0.51.1 - the version under her name` | Third placement and the last: under the wordmark, where the *In residence* eyebrow stood until v0.10.0. A label belongs with the name of the thing it labels |
+| `v0.51.2 - unchanged on the outside, five faults lighter` | An audit of the whole codebase rather than the week's changes. Nothing to see, which is the point: a cached `tools/list` failure, an annotation that could lower a tool's risk, a race on the sentence counter, a round cueing stale offsets, and a leaked token source |
 
 > **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
 

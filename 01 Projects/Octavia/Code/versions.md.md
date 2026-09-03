@@ -18,6 +18,80 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.51.2 — 2026-09-03
+
+**An audit of the whole thing, not only what changed today.** Five faults, and the two worst
+are both *"a transient problem becoming a permanent one, quietly"*.
+
+### A failed `tools/list` was cached like an answer
+
+`McpToolProvider` caches a server's tool list so it is not re-fetched every turn, which is
+right. It cached the **failure** the same way — one slow round trip, a server still starting,
+a gateway that blinked, and that server offered no tools for the rest of the process.
+
+She would then say she could not do the thing. Correctly, and for ever, with a single `warn`
+that had long since scrolled past. **That is the same sentence reported twice this month for
+two entirely different reasons**, which is what makes it worth naming: a symptom with three
+possible causes and no way to tell them apart is a design problem, not bad luck.
+
+A failure is no longer an answer, so it is not stored. The next turn asks again. The cost of
+being wrong that way is one round trip; the cost of the other way is a capability that never
+comes back.
+
+### An annotation could make her *less* careful
+
+v0.50.0 let a tool server declare its own risk, and took the declaration over the guess. The
+comment underneath claimed *"the annotation can only ever make her more careful"* — true of
+`destructiveHint`, and **false of `readOnlyHint`**. A server claiming read-only on something
+that deletes would have been believed, and the tool would have run with no question.
+
+A safety claim in a comment that the code does not implement is worse than no comment, because
+it is what the next person checks instead of the code.
+
+The higher of the two now wins: a server may raise the risk of its own tool and never lower
+it. That rests on the enum being ordered least-careful-first, so `ToolChecks` asserts the
+order — and `mock-mcp.ps1` now **lies on purpose**, claiming `readOnlyHint` on its door lock,
+so the check proves a misbehaving server is refused rather than proving our own honest one is
+accepted.
+
+### The sentence counter had a race
+
+`KokoroVoice.Crossed` is called from two threads — the stderr reader and the audio clock — and
+the dequeue was locked while `_spoken++` was not. Two threads could take one boundary each and
+read the same index. A lost increment there does not throw; it puts the caption on the wrong
+sentence, intermittently, which is exactly what the whole feature exists to prevent.
+
+The index is taken under the same lock as the boundary now, and one thread emits at a time so
+cues arrive in order — `TryEnter` rather than `lock`, because the other caller is the audio
+clock and a clock that waits is a clock that stutters. A skipped drain costs nothing: the next
+frame is twenty milliseconds away and calls it again.
+
+### A round cued the caption with the last conversation's offsets
+
+Rounds speak, and speaking raises `Started`, which cues sentence zero — against a list still
+holding the *previous turn's* character ranges. Mostly it clamped to nothing and did nothing,
+which is the worst kind of wrong: correct by accident, waiting for a finding long enough to
+land inside the stale range. Rounds fill the same list a turn does.
+
+### And two smaller ones
+
+- **`_turn` was cancelled and not disposed** before being replaced, once per turn. Collectable
+  rather than a handle leak, but `McpClient` links a source to it per tool call, and a linked
+  source is exactly where that stops being true.
+- **`list_firewall_rules` asked for 200 rules and never said whether that was all of them.**
+  66 today, so not a live problem — but a firewall answered from a truncated list reads exactly
+  like a complete one, and somebody told about the first two hundred rules has been told
+  something false. It says so now.
+
+### What was checked and found sound
+
+Worth writing down, so the next audit starts somewhere else: the face server's path handling
+(canonical resolve, fenced root, extension allowlist — a symlink out of `wwwroot` does not
+defeat it), both credential comparisons (fixed-time, and the remote key normalised first),
+every background loop (`AcceptLoop`, `ServeAsync`, `ReadLoopAsync`, `WalkForeverAsync` all
+catch and log), child-process cleanup on dispose, and the whole tree building with **no
+compiler warnings**.
+
 ## 0.51.1 — 2026-09-03
 
 **Three corrections from watching it, which is the only way any of these were ever going to

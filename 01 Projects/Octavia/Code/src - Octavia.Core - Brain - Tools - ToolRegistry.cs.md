@@ -30,8 +30,20 @@ internal sealed class McpToolProvider(McpClient client) : IToolProvider
         try { return _cached = await client.ListToolsAsync(ToolRisk.Act, cancel); }
         catch (Exception ex)
         {
-            Log.Warn($"mcp '{Name}': tools/list failed: {ex.Message}");
-            return _cached = [];
+            /* **A failure is not an answer, so it is not cached.**
+
+               This used to store the empty list exactly as it stores a real one, which turned
+               one slow round trip — a server still starting, a gateway that blinked — into a
+               server with no tools for the rest of the process. She would then say she could
+               not do the thing, correctly and for ever, and the only clue was a single `warn`
+               that had long since scrolled away. That is the same sentence a person reported
+               twice this month for two entirely different reasons.
+
+               Left null instead, so the next turn asks again. The cost of being wrong that
+               way is one round trip; the cost of being wrong the other way is a capability
+               that never comes back. */
+            Log.Warn($"mcp '{Name}': tools/list failed, will ask again next turn: {ex.Message}");
+            return [];
         }
     }
 
