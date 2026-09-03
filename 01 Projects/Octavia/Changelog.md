@@ -16,6 +16,53 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.51.1 — 2026-09-03
+
+**Three corrections from watching it, which is the only way any of these were ever going to
+be found.**
+
+### The version stamp is a label on the machine, so it lives on the machine
+
+It shipped overlaid on the stage, bottom right, at 10px. Two things wrong with that, reported
+in the order they were noticed: *"the text is way too big"*, then *"move it down to the bottom
+right, not in her space where the mic is."*
+
+Both are the same mistake. The whole point of turning the status readout off by default was to
+give her the room back, and putting a build number over her floor takes some of it straight
+back again — **having just cleared a space, I was the next one to fill it.**
+
+It took two more placements to land. The console bar next, beside the buttons — machinery with
+machinery, and still drifting among controls it has nothing to do with. Then **under her
+name**, which is the end of the argument: a label belongs with the name of the thing it labels.
+
+That is exactly where the *In residence* eyebrow stood until v0.10.0, removed for saying *"she
+is here rather than in the cloud" — true, unremarkable, and not worth a permanent line in the
+room*. Same spot, different label: this one answers **which build** and **which brain**, and
+both of those change. The old one was a mood; this is a fact.
+
+8px with the tracking dropped, because `--track` is the readout's spacing and it widens a short
+string more than it loosens it.
+
+### It is the server that was lost, not her
+
+> *"When she loses connection to the server, it should say that — not lost connection to
+> Octavia."*
+
+Right, and the distinction is worth more than the wording. *"Lost the connection to Octavia"*
+reads as though she has gone somewhere. She has not: a socket dropped between a page and the
+process she runs in, and she is very probably still there with a service that never stopped.
+
+The two have different remedies, which is the practical half — a dropped socket reconnects by
+itself, and a stopped server needs somebody to start it. Everywhere else in the face **Octavia
+is the person**; the server is the machinery she runs on, and machinery is what fails.
+
+| was | now |
+|---|---|
+| Lost the connection to Octavia. | Lost the connection to her server. |
+| Reconnected to Octavia. | Reconnected to her server. |
+| Lost her — reconnecting | Lost her server — reconnecting |
+| Waiting for Octavia | Waiting for her server |
+
 ## 0.51.0 — 2026-09-03
 
 **The caption follows her voice, properly this time.**

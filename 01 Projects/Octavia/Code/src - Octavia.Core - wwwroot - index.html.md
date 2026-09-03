@@ -44,7 +44,14 @@ source-path: src\Octavia.Core\wwwroot\index.html
 
 <div id="app">
   <header>
-    <span class="mark">Octavia<em>.</em></span>
+    <!-- The version and where she is thinking, under her name. It replaces the "In
+         residence" eyebrow that stood here until v0.10.0 and answers the question that
+         one only gestured at — which brain, and which build. -->
+    <span class="nameplate">
+      <span class="mark">Octavia<em>.</em></span>
+      <span id="stamp" aria-hidden="true"></span>
+    </span>
+
     <span class="spacer"></span>
     <span id="watching" hidden>camera</span>
 
@@ -84,12 +91,6 @@ source-path: src\Octavia.Core\wwwroot\index.html
       <span id="speaker">&nbsp;</span>
       <p id="caption" class="muted">Press the microphone, or say her name.</p>
     </div>
-
-    <!-- What survived the status readout going off by default: the version, and whether
-         she is thinking here or somewhere else. Two facts that change, in the corner,
-         faint enough to be furniture — rather than five that mostly do not, in a panel
-         across the room she is standing in. -->
-    <span id="stamp" aria-hidden="true"></span>
   </div>
 
   <div id="console">

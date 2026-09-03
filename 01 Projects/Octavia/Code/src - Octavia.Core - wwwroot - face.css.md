@@ -200,10 +200,26 @@ body.quiet #placard{opacity:0}
    placard's z-index so a three-line caption is never competing with it, and it does not
    fade with the room the way the placard does — the version is not part of the
    conversation, it is a label on the machine. */
+/* **Under her name**, where the "In residence" eyebrow used to be.
+
+   It went over the stage first, which put a build number on the floor she stands on and
+   undid the point of turning the readout off; then into the console bar, which was better
+   and still had it drifting among the buttons. The nameplate is where it settles: a label
+   belongs with the name of the thing it labels.
+
+   The eyebrow that stood here was removed for saying "she is here rather than in the
+   cloud" — *true, unremarkable, and not worth a permanent line in the room*. This is the
+   same spot and not the same label: it answers **which build** and **which brain**, and
+   both of those change.
+
+   8px, and the tracking dropped with it: `--track` is the readout's spacing and it widens
+   a short string more than it loosens it. */
+.nameplate{display:flex;flex-direction:column;gap:2px;line-height:1}
+
 #stamp{
-  position:absolute;right:var(--s5);bottom:calc(var(--s4) / 2);z-index:1;
-  font-family:var(--mono);font-size:10px;letter-spacing:var(--track);
-  color:var(--room-ink);opacity:.28;pointer-events:none;user-select:none;
+  font-family:var(--mono);font-size:8px;letter-spacing:.04em;line-height:1;
+  color:var(--room-ink);opacity:.45;pointer-events:none;user-select:none;
+  white-space:nowrap;
   transition:color 1s linear,opacity .4s ease;
 }
 #stamp:empty{opacity:0}

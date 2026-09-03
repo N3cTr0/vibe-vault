@@ -212,7 +212,18 @@ let socket = null;
 let socketReady = false;
 let queued = [];
 
-/* Reconnection, which stops being optional the moment the host is a separate process.
+/* **It is the server that was lost, not her.**
+
+   These used to say *"lost the connection to Octavia"*, which reads as though she has gone
+   somewhere. She has not: a socket dropped between this page and the process she runs in,
+   and she is very probably still there, thinking, with a service that never stopped. The
+   distinction matters because the two have different remedies — a dropped socket reconnects
+   by itself, and a stopped server needs somebody to start it.
+
+   Everywhere else in this face **Octavia is the person**. The server is the machinery she
+   runs on, and machinery is what fails.
+
+   Reconnection, which stops being optional the moment the host is a separate process.
 
    While she *was* the window, a dead socket meant a dead application and there was nothing
    to reconnect to. A server restarts on its own — an upgrade, a crash, a machine waking up
@@ -298,7 +309,7 @@ function connectSocket() {
        apparently, and wrong. */
     announceReady();
 
-    if (everConnected) notify('Reconnected to Octavia.');
+    if (everConnected) notify('Reconnected to her server.');
     everConnected = true;
 
     queued.forEach(m => socket.send(JSON.stringify(m)));
@@ -326,7 +337,7 @@ function connectSocket() {
        host would hold the floor until its sixty-second timeout. */
     holdToTalk(false);
 
-    if (wasReady) notify('Lost the connection to Octavia.');
+    if (wasReady) notify('Lost the connection to her server.');
     scheduleReconnect();
   });
 
@@ -361,7 +372,7 @@ function showLink(connected) {
   if (connected) return;
 
   linkEl.innerHTML = '<span class="d"></span>' +
-    (everConnected ? 'Lost her — reconnecting' : 'Waiting for Octavia');
+    (everConnected ? 'Lost her server — reconnecting' : 'Waiting for her server');
 }
 
 /* ── host → face ─────────────────────────────────────────── */
