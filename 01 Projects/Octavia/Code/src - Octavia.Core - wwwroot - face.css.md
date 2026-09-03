@@ -150,10 +150,46 @@ body.trouble #state .dot{background:var(--alert)}
 
 /* Nine seconds after the last word, the room has itself back. */
 body.quiet #placard{opacity:0}
+/* **Three lines, and the rest scrolls.**
+   A long answer used to grow the placard until it covered her — the one thing on screen
+   worth looking at — because it was bottom-anchored with nothing capping it. It is a
+   subtitle, so it behaves like one: a fixed band at the bottom that follows her voice.
+
+   `em` rather than a pixel count, so the box is three lines at every size the clamp
+   above resolves to. `1.25` is the line-height, so `3.75em` is exactly three of them. */
 #caption{
   font-family:var(--display);font-weight:400;font-size:var(--t-caption);
   line-height:1.25;letter-spacing:-.015em;max-width:38ch;margin:0;
-  color:var(--room-ink);transition:color 1s linear,opacity .3s;text-wrap:balance;
+  color:var(--room-ink);transition:color 1s linear,opacity .3s;
+
+  max-height:3.75em;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none;
+
+  /* `balance` is for headlines and actively fights a scrolling box — it evens the last
+     line by reflowing all of them, so every new sentence reshuffled the two above it. */
+  text-wrap:pretty;
+}
+#caption::-webkit-scrollbar{display:none}
+
+/* Only a caption that actually overflows takes the mouse. The placard is
+   `pointer-events:none` so the room behind it stays reachable, and a short reply must not
+   quietly become a dead patch over her face. */
+#caption.long{pointer-events:auto}
+
+/* Softened at whichever edge has text beyond it, so a clipped line reads as *more* rather
+   than as a sentence with its head or feet cut off. Both edges matter and for different
+   reasons: above is what she has already said, below is what she is about to. */
+#caption.more-above{
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 1.2em);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 1.2em);
+}
+#caption.more-below{
+  -webkit-mask-image:linear-gradient(to top,transparent 0,#000 1.2em);
+  mask-image:linear-gradient(to top,transparent 0,#000 1.2em);
+}
+#caption.more-above.more-below{
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 1.2em,#000 calc(100% - 1.2em),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 1.2em,#000 calc(100% - 1.2em),transparent 100%);
 }
 #caption.muted{opacity:.55;font-size:var(--t-caption-quiet)}
 #caption.tentative{opacity:.72;font-style:italic}

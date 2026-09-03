@@ -16,6 +16,50 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.50.1 — 2026-09-03
+
+**A long answer used to cover her up.**
+
+> *"If there is a lot of text it takes over her entire window. Maybe have it scroll at the
+> bottom where it already is, depending on where she is with saying it?"*
+
+The placard was bottom-anchored with nothing capping it, so a six-sentence reply grew upward
+until it hid the one thing on screen worth looking at. It is a subtitle, so it behaves like
+one: three lines at the bottom, and the rest scrolls.
+
+Three lines is `3.75em` against a `1.25` line-height, so it stays three lines at every size the
+responsive clamp resolves to rather than a pixel count that is right on one monitor. Whichever
+edge has text beyond it is softened. A caption short enough to fit has neither, and does not
+take the mouse — `pointer-events` go on only when it actually overflows, so a two-word reply
+never becomes a dead patch over her face.
+
+`text-wrap: balance` had to go with it. It is for headlines and actively fights a scrolling
+box: it evens the last line by reflowing all of them, so every new sentence reshuffled the two
+above it.
+
+### The second half of that request is not built, and the first attempt was wrong
+
+This shipped tailing the caption to the bottom on every update, on the reasoning that the host
+re-captions after each sentence and the text must therefore grow in step with the speaking.
+
+**It does not.** `KokoroVoice.Say` writes a line to the engine's stdin and returns; the `Pacer`
+is what makes audio real time. So the caption is paced by how fast the *brain generates*, and a
+brain that outruns the voice puts the last sentence on screen while she is still saying the
+first.
+
+> *"It didn't follow her, I was watching — she was still saying the top stuff when it switched
+> to the bottom."*
+
+Caught on the second turn after it shipped, by the person watching her. It holds at the top of
+each reply now, which is where she starts, and moves only when a person moves it. **A caption
+that sits still is merely limited; one that jumps to a line she has not reached is wrong, once
+per sentence.**
+
+Following her properly needs a signal that does not exist: `octavia-kokoro` marking where each
+utterance's audio ends, `KokoroVoice` recording the paced offset it lands at, and a cue to the
+face. The `Pacer` is already a true speech clock and the face already receives audio paced —
+the missing piece is the boundary. Written into ROADMAP.md rather than guessed at.
+
 ## 0.50.0 — 2026-09-03
 
 **Three more things she can do, after asking the appliance what it would allow.**

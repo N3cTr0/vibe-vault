@@ -1370,10 +1370,56 @@ document.addEventListener('keydown', e => {
 
 /* ── placard, transcript, notices ────────────────────────── */
 
+/* **It does not follow her voice, because nothing here knows where her voice is.**
+
+   The first version of this tailed to the bottom on every update, on the reasoning that
+   the host re-captions after each sentence so the text must grow in step with the
+   speaking. It does not. `KokoroVoice.Say` writes a line to the engine's stdin and
+   returns immediately — the *`Pacer`* is what makes audio real time — so the caption is
+   paced by how fast the brain **generates**, and a brain that outruns the voice puts the
+   last sentence on screen while she is still saying the first.
+
+   Watched happening, on the second turn after it shipped: *"it didn't follow her, she was
+   still saying the top stuff when it switched to the bottom."*
+
+   So it holds at the top of each reply, which is where she starts, and moves only when a
+   person moves it. A caption that sits still is merely limited; one that jumps to a line
+   she has not reached is **wrong**, and it is wrong once per sentence.
+
+   Following it properly needs a signal that does not exist yet: the engine marking where
+   each utterance's audio ends, and the paced position crossing it. See ROADMAP.md. */
+let captionShown = '';
+
+/* Which edges have text beyond them. A few pixels of slack, because sub-pixel line
+   heights mean "at the bottom" is almost never exactly zero. */
+function captionEdges() {
+  const gap = captionEl.scrollHeight - captionEl.scrollTop - captionEl.clientHeight;
+  captionEl.classList.toggle('more-above', captionEl.scrollTop > 2);
+  captionEl.classList.toggle('more-below', gap > 2);
+  return gap;
+}
+
+captionEl.addEventListener('scroll', captionEdges);
+
 function caption(text, who, tentative, extra) {
-  captionEl.textContent = text || '…';
+  const shown = text || '…';
+
+  /* A new turn starts at the top. Growth arrives as the previous text plus more, so
+     anything that is *not* an extension of what is up there is somebody else talking, and
+     a reply left scrolled halfway must not leave the next one out of view. Growth within
+     one turn leaves the scroll exactly where the person put it. */
+  const fresh = !shown.startsWith(captionShown);
+  captionShown = shown;
+
+  captionEl.textContent = shown;
   captionEl.className = !text ? 'muted' : (extra || '');
   if (tentative) captionEl.classList.add('tentative');
+
+  // After `className`, which has just wiped all three of these off.
+  captionEl.classList.toggle('long', captionEl.scrollHeight > captionEl.clientHeight + 1);
+  if (fresh) captionEl.scrollTop = 0;
+  captionEdges();
+
   speakerEl.textContent = who || ' ';
   stayAwhile();
 }

@@ -79,3 +79,38 @@ No CDN. three.js r180, `GLTFLoader`, `BufferGeometryUtils` and `@pixiv/three-vrm
 ## Next
 
 Stage 4 retires the bust for a **VRM avatar** with 52 ARKit-style blendshapes, expression states, a headphones prop, and a shader background. The viseme→openness table generalises to viseme→blendshape-set. Stage 3 moves the transport to a WebSocket first, so the renderer becomes swappable rather than embedded. See [[Roadmap]].
+
+## The caption stopped covering her *(v0.50.1)*
+
+> *"If there is a lot of text it takes over her entire window. Maybe have it scroll at the bottom where it already is, depending on where she is with saying it?"*
+
+The placard was bottom-anchored with **nothing capping it**, so a six-sentence reply grew upward until it hid the one thing on screen worth looking at. It is a subtitle; it behaves like one now — three lines at the bottom, and the rest scrolls.
+
+Three lines is `3.75em` against a `1.25` line-height, so it is three lines at every size the responsive clamp resolves to rather than a pixel count that happens to be right on one monitor. Whichever edge has text beyond it is softened. A caption short enough to fit has neither, and **does not take the mouse**: `pointer-events` go on only when it actually overflows, so a two-word reply never becomes a dead patch over her face.
+
+`text-wrap: balance` went with it. It is for headlines and fights a scrolling box — it evens the last line by reflowing all of them, so every new sentence reshuffled the two above it.
+
+![[v0.50.1 - three lines at the bottom, holding where she started.png]]
+
+### The second half of the request is not built, and the first attempt was wrong
+
+*"Depending on where she is with saying it"* was shipped and immediately reverted, because the reasoning behind it was false.
+
+`OctaviaSession` re-captions after each sentence, which looked like a speech clock — so the first version tailed to the bottom on every update. It is not one. **`KokoroVoice.Say` writes a line to the engine's stdin and returns**; the [[The Voice|`Pacer`]] is what makes audio real time. So the caption is paced by how fast the *brain generates*, and a brain that outruns the voice puts the last sentence on screen while she is still saying the first.
+
+> *"It didn't follow her, I was watching — she was still saying the top stuff when it switched to the bottom."*
+
+Caught on the second turn after it shipped, by the person watching her rather than by anything in the suite.
+
+It holds at the top of each reply now, which is where she starts, and moves only when a person moves it. **A caption that sits still is merely limited; one that jumps to a line she has not reached is wrong, once per sentence.**
+
+### What following her would actually need
+
+No signal in the system says where her voice is. The pieces exist and one is missing:
+
+| The `Pacer` | Already pulls audio at real time, so *paced samples* is a true speech clock |
+|---|---|
+| The engine | Streams audio per utterance but **marks no boundary**, so nothing knows which samples belong to which sentence |
+| The face | Receives audio paced, and could advance a line when the played position crosses a boundary |
+
+So it needs `octavia-kokoro` to emit an end-of-utterance marker, `KokoroVoice` to record the paced offset it lands at, and a cue to the face. That is a change to the audio path and is written down rather than guessed at — see [[Roadmap]].

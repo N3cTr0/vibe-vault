@@ -2321,4 +2321,37 @@ history like any other turn.
   carry it. Worth finding the endpoint behind that screen if the *what* matters as much as the
   *who*.
 - **Quiet hours are not yet the owner's.** 22:30–07:30 is a guess in `RoundsConfig`.
+
+### Not built: a caption that follows her voice
+
+*Asked for in v0.50.1 — "have it scroll at the bottom depending on where she is with saying
+it" — shipped wrong, reverted the same evening, and written down here rather than guessed at
+again.*
+
+**Nothing in the system knows where her voice is.** The obvious signal is a decoy:
+`OctaviaSession` re-captions after every sentence, which looks like a speech clock and is one
+only if `Say` blocks. It does not — it writes a line to the engine's stdin and returns — so
+captioning is paced by how fast the brain *generates*, and a brain that outruns the voice puts
+the last sentence on screen while she is still saying the first. Which is exactly what the
+owner watched happen.
+
+Three of the four pieces already exist:
+
+| `Pacer` | Pulls audio at real time, so **paced samples is a true speech clock**. It was built to be her clock when the sound card went away, and it still is |
+|---|---|
+| the face | Receives audio paced and in order, so it can advance a line when the played position crosses a boundary |
+| `KokoroVoice` | Sees every audio frame on its way through the tap, so it can count |
+| **missing** | **Nothing marks where one utterance's audio ends and the next begins** |
+
+So the work is: `octavia-kokoro` emits an end-of-utterance marker on stderr (it already writes
+there, and the audio stdout must stay pure); `KokoroVoice` records the generated-sample offset
+each marker lands at, and raises an event when the *paced* count crosses one; `OctaviaSession`
+sends that as a cue; the face advances the caption to the sentence the cue names.
+
+**A cue carries an index, not text.** The face already has the words — it is being asked which
+of them she is on, and sending the sentence again would make the two able to disagree.
+
+Worth doing when a fast brain makes the gap obvious. On the CPU model the generation is slow
+enough that the caption and the voice sometimes look synchronised, which is precisely the trap
+this note exists to stop someone falling into twice.
 ```

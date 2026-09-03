@@ -348,6 +348,7 @@ Filed under `Screenshots\`. The ones that carry something a diff cannot:
 | `v0.49.1 - her face at v0.49.1, and a yes that finally lands` | The hour after v0.49.0, and the same nothing to see. A yes now runs the call **she described out loud** rather than the one the model writes next — proven on `home`, the local brain she is actually started under |
 | `v0.49.2 - her face at v0.49.2, told what she can actually do` | The third invisible release in a row, and the cause was the least visible thing of all: a system prompt that had told her for six versions she had **no hands**, so she narrated switching a port on and never called anything |
 | `v0.50.0 - her face at v0.50.0, with the firewall in reach` | Thirteen tools now. She can read the firewall — 66 rules answered as six zones and a catch-all — reboot a device, and put a client on or off the network. The firewall is the one she can only read |
+| `v0.50.1 - three lines at the bottom, holding where she started` | The caption capped to three lines, so a six-sentence answer no longer covers her. It holds where she **started** rather than where she is — the following shipped, was watched failing, and was reverted the same evening |
 
 > **Two of these are photographs of a refusal**, and that is not a coincidence. The confirmation gate and the learning silence are both features whose correct behaviour is *not acting*, and neither leaves a trace in a diff or a log line that reads as success.
 
