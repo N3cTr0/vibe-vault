@@ -7,7 +7,9 @@ tags: [octavia, deep-dive, wake-word]
 
 *The four cells that actually run, as pasted on 09/04/2026. Why each change was needed is in [[Training Her Wake Word]] — this note is the copy-paste.*
 
-**Order:** cell 1 → cell 2 → **Runtime → Restart session** → cell 2 again → cell 2b → cell 3.
+**Order, as first run:** cell 1 → cell 2 → **Runtime → Restart session** → cell 2 again → cell 2b → cell 3.
+
+> **Building a new notebook? Skip to [Building the notebook fresh](#building-the-notebook-fresh-09042026) at the end.** The restart is gone there: it was caused by three installs that exist only for the tflite conversion, which she does not use.
 
 Cell 2 runs twice on purpose. The first pass installs everything and dies when `onnx2tf` swaps numpy under the live kernel; the restart clears that; the second pass is quick because everything is already installed.
 
@@ -465,3 +467,150 @@ The output is enormous and the real cause is usually one line. Look for:
 - `404 Not Found` followed by `tar: This does not look like a tar archive` — an upstream dataset moved.
 - `ModuleNotFoundError` from a *subprocess* — the 3.11 environment is missing something, not the kernel.
 
+
+---
+
+# Building the notebook fresh (09/04/2026)
+
+*Everything above is the archaeology of the first run — the notebook as it shipped, plus the
+patches that made it go. This section is what to actually build, in order, from an empty Colab.
+Use this one.*
+
+**Order: 1 → 2 → 2b → 3a → 3b → 3c → 3d.** No restart, and no cell run twice.
+
+## Why the restart is gone
+
+The old procedure ran cell 2, hit `AttributeError: 'numpy.ufunc' object has no attribute
+'__module__'`, restarted the runtime, and ran cell 2 again. That was fault 4 — `onnx_tf`
+replacing numpy while numpy was already imported.
+
+**Three of the notebook's installs exist only for the tflite conversion**, and she uses ONNX:
+
+```
+!pip install tensorflow-cpu==2.8.1
+!pip install tensorflow_probability==0.16.0
+!pip install onnx_tf==1.10.0
+```
+
+Remove them and nothing swaps numpy, so nothing needs restarting. `train.py` still ends with
+`ModuleNotFoundError: No module named 'onnx_tf'` — it did on the first run too, because the
+3.11 environment never had it either. The ONNX is written before that line is reached.
+
+`piper-phonemize` and `webrtcvad` also come out of cell 2: they cannot install on Colab's 3.13
+at all, cell 1 already puts them in the 3.11 environment, and a pip line that always fails
+inside a hundred-line cell is noise that hides the failures that matter.
+
+## Cell 1 — verify the phrase
+
+Unchanged from the first run. Builds the 3.11 environment, clones the generator, downloads the
+voice model, and speaks one clip so you can hear the phrase before spending hours on it.
+
+## Cell 2 — install and download
+
+The upstream notebook's environment and download cells, merged, with the tflite installs
+removed, the AudioSet block removed (it 404s — cell 2b does it), and two guards fixed.
+
+```python
+# @title 2. Install and download  { display-mode: "form" }
+import os, numpy as np, torch, sys, yaml, datasets, scipy, scipy.io.wavfile
+from pathlib import Path
+from tqdm import tqdm
+
+ROOT = "/content"
+
+# --- openwakeword itself ------------------------------------------------------
+if not os.path.exists(f"{ROOT}/openwakeword/setup.py"):
+    !git clone -q https://github.com/dscripka/openwakeword
+!pip install -q -e ./openwakeword
+
+# --- what train.py needs ------------------------------------------------------
+# Dropped from the notebook's list: piper-phonemize and webrtcvad (they cannot build on
+# 3.13, and cell 1 has already put them in the 3.11 environment), and tensorflow-cpu,
+# tensorflow_probability and onnx_tf (tflite only -- and the cause of the numpy swap
+# that used to force a runtime restart here).
+!pip install -q mutagen==1.47.0 torchinfo==1.8.0 torchmetrics==1.2.0 speechbrain==0.5.14
+!pip install -q audiomentations==0.33.0 torch-audiomentations==0.11.0 acoustics==0.2.6
+!pip install -q pronouncing==0.2.0 datasets==2.14.6 deep-phonemizer==0.0.19
+
+# --- the two shared models, which openwakeword expects beside itself ----------
+res = f"{ROOT}/openwakeword/openwakeword/resources/models"
+os.makedirs(res, exist_ok=True)          # exist_ok: the notebook's version throws on a re-run
+REL = "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1"
+for f in ["embedding_model.onnx", "melspectrogram.onnx"]:
+    if not os.path.exists(f"{res}/{f}") or os.path.getsize(f"{res}/{f}") < 100_000:
+        !wget -q {REL}/{f} -O {res}/{f}
+
+# --- room impulse responses ---------------------------------------------------
+# The notebook guards on the *directory*, so a crash part-way through leaves an empty
+# folder that every later run skips -- silently training with no reverb at all.
+# Count the files instead.
+out = f"{ROOT}/mit_rirs"
+os.makedirs(out, exist_ok=True)
+if len(os.listdir(out)) < 200:
+    rirs = datasets.load_dataset("davidscripka/MIT_environmental_impulse_responses",
+                                 split="train", streaming=True)
+    for row in tqdm(rirs, desc="mit_rirs"):
+        name = row['audio']['path'].split('/')[-1]
+        scipy.io.wavfile.write(os.path.join(out, name), 16000,
+                               (row['audio']['array'] * 32767).astype(np.int16))
+
+# --- music, as background ------------------------------------------------------
+out = f"{ROOT}/fma"
+os.makedirs(out, exist_ok=True)
+n_hours = 1
+want = n_hours * 3600 // 30          # the FMA clips are all 30 seconds
+if len(os.listdir(out)) < want:
+    fma = datasets.load_dataset("rudraml/fma", name="small", split="train", streaming=True)
+    fma = iter(fma.cast_column("audio", datasets.Audio(sampling_rate=16000)))
+    for _ in tqdm(range(want), desc="fma"):
+        row = next(fma)
+        name = row['audio']['path'].split('/')[-1].replace(".mp3", ".wav")
+        scipy.io.wavfile.write(os.path.join(out, name), 16000,
+                               (row['audio']['array'] * 32767).astype(np.int16))
+
+# --- pre-computed negative features -------------------------------------------
+# ~2,000 hours of ACAV100M for training, ~11 hours for false-positive validation.
+HF = "https://huggingface.co/datasets/davidscripka/openwakeword_features/resolve/main"
+for f, least in [("openwakeword_features_ACAV100M_2000_hrs_16bit.npy", 1_000_000_000),
+                 ("validation_set_features.npy", 100_000_000)]:
+    if not os.path.exists(f"{ROOT}/{f}") or os.path.getsize(f"{ROOT}/{f}") < least:
+        !wget -q {HF}/{f} -O {ROOT}/{f}
+
+# --- did any of that actually work? -------------------------------------------
+# pip failures do not stop a cell, and a missing package otherwise surfaces three cells
+# later as something that looks unrelated.
+import importlib
+print("\n--- install check ---")
+for m in ["datasets", "scipy", "mutagen", "torchinfo", "torchmetrics", "speechbrain",
+          "audiomentations", "torch_audiomentations", "acoustics", "onnx",
+          "pronouncing", "openwakeword"]:
+    try:
+        importlib.import_module(m)
+        print(f"  ok    {m}")
+    except Exception as e:
+        print(f"  FAIL  {m}: {type(e).__name__}: {e}")
+
+print("\n--- data check ---")
+for d in ["mit_rirs", "fma"]:
+    print(f"  {d:12s} {len(os.listdir(f'{ROOT}/{d}')):5d} files")
+for f in ["openwakeword_features_ACAV100M_2000_hrs_16bit.npy", "validation_set_features.npy"]:
+    p = f"{ROOT}/{f}"
+    print(f"  {f[:44]:46s} {os.path.getsize(p) >> 20 if os.path.exists(p) else 0:5d} MB")
+
+print("\nnumpy:", np.__version__, "- if this errors on a later cell, the runtime needs a restart")
+```
+
+`torch_audiomentations` will still FAIL in that check. Cell 2b fixes it — it is the removed
+`torchaudio.set_audio_backend`, not a bad install.
+
+Expect **270** impulse responses and **120** music clips.
+
+## Cell 2b — the two repairs cell 2 cannot make
+
+Unchanged from the first run: stub the torchaudio API that torch-audiomentations still calls,
+and fetch AudioSet from parquet because the `.tar` the notebook wants is gone.
+
+## Cells 3a to 3d — config, generate, augment, train
+
+As above under *Cell 3, the retrain*. Four cells rather than one, because at 30,000 samples the
+run is hours and a failure in the last step should not cost the first.
