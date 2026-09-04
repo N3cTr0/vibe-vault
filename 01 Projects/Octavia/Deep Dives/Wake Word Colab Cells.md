@@ -18,22 +18,26 @@ Every cell is safe to re-run.
 Replaces the notebook's cell 1 entirely. Builds the Python 3.11 environment the phonemiser needs, then generates one clip so you can hear it.
 
 ```python
-# @title 1. Test wake word generation  { display-mode: "form" }
+# @title 1. Test wake word generation { display-mode: "form" }
 import os, glob, subprocess
 from IPython.display import Audio, display
 
-ROOT  = "/content"
-GEN   = f"{ROOT}/piper-sample-generator"
-PY    = f"{ROOT}/piper311/bin/python"
+ROOT = "/content"
+GEN = f"{ROOT}/piper-sample-generator"
+PY = f"{ROOT}/piper311/bin/python"
 MODEL = f"{GEN}/models/en_US-libritts_r-medium.pt"
+MODEL_URL = ("https://github.com/rhasspy/piper-sample-generator/releases/"
+             "download/v2.0.0/en_US-libritts_r-medium.pt")
 
-target_word = 'hey octavia' # @param {type:"string"}
+target_word = 'hey octavia'  # @param {type:"string"}
+
 
 def sh(cmd):
     r = subprocess.run(cmd, shell=True, cwd=ROOT, capture_output=True, text=True)
     if r.returncode:
         print(f"FAILED: {cmd}\n{r.stdout[-800:]}\n{r.stderr[-800:]}")
     return r.returncode == 0
+
 
 if not os.path.exists(f"{GEN}/generate_samples.py"):
     print("cloning the generator...")
@@ -43,7 +47,7 @@ if not os.path.exists(f"{GEN}/generate_samples.py"):
 os.makedirs(f"{GEN}/models", exist_ok=True)
 if not os.path.exists(MODEL) or os.path.getsize(MODEL) < 10_000_000:
     print("downloading the voice model...")
-    sh(f"wget -q -O {MODEL} https://github.com/rhasspy/piper-sample-generator/releases/download/v2.0.0/en_US-libritts_r-medium.pt")
+    sh(f"wget -q -O {MODEL} {MODEL_URL}")
 
 sh("pip -q install uv")
 
@@ -51,10 +55,10 @@ sh("pip -q install uv")
 if not os.path.exists(PY):
     print("building a 3.11 environment (slow, one-off)...")
     sh(f"uv venv --python 3.11 {ROOT}/piper311")
-    sh(f"uv pip install -q --python {PY} torch==2.5.0 torchaudio==2.5.0 --index-url https://download.pytorch.org/whl/cu121")
-
-sh(f"uv pip install -q --python {PY} piper-phonemize==1.1.0 "
-   f"audiomentations==0.33.0 'numpy<2' webrtcvad")
+    sh(f"uv pip install -q --python {PY} torch==2.5.0 torchaudio==2.5.0 "
+       f"--index-url https://download.pytorch.org/whl/cu121")
+    sh(f"uv pip install -q --python {PY} piper-phonemize==1.1.0 "
+       f"audiomentations==0.33.0 'numpy<2' webrtcvad")
 
 # webrtcvad imports pkg_resources solely to set __version__, which nothing reads.
 for vad in glob.glob(f"{ROOT}/piper311/lib/python*/site-packages/webrtcvad.py"):
@@ -78,15 +82,14 @@ r = subprocess.run([PY, "generate_samples.py", target_word,
                     "--noise-scales", "0.7", "--noise-scale-ws", "0.7",
                     "--output-dir", ROOT],
                    cwd=GEN, capture_output=True, text=True)
-
 print("exit:", r.returncode)
 if r.returncode:
-    print(r.stdout[-2000:]); print("STDERR:\n", r.stderr[-2000:])
+    print(r.stdout[-2000:])
+    print("STDERR:\n", r.stderr[-2000:])
 else:
     wavs = sorted(f for f in os.listdir(ROOT) if f.endswith(".wav"))
     print("wrote:", wavs)
     display(Audio(f"{ROOT}/{wavs[-1]}", autoplay=True))
-```
 
 ## Cell 2 — download the data
 

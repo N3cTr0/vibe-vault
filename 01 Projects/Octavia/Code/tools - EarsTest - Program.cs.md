@@ -26,6 +26,8 @@ if (args.Length > 0 && args[0] == "embedder") { Environment.Exit(EmbedderChecks.
 if (args.Length > 0 && args[0] == "split") { Environment.Exit(SplitChecks.Run()); }
 if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "wakescore") { await WakeProbe.RunAsync(args.Length > 1 ? args[1] : "Hey Octavia"); return; }
+if (args.Length > 0 && args[0] == "awake") { Environment.Exit(AwakeChecks.Run()); }
+if (args.Length > 0 && args[0] == "speech") { Environment.Exit(SpeechChecks.Run()); }
 if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "baseline") { Environment.Exit(BaselineChecks.Run()); }
@@ -196,6 +198,14 @@ failures += VoiceChecks.Run();
 
 Console.WriteLine();
 Console.WriteLine("the wake word:");
+
+Console.WriteLine();
+Console.WriteLine("how her answer is cut into sentences:");
+failures += SpeechChecks.Run();
+
+Console.WriteLine();
+Console.WriteLine("how long she stays awake:");
+failures += AwakeChecks.Run();
 failures += await WakeChecks.RunAsync();
 
 Console.WriteLine();

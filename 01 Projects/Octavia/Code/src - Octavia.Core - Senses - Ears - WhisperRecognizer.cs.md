@@ -242,7 +242,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
                 {
                     if (_wake.Heard(_frame, _wakeThreshold))
                     {
-                        _awakeUntil = DateTime.UtcNow + AwakeFor;
+                        _awake.Wake();
                         Log.Write($"woken: '{_wake.Phrase}' ({_wake.LastScore:0.00})");
                     }
                 }
@@ -312,7 +312,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     /// How sure the model must be. openWakeWord scores 0–1 and its own guidance is 0.5;
     /// higher misses her, lower wakes on the television.
     public float WakeThreshold { set => _wakeThreshold = Math.Clamp(value, 0.05f, 0.99f); }
-    private DateTime _awakeUntil = DateTime.MinValue;
+    private readonly AwakeWindow _awake = new();
 
     /// How long one wake word keeps her listening, past the end of her own last sentence.
     ///
@@ -321,7 +321,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     /// addressed to her; if this were shorter, the tail of that window would be unreachable —
     /// the audio would never get to Whisper for the gate to judge. Two follow-up rules that
     /// disagree are one rule and one bug.
-    public TimeSpan AwakeFor { get; set; } = TimeSpan.FromSeconds(25);
+    public TimeSpan AwakeFor { get => _awake.For; set => _awake.For = value; }
 
     /// Held open while she is answering, however long that takes.
     ///
@@ -329,8 +329,8 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     /// from the wake would expire in the middle of it — so the phrase would be heard, the
     /// question asked into a closed door, and the log would blame the wake word. She is awake
     /// from the moment she is addressed until she has finished replying, and the window is
-    /// measured from *there*.
-    public bool HoldAwake { get; set; }
+    /// measured from *there*. See `AwakeWindow`.
+    public bool HoldAwake { get => _awake.Held; set => _awake.Hold(value); }
 
     /// Whether an utterance must be preceded by the wake word to be transcribed.
     ///
@@ -354,20 +354,21 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     }
 
     /// Extends the window, so a follow-up needs no second *"Hey Octavia"*.
-    public void KeepAwake() => _awakeUntil = DateTime.UtcNow + AwakeFor;
+    public void KeepAwake() => _awake.Wake();
 
     /// Awake while she is answering, and for `AwakeFor` after her last sentence lands.
-    public void HoldAwakeWhileAnswering(bool answering)
-    {
-        HoldAwake = answering;
-        if (!answering) KeepAwake();
-    }
+    public void HoldAwakeWhileAnswering(bool answering) => _awake.Hold(answering);
+
+    /// Whether the next completed utterance would reach Whisper, for the checks and the
+    /// diagnostics panel. The rule it exposes is the one that dropped a question in v0.52.0,
+    /// so it is worth being able to assert on rather than only to read in a log afterwards.
+    internal bool IsAwake => Awake();
 
     /// Whether the next completed utterance may reach Whisper.
     private bool Awake()
     {
         if (_wake is null || !RequiresWake) return true;
-        return HoldAwake || DateTime.UtcNow < _awakeUntil;
+        return _awake.IsOpen;
     }
 
     private void ProcessFrame()

@@ -16,6 +16,48 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.2 — 2026-09-04
+
+**She read an IP address as six sentences.** Asked what was on the network, she said *"the IP
+address 100. 103. 17. 84 and runs firmware version 5. 1. 31."* — each of those spoken with a
+pause after it, and each one replacing the caption on its way past.
+
+The splitter has guarded decimal points since it was written, and the guard is correct:
+
+```csharp
+// A period between digits is a decimal point, not the end of a thought.
+if (buffer[i] == '.' && i > 0 && i + 1 < buffer.Length &&
+    char.IsDigit(buffer[i - 1]) && char.IsDigit(buffer[i + 1])) continue;
+```
+
+**`i + 1 < buffer.Length` is the whole bug.** Her answer arrives a token at a time, so the
+buffer is repeatedly *"…the IP address 100."* with nothing after it — the digit that would
+prove it a decimal point has not been streamed yet. The guard cannot apply, so it cuts, and by
+the time `103` arrives the sentence is already on its way to Kokoro.
+
+A period ending the buffer, preceded by a digit, is now held rather than guessed. Waiting
+costs nothing: both brains already flush whatever is left when the stream ends, so a genuine
+sentence ending in a number is still said — just at the end rather than a moment early.
+
+### Two check sets, both proved able to fail
+
+Found while testing the talking, which is worth saying because **the suite was green through
+all of it**. `SpeechChecks` feeds answers **one character at a time** — harsher than any real
+tokeniser, and therefore exercising every intermediate buffer a model could produce. Handed
+the whole string at once, the old splitter passes; that is exactly why nothing caught this.
+
+`AwakeChecks` covers v0.52.1's window, which shipped with no test at all. It is written as the
+conversation it describes — wake, a slow brain thinking past the window, a sentence, the end
+of the turn, silence — because the bug's shape was that every piece behaved and the sequence
+did not. The rule moved out of `WhisperRecognizer` into `AwakeWindow` to make that assertable
+without constructing 1.6 GB of speech model.
+
+Both were confirmed to fail against the old behaviour before being kept. **A check that has
+never failed is a claim, not evidence** — twice this week a green check has meant nothing
+because it tested a weaker proposition than the one that mattered.
+
+---
+
 ## 0.52.1 — 2026-09-04
 
 **The wake word heard the phrase and then closed the door on the question.** Reported within

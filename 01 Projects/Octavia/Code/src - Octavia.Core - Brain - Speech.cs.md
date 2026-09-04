@@ -37,9 +37,23 @@ internal static partial class Speech
             for (var i = 0; i < buffer.Length; i++)
             {
                 if (buffer[i] is not ('.' or '!' or '?' or '\n')) continue;
-                // A period between digits is a decimal point, not the end of a thought.
-                if (buffer[i] == '.' && i > 0 && i + 1 < buffer.Length &&
-                    char.IsDigit(buffer[i - 1]) && char.IsDigit(buffer[i + 1])) continue;
+
+                if (buffer[i] == '.' && i > 0 && char.IsDigit(buffer[i - 1]))
+                {
+                    // A period between digits is a decimal point, not the end of a thought.
+                    if (i + 1 < buffer.Length && char.IsDigit(buffer[i + 1])) continue;
+
+                    /* **And at the end of the buffer there is no way to tell yet.** This
+                       arrives a token at a time, so `100.` is either a finished sentence or
+                       the first quarter of an IP address, and the digit that decides has not
+                       been streamed. Guessing gave *"the IP address 100. 103. 17. 84."* —
+                       six sentences, each spoken with a pause and each replacing the caption.
+
+                       Waiting costs nothing: the caller flushes whatever is left when the
+                       stream ends, so a genuine sentence ending in a digit is still said. */
+                    if (i + 1 == buffer.Length) yield break;
+                }
+
                 cut = i;
                 break;
             }
