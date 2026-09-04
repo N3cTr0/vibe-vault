@@ -127,6 +127,7 @@ import os, io, numpy as np, scipy.io.wavfile, soundfile as sf, librosa, torchaud
 import pyarrow.parquet as pq
 from tqdm import tqdm
 
+
 # 1. torch-audiomentations 0.11.0 calls torchaudio.set_audio_backend(), removed in
 #    torchaudio 2.x. It is a configuration no-op now, so stubbing it is enough.
 if not hasattr(torchaudio, "set_audio_backend"):
@@ -512,10 +513,7 @@ removed, the AudioSet block removed (it 404s — cell 2b does it), and two guard
 
 ```python
 # @title 2. Install and download  { display-mode: "form" }
-import os, numpy as np, torch, sys, yaml, datasets, scipy, scipy.io.wavfile
-from pathlib import Path
-from tqdm import tqdm
-
+import os
 ROOT = "/content"
 
 # --- openwakeword itself ------------------------------------------------------
@@ -531,6 +529,12 @@ if not os.path.exists(f"{ROOT}/openwakeword/setup.py"):
 !pip install -q mutagen==1.47.0 torchinfo==1.8.0 torchmetrics==1.2.0 speechbrain==0.5.14
 !pip install -q audiomentations==0.33.0 torch-audiomentations==0.11.0 acoustics==0.2.6
 !pip install -q pronouncing==0.2.0 datasets==2.14.6 deep-phonemizer==0.0.19
+
+# Imports come *after* the installs, not before: `datasets` does not exist until the line
+# above has run. The notebook got away with importing first only because its installs were
+# in a separate cell.
+import numpy as np, scipy, scipy.io.wavfile, datasets
+from tqdm import tqdm
 
 # --- the two shared models, which openwakeword expects beside itself ----------
 res = f"{ROOT}/openwakeword/openwakeword/resources/models"
