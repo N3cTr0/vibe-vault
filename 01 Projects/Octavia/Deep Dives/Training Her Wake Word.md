@@ -72,6 +72,30 @@ Cell 2 is run twice on purpose: the first time installs everything and dies on t
 
 The output is `my_custom_model/hey_octavia.onnx`. **Take the `.onnx`, not the `.tflite`** — she uses ONNX Runtime, and the tflite conversion needs `onnx2tf` fighting an onnx version conflict for a file that is never read.
 
+**The run ends in a traceback, and that is fine.** After it prints `Saving ONNX mode as ...`
+`train.py` goes straight on to the tflite conversion and dies on
+`ModuleNotFoundError: No module named 'onnx_tf'`. The `.onnx` is already written by then. Do not
+chase this — installing `onnx_tf` only buys a file she never opens. Check the file listing, not
+the exit code.
+
+### What the first run actually produced (09/04/2026)
+
+| Accuracy | 0.748 |
+|---|---|
+| Recall | **0.506** |
+| False positives per hour | 0.177 |
+
+**Recall 0.51 means it misses about half the times the phrase is said.** Training sequences 2 and 3
+both log *"Increasing weight on negative examples to reduce false positives"* — it bought a quiet
+model by making a deaf one. That trade is the default, and at 1,000 samples there is not enough
+positive signal to survive it.
+
+So: 1,000 samples proves the pipeline end to end and is not worth living with. The fix is more
+examples, not a lower threshold — dropping `WakeThreshold` on a model with 0.51 recall raises the
+false positives without recovering the misses.
+
+### Wiring one up
+
 1. Drop it in `data\models\wake\`.
 2. Set `WakePhrase` to `Hey Octavia` — in the settings window, or in `config.json`. `WakeWordStore` resolves any phrase that is not one of openWakeWord's own as a filename, so nothing else changes.
 3. **Measure it before trusting it.** `hey jarvis` was measured at silence **0.000**, the phrase **0.949**, *"turn the kitchen light off please"* **0.000**, the phrase again **0.999**. Anything much worse than that is worth retraining with more examples before living with it.
