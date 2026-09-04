@@ -593,8 +593,12 @@ for f, least in [("openwakeword_features_ACAV100M_2000_hrs_16bit.npy", 1_000_000
 import importlib
 print("\n--- install check ---")
 for m in ["datasets", "scipy", "mutagen", "torchinfo", "torchmetrics", "speechbrain",
-          "audiomentations", "torch_audiomentations", "acoustics", "onnx",
-          "pronouncing", "openwakeword"]:
+          "audiomentations", "torch_audiomentations", "acoustics", "onnx", "onnxruntime",
+          "pronouncing",
+          # Submodules, never bare "openwakeword": with cwd=/content that matches the
+          # *directory* as an empty namespace package -- it imports nothing, succeeds, and
+          # proves nothing. That check lied for an hour on the first run.
+          "openwakeword.utils", "openwakeword.vad"]:
     try:
         importlib.import_module(m)
         print(f"  ok    {m}")
