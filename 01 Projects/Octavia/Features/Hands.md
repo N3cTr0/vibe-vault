@@ -96,7 +96,24 @@ An unknown tool **answers rather than throws** — "There is no tool called `hou
 
 ## Next
 
-Home Assistant is not installed yet; the smart devices are on Google Home. The order that makes sense is **install Home Assistant → point an MCP server at it → then write the tool loop**, so the loop is written against something real. UniFi (a UDM SE at `10.1.1.1`) is the other early candidate: network health and who is home by device presence. See [[Roadmap]] stage 12.
+**Home Assistant was installed 09/04/2026** and the smart devices are being configured over the
+weekend of 09/05–09/06/2026. The order below is what was followed — read it as history rather
+than a plan. Nothing is asked of the code until the devices are enrolled: with nothing to talk
+to there is no way to tell a working integration from a broken one. When they arrive, **ask
+what is actually there** before writing tool definitions — which devices, over Matter or an
+integration, and their entity ids. HA's own MCP server plugs into the seam already built, its
+token goes in `Env` and never `Args`, and anything that changes the house is a `Confirm` tool.
+
+> The original note, kept because the reasoning is still why HA and not Google Home:
+> *Home Assistant is not installed yet; the smart devices are on Google Home. The order that
+> makes sense is **install Home Assistant → point an MCP server at it → then write the tool
+> loop**, so the loop is written against something real.*
+
+UniFi (a UDM SE at `10.1.1.1`) was the other early candidate and in the end came **first** —
+network health and who is home by device presence, with no Home Assistant needed at all. Leave
+it where it is: HA has a UniFi integration, but the existing server is tested against the real
+gateway and knows the security log, Protect and PoE control, which that integration does not.
+See [[Roadmap]] stage 12.
 
 ## The last hop: the brain-side tool loop *(v0.29.0)*
 

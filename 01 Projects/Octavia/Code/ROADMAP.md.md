@@ -1068,6 +1068,35 @@ sharing a machine that reboots for games.
 → add one `McpServers` entry → *then* write the brain-side tool loop, with something real
 to call.
 
+### Home Assistant is installed *(09/04/2026)*
+
+**Done — the recommendation above was taken.** The owner installed Home Assistant on
+09/04/2026 and will **configure the smart devices over the weekend of 09/05-09/06/2026**. So
+the section above is history now, not a proposal: read it for *why* HA rather than Google Home,
+and stop at the recommendation.
+
+Nothing is asked of the code yet. Until the devices are enrolled there is nothing to talk to,
+and until there is something to talk to there is no way to tell a working integration from a
+broken one. **Wait for the devices.**
+
+When they are in, in order:
+
+1. **Ask what is actually there** before writing anything. Which devices enrolled, whether they
+   came in over Matter or through an integration, and what their entity ids are. The tool
+   definitions follow the house, not the other way round.
+2. **HA's own MCP server plugs into the seam already built** — the same `McpClient` that runs
+   `unifi-mcp.ps1` today. That was the whole return on doing the seam first, and it means this
+   is configuration rather than code.
+3. **Its token goes in `Env`, never `Args`.** An argument is visible in the process list. Same
+   rule as the UniFi key, for the same reason.
+4. **Anything that changes the house is a `Confirm` tool**, like `power_cycle_port` and
+   `set_port_power`. A light is cheaper to get wrong than a switch port, but the rule is the
+   rule, and `ToolChecks` will hold it to that.
+5. **Leave UniFi where it is.** HA has a UniFi integration and folding the UDM SE into it is
+   tempting; the existing server works, is tested against the real gateway, and knows things
+   HA's integration does not — the security log, the Protect cameras, the PoE control. One
+   surface is a tidiness argument, not a capability one.
+
 ### UniFi came first, and needed no Home Assistant at all *(09/02/2026, v0.28.3)*
 
 The recommendation above is still right about the *house*. It was wrong about the network:

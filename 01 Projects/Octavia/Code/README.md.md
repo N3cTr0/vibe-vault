@@ -770,7 +770,9 @@ to the old ears. A microphone that opens but delivers pure silence is reported o
 face after ten seconds rather than failing invisibly.
 
 **Since superseded.** The wake word is trained and live (v0.52.0), cameras arrived with UniFi
-(v0.31.0) and system audio with the music listener. Home Assistant is still not started.
+(v0.31.0) and system audio with the music listener. **Home Assistant was installed 09/04/2026**
+and the smart devices are being configured over that weekend — nothing is asked of the code
+until they are enrolled. See `ROADMAP.md` Stage 12.
 See `ROADMAP.md`.
 
 ## Her ears open before anyone asks
