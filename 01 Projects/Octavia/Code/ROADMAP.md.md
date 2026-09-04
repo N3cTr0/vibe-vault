@@ -2160,7 +2160,7 @@ the same one that checks whether she has been interrupted.
   billing on someone who talks all evening, network latency added to every sentence, and an
   outage becoming muteness rather than plainness. They get their own audition if asked for.
 
-## Stage 17 — The wake word *(built 09/02/2026, v0.39.0; her phrase trained 09/04/2026, v0.52.0)*
+## Stage 17 — The wake word *(built 09/02/2026, v0.39.0; her phrase trained 09/04/2026, v0.52.0-0.52.3)*
 
 The runtime was built and proved with `hey jarvis` standing in; **her phrase is trained and
 live** since 09/04/2026. See Stage 9, where the old *"not built and arguably not wanted"*
@@ -2181,47 +2181,83 @@ kitchen light off please"* **0.000**, the phrase again **0.999**.
 
 ### Her phrase, trained 09/04/2026
 
-**Done.** `hey_octavia.onnx` — 200 KB — trained in Colab against synthetic Piper samples, and
-live in `config.json` since v0.52.0 at a threshold of 0.40.
+**Done, on the third model.** `hey_octavia.onnx` — 200 KB — trained locally in
+`tools/wake-training`, live at a threshold of **0.10**. The two before it are kept beside it as
+`.bak`, because the differences between them are the whole lesson.
 
-It cost far more than the ninety minutes advertised. Ten separate things are broken between
-the openWakeWord notebook and a 2026 Colab runtime, starting with a phonemiser that has no
-build for Colab's Python and no source to compile, and the whole training stack therefore
-running inside a `uv venv --python 3.11`. **All of it is written down** — the vault has
-*Training Her Wake Word* and *Wake Word Colab Cells*, the latter being the four working cells
-in run order. Do not rediscover it.
+The first came out of Colab and cost far more than the ninety minutes advertised: ten separate
+things are broken between the openWakeWord notebook and a 2026 runtime, starting with a
+phonemiser that has no build for Colab's Python and no source to compile. **All of it is
+written down** — the vault has *Training Her Wake Word* and *Wake Word Colab Cells*. Do not
+rediscover it. It also has *Building the notebook fresh*, which removes the restart, and the
+container in `tools/wake-training`, which removes most of the rest.
 
-Measured here, at 1,000 training samples:
+**That first model did not work for the owner's voice at all**, and every measurement said it
+was fine.
 
-| against | score |
-|---|---|
-| silence | 0.000 |
-| *"Hey Octavia"*, three different voices | 0.750 – 0.844 |
-| three ordinary sentences | 0.001 |
-| *"octavia"* alone, *"hey, are you there"*, *"hey octopus"* | 0.001 |
+| against | v1 (Colab) | v3 (container, blend fixed) |
+|---|---|---|
+| silence | 0.000 | 0.000 |
+| three synthetic voices | 0.750 – 0.844 | 0.526 – 0.929 |
+| ordinary sentences, near misses | 0.001 | 0.001 – 0.003 |
+| **his 50 real recordings, median** | **0.008** | **0.588** |
+| **…fires at threshold** | **12%** | **63%** |
 
-A gap of 0.749, which is why 0.40 is a comfortable setting rather than a fussy one. `octavia`
-on its own scoring 0.001 is the two-word choice earning its place exactly as advertised.
+### What fixed it, and what did not
 
-**The benchmark disagrees, and it is worth knowing why.** openWakeWord's own test set scored
-the model at recall **0.506** — it would miss half of what it heard. The numbers above come
-from synthesised speech, which is what the model was *trained* on, so they are the optimistic
-end. The honest reading is that the pipeline works and this model is unproven in a real room;
-`EarsTest wakescore` is what re-measures it, and 30,000 samples rather than 1,000 is the fix
-if the room disagrees.
+**The fix was one default in the sample generator.** `slerp_weights` is `(0.5,)` and `train.py`
+never overrides it, so every generated clip was a 50/50 blend of two speakers — a midpoint,
+which sits near the centre of speaker space. The model had never heard a pure voice, let alone
+a deep one. Including 0.0 and 1.0 restores both ends.
+
+**More samples was not the fix.** 1,000 → 10,000 moved benchmark recall *down*, 0.506 → 0.440.
+The 30,000-sample plan this section used to recommend was chasing the wrong variable.
+
+**`target_recall` is not the fix either.** It is a warning threshold: `_select_best_model`
+filters by false-positive rate and takes the best recall among the survivors. The knob that
+binds is `target_false_positives_per_hour`, which also doubles `max_negative_weight` in training
+sequences 2 and 3 — openWakeWord's default of 0.2 assumes the wake word is the only gate, and
+here `AttentionGate` sits behind it, so a false wake costs one discarded transcription.
+
+**And the benchmark could not see any of it.** Recall *fell* across the change that fixed the
+owner's voice. `EarsTest scorerecordings` against `data\wake-recordings` is the instrument that
+can; `wakescore` and the training benchmark are both synthetic speech judged by a model trained
+on synthetic speech.
 
 ### Then worth doing, in this order
 
-- **Retrain it, and change two settings when you do.** The owner's natural voice scores 0.00
-  on the 1,000-sample model — nothing at all, not a near miss — and only registers pitched up.
-  The notebook asked for `target_recall = 0.25` and a false-activation penalty of 1500, which
-  tells the trainer twice over to prefer silence to hearing, and 1,000 examples left it no
-  room to do both. **30,000 samples, `target_recall` nearer 0.6, and a lower penalty.** The
-  cells are in the vault; only those three numbers change.
-- **Tune the threshold against a real room.** 0.30 now, down from 0.40 after real attempts
-  scored 0.41–0.82 against a 0.001 noise floor. `WakeThreshold` is in config; the log carries
-  the best score of every utterance it declined. **A score of 0.00 is not a threshold problem**
-  — that is the model not hearing you, and only a retrain reaches it.
+- **Revisit at the end of September 2026, with more recordings.** Deliberately parked until
+  then: the model in `data\models\wake` works for ordinary speech and the remaining failures are
+  the awkward deliveries, so this is polish rather than a fault. Come back to it alongside the
+  other small things rather than on its own.
+
+  What to do when you do, in order:
+
+  1. **Record two or three hundred more, genuinely distinct.** `EarsTest record "Hey Octavia" 200`.
+     Distinct is the operative word — the first attempt duplicated 40 clips fifty times and made
+     the model *worse on its own training data*, because copies add weight without adding
+     information. Ten minutes of real variety beats any amount of duplication.
+  2. **Seed them lightly.** `seed.sh` with `COPIES=5`, not 50. Around 2% of the positives.
+  3. **Score before and after** with `EarsTest scorerecordings`, against
+     `data\wake-holdout` — ten clips deliberately never trained on. That folder is the
+     regression test; a model that has seen it cannot be measured by it.
+
+  **Do not reach for more synthetic samples.** 1,000 to 10,000 moved the benchmark *down*, and
+  the whole 30,000-and-50,000 plan was chasing the wrong variable.
+
+- **Where it stands (09/04/2026).** `hey_octavia.onnx` is 10,000 synthetic clips trained in
+  `tools/wake-training`, with the generator's `slerp_weights` patched from `(0.5,)` to include
+  0.0 and 1.0. That patch is the whole fix: every clip had been a 50/50 blend of two speakers,
+  which sits near the centre of speaker space, so the model had never heard a pure voice at
+  either extreme. On the owner's real recordings it took the median from **0.008 to 0.588** and
+  the hit rate from 12% to 63%. `WakeThreshold` is 0.10, in an empty band — real scores are
+  either above 0.12 or below 0.07, so the exact value barely matters.
+
+- **Measure on real recordings, never on the benchmark.** The training benchmark and
+  `wakescore` are both synthetic speech judged by a model trained on synthetic speech, and both
+  reported a healthy model while the owner was not being heard at all. Benchmark recall
+  *fell* (0.506 → 0.449) across the change that fixed it. `scorerecordings` is the instrument.
+
 - **Whisper need not be loaded until she is woken.** It is opened at startup today so a first
   press does not pay for the model — right when a press was the only way in, and now worth
   re-asking: with a wake word, the 1.6 GB could stay unloaded until the phrase is heard. That
