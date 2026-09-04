@@ -175,7 +175,7 @@ print("fma:", len(os.listdir("./fma")), "files")
 
 Expected afterwards: **500** audioset clips (that shard holds 500), **270** impulse responses, **120** music clips.
 
-## Cell 3 — train
+## Cell 3 — train (the first run, at 1,000 samples)
 
 Replaces the notebook's cell 3. Every step runs in the 3.11 environment, because `--generate_clips` imports the generator in-process. The tflite conversion and auto-download are dropped — she uses ONNX.
 
@@ -271,6 +271,191 @@ else:
 
 The run does not start unless `stack:` prints `ok` — there is no point spending an hour to find a missing import.
 
+## Cell 3, the retrain — 30,000 samples, split into four
+
+**Written 09/04/2026, after the 1,000-sample model scored 0.00 on the owner's natural voice.**
+Six attempts at nothing at all, then 0.82 the moment he pitched it up. That is not a threshold
+problem — no threshold reaches zero — it is a model that was told twice over to prefer silence
+to hearing and had too little data to manage both:
+
+| setting | was | now | why |
+|---|---|---|---|
+| `n_samples` | 1000 | **30000** | 1,000 leaves no room to satisfy recall and quiet at once |
+| `target_recall` | 0.25 | **0.6** | 0.25 says *missing three quarters is acceptable*; it obliged |
+| `max_negative_weight` | 1500 | **500** | a heavy false-alarm penalty bought quiet by going deaf |
+| `steps` | 10000 | **20000** | thirty times the data wants more passes over it |
+
+The first three are the fix. `steps` is orthogonal — capacity to fit, not what to prefer — and
+is cheap: training was about nine minutes at 10,000.
+
+**Split into four cells because the run is now hours, not twenty-five minutes.** Generation
+scales roughly linearly with `n_samples`, and last time `--train_model` reported failure on the
+tflite conversion *after* the ONNX was already written. One long cell redoes everything.
+
+Cells 1, 2 and 2b are unchanged. Order is still 1 → 2 → **restart** → 2 → 2b → 3a → 3b → 3c → 3d.
+
+> Splitting the cells protects against a failed *step*, not a runtime reset. If Colab recycles
+> the VM, `/content` goes with it and you start again from cell 2 — fault 3, unchanged.
+
+### 3a — config and environment
+
+```python
+# @title 3a. Config and environment  { display-mode: "form" }
+import os, glob, subprocess, yaml
+
+ROOT = "/content"
+PY   = f"{ROOT}/piper311/bin/python"
+
+target_word = 'hey octavia' # @param {type:"string"}
+
+# --- what changed, and why ---------------------------------------------------
+# 1,000 examples at target_recall 0.25 with a penalty of 1500 produced a model
+# that scored 0.00 on a deep male voice.
+number_of_examples       = 30000   # was 1000
+recall_target            = 0.6     # was 0.25   <- the one that matters most
+false_activation_penalty = 500     # was 1500
+number_of_training_steps = 20000   # was 10000; 30x the data wants more passes
+# -----------------------------------------------------------------------------
+
+# Colab exports MPLBACKEND=module://matplotlib_inline..., which only exists in the
+# kernel. A subprocess inherits it and matplotlib refuses to start. Agg needs no display.
+ENV = {**os.environ, "MPLBACKEND": "Agg",
+       "PYTHONPATH": f"{ROOT}/piper-sample-generator"}
+
+config = yaml.load(open("openwakeword/examples/custom_model.yml").read(), yaml.Loader)
+config["target_phrase"] = [target_word]
+config["model_name"] = config["target_phrase"][0].replace(" ", "_")
+config["n_samples"] = number_of_examples
+config["n_samples_val"] = max(500, number_of_examples // 10)
+config["steps"] = number_of_training_steps
+config["target_accuracy"] = 0.5
+config["target_recall"] = recall_target
+config["output_dir"] = "./my_custom_model"
+config["max_negative_weight"] = false_activation_penalty
+config["background_paths"] = ['./audioset_16k', './fma']
+config["false_positive_validation_data_path"] = "validation_set_features.npy"
+config["feature_data_files"] = {"ACAV100M_sample": "openwakeword_features_ACAV100M_2000_hrs_16bit.npy"}
+config["piper_sample_generator_path"] = f"{ROOT}/piper-sample-generator"
+
+with open('my_model.yaml', 'w') as f:
+    yaml.dump(config, f)
+print("model:", config["model_name"], "| examples:", number_of_examples,
+      "| recall:", recall_target, "| penalty:", false_activation_penalty)
+
+def sh(cmd):
+    r = subprocess.run(cmd, shell=True, cwd=ROOT, capture_output=True, text=True)
+    if r.returncode:
+        print(f"FAILED: {cmd}\n{r.stdout[-800:]}\n{r.stderr[-800:]}")
+    return r.returncode == 0
+
+print("preparing the 3.11 environment...")
+# setuptools: pronouncing still imports pkg_resources, and uv venvs ship neither.
+# scipy pinned: acoustics 0.2.6 imports scipy.special.sph_harm, removed in 1.17.
+sh(f"uv pip install -q --python {PY} 'setuptools<82' torchinfo torchmetrics pyyaml "
+   f"'scipy<1.17' tqdm mutagen speechbrain==0.5.14 acoustics==0.2.6 pronouncing==0.2.0 "
+   f"deep-phonemizer==0.0.19 torch-audiomentations==0.11.0 onnx onnxruntime matplotlib")
+sh(f"uv pip install -q --python {PY} -e ./openwakeword --no-deps")
+
+for f in glob.glob(f"{ROOT}/piper311/lib/python*/site-packages/torch_audiomentations/**/*.py",
+                   recursive=True):
+    src = open(f).read()
+    if "set_audio_backend" in src and "# patched" not in src:
+        open(f, "w").write(src.replace("torchaudio.set_audio_backend",
+                                       "getattr(torchaudio, 'set_audio_backend', lambda *a, **k: None)  # patched\n#"))
+        print("patched", os.path.basename(f))
+
+# Exactly what train.py imports. Submodules, not the bare package: with cwd=/content,
+# `import openwakeword` finds the *directory* as an empty namespace package and succeeds
+# without importing anything.
+check = ("import torch, torchinfo, torchmetrics, scipy, yaml, numpy, tqdm; "
+         "import audiomentations, torch_audiomentations, speechbrain, acoustics, pronouncing; "
+         "from openwakeword.vad import VAD; "
+         "from openwakeword.data import generate_adversarial_texts, augment_clips, mmap_batch_generator; "
+         "from openwakeword.utils import compute_features_from_generator, AudioFeatures; "
+         "from generate_samples import generate_samples; print('ok')")
+ok = subprocess.run([PY, "-c", check], cwd=f"{ROOT}/openwakeword", env=ENV,
+                    capture_output=True, text=True)
+print("stack:", ok.stdout.strip() if ok.returncode == 0 else ok.stderr[-900:])
+
+# Thirty thousand samples on a CPU runtime is a wasted day.
+gpu = subprocess.run(
+    [PY, "-c", "import torch; print(torch.cuda.get_device_name(0) if torch.cuda.is_available() "
+               "else 'NO GPU -- Runtime > Change runtime type > T4')"],
+    capture_output=True, text=True)
+print("gpu:", gpu.stdout.strip() or gpu.stderr[-300:])
+
+def run(step):
+    print(f"=== {step} ===")
+    p = subprocess.Popen([PY, "openwakeword/openwakeword/train.py",
+                          "--training_config", "my_model.yaml", step],
+                         cwd=ROOT, env=ENV,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    for line in p.stdout:
+        print(line, end="")
+    code = p.wait()
+    print(f"*** {step} failed ***" if code else f"--- {step} done ---")
+    return code == 0
+```
+
+### 3b — generate the clips (the long one)
+
+```python
+# @title 3b. Generate the clips  { display-mode: "form" }
+run("--generate_clips")
+
+import glob, os
+print("\nwhat exists now:")
+for p in sorted(glob.glob(f"{ROOT}/*.npy")):
+    print(f"  {os.path.basename(p):58s} {os.path.getsize(p) >> 20:6d} MB")
+```
+
+### 3c — augment
+
+```python
+# @title 3c. Augment the clips  { display-mode: "form" }
+run("--augment_clips")
+```
+
+### 3d — train, and save it where a disconnect cannot reach
+
+```python
+# @title 3d. Train  { display-mode: "form" }
+import os, shutil
+
+run("--train_model")   # reports failure on the tflite step at the very end. Ignore it.
+
+out  = f"{ROOT}/my_custom_model"
+onnx = f"{out}/hey_octavia.onnx"
+print("\nmy_custom_model:", os.listdir(out) if os.path.exists(out) else "not created")
+
+if os.path.exists(onnx):
+    print(f"hey_octavia.onnx  {os.path.getsize(onnx) >> 10} KB")
+    try:
+        from google.colab import drive
+        drive.mount('/content/drive')
+        dest = '/content/drive/MyDrive/octavia'
+        os.makedirs(dest, exist_ok=True)
+        shutil.copy(onnx, dest)
+        print("copied to Drive:", dest)
+    except Exception as e:
+        print("no Drive copy:", e, "-- use the file browser instead")
+else:
+    print("NO ONNX. Scroll up for the real error --")
+    print("it is NOT the onnx_tf traceback at the end, which is expected.")
+```
+
+### The number to read at the end
+
+**`Final Model Recall`.** It was **0.506** on the first run and that was the whole story, sitting
+in plain sight above a traceback that did not matter. If a retrain does not clear roughly 0.8,
+more samples will not save it and the phrase itself needs rethinking.
+
+`Final Model False Positives per Hour` was 0.177 and had room to spare — some of that is being
+spent deliberately here, so a small rise is the trade working rather than a regression.
+
+**A cheaper first answer:** `number_of_examples = 10000` is about a third of the time and still
+answers the open question, which is whether the recall and penalty change alone cure the
+deafness. 30,000 buys polish on top of an answer 10,000 would already have given.
 ## If a cell fails
 
 The output is enormous and the real cause is usually one line. Look for:
@@ -279,3 +464,4 @@ The output is enormous and the real cause is usually one line. Look for:
 - `You must restart the runtime` — buried mid-output, and the cause of any bizarre numpy error that follows.
 - `404 Not Found` followed by `tar: This does not look like a tar archive` — an upstream dataset moved.
 - `ModuleNotFoundError` from a *subprocess* — the 3.11 environment is missing something, not the kernel.
+
