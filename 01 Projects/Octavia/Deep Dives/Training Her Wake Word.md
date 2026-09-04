@@ -216,3 +216,77 @@ Local wins on everything except the first hour of setup: no disconnects, no runt
 wipe `/content`, nothing to pay, and an environment that is a file rather than a browser tab.
 Colab is still the faster wall-clock for a single run, and the notebook cells above stay
 current for it.
+
+---
+
+# What finally worked, and what a day of measuring the wrong thing cost
+
+*09/04/2026. Written after the fact, because the sequence is the lesson.*
+
+## The fix
+
+**`slerp_weights` defaults to `(0.5,)` and train.py never overrides it**, so every generated
+clip is a 50/50 blend of two speakers: `g = slerp(emb0, emb1, 0.5)`. The midpoint of two voices
+sits near the centre of speaker space, so the model never hears a *pure* speaker and never hears
+an extreme one at all. Patching the default to `(0.0, 0.25, 0.5, 0.75, 1.0)` generates unblended
+speakers and restores both ends of the range.
+
+Measured against 50 recordings of the owner's real voice:
+
+| | median | fires at 0.15 |
+|---|---|---|
+| before | **0.008** | 6/50 (12%) |
+| after | **0.588** | 25/40 (63%) |
+
+Held-out clips the model never saw: median 0.507, 5/10. The remaining misses **cluster in
+blocks** rather than scattering — long runs of 0.7-0.9 alternating with runs near zero — so they
+are delivery-dependent, not random. Ordinary speech scores 0.7-0.9; the deliberately awkward
+recordings (muttered, turned away, distant) are what fail.
+
+## What did not work, and is worth not repeating
+
+**More samples.** 1,000 → 10,000 → 30,000 was the plan for hours. Ten times the data moved
+benchmark recall from 0.506 to 0.440 — *down*. Sample count was never the constraint.
+
+**`target_recall`.** Raised from 0.25 to 0.6 and described as "the one that matters most". It is
+a warning threshold: `_select_best_model` filters candidates by false-positive rate and takes the
+best recall among them, and `target_recall` only decides whether a log line prints.
+
+**`target_false_positives_per_hour`.** This one does bind — it filters selection and doubles
+`max_negative_weight` in sequences 2 and 3. Relaxing 0.2 → 2.0 moved recall 0.366 → 0.44. Real,
+but small, and it addressed a symptom.
+
+**Seeding the owner's own recordings.** 40 clips × 50 copies, 17% of the positives. It made the
+model *worse on the clips it was trained on* (63% → 55%, median 0.588 → 0.215). Duplicates add
+weight without adding information; 2,000 near-identical points crowded the positive set and the
+selection turned conservative — false positives fell to 0.0, which is the tell. **Recording real
+audio was the right instinct; fifty copies of forty utterances was the wrong way to use it.**
+Worth retrying at ~5 copies, or with several hundred genuinely distinct recordings.
+
+## The reason it took a day
+
+**Every measurement was synthetic speech judged by a model trained on synthetic speech.** The
+training benchmark uses piper clips; `wakescore` uses SAPI voices. Both reported the model was
+fine while the owner's ordinary voice was not being heard at all.
+
+Worse, the diagnostic in her own code was wrong:
+
+```csharp
+LastScore = score;                                  // every 80 ms chunk
+Log.Write($"... (best {_wake.LastScore:0.00})");    // reported as the best
+```
+
+An utterance is logged only after the voice detector's trailing silence, by which point the
+classifier's window holds that silence and the score has decayed to zero. Every declined
+utterance logged `best 0.00` regardless of what it reached — which reads as *"her name scores
+nothing at all"* and is a completely different claim from *"it scores 0.25 against a 0.30
+threshold"*. Fixed in v0.52.3 as `PeakScore`.
+
+**Fifty real recordings took ten minutes and settled in one command what four retrains could
+not.** `positive_train` is just a folder of WAVs and `EarsTest scorerecordings` reads any folder
+of them, so both directions were always available. The right first question was not *"how do we
+train a better model"* but *"what does the current model score on the voice that has to work"*.
+
+> Four separate things this week reported success for a question they had not asked: a check
+> that imported a directory, a guard that tested existence when it meant completeness, an exit
+> code belonging to `tail`, and a score read after it had decayed. See [[Lessons Learned]].

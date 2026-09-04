@@ -28,6 +28,21 @@ if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.Ru
 if (args.Length > 0 && args[0] == "wakescore") { await WakeProbe.RunAsync(args.Length > 1 ? args[1] : "Hey Octavia"); return; }
 if (args.Length > 0 && args[0] == "awake") { Environment.Exit(AwakeChecks.Run()); }
 if (args.Length > 0 && args[0] == "speech") { Environment.Exit(SpeechChecks.Run()); }
+if (args.Length > 0 && args[0] == "scorerecordings")
+{
+    Environment.Exit(await WakeRecordingsProbe.RunAsync(
+        args.Length > 1 ? args[1] : "Hey Octavia",
+        args.Length > 2 ? args[2] : Path.Combine(Octavia.Core.Paths.DataDir, "wake-recordings"),
+        args.Length > 3 && float.TryParse(args[3], out var th) ? th : 0.15f));
+}
+if (args.Length > 0 && args[0] == "record")
+{
+    Environment.Exit(await WakeRecorder.RunAsync(
+        args.Length > 1 ? args[1] : "Hey Octavia",
+        args.Length > 2 && int.TryParse(args[2], out var n) ? n : 50,
+        args.Length > 3 ? args[3] : Path.Combine(Octavia.Core.Paths.DataDir, "wake-recordings"),
+        args.Length > 4 && float.TryParse(args[4], out var floor) ? floor : 0.01f));
+}
 if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "baseline") { Environment.Exit(BaselineChecks.Run()); }

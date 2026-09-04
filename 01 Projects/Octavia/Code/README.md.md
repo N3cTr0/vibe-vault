@@ -670,6 +670,8 @@ dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, agains
 dotnet run --project tools/EarsTest -- wakescore "Hey Octavia"  # what a trained wake word scores
 dotnet run --project tools/EarsTest -- awake     # how long one wake word keeps her listening
 dotnet run --project tools/EarsTest -- speech    # how her answer is cut into sentences
+dotnet run --project tools/EarsTest -- record "Hey Octavia" 50   # record the owner saying it, for training
+dotnet run --project tools/EarsTest -- scorerecordings            # what the wake word scores on those recordings
 dotnet run --project tools/EarsTest -- toolloop        # the tool loop, both brains (SPENDS MONEY; not in the suite)
 dotnet run --project tools/EarsTest -- toolloop local  # ...the local brain only, which is free
 dotnet run --project tools/EarsTest -- confirm        # the spoken-yes rule, as a conversation (free)
