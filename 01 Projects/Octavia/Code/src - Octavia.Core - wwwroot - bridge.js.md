@@ -874,6 +874,15 @@ function applyHello(msg) {
   /* The captions, which are a view of the conversation rather than part of it. Hiding them
      takes the `overheard` notices with them deliberately: they live in the same placard, and
      leaving those visible would have her narrating her own silence. */
+  /* The dashboard's URL and name, and the button hidden entirely when there is none. */
+  if (msg.dashboard !== undefined) {
+    dashUrl = msg.dashboard || '';
+    dashName = msg.dashboardName || 'Dashboard';
+    dashBtn.hidden = !dashUrl;
+    dashBtn.title = dashName;
+    if (!dashUrl) closeDashboard();
+  }
+
   if (msg.caption !== undefined) {
     captionChk.checked = !!msg.caption;
     document.body.classList.toggle("no-caption", !msg.caption);
@@ -1861,5 +1870,65 @@ if (!socket) {
   notify('No host to connect to. The face renders; use the Dev tab to drive it.');
 }
 
+/* ---- the dashboard, a web page over the room on a button ----------------------------
+   The frame gets its `src` on open and loses it on close. A configured dashboard that is
+   never opened costs nothing, and a Home Assistant left framed all evening is a websocket
+   and a camera stream nobody is watching. */
+const dashBtn = el('dashBtn');
+const dashPanel = el('dashboard');
+const dashFrame = el('dashFrame');
+const dashTitle = el('dashTitle');
+const dashTrouble = el('dashTrouble');
+const dashClose = el('dashClose');
+
+let dashUrl = '';
+let dashName = 'Dashboard';
+let dashWatchdog = 0;
+
+function openDashboard() {
+  if (!dashUrl) return;
+
+  dashTitle.textContent = dashName;
+  dashTrouble.hidden = true;
+  dashFrame.hidden = false;
+  dashPanel.hidden = false;
+  dashFrame.src = dashUrl;
+
+  /* A refused frame does not raise an error a page can catch — `X-Frame-Options` and
+     `frame-ancestors` both fail silently, and the result is a blank panel that looks
+     exactly like one still loading. `load` firing is the only signal available, so the
+     absence of it is what gets reported. */
+  clearTimeout(dashWatchdog);
+  dashWatchdog = setTimeout(() => {
+    if (!dashPanel.hidden && !dashFrame.dataset.loaded) {
+      dashFrame.hidden = true;
+      dashTrouble.hidden = false;
+      dashTrouble.textContent =
+        `${dashName} did not load. If it is Home Assistant, it refuses to be framed until ` +
+        `X-Frame-Options is turned off at its end — nothing here can override that. ` +
+        `A page reached over http:// will also be blocked when her face is served over https://.`;
+    }
+  }, 6000);
+}
+
+function closeDashboard() {
+  clearTimeout(dashWatchdog);
+  dashPanel.hidden = true;
+  dashFrame.removeAttribute('src');
+  delete dashFrame.dataset.loaded;
+}
+
+dashFrame.addEventListener('load', () => { dashFrame.dataset.loaded = '1'; });
+dashBtn.addEventListener('click', () => dashPanel.hidden ? openDashboard() : closeDashboard());
+dashClose.addEventListener('click', closeDashboard);
+
+// Escape closes it. Registered in the capture phase so it beats the hush handler, which
+// otherwise stops her mid-sentence when somebody meant to shut a panel.
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !dashPanel.hidden) {
+    event.stopPropagation();
+    closeDashboard();
+  }
+}, true);
 })();
 ```

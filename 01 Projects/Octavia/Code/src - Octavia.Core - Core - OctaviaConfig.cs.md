@@ -171,6 +171,26 @@ internal sealed class OctaviaConfig
     /// conversation, not part of it.
     public bool ShowCaption { get; set; } = true;
 
+    /// A web page to show over her, on a button — a Home Assistant dashboard, or anything
+    /// else that answers a question without leaving the room she is standing in.
+    ///
+    /// **Empty by default, and the button is hidden when it is.** A control that does nothing
+    /// is worse than an absent one.
+    ///
+    /// It is an `iframe`, so the page has to allow being framed. Home Assistant sends
+    /// `X-Frame-Options: SAMEORIGIN` out of the box and will show a blank panel until that is
+    /// turned off at its end; there is nothing this side can do about it, which is why the
+    /// face says so rather than leaving somebody staring at nothing.
+    ///
+    /// **Same-scheme, or it will not load.** Her face is served over plain HTTP on loopback,
+    /// so an `http://` dashboard is fine; reach her over HTTPS from outside and the browser
+    /// blocks an `http://` frame as mixed content. That is the browser's rule, not hers.
+    public string DashboardUrl { get; set; } = "";
+
+    /// What to call it on the button and in its title bar.
+    public string DashboardName { get; set; } = "Dashboard";
+
+
 
     /// Whether the face offers its dev panel, which drives every performance she can
     /// give by hand. Null follows the profile — on for `dev`, off for `live` — which is

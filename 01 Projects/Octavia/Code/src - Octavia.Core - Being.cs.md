@@ -66,6 +66,17 @@ internal sealed class Being : IDisposable
         if (SecretStore.SealLoose(config) is { Count: > 0 } moved)
             Log.Write($"sealed and removed from config.json: {string.Join(", ", moved)}");
 
+        /* The dashboard's origin, not its URL: a `frame-src` naming a whole path would look
+           more precise than CSP actually is, and an unparseable one widens nothing rather
+           than widening everything. */
+        StaticFiles.FrameOrigin =
+            Uri.TryCreate(config.DashboardUrl, UriKind.Absolute, out var dash)
+                ? dash.GetLeftPart(UriPartial.Authority)
+                : "";
+
+        if (config.DashboardUrl.Length > 0 && StaticFiles.FrameOrigin.Length == 0)
+            Log.Warn($"dashboard '{config.DashboardUrl}' is not an absolute URL; the button will not open it");
+
         var sockets = new WebSocketFaceServer();
 
         if (!sockets.Start(config.FacePort, config.RemoteAccess))

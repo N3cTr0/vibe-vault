@@ -13,7 +13,7 @@ source-path: src\Octavia.Core\wwwroot\index.html
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://octavia.avatar; media-src 'self' blob:; connect-src 'self' blob: ws://127.0.0.1:* ws://localhost:* https://octavia.avatar">
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://octavia.avatar; media-src 'self' blob:; frame-src 'none'; connect-src 'self' blob: ws://127.0.0.1:* ws://localhost:* https://octavia.avatar">
 <title>Octavia</title>
 <!-- Since v0.20.0 the socket serves this page, so a phone or a browser tab is a face like
      any other — and a face deserves her mark rather than a globe. `apple-touch-icon` is
@@ -87,6 +87,30 @@ source-path: src\Octavia.Core\wwwroot\index.html
          height re-frames the camera, so she visibly jumped size every time the caption
          came and went. Overlaid, the room is always full height and nothing moves but
          the text. -->
+    <!-- The dashboard, over the room rather than beside it: the stage keeps its height, so
+         opening this does not re-frame the camera and resize her. Same reasoning as the
+         placard. The frame carries no `src` until it is opened, so a configured dashboard
+         is not quietly polled all evening by a face nobody is looking at. -->
+    <div id="dashboard" hidden>
+      <div id="dashBar">
+        <span id="dashTitle">Dashboard</span>
+        <button id="dashClose" title="Close (Esc)" aria-label="Close the dashboard">✕</button>
+      </div>
+      <iframe id="dashFrame" title="Dashboard" referrerpolicy="no-referrer"
+              allow="camera; microphone; fullscreen; autoplay"></iframe>
+      <p id="dashTrouble" hidden></p>
+    </div>
+
+    <!-- Bottom right, over the room rather than in the console row. The console is the row
+         of things she does; this opens something else entirely, and putting it among the
+         microphone and the camera implied it was another of her senses. Hidden until a URL
+         is configured, because a control that does nothing is worse than an absent one. -->
+    <button id="dashBtn" title="Dashboard" aria-label="Open the dashboard" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="3.5" width="19" height="17" rx="2"/><path d="M2.5 9h19M9 9v11.5"/>
+      </svg>
+    </button>
+
     <div id="placard">
       <span id="speaker">&nbsp;</span>
       <p id="caption" class="muted">Press the microphone, or say her name.</p>

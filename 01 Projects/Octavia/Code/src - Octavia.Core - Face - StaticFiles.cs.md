@@ -132,5 +132,31 @@ internal static class StaticFiles
 
         return (full, type);
     }
+
+    /// The one origin the face page is allowed to put in an `iframe`, or empty for none.
+    ///
+    /// **Her page carries a strict `Content-Security-Policy` with `default-src 'none'`**, so
+    /// framing anything is refused before the remote page is even asked — which is why turning
+    /// off Home Assistant's `X-Frame-Options` was necessary and not sufficient. A meta policy
+    /// and a header policy are enforced as an intersection, so a header cannot widen the meta:
+    /// the file's own `frame-src 'none'` is what has to change, and it changes here rather
+    /// than in the file so that a dashboard nobody configured widens nothing.
+    ///
+    /// Set from `DashboardUrl`, reduced to a scheme and authority — a policy naming a whole
+    /// path would be a policy that looked more precise than it is.
+    public static string FrameOrigin { get; set; } = "";
+
+    /// `frame-src 'none'` becomes `frame-src <origin>`, and only in `index.html`.
+    internal static byte[] WithFramePolicy(string path, byte[] body)
+    {
+        if (FrameOrigin.Length == 0) return body;
+        if (!path.EndsWith("index.html", StringComparison.OrdinalIgnoreCase)) return body;
+
+        var text = System.Text.Encoding.UTF8.GetString(body);
+        if (!text.Contains("frame-src 'none'")) return body;
+
+        return System.Text.Encoding.UTF8.GetBytes(
+            text.Replace("frame-src 'none'", $"frame-src {FrameOrigin}"));
+    }
 }
 ```

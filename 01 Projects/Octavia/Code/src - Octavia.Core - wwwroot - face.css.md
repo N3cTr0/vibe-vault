@@ -611,4 +611,60 @@ body.looking::before{
   .pill:nth-child(n+4){display:none}
   #drawer{width:100vw}
 }
+
+/* The dashboard, filling the stage over the room. `inset:0` on the stage rather than the
+   window so her nameplate and the console stay reachable — closing it must never need the
+   page it is covering to cooperate. */
+#dashboard{
+  position:absolute;inset:0;z-index:40;
+  display:flex;flex-direction:column;
+  background:var(--room-back,#1a1a1e);
+}
+#dashBar{
+  display:flex;align-items:center;gap:10px;
+  padding:6px 10px;flex:0 0 auto;
+  font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  /* Light on the dark bar, not `--room-ink`: that follows the room and the room can be
+     bright, which put dark text on a dark strip and made the close button invisible. */
+  color:#e8e8ea;
+  background:rgba(0,0,0,.25);
+}
+#dashTitle{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dashClose{
+  flex:0 0 auto;width:26px;height:26px;line-height:1;
+  border:0;border-radius:6px;cursor:pointer;
+  background:transparent;color:#e8e8ea;font-size:15px;
+}
+#dashClose:hover{background:rgba(255,255,255,.14)}
+/* Her room's own background, not white. The frame is empty for a second or two while the
+   remote page boots, and a white sheet in front of her reads as a fault rather than a wait. */
+#dashFrame{flex:1 1 auto;width:100%;border:0;background:var(--room-back,#1a1a1e)}
+#dashFrame[hidden]{display:none}
+
+/* Said out loud rather than left as a blank panel: a page that refuses to be framed looks
+   exactly like a page that is still loading, and the two want different actions. */
+#dashTrouble{
+  flex:1 1 auto;margin:0;padding:18px;
+  color:var(--room-ink);opacity:.8;font-size:13px;line-height:1.5;
+}
+
+/* Bottom right of the room, out of the console's way. Faded until hovered: it is a door to
+   somewhere else and should not compete with her. */
+#dashBtn{
+  position:absolute;right:14px;bottom:14px;z-index:30;
+  width:36px;height:36px;padding:7px;
+  display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:9px;cursor:pointer;
+  color:var(--room-ink);background:rgba(127,127,127,.14);
+  opacity:.4;transition:opacity .25s ease,background .25s ease;
+}
+#dashBtn:hover,#dashBtn:focus-visible{opacity:1;background:rgba(127,127,127,.26)}
+#dashBtn svg{width:100%;height:100%}
+#dashBtn[hidden]{display:none}
+
+/* **`hidden` loses to `display:flex`.** The attribute's own style is `display:none` at the
+   lowest possible priority, so any rule that sets `display` beats it — and the panel sat over
+   her on every load, with a title bar and a close button, while `panel.hidden` read true. A
+   rule that says otherwise cannot be checked by reading the JavaScript. */
+#dashboard[hidden]{display:none}
 ```

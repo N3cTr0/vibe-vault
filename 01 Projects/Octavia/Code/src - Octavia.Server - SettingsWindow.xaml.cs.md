@@ -162,6 +162,8 @@ public partial class SettingsWindow : Window
         RoomHourBox.Text = _config.RoomHour.ToString();
         ShowStatsBox.IsChecked = _config.ShowStats;
         ShowCaptionBox.IsChecked = _config.ShowCaption;
+        DashboardUrlBox.Text = _config.DashboardUrl;
+        DashboardNameBox.Text = _config.DashboardName;
         CameraBox.IsChecked = _config.Camera;
 
         RoundsEnabledBox.IsChecked = _config.Rounds.Enabled;
@@ -399,6 +401,8 @@ public partial class SettingsWindow : Window
         _config.RoomHour = Number(RoomHourBox.Text, _config.RoomHour, "room hour", trouble);
         _config.ShowStats = ShowStatsBox.IsChecked == true;
         _config.ShowCaption = ShowCaptionBox.IsChecked == true;
+        _config.DashboardUrl = DashboardUrlBox.Text.Trim();
+        _config.DashboardName = DashboardNameBox.Text.Trim() is { Length: > 0 } named ? named : "Dashboard";
         _config.Camera = CameraBox.IsChecked == true;
 
         _config.Rounds.Enabled = RoundsEnabledBox.IsChecked == true;

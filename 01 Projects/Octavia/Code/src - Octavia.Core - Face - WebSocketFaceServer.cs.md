@@ -713,7 +713,7 @@ internal sealed class WebSocketFaceServer : IDisposable
         byte[] body;
         try
         {
-            body = await File.ReadAllBytesAsync(path, _stopping.Token);
+            body = StaticFiles.WithFramePolicy(path, await File.ReadAllBytesAsync(path, _stopping.Token));
         }
         catch (Exception ex)
         {

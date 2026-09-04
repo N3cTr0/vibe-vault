@@ -869,6 +869,8 @@ internal sealed class OctaviaSession : IDisposable
         camera = room.Camera,
         stats = _config.ShowStats,
         caption = _config.ShowCaption,
+        dashboard = _config.DashboardUrl,
+        dashboardName = _config.DashboardName,
 
         /* The two facts from the status readout that actually change, kept when the rest of
            it went off by default. A face draws them small in a corner rather than as a panel.

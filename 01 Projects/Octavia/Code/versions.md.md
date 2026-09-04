@@ -18,6 +18,58 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.54.0 — 2026-09-04
+
+**A dashboard over the room, on a button.** *"since HA runs in a browser, add another thing if
+we can open up the HA dashboard within Octavia with a close button, since octavia is technically
+a browser."* She is: her face is a page, so another page can sit over it.
+
+`DashboardUrl` and `DashboardName` in settings. The button is bottom right of the room — not in
+the console row, which is the row of things *she* does, and putting a door to somewhere else
+among the microphone and the camera implied it was another of her senses. Hidden entirely when
+no URL is set.
+
+The frame gets its `src` on open and loses it on close, so a configured dashboard that nobody
+opens costs nothing and a Home Assistant left framed all evening is not a websocket and a camera
+stream nobody is watching.
+
+### Turning off `X-Frame-Options` was necessary and not sufficient
+
+Home Assistant refuses framing until that is switched off at its end — which the owner did — and
+it still showed a blank panel, because **the refusal was on her side**:
+
+```
+Framing 'http://homeassistant.local/' violates the following Content Security Policy
+directive: "default-src 'none'". The request has been blocked.
+```
+
+Her page carries a strict CSP as a `<meta>`, and a meta policy and a header policy are enforced
+as an *intersection* — so no header could widen it. `StaticFiles.WithFramePolicy` rewrites
+`frame-src 'none'` to the configured origin as `index.html` is served, and only that origin: the
+file on disk stays safe, and a dashboard nobody configured widens nothing. `Being` reduces the
+URL to a scheme and authority, because a `frame-src` naming a whole path would look more precise
+than CSP is.
+
+### Two faults found by looking rather than by reasoning
+
+**`hidden` loses to `display:flex`.** The attribute's own style is `display:none` at the lowest
+possible priority, so the panel sat over her on every load — title bar, close button and all —
+while `panel.hidden` read `true` in the console. `#dashboard[hidden]{display:none}` is the whole
+fix, and no amount of reading the JavaScript would have found it.
+
+**A white sheet reads as a fault.** The frame's background was `#fff`, so opening it flashed a
+white block in front of her for the second or two the remote page takes to boot. It is the
+room's own background now.
+
+### And it says when it cannot
+
+A refused frame raises no error a page can catch — `X-Frame-Options` and `frame-ancestors` both
+fail silently, and a blocked panel looks exactly like a loading one. The absence of a `load`
+event within six seconds is the only signal available, so that is what is reported, naming both
+of the two causes worth checking.
+
+---
+
 ## 0.53.0 — 2026-09-04
 
 **The profile could not be changed from the settings window, and had not been able to for as
