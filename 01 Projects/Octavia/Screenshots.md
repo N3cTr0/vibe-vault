@@ -37,6 +37,28 @@ That mattered more than expected once: the first attempt to open the Health pane
 
 ---
 
+## v0.54.1 — Home Assistant, inside her and beside her
+
+### The dashboard, open over the room
+
+![[v0.54.1 - the Home Assistant dashboard, open over the room.png]]
+
+**Checking:** that the whole chain works — a real Home Assistant frontend, logged in, rendering inside a `WKWebView`-shaped hole in her own page. Three things had to be true at once and only the third was obvious: HA had to stop sending `X-Frame-Options` (the owner switched it off), **her own page had to stop refusing to frame anything** (`default-src 'none'` blocks it before the remote page is asked — a meta CSP and a header CSP are an intersection, so only rewriting the file's own `frame-src` could widen it), and `hidden` had to actually hide the panel, which `display:flex` was overriding on every load.
+
+Note what the shot does *not* show: her. That is the point of it. The stage keeps its height so opening this does not re-frame the camera and resize her, and the bar and its ✕ are hers rather than the remote page's — closing it must never need the page it is covering to cooperate.
+
+### The token, on the Integrations tab
+
+![[v0.54.1 - the Home Assistant token, on the Integrations tab.png]]
+
+**Checking:** that the token has somewhere to live before the integration exists, and that it looks like the thing beside it rather than a special case. It went on *Voice and face* first, next to the dashboard URL, and the owner asked why — *"im curious why your in voice and face when HA is a integration"*. A shared hostname is not a shared concern. It sits above `unifi` now with the same label width, the same Store/Clear, and the same `stored`/`not set` badge, so the two read as one list.
+
+The panel says out loud that nothing calls it yet. `HA_TOKEN` seals to `secret-homeassistant-HA_TOKEN.dat`, which is the path an `McpServers` entry named `homeassistant` already resolves to — so tomorrow's transport reads it without the secret moving.
+
+> **These two exist because the five before them did not.** v0.52.3 through v0.54.0 were each photographed with her standing idle, under captions describing changes that were nowhere in the frame — *"the captions now have a switch"* over a picture of her doing nothing. The owner: *"you should be screenshoting the visable change that was made in the gui, thats the point of the screenshot, not just her standing there."* `poke.ps1` exists to drive her into the state first and was not being used once.
+
+---
+
 ## v0.26.1 — her ears open before anyone asks
 
 ![[v0.26.1 - her ears open before anyone asks.png]]
