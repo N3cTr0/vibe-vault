@@ -441,7 +441,14 @@ internal sealed class OctaviaSession : IDisposable
 
         // Each sentence, as it finishes being heard. `Spoke(k)` means she has just moved on
         // to k+1 — see `KokoroVoice`, where the two counts that establish it are kept.
-        voice.Spoke += finished => Saying(finished + 1);
+        voice.Spoke += finished =>
+        {
+            Saying(finished + 1);
+
+            // Each sentence re-arms the wake word, so the window is measured from the end of
+            // what she said rather than the start of it.
+            if (_ears is WhisperRecognizer speaking) speaking.KeepAwake();
+        };
 
         voice.Finished += OnVoiceFinished;
 
@@ -1588,6 +1595,10 @@ internal sealed class OctaviaSession : IDisposable
                 WakeWordStore.PathFor(model)));
 
             ears.WakeThreshold = (float)_config.WakeThreshold;
+
+            // The gate carries a follow-up for this long; the audio has to reach it for that
+            // whole time or the tail of its window is unreachable. One number, not two.
+            ears.AwakeFor = TimeSpan.FromSeconds(Math.Max(12, _config.GateFollowUpSeconds));
             ears.RequiresWake = true;
         }
         catch (Exception ex)
@@ -1853,6 +1864,13 @@ internal sealed class OctaviaSession : IDisposable
         }
 
         _responding = true;
+
+        /* **Awake until she has finished answering, not for twelve seconds from the phrase.**
+           A local brain on a CPU can take half a minute, and the window used to expire inside
+           that — so the phrase was heard, the question was asked into a closed door, and the
+           log blamed the wake word. Cleared in the `finally` below and re-armed by every
+           sentence she speaks, so it cannot stick open if a turn dies. */
+        if (_ears is WhisperRecognizer answering) answering.HoldAwake = true;
         _attending = room.Id;
         /* Cancelled *and* disposed before it is replaced. Only the cancel was here, so every
            turn left one behind — collectable rather than a handle leak, but a source with
@@ -2002,7 +2020,7 @@ internal sealed class OctaviaSession : IDisposable
                context, said without her name and without the phrase — and if the audio never
                reached Whisper, the gate would never get the chance to allow it. The wake word
                opens an exchange; the gate carries it; this is the join between them. */
-            if (_ears is WhisperRecognizer talking) talking.KeepAwake();
+            if (_ears is WhisperRecognizer talking) talking.HoldAwakeWhileAnswering(false);
             if (!_voice.IsSpeaking) OnVoiceFinished();
         }
     }

@@ -16,6 +16,51 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.1 — 2026-09-04
+
+**The wake word heard the phrase and then closed the door on the question.** Reported within
+the hour of shipping v0.52.0, and the log tells it exactly:
+
+```
+02:17:40  woken: 'Hey Octavia' (0.82)      ← window opens, closes 02:17:52
+02:17:45  heard: "Hey Octavia."
+02:18:21  said: "How can I help you today?"  ← 36s later; the window died 29s ago
+02:18:56  heard 2.8s, not transcribed         ← the actual question, dropped
+```
+
+Her window was twelve seconds from the wake. **A local brain on a CPU took thirty-six** to
+answer, so it expired while she was still thinking, and the twelve seconds it got back were
+measured from the moment her reply was *dispatched* rather than the moment it finished being
+spoken. Every part of that is now wrong on purpose:
+
+- **She is awake for the whole turn**, from being addressed to finishing her reply, however
+  long the brain takes. Cleared in the turn's `finally` and re-armed by every sentence she
+  speaks, so a turn that dies cannot leave the wake word permanently open — which would be
+  the same bug wearing the opposite coat.
+- **The window is measured from the end of her last sentence**, hooked to `Spoke`, which
+  already knew when each one landed because the caption needed it.
+- **It is `GateFollowUpSeconds` long, not twelve.** The gate carries an exchange for 25
+  seconds so *"and what about tomorrow?"* is understood without her name; the audio has to
+  reach it for all 25 or the tail is unreachable. The comment at that join has claimed since
+  v0.39.0 that it exists so the gate's follow-up rule is reachable — and then used a number
+  that made half of it unreachable. **Two follow-up rules that disagree are one rule and one
+  bug.**
+
+`WakeThreshold` is 0.30, down from 0.40. Real attempts scored 0.41, 0.55, 0.76 and 0.82
+against a measured noise floor of 0.001, so 0.40 was admitting the weakest of them by one
+hundredth.
+
+### What this does not fix
+
+The owner's natural speaking voice scores **0.00** — not marginal, nothing at all — and only
+registers when he pitches it up. Six attempts in a row at 0.00, then 0.82 in falsetto. No
+threshold reaches zero. The training config asked for `target_recall = 0.25` with a false
+activation penalty of 1500, which is a model told in two separate places to prefer silence
+over hearing, and 1,000 samples gave it no room to do both. That is a retrain, and it is
+Stage 17's remaining work rather than this release's.
+
+---
+
 ## 0.52.0 — 2026-09-04
 
 **She has her own name now.** `hey_octavia.onnx` came out of a Colab, went into

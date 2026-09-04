@@ -2210,11 +2210,16 @@ if the room disagrees.
 
 ### Then worth doing, in this order
 
-- **Tune the threshold against a real room.** 0.40 came off synthesised speech, which is a
-  starting point and not an answer. `WakeThreshold` is in config; the log carries the best
-  score of every utterance it declined, which is exactly the data needed. If she is missing
-  the phrase, that is the number to lower — up to the point where the misses are the model's
-  rather than the threshold's, and then it is 30,000 samples instead.
+- **Retrain it, and change two settings when you do.** The owner's natural voice scores 0.00
+  on the 1,000-sample model — nothing at all, not a near miss — and only registers pitched up.
+  The notebook asked for `target_recall = 0.25` and a false-activation penalty of 1500, which
+  tells the trainer twice over to prefer silence to hearing, and 1,000 examples left it no
+  room to do both. **30,000 samples, `target_recall` nearer 0.6, and a lower penalty.** The
+  cells are in the vault; only those three numbers change.
+- **Tune the threshold against a real room.** 0.30 now, down from 0.40 after real attempts
+  scored 0.41–0.82 against a 0.001 noise floor. `WakeThreshold` is in config; the log carries
+  the best score of every utterance it declined. **A score of 0.00 is not a threshold problem**
+  — that is the model not hearing you, and only a retrain reaches it.
 - **Whisper need not be loaded until she is woken.** It is opened at startup today so a first
   press does not pay for the model — right when a press was the only way in, and now worth
   re-asking: with a wake word, the 1.6 GB could stay unloaded until the phrase is heard. That

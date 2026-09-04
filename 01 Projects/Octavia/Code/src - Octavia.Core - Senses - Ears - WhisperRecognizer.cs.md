@@ -314,13 +314,23 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     public float WakeThreshold { set => _wakeThreshold = Math.Clamp(value, 0.05f, 0.99f); }
     private DateTime _awakeUntil = DateTime.MinValue;
 
-    /// How long one wake word keeps her listening.
+    /// How long one wake word keeps her listening, past the end of her own last sentence.
     ///
-    /// Long enough to say the thing after the phrase — people pause after *"Hey Octavia"* —
-    /// and short enough that a room does not stay open after somebody wanders off. Every turn
-    /// she takes extends it, so a conversation does not need the phrase repeated; that is
-    /// `KeepAwake`, called when she answers.
-    private static readonly TimeSpan AwakeFor = TimeSpan.FromSeconds(12);
+    /// **The gate's follow-up window, deliberately the same number.** The gate carries an
+    /// exchange for `GateFollowUpSeconds` so *"and what about tomorrow?"* is understood as
+    /// addressed to her; if this were shorter, the tail of that window would be unreachable —
+    /// the audio would never get to Whisper for the gate to judge. Two follow-up rules that
+    /// disagree are one rule and one bug.
+    public TimeSpan AwakeFor { get; set; } = TimeSpan.FromSeconds(25);
+
+    /// Held open while she is answering, however long that takes.
+    ///
+    /// **A local brain on a CPU can think for half a minute**, and a fixed window measured
+    /// from the wake would expire in the middle of it — so the phrase would be heard, the
+    /// question asked into a closed door, and the log would blame the wake word. She is awake
+    /// from the moment she is addressed until she has finished replying, and the window is
+    /// measured from *there*.
+    public bool HoldAwake { get; set; }
 
     /// Whether an utterance must be preceded by the wake word to be transcribed.
     ///
@@ -346,11 +356,18 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
     /// Extends the window, so a follow-up needs no second *"Hey Octavia"*.
     public void KeepAwake() => _awakeUntil = DateTime.UtcNow + AwakeFor;
 
+    /// Awake while she is answering, and for `AwakeFor` after her last sentence lands.
+    public void HoldAwakeWhileAnswering(bool answering)
+    {
+        HoldAwake = answering;
+        if (!answering) KeepAwake();
+    }
+
     /// Whether the next completed utterance may reach Whisper.
     private bool Awake()
     {
         if (_wake is null || !RequiresWake) return true;
-        return DateTime.UtcNow < _awakeUntil;
+        return HoldAwake || DateTime.UtcNow < _awakeUntil;
     }
 
     private void ProcessFrame()
