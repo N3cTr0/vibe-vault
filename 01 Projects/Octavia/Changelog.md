@@ -16,6 +16,74 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.53.0 — 2026-09-04
+
+**The profile could not be changed from the settings window, and had not been able to for as
+long as the window has existed.** Reported as *"i tried changing to cloud and saving and it did
+not take"*.
+
+```csharp
+if (key is nameof(Profiles) or nameof(Profile)) continue;   // OctaviaConfig.Save
+```
+
+`Save` writes back only the keys that changed since load, so a running session cannot bake its
+profile overlay into the base settings. `Profile` was skipped along with `Profiles`, and for a
+*session* that is right: one loaded with `--profile cloud` holds `Profile = "cloud"` in memory
+while the file still says otherwise, so writing it would turn a command-line argument into a
+permanent setting.
+
+The settings window is the one caller that loads with **no** requested profile, so what is in
+its box is the file's own setting. `Save(withProfile: true)` is now that caller's, and nobody
+else's. The window assigned the field, reported a successful save, and dropped the one key the
+person had opened it to change.
+
+> A second fault sat behind the first. `Save` records what it wrote as the new baseline — and
+> recorded `Profile` as saved even when it had skipped it, so the *next* save compared equal and
+> skipped it too. The fix's own check caught that: the baseline has to describe the file, not
+> the object.
+
+### Two profiles, not four
+
+*"we only need the 2 profiles"* — `local` and `cloud`. `home` was `local` under a name that
+described the machine rather than the brain, `dev` was `home` with a smaller Whisper, and `live`
+was `cloud` under an older name. Three names for two behaviours.
+
+**The old names still resolve** — `home` and `dev` to `local`, `live` to `cloud` — and only when
+they are not defined, so an existing file that still declares them keeps using its own. The
+alternative was the "not defined" warning, which falls back to the base settings, and the base
+brain here is the cloud one: **a rename that quietly starts spending money is not a rename.**
+
+
+### And a second cause, which the first was hiding
+
+Her installed **service** was registered as:
+
+```
+"...\Octavia.Server.exe" --service --profile home
+```
+
+`--profile` on the command line **outranks the config file** — right for a shortcut, which is a
+choice made each time it is double-clicked, and wrong for a service, which is registered once
+and forgotten. So the Profile box was decorative twice over: the save dropped it, and even a
+successful save would have been ignored.
+
+The settings window now reads the service's own `ImagePath` and says so in its status line when
+the two disagree. `make-shortcuts.ps1` defaults to `local` rather than `home`.
+
+**The service itself still has `--profile home` baked in and re-installing it needs elevation**,
+so that is left to the owner rather than done here. `home` aliases to `local`, so nothing is
+broken meanwhile — it simply cannot be changed from the window until the service is
+re-registered without the argument.
+
+### The checks, and one that passed for the wrong reason
+
+`ConfigChecks` now covers all of it, and each was confirmed to fail against the old behaviour
+before being kept. One did not: *"'live' still resolves"* passed with the aliases removed
+entirely, because the fixture's fallback brain was `claude` and so is `cloud`'s —
+indistinguishable. The fixture now differs in both brain and Whisper model, and asserts on both.
+
+---
+
 ## 0.52.5 — 2026-09-04
 
 **A switch for the captions.** *"add a setting to switch off the chat overlay that comes up when

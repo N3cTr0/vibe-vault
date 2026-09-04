@@ -101,6 +101,65 @@ internal static class ConfigChecks
                 $"AvatarFile={afterTwice["AvatarFile"]}");
             Check("a second save records its own change", (string?)afterTwice["WhisperLanguage"] == "de",
                 $"WhisperLanguage={afterTwice["WhisperLanguage"]}");
+
+            /* **The profile is the one key a plain `Save` must not write, and the settings
+               window must.** A session loaded with `--profile cloud` holds that in memory
+               while the file still says something else, so writing it would turn an argument
+               into a permanent setting. Skipping it unconditionally was the bug reported on
+               09/04/2026: the settings window offered a Profile box, said it had saved, and
+               dropped exactly the key the person opened it to change. */
+            settings.Profile = "cloud";
+            settings.Save();
+            var afterPlain = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+            Check("a plain save leaves the profile alone", (string?)afterPlain["Profile"] != "cloud",
+                $"Profile={afterPlain["Profile"]} — an argument would become permanent");
+
+            settings.Save(withProfile: true);
+            var afterWith = JsonNode.Parse(File.ReadAllText(file))!.AsObject();
+            Check("the settings window can change the profile", (string?)afterWith["Profile"] == "cloud",
+                $"Profile={afterWith["Profile"]}");
+
+            /* The old names, checked against a file that defines only the two that remain.
+               The fixture above still declares `dev` and `live` as real profiles -- which is
+               the point of the aliases: a name is only translated when it is *not* defined,
+               so an existing file that still has them keeps using its own. */
+            var twoOnly = Path.Combine(Path.GetTempPath(), $"octavia-twoprofile-{Guid.NewGuid():N}.json");
+            File.WriteAllText(twoOnly, """
+                {
+                  "Profile": "local",
+                  "Profiles": {
+                    "local": { "Brain": "local", "WhisperModel": "small.en" },
+                    "cloud": { "Brain": "claude", "WhisperModel": "large-v3-turbo" }
+                  },
+                  "Brain": "local",
+                  "WhisperModel": "tiny.en"
+                }
+                """);
+            Environment.SetEnvironmentVariable("OCTAVIA_CONFIG", twoOnly);
+            try
+            {
+                foreach (var (old, brain, whisper) in
+                         new[] { ("home", "local", "small.en"), ("dev", "local", "small.en"),
+                                 ("live", "claude", "large-v3-turbo") })
+                {
+                    var legacy = OctaviaConfig.Load(old);
+                    // Both fields, because the fixture's fallback brain used to match `cloud`'s
+                    // -- so "'live' still resolves" passed with the aliases removed entirely.
+                    Check($"'{old}' still resolves",
+                          legacy.Brain == brain && legacy.WhisperModel == whisper,
+                          $"brain={legacy.Brain} whisper={legacy.WhisperModel}");
+                }
+
+                // And a name that never existed still falls back loudly rather than quietly.
+                var nonsense = OctaviaConfig.Load("zzz");
+                Check("an unknown name is not aliased", nonsense.WhisperModel == "tiny.en",
+                      $"whisper={nonsense.WhisperModel}");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("OCTAVIA_CONFIG", file);
+                try { File.Delete(twoOnly); } catch { /* a temp file */ }
+            }
         }
         finally
         {

@@ -68,6 +68,41 @@ public partial class SettingsWindow : Window
         return set;
     }
 
+
+    /// The profile the installed service was registered with, if it names one.
+    ///
+    /// **A `--profile` argument outranks the config file**, which is right for a shortcut and
+    /// wrong for a service: a shortcut is a choice made each time it is double-clicked, and a
+    /// service is registered once and forgotten. `--install --profile home` therefore made the
+    /// Profile box below permanently decorative, and nothing said so — reported on 09/04/2026
+    /// as *"i tried changing to cloud and saving and it did not take"*, where the save was
+    /// also broken, so fixing that alone would have produced the same symptom.
+    private static string? ServicePins()
+    {
+        try
+        {
+            // The registry rather than WMI: `System.Management` is a NuGet package on .NET and
+            // this is one string. `ImagePath` is the exact command line the service runs.
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Services\Octavia");
+
+            if (key?.GetValue("ImagePath") is not string path) return null;
+
+            var at = path.IndexOf("--profile", StringComparison.OrdinalIgnoreCase);
+            if (at < 0) return null;
+
+            var rest = path[(at + "--profile".Length)..].Trim();
+            var name = rest.Split([' ', '\t', '\r', '\n'], 2)[0].Trim().Trim('"');
+            return name.Length > 0 ? name : null;
+        }
+        catch
+        {
+            // No permission, no service, no key. The box is then simply unannotated, which is
+            // what it was before — a missing warning must not be a broken settings window.
+            return null;
+        }
+    }
+
     private void Load()
     {
         var state = ServerControl.ServiceState switch
@@ -82,6 +117,14 @@ public partial class SettingsWindow : Window
             ? $"  ·  profile '{_config.Profile}' overrides {string.Join(", ", _overridden.Order())}, " +
               "so changing those here will not take effect"
             : "";
+
+        /* And the one that outranks the file entirely. A service registered with
+           `--install --profile home` ignores the Profile box below for ever, which is not a
+           thing anybody should have to read a log to discover. */
+        var pinned = ServicePins();
+        if (pinned is not null && !string.Equals(pinned, _config.Profile, StringComparison.OrdinalIgnoreCase))
+            note += $"  ·  the installed service runs --profile {pinned}, which wins over this file — " +
+                    "re-install it to change that";
 
         StateLine.Text = $"{state}  ·  {Paths.DataDir}{note}";
 
@@ -418,7 +461,9 @@ public partial class SettingsWindow : Window
 
         try
         {
-            _config.Save();
+            // The one caller that may write Profile: it loaded without a requested one, so
+            // what is in the box is the file's own setting rather than a command-line argument.
+            _config.Save(withProfile: true);
             return true;
         }
         catch (Exception ex)

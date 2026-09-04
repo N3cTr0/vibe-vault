@@ -48,7 +48,7 @@ source-path: tools\make-shortcuts.ps1
 #>
 [CmdletBinding()]
 param(
-  [string]$ProfileName = 'home',
+  [string]$ProfileName = 'local',
   [switch]$Dist,
   [switch]$Minimised,
   [switch]$NoService,

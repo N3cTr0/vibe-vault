@@ -125,7 +125,7 @@ licence.
 So she is there after a reboot with nothing double-clicked:
 
 ```
-Octavia.Server.exe --install --profile home
+Octavia.Server.exe --install --profile local
 ```
 
 That registers her, sets her to start with Windows, and **grants this account the right to

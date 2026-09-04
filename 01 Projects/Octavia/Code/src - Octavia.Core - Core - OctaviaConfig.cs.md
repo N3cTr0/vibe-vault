@@ -18,21 +18,22 @@ internal sealed class OctaviaConfig
 {
     /// Which named entry in Profiles to overlay on the settings below. A --profile
     /// argument wins over this, and OCTAVIA_PROFILE sits between the two.
-    public string Profile { get; set; } = "home";
+    public string Profile { get; set; } = "local";
 
-    /// Named overrides, so one machine can be a cheap test rig and another the real
-    /// thing without hand-editing four keys each time.
+    /// Named overrides, so the brain can be changed without hand-editing four keys.
     ///
-    /// `home` is the intended primary and the default: she runs on the local model, which
-    /// costs nothing, needs no key and works with the network down. `cloud` is for the
-    /// times Claude is actually wanted. `dev` is `home` with a smaller Whisper, for a
-    /// machine that cannot carry the good one.
+    /// **Two, and only two.** `local` is the primary and the default: she runs on the local
+    /// model, which costs nothing, needs no key and works with the network down. `cloud` is
+    /// for the times Claude is actually wanted, and says out loud that her side of the
+    /// conversation is leaving the building.
     ///
-    /// `live` is kept because existing config files name it. It resolves to the same
-    /// thing `cloud` does, so an older file keeps behaving exactly as it did.
+    /// There were four. `home` was `local` under a name that described the machine rather
+    /// than the brain, `dev` was `home` with a smaller Whisper, and `live` was `cloud` under
+    /// an older name. Three names for two behaviours is a menu that has to be explained
+    /// every time it is read — see `Legacy` for how the old ones still resolve.
     public Dictionary<string, JsonObject> Profiles { get; set; } = new()
     {
-        ["home"] = new JsonObject
+        ["local"] = new JsonObject
         {
             ["Brain"] = "local",
             ["WhisperModel"] = "large-v3-turbo",
@@ -43,20 +44,22 @@ internal sealed class OctaviaConfig
             ["Brain"] = "claude",
             ["WhisperModel"] = "large-v3-turbo",
             ["Recognizer"] = "whisper"
-        },
-        ["dev"] = new JsonObject
-        {
-            ["Brain"] = "local",
-            ["WhisperModel"] = "small.en",
-            ["Recognizer"] = "whisper"
-        },
-        ["live"] = new JsonObject
-        {
-            ["Brain"] = "claude",
-            ["WhisperModel"] = "large-v3-turbo",
-            ["Recognizer"] = "whisper"
         }
     };
+
+    /// The names that used to exist, mapped to the two that remain.
+    ///
+    /// **A config file naming a profile that no longer exists does not fail loudly** — it
+    /// warns once and runs on the un-overlaid base settings, which on this machine means the
+    /// cloud brain and a bill. So the old names keep resolving rather than being deleted:
+    /// renaming a setting is only free for the person who did the renaming.
+    private static readonly Dictionary<string, string> Legacy =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["home"] = "local",
+            ["dev"] = "local",
+            ["live"] = "cloud"
+        };
 
     /// Loopback port the face protocol listens on. 0 picks any free port; a fixed
     /// port makes an external face's URL stable across restarts. See PROTOCOL.md.
@@ -404,6 +407,17 @@ internal sealed class OctaviaConfig
 
         if (string.IsNullOrWhiteSpace(wanted)) return this;
 
+        /* `home`, `dev` and `live` resolved to two behaviours between them and are now the
+           two they resolved to. An old config file, an old shortcut or an old habit still
+           names one, and the alternative to translating it is the warning below — which
+           falls back to the base settings, and the base brain on this machine is the cloud
+           one. A rename that quietly starts spending money is not a rename. */
+        if (!Profiles.ContainsKey(wanted) && Legacy.TryGetValue(wanted, out var now))
+        {
+            Log.Write($"profile '{wanted}' ({source}) is the old name for '{now}'; using that");
+            wanted = now;
+        }
+
         if (!Profiles.TryGetValue(wanted, out var overrides))
         {
             // A warning, not a note. A misspelled profile silently falls back to the base
@@ -418,6 +432,8 @@ internal sealed class OctaviaConfig
             var merged = JsonSerializer.SerializeToNode(this, Options)!.AsObject();
             foreach (var (key, value) in overrides)
             {
+                // Unconditional here, unlike in `Save`: a profile must never redefine which
+                // profile is selected, or naming one inside another would be a loop.
                 if (key is nameof(Profiles) or nameof(Profile)) continue;
                 merged[key] = value?.DeepClone();
             }
@@ -436,7 +452,18 @@ internal sealed class OctaviaConfig
         }
     }
 
-    public void Save()
+    /// Writes the settings back, without baking the profile overlay into them.
+    ///
+    /// **`withProfile` is false for anything running her and true only for the settings
+    /// window.** A session loaded with `--profile cloud` holds `Profile = "cloud"` in memory
+    /// while the file still says `home`, so writing that key would turn a command-line
+    /// argument into a permanent setting. Skipping it unconditionally had the opposite fault:
+    /// the settings window offered a Profile box, reported a successful save, and dropped the
+    /// one key the person had come to change.
+    ///
+    /// The window loads with `Load()` and no requested profile, so its `Profile` is the file's
+    /// own — which is why it is the one caller allowed to write it back.
+    public void Save(bool withProfile = false)
     {
         try
         {
@@ -454,16 +481,24 @@ internal sealed class OctaviaConfig
 
             foreach (var (key, value) in current)
             {
-                if (key is nameof(Profiles) or nameof(Profile)) continue;
+                if (key is nameof(Profiles)) continue;
+                if (key is nameof(Profile) && !withProfile) continue;
                 if (JsonNode.DeepEquals(_loaded[key], value)) continue;
                 _base[key] = value?.DeepClone();
             }
 
             File.WriteAllText(Paths.ConfigFile, _base.ToJsonString(Options));
 
-            // What was just written is the new baseline, or the next save would compare
-            // against a stale one and think nothing had changed.
+            /* What was just written is the new baseline, or the next save would compare
+               against a stale one and think nothing had changed.
+
+               **Except the key that was deliberately not written.** Recording `Profile` as
+               saved when it was skipped makes the *next* save — the settings window's, the
+               one allowed to write it — compare equal and skip it too. The baseline has to
+               describe the file, not the object. */
+            var skippedProfile = !withProfile ? _loaded[nameof(Profile)]?.DeepClone() : null;
             _loaded = current;
+            if (skippedProfile is not null) _loaded[nameof(Profile)] = skippedProfile;
         }
         catch (Exception ex)
         {

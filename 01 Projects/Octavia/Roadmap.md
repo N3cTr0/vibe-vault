@@ -689,14 +689,19 @@ a screenshot.
    worked because the shortcut passes `--profile dev`; started any other way she was mute.
    That is also where the API-key nag came from.
 
-   `home` (local, `large-v3-turbo`), `cloud` (Claude) and `dev` (local, `small.en`) are the
-   shipped profiles, `Profile` defaults to `home`, and **base `Brain` defaults to `local`** —
+   `home` (local, `large-v3-turbo`), `cloud` (Claude) and `dev` (local, `small.en`) were the
+   shipped profiles, `Profile` defaulted to `home`, and **base `Brain` defaults to `local`** —
    which is the part that matters, because an unnamed or misspelled profile falls back to the
-   base and a keyless Claude is the worst thing to fall back to. `live` still resolves, so
-   older config files are untouched. An undefined profile is now a **warning** naming the
-   ones that exist; it used to be an info line, which is how this went unnoticed.
+   base and a keyless Claude is the worst thing to fall back to. An undefined profile is a
+   **warning** naming the ones that exist; it used to be an info line, which is how this went
+   unnoticed.
 
-   Verified by launching her with no `--profile` at all: `profile 'home' (config file):
+   **Two profiles since v0.53.0**: `local` and `cloud`. `home` was `local` named after the
+   machine rather than the brain, `dev` was `home` with a smaller Whisper, `live` was `cloud`.
+   All three still resolve to the two that remain, and only when not defined — so a file that
+   still declares them keeps using its own.
+
+   Verified by launching her with no `--profile` at all: `profile 'local' (config file):
    brain=local` and `brain: qwen2.5:7b-cpu (local)`.
 3. **Docs and vault for the Stage 10 work.** *Mostly done 08/31/2026, v0.19.3.*
    `README.md` now describes the drawer and its tabs, the typing button, the status-readout
