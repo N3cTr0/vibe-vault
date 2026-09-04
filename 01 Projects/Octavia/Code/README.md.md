@@ -667,6 +667,7 @@ dotnet run --project tools/EarsTest -- music     # what she makes of what is pla
 dotnet run --project tools/EarsTest -- gate      # how well the attention gate judges
 dotnet run --project tools/EarsTest -- split     # the server/client boundary, checked as text
 dotnet run --project tools/EarsTest -- unifi     # the UniFi tool server, against the real gateway
+dotnet run --project tools/EarsTest -- wakescore "Hey Octavia"  # what a trained wake word scores
 dotnet run --project tools/EarsTest -- toolloop        # the tool loop, both brains (SPENDS MONEY; not in the suite)
 dotnet run --project tools/EarsTest -- toolloop local  # ...the local brain only, which is free
 dotnet run --project tools/EarsTest -- confirm        # the spoken-yes rule, as a conversation (free)
@@ -678,6 +679,13 @@ a trailing word is said as a second turn — which is how a `Confirm` tool gets 
 profile is the point: `home` is a local brain, so a tool that works perfectly on Claude may
 never be reached in the room, and *"she can use a tool"* and *"she can use a tool on the
 profile she is started under"* are different claims.
+
+**`wakescore` measures, `wake` checks.** The suite's `wake` proves the ONNX chain works using
+a pretrained model against a fixed 0.5 — pass or fail, and it stays that way. `wakescore`
+prints what a trained model actually scores on the phrase, on silence, on ordinary sentences
+and on near misses, in several voices, and reports the gap between the weakest hit and the
+loudest miss. That gap is where `WakeThreshold` belongs; openWakeWord's 0.5 is generic advice
+about no room in particular.
 
 ### Tool servers
 

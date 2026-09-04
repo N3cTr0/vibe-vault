@@ -2158,10 +2158,11 @@ the same one that checks whether she has been interrupted.
   billing on someone who talks all evening, network latency added to every sentence, and an
   outage becoming muteness rather than plainness. They get their own audition if asked for.
 
-## Stage 17 — The wake word *(built 09/02/2026, v0.39.0)*
+## Stage 17 — The wake word *(built 09/02/2026, v0.39.0; her phrase trained 09/04/2026, v0.52.0)*
 
-The runtime is done and proved; **her phrase is not trained**, and that is the whole of what
-is left. See Stage 9, where the old *"not built and arguably not wanted"* note is struck.
+The runtime was built and proved with `hey jarvis` standing in; **her phrase is trained and
+live** since 09/04/2026. See Stage 9, where the old *"not built and arguably not wanted"*
+note is struck.
 
 ### What is built
 
@@ -2176,27 +2177,44 @@ devices, and this is arithmetic on a stream faces already send.
 Measured, with `hey jarvis` standing in: silence **0.000**, the phrase **0.949**, *"turn the
 kitchen light off please"* **0.000**, the phrase again **0.999**.
 
-### What is left, and only you can do it
+### Her phrase, trained 09/04/2026
 
-**Train "Hey Octavia."** It cannot be done on this machine — the pipeline is pinned to
-2022-era PyTorch and TensorFlow, which is why the Colab notebooks exist.
+**Done.** `hey_octavia.onnx` — 200 KB — trained in Colab against synthetic Piper samples, and
+live in `config.json` since v0.52.0 at a threshold of 0.40.
 
-1. Open one of the 2026 openWakeWord trainer notebooks in Colab.
-2. Give it the phrase. **Two words, not one**: *"Hey Octavia"* has a far stronger acoustic
-   signature than *"Octavia"*, and that was the single biggest factor in model quality across
-   every configuration tested. Positive samples are generated synthetically **with Piper** —
-   which she already ships, and which is what killed the old *"no corpus exists"* objection.
-3. ~75–90 minutes on Colab Pro.
-4. Drop `hey_octavia.onnx` into `data\models\wake\` and set `"WakePhrase": "Hey Octavia"`.
+It cost far more than the ninety minutes advertised. Ten separate things are broken between
+the openWakeWord notebook and a 2026 Colab runtime, starting with a phonemiser that has no
+build for Colab's Python and no source to compile, and the whole training stack therefore
+running inside a `uv venv --python 3.11`. **All of it is written down** — the vault has
+*Training Her Wake Word* and *Wake Word Colab Cells*, the latter being the four working cells
+in run order. Do not rediscover it.
 
-Nothing else changes: `WakeWordStore` resolves any phrase that is not one of openWakeWord's
-own as a filename, so hers is found the moment it is there.
+Measured here, at 1,000 training samples:
+
+| against | score |
+|---|---|
+| silence | 0.000 |
+| *"Hey Octavia"*, three different voices | 0.750 – 0.844 |
+| three ordinary sentences | 0.001 |
+| *"octavia"* alone, *"hey, are you there"*, *"hey octopus"* | 0.001 |
+
+A gap of 0.749, which is why 0.40 is a comfortable setting rather than a fussy one. `octavia`
+on its own scoring 0.001 is the two-word choice earning its place exactly as advertised.
+
+**The benchmark disagrees, and it is worth knowing why.** openWakeWord's own test set scored
+the model at recall **0.506** — it would miss half of what it heard. The numbers above come
+from synthesised speech, which is what the model was *trained* on, so they are the optimistic
+end. The honest reading is that the pipeline works and this model is unproven in a real room;
+`EarsTest wakescore` is what re-measures it, and 30,000 samples rather than 1,000 is the fix
+if the room disagrees.
 
 ### Then worth doing, in this order
 
-- **Tune the threshold against a real room.** 0.5 is openWakeWord's own guidance and is a
-  starting point, not an answer. `WakeThreshold` is in config; the log carries the best score
-  of every utterance it declined, which is exactly the data needed.
+- **Tune the threshold against a real room.** 0.40 came off synthesised speech, which is a
+  starting point and not an answer. `WakeThreshold` is in config; the log carries the best
+  score of every utterance it declined, which is exactly the data needed. If she is missing
+  the phrase, that is the number to lower — up to the point where the misses are the model's
+  rather than the threshold's, and then it is 30,000 samples instead.
 - **Whisper need not be loaded until she is woken.** It is opened at startup today so a first
   press does not pay for the model — right when a press was the only way in, and now worth
   re-asking: with a wake word, the 1.6 GB could stay unloaded until the phrase is heard. That

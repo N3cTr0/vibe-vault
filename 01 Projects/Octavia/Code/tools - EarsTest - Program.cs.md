@@ -25,6 +25,7 @@ if (args.Length > 0 && args[0] == "rooms") { Environment.Exit(await RoomChecks.R
 if (args.Length > 0 && args[0] == "embedder") { Environment.Exit(EmbedderChecks.Run()); }
 if (args.Length > 0 && args[0] == "split") { Environment.Exit(SplitChecks.Run()); }
 if (args.Length > 0 && args[0] == "wake") { Environment.Exit(await WakeChecks.RunAsync()); }
+if (args.Length > 0 && args[0] == "wakescore") { await WakeProbe.RunAsync(args.Length > 1 ? args[1] : "Hey Octavia"); return; }
 if (args.Length > 0 && args[0] == "rounds") { Environment.Exit(await RoundChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "tools") { Environment.Exit(await ToolChecks.RunAsync()); }
 if (args.Length > 0 && args[0] == "baseline") { Environment.Exit(BaselineChecks.Run()); }

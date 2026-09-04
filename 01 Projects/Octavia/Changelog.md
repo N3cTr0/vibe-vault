@@ -16,6 +16,52 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.0 — 2026-09-04
+
+**She has her own name now.** `hey_octavia.onnx` came out of a Colab, went into
+`data\models\wake\`, and `WakePhrase` is set — so for the first time nothing said in a
+listening room reaches Whisper until she is actually addressed. The runtime for this shipped
+in v0.39.0 and has been waiting on one file ever since.
+
+### What it scores
+
+`EarsTest wakescore` is new, and exists because the old check answers a different question.
+`WakeChecks` proves the ONNX chain works, with a pretrained model, against a fixed 0.5 — pass
+or fail, which is the right shape for a check that runs forever. It cannot tell you where to
+put a threshold.
+
+| against | score |
+|---|---|
+| silence | 0.000 |
+| *"Hey Octavia"*, three different SAPI voices | 0.750 – 0.844 |
+| *"turn the kitchen light off please"* and two more like it | 0.001 |
+| *"octavia"*, *"hey, are you there"*, *"hey octopus"* | 0.001 |
+
+Three voices rather than one, because a model that fires for the default speaker and nothing
+else would look perfect on a single measurement and be useless in the room. `WakeThreshold` is
+**0.40**, the middle of a 0.749 gap.
+
+### The number that disagrees, and is probably right
+
+openWakeWord's own benchmark scored the trained model at **recall 0.506** — half the phrase
+missed — against 0.177 false positives an hour. Both of the training runs after the first log
+*"Increasing weight on negative examples to reduce false positives"*: it bought quiet by going
+deaf, which is the default trade and one that 1,000 samples cannot survive.
+
+The table above is synthesised speech, which is what the model was trained on, so it is the
+optimistic end of the range and the benchmark is the pessimistic one. **The room decides.**
+If she misses the phrase, `WakeThreshold` comes down; if she still misses it, the fix is
+30,000 samples rather than 1,000, and the vault has the cells to do it again.
+
+### Two comments that had stopped being true
+
+`WakePhrase` said it was empty *"because hers does not exist yet"*. It exists; it is simply
+not in the repository, because `data\` is gitignored and 200 KB of trained weights is not
+source. `WakeThreshold` recommended openWakeWord's generic 0.5 with no mention that there is
+now a tool that measures a real one.
+
+---
+
 ## 0.51.2 — 2026-09-03
 
 **An audit of the whole thing, not only what changed today.** Five faults, and the two worst

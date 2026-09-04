@@ -249,10 +249,12 @@ internal sealed class OctaviaConfig
     /// turned every utterance in the room into words. This is matched in the *audio*, by a
     /// four-megabyte model, so nothing is transcribed until she is addressed.
     ///
-    /// Empty by default, because hers does not exist yet: openWakeWord ships `hey jarvis`,
-    /// `alexa`, `hey mycroft` and `hey rhasspy`, and *"Hey Octavia"* has to be trained. Any
-    /// other value is looked up as a file — `Hey Octavia` → `hey_octavia.onnx` in
-    /// `data\models\wake`.
+    /// Empty by default, because the model is not in the repository: `data\` is gitignored,
+    /// and `hey_octavia.onnx` is 200 KB of trained weights that came out of a Colab rather
+    /// than out of source. openWakeWord ships `hey jarvis`, `alexa`, `hey mycroft` and
+    /// `hey rhasspy` by name; any other value is looked up as a file — `Hey Octavia` →
+    /// `hey_octavia.onnx` in `data\models\wake`, and a missing file leaves her listening the
+    /// way she did before rather than deaf.
     ///
     /// **Two words beat one.** A phrase has a far stronger acoustic signature than a single
     /// name, and it was the largest factor in model quality across every configuration
@@ -261,6 +263,11 @@ internal sealed class OctaviaConfig
 
     /// How sure the model must be, 0 to 1. openWakeWord's own guidance is 0.5: higher misses
     /// her, lower wakes on the television.
+    ///
+    /// **0.5 is generic, and a measured number beats it.** `EarsTest wakescore` scores the
+    /// phrase against silence, ordinary sentences and near misses, and prints the gap; her
+    /// log then carries the best score of every utterance the wake word *declined*, which is
+    /// the only data that describes this room rather than a benchmark.
     public double WakeThreshold { get; set; } = 0.5;
 
     /// Utterances shorter than this are treated as noise rather than speech.
