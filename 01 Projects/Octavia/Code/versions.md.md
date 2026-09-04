@@ -18,6 +18,53 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.3 — 2026-09-04
+
+**The wake word's diagnostic said `best` and reported the last.** A day of wake-word training
+was spent chasing a number that was never what it claimed.
+
+```csharp
+public float LastScore { get; private set; }        // set on every 80 ms chunk
+LastScore = score;
+
+Log.Write($"... (best {_wake.LastScore:0.00})");    // reported as the best
+```
+
+An utterance is only logged once the voice detector's **trailing silence** has elapsed. By that
+moment the classifier's sliding window holds that silence, so the score has decayed to zero —
+and every declined utterance logged `best 0.00` no matter what it actually reached.
+
+That read as *"her name scores nothing at all in his voice"*, which is a very different claim
+from *"it scores 0.25 and the threshold is 0.30"*. It is the claim that sent the whole day
+after a phantom: a container, three retrains, a patched speaker iterator and a patched blend
+weight, all reasoning from a measurement taken at the one moment it could not be right.
+
+`WakeWord.PeakScore` now tracks the maximum since `ResetPeak()`, which `WhisperRecognizer`
+calls when speech starts — so the number describes one utterance, and `woken:` reports the peak
+rather than whatever the last chunk happened to hold.
+
+> **A number that is only correct at a moment nobody looks is worse than no number.** The same
+> shape as this week's other three: a check that imports a directory, a guard that tests
+> existence when it means completeness, an exit code belonging to `tail`. Each one reported
+> success for a question it had not asked.
+
+### `WakeThreshold` 0.30 → 0.15
+
+Real attempts in his voice scored **0.17, 0.28 and 0.33**; the threshold was rejecting two of
+those three. Every one of the 35 declined utterances in her log sits at 0.00 and the synthetic
+negatives at 0.001–0.003, so there is an empty band between 0.00 and 0.17 and 0.15 sits in the
+middle of it. `AttentionGate` is still behind the wake word, so a false wake costs one discarded
+transcription rather than a conversation.
+
+### A new model, from the container
+
+`data\models\wake\hey_octavia.onnx` is now the 10,000-sample model trained locally with the
+speaker iterator patched — the first Colab one is kept beside it as `.bak`. It is better on two
+of three synthetic voices and worse on the third, which is ambiguous; what is not ambiguous is
+that it fires on his ordinary voice, which the first one never did.
+
+---
+
 ## 0.52.2 — 2026-09-04
 
 **She read an IP address as six sentences.** Asked what was on the network, she said *"the IP

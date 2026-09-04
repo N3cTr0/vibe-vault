@@ -243,7 +243,7 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
                     if (_wake.Heard(_frame, _wakeThreshold))
                     {
                         _awake.Wake();
-                        Log.Write($"woken: '{_wake.Phrase}' ({_wake.LastScore:0.00})");
+                        Log.Write($"woken: '{_wake.Phrase}' ({_wake.PeakScore:0.00})");
                     }
                 }
                 catch (Exception ex)
@@ -382,6 +382,8 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
             {
                 if (probability >= StartThreshold)
                 {
+                    // The peak belongs to this utterance, not to everything since she started.
+                    _wake?.ResetPeak();
                     _inSpeech = true;
                     _quietFrames = 0;
                     _voicedFrames = 1;
@@ -437,9 +439,9 @@ internal sealed class WhisperRecognizer : ISpeechRecognizer
                 // from a microphone that is not working — and the score is the only thing
                 // that tells "it nearly fired" from "it heard nothing at all".
                 Log.Write($"heard {seconds:0.0}s, not transcribed: no '{_wake!.Phrase}' " +
-                          $"(best {_wake.LastScore:0.00})");
+                          $"(best {_wake.PeakScore:0.00})");
 
-                Overheard?.Invoke($"not addressed to her (best {_wake.LastScore:0.00})");
+                Overheard?.Invoke($"not addressed to her (best {_wake.PeakScore:0.00})");
                 return;
             }
 

@@ -73,6 +73,21 @@ internal sealed class WakeWord : IDisposable
     /// firing, which is the whole reason this is exposed rather than kept inside.
     public float LastScore { get; private set; }
 
+    /// The highest score since `ResetPeak`, which is the only number worth reporting.
+    ///
+    /// **`LastScore` was being logged as "best" and it is not.** It is the score of the most
+    /// recent 80 ms chunk, and an utterance is not reported until the voice detector's
+    /// trailing silence has elapsed — by which point the classifier's sliding window is full
+    /// of that silence and has decayed to zero. Every declined utterance therefore logged
+    /// `best 0.00` regardless of what it actually reached, which read as *"her name scored
+    /// nothing at all"* and sent a day of wake-word training after a phantom.
+    ///
+    /// A number that is only correct at a moment nobody looks is worse than no number.
+    public float PeakScore { get; private set; }
+
+    /// Called when speech starts, so the peak covers one utterance rather than all of time.
+    public void ResetPeak() => PeakScore = 0f;
+
     public WakeWord(string phrase, string melPath, string embedPath, string wakePath)
     {
         Phrase = phrase;
@@ -114,6 +129,7 @@ internal sealed class WakeWord : IDisposable
             if (Score(chunk) is { } score)
             {
                 LastScore = score;
+                if (score > PeakScore) PeakScore = score;
                 if (score >= threshold) fired = true;
             }
         }
