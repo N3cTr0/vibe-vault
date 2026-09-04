@@ -40,7 +40,10 @@ tags: [octavia, moc]
 >   voice, her sound card and every device class are gone from the server — clients own them
 >   now, and `listen` means one thing everywhere. See [[A Server, And Clients]].
 > - **A wake word in front of Whisper** (0.39.0), so she stops transcribing the room to find
->   out whether it was talking to her. `WakePhrase` is empty until hers is trained.
+>   out whether it was talking to her. **Hers is trained and live since 09/04/2026** (0.52.0)
+>   -- `Hey Octavia`, threshold 0.10, trained locally in `tools/wake-training`. See
+>   [[Training Her Wake Word]]; the fix was the sample generator blending every clip to a
+>   midpoint between two speakers, not the sample count.
 >
 > - **Stage 16: a new voice, and only that one** (0.40.0). Twenty-two candidates read the same
 >   paragraph and **Kokoro's `af_heart`** was chosen by ear. Most of the diff is deletion —
@@ -139,6 +142,8 @@ tags: [octavia, moc]
 
 - [[Silero VAD Context Window]] — the 64 samples that make it work at all
 - [[Whisper Integration]] — models, hallucination defences, the confidence trap
+- [[Training Her Wake Word]] — why it took a day, what actually fixed it, and why the benchmark could not see it. **Read before retraining anything**
+- [[Wake Word Colab Cells]] — the Colab cells, superseded by `tools/wake-training` but still the record of what breaks there
 - [[Choosing a Local Model]] — why tokens/sec was the wrong metric
 - [[The Host-Face Bridge]] — the socket, the virtual origins, and why loopback was reachable
 - [[The Avatar Interface]] — how a plaster bust and a VRM take the same performance

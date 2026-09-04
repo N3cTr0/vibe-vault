@@ -16,6 +16,51 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.4 — 2026-09-04
+
+**A documentation pass, because half of what was written today was superseded by the end of
+it.** No code changed. Everything below was a note confidently telling the next session
+something the session that wrote it had already disproved.
+
+### What was wrong
+
+`ROADMAP.md` Stage 17 still described the Colab model at a threshold of 0.40 and closed by
+recommending **30,000 samples and `target_recall` nearer 0.6** — the exact plan that consumed
+most of the day and moved benchmark recall *down*. Its follow-up list repeated it, and added
+*"a score of 0.00 is not a threshold problem — that is the model not hearing you"*, which was
+an artefact of the `best`/`LastScore` bug rather than a fact about anything.
+
+`Features/The Ears.md` said `WakePhrase` is empty until hers is trained, and presented the
+synthetic measurements as a convenience — *"these models are trained on synthetic speech in the
+first place"* — when that is precisely the trap: 0.750–0.844 on those voices, 0.008 median on
+the owner's.
+
+`Wake Word Colab Cells.md` carried a retrain section whose whole diagnosis was wrong.
+`Training Her Wake Word.md` still said *"more examples is the main quality lever"*. The project
+hub said the wake word was untrained. Memory said v0.51.0 and listed training it as outstanding
+owner work.
+
+### What they say now
+
+Stage 17 records what fixed it — the generator's `slerp_weights` blending every clip to a
+midpoint between two speakers, so no pure voice was ever heard — and what did not: sample count,
+`target_recall`, and duplicating the owner's recordings fifty times. The superseded sections are
+kept and marked rather than deleted, because *"we tried this and it did not work"* is worth more
+than silence, and because the Colab-specific repairs are still the record of what breaks there.
+
+**Stage 19 is new**: a third face on iOS, asked for today. Yes for the code, and the
+architecture is already right — Stage 14 forced the built-in face off `SetVirtualHostNameToFolderMapping`
+and onto plain HTTP, which a `WKWebView` loads exactly as Android's `WebView` does. The obstacle
+is that Xcode is macOS-only, so the routes are cloud CI, a Mac mini, or Safari over Tailscale
+with no app at all — and that last one should be tried first.
+
+`Lessons Learned.md` gains **Measurements that lie**: four in one week — a check that imported a
+directory, a guard that tested existence when it meant completeness, an exit code belonging to
+`tail`, and a score read after it had decayed. Each reported success for a question it had not
+been asked.
+
+---
+
 ## 0.52.3 — 2026-09-04
 
 **The wake word's diagnostic said `best` and reported the last.** A day of wake-word training

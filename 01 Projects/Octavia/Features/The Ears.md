@@ -140,4 +140,22 @@ The test speech is synthesised, which suits this unusually well — these models
 
 It fails **open**, like the gate: a missing model, no network, an untrained phrase or an exception mid-stream all leave her listening exactly as before. And the window is cleared on a hit, or one *"hey jarvis"* would wake her four times as the phrase slid through the classifier's buffer.
 
-> **`WakePhrase` is empty by default** and stays so until hers is trained — pointing it at `hey jarvis` would mean she answers only to a name that is not hers, which is worse than what it replaces.
+> **`WakePhrase` is `Hey Octavia` and live since 09/04/2026** (v0.52.0). It is still *empty by
+> default* in `OctaviaConfig`, because `data\` is gitignored and a 200 KB trained model is not
+> source — a fresh clone has no model, and `WakeWordStore` leaves her listening as before rather
+> than deaf. `WakeThreshold` is **0.10**.
+
+### Two things this note used to get wrong
+
+**"It says when it does not fire"** was true of the intent and false of the code until v0.52.3.
+The log printed `LastScore` labelled as `best`, and an utterance is only reported after the voice
+detector's trailing silence — by which point the classifier's window holds that silence and the
+score has decayed to zero. So every declined utterance read `best 0.00` whatever it reached,
+which is a very different claim from *"it scored 0.25 against a 0.30 threshold"*. `PeakScore`
+fixes it.
+
+**The measurements above are synthetic speech**, and the note used to present that as a
+convenience — *"these models are trained on synthetic speech in the first place"*. It is the
+trap. The first trained model scored 0.750–0.844 on those voices and **0.008 median on the
+owner's real voice**. Score real recordings with `EarsTest scorerecordings`; the synthetic
+numbers cannot see the failure that matters.

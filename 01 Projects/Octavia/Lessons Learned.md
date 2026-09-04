@@ -281,3 +281,45 @@ The expensive ones, so we never pay twice. (VAD specifics live in [[Silero VAD C
 - **A symptom with three causes and no way to tell them apart is a design problem.** *"I asked her to X and she said she can't"* was reported twice in one month — once because a system prompt said she had no hands, once because a consent rule never granted — and could have been a third time from a cached `tools/list` failure. Three unrelated faults, one sentence, and until the log recorded what she heard, what tools she had and what each call answered, nothing could separate them. **When the same report keeps arriving, stop fixing the cause and go and make the causes distinguishable.**
 - **A safety claim in a comment the code does not implement is worse than no comment**, because it is what the next person checks instead of the code. The annotation handler was documented as "can only ever make her more careful" — true of `destructiveHint`, false of `readOnlyHint`, which could quietly downgrade a tool that deletes. The fix was to take the more careful of the claim and the guess; the test for it is a mock server that **lies on purpose**, because a check proving our own honest server is accepted proves nothing about the case that matters.
 - **Two threads, one counter, and a lock around the wrong half.** The dequeue was locked and the increment beside it was not, so two threads could take one item each and read the same index. It cannot throw — it just puts the caption on the wrong sentence now and then. **Where a lock protects a container, check whether it also protects the number derived from it**; the two are almost always one operation and are very easy to write as two.
+
+## Measurements that lie
+
+*Four of these in one week, 09/04/2026, each in a different disguise. They are one lesson.*
+
+- **A check is worth exactly what it imports, and no more.** `import openwakeword` with `cwd`
+  set to the parent directory matches the *directory* as an empty namespace package: it imports
+  nothing, succeeds, and proves nothing. `train.py` then died immediately on
+  `openwakeword.vad`. The rewritten check imported the submodules — and **passed again while
+  `import datasets` was completely broken**, because it did not import `datasets`. Same fault,
+  in a check written by the note warning about the fault. **Import what the target imports.**
+- **A guard that tests existence when it means completeness is worse than no guard**, because it
+  silently skips the work on every later run. `if not os.path.exists("./mit_rirs")` leaves an
+  empty directory behind when the fill crashes, and every subsequent run trains with no
+  impulse responses and no error. The same shape truncated a model download, and later fed a
+  10,000-sample training run the features from a 60-clip smoke test — producing a recall of
+  0.064 that read as a modelling result. **Count the files, or compare the row count.**
+- **A number that is only correct at a moment nobody looks is worse than no number.** Her wake
+  word logged `LastScore` labelled as `best`. An utterance is reported only after the voice
+  detector's trailing silence, by which point the classifier's window holds that silence and the
+  score has decayed to zero — so every declined utterance read `best 0.00` whatever it actually
+  reached. *"Her name scores nothing at all in his voice"* and *"it scores 0.25 against a 0.30
+  threshold"* are different problems, and a day went to the first one. **A peak needs a reset
+  and a maximum, not a last value.**
+- **An exit code belongs to the last command in the pipeline.** `docker build … | grep | tail`
+  reported success for a build that failed, twice, and the harness's own task notification
+  repeated it. It was caught only because the image was missing from `docker images`.
+  **Echo `$?` immediately, or check `PIPESTATUS`, and verify the artefact rather than the
+  status.**
+
+> **The general form: every one of these reported success for a question it had not been
+> asked.** They are not carelessness, they are the natural failure of a proxy — and a proxy is
+> what a check *is*. The defence is to make the check fail on purpose once. Every fix above was
+> confirmed by breaking the thing it guards and watching the check go red; the two that were not
+> confirmed that way are the two that lied twice.
+
+- **Synthetic data measured with synthetic data will agree with itself and be wrong.** The wake
+  word's training benchmark uses generated clips and `wakescore` uses SAPI voices. Both reported
+  a healthy model while the owner's ordinary voice was not being heard at all, and benchmark
+  recall *fell* (0.506 → 0.449) across the change that actually fixed it. Fifty real recordings
+  took ten minutes and settled in one command what four retrains could not. **For anything that
+  has to work for a specific person, the earliest cheap measurement is that person.**

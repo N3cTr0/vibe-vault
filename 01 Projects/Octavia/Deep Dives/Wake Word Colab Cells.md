@@ -276,6 +276,20 @@ The run does not start unless `stack:` prints `ok` — there is no point spendin
 
 ## Cell 3, the retrain — 30,000 samples, split into four
 
+> [!warning] **Superseded 09/04/2026. This section's diagnosis is wrong.**
+> It reads as though sample count and `target_recall` were the problem. Neither was.
+> `target_recall` is a warning threshold that changes nothing, and 1,000 → 10,000 moved
+> benchmark recall *down*. **The fault was `slerp_weights` defaulting to `(0.5,)`**, so every
+> clip was a 50/50 blend of two speakers and the model never heard a pure voice — see
+> *What finally worked* in [[Training Her Wake Word]].
+>
+> Training also moved off Colab entirely: `tools/wake-training` in her repo runs the same
+> pipeline in a container, in about 2.6 hours for 30,000 samples, with both generator patches
+> already applied. **Use that.** These cells are kept because the Colab-specific repairs are
+> still the record of what breaks there, and because the four-cell split and the resume
+> behaviour are both still true.
+
+
 **Written 09/04/2026, after the 1,000-sample model scored 0.00 on the owner's natural voice.**
 Six attempts at nothing at all, then 0.82 the moment he pitched it up. That is not a threshold
 problem — no threshold reaches zero — it is a model that was told twice over to prefer silence
@@ -315,7 +329,7 @@ target_word = 'hey octavia' # @param {type:"string"}
 # 1,000 examples at target_recall 0.25 with a penalty of 1500 produced a model
 # that scored 0.00 on a deep male voice.
 number_of_examples       = 30000   # was 1000
-recall_target            = 0.6     # was 0.25   <- the one that matters most
+recall_target            = 0.6     # was 0.25 -- INERT, see the warning above
 false_activation_penalty = 500     # was 1500
 number_of_training_steps = 20000   # was 10000; 30x the data wants more passes
 

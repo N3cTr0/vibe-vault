@@ -691,6 +691,12 @@ and on near misses, in several voices, and reports the gap between the weakest h
 loudest miss. That gap is where `WakeThreshold` belongs; openWakeWord's 0.5 is generic advice
 about no room in particular.
 
+**But prefer `scorerecordings` to both of them.** `wake` and `wakescore` are synthetic speech
+judged by a model trained on synthetic speech, and on 09/04/2026 both called a model healthy
+while the owner's ordinary voice was scoring a median of 0.008 — a distinction only real
+recordings could draw. `record` captures them and `scorerecordings` prints the distribution;
+`data\wake-holdout` is deliberately never trained on, so it stays a fair test.
+
 ### Tool servers
 
 She discovers capabilities from MCP servers listed in `McpServers`, rather than having them
@@ -763,7 +769,8 @@ quick and still beats the Windows recognizer). Set `Recognizer: "windows"` to fa
 to the old ears. A microphone that opens but delivers pure silence is reported on her
 face after ten seconds rather than failing invisibly.
 
-**Not started.** No wake word, no camera, no system-audio capture, no Home Assistant.
+**Since superseded.** The wake word is trained and live (v0.52.0), cameras arrived with UniFi
+(v0.31.0) and system audio with the music listener. Home Assistant is still not started.
 See `ROADMAP.md`.
 
 ## Her ears open before anyone asks
@@ -783,9 +790,12 @@ machine where that matters more than the first sentence does.
 
 ## Two things to know before leaving her listening
 
-`ListenOnStart` with continuous recognition means every recognised phrase in the room
-becomes an API call. Until there is a wake word or a local gate in front of the model,
-treat always-on listening as a demo rather than a mode to live in.
+`ListenOnStart` with continuous recognition used to mean every recognised phrase in the room
+became an API call. **Two gates sit in front of that now**: the wake word decides whether an
+utterance reaches Whisper at all, and `AttentionGate` decides whether the transcript was
+addressed to her. Always-on listening is a mode to live in rather than a demo — but note that
+`WakePhrase` is empty by default, and with no phrase set the first gate is not there.
+
 
 The prompt-caching breakpoint on the system prompt is wired but inert: the persona is a
 few hundred tokens and the minimum cacheable prefix is over a thousand. It starts paying

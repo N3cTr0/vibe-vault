@@ -2415,4 +2415,63 @@ of them she is on, and sending the sentence again would make the two able to dis
 Worth doing when a fast brain makes the gap obvious. On the CPU model the generation is slow
 enough that the caption and the voice sometimes look synchronised, which is precisely the trap
 this note exists to stop someone falling into twice.
+
+---
+
+## Stage 19 — A third face, on iOS *(asked for 09/04/2026; nothing built)*
+
+> **The owner's words:** *"since you were able to code an android app, would you be able to do
+> one for an iphone also? I am waiting for the new iphone 18 to come out before I buy one, but
+> I want to make sure your able to create the app for her on that also."*
+
+**Yes for the code, and the architecture is already right for it. The obstacle is the
+toolchain, and it is not a difficulty — it is an absence.**
+
+### Why Android was possible here and iOS is not
+
+`C:\Projects\Octavia-Android` builds on this machine because Gradle and the Android SDK run
+natively on Windows. iOS does not work that way by Apple's design: **Xcode is macOS-only**, and
+compiling, running a simulator, code signing and packaging an `.ipa` all require it. There is no
+Windows path, at any price, for the same reason `piper-phonemize` has no Windows wheel —
+somebody decided not to ship one.
+
+Swift and SwiftUI are not the problem. Building and signing are.
+
+### The hard part is already done
+
+Stage 14 forced the useful change without anyone planning it for iOS. The built-in face used to
+reach `wwwroot` through `CoreWebView2.SetVirtualHostNameToFolderMapping` — a WebView2 feature
+with no Android equivalent — and her v0.20.0 replaced it by serving `wwwroot` over plain HTTP on
+the socket's own origin.
+
+**An iOS `WKWebView` loads that identically to Android's `WebView`.** So a third face is the
+same shape as the second: a renderer over `PROTOCOL.md` version 1, with no API key, no model and
+no conversation state. The protocol work, the file serving, the avatar route and the pairing key
+are all already there and already proved by a second client.
+
+### Three routes, and the choice is the owner's
+
+| | cost | what it is like to work in |
+|---|---|---|
+| **Cloud macOS CI** (Codemagic, GitHub Actions macOS runners) | ~free to ~$30/mo | Swift written here, pushed, built in the cloud. Minutes per build and **no simulator to drive**, so every mistake costs a round trip. |
+| **A Mac mini** | ~$600 once | As direct as Android is now. Right answer if this matters beyond one app. |
+| **No native app at all** | nothing | Her face is already an HTML page over HTTP. Safari opens it today over Tailscale. An afternoon, no App Store, no developer account. |
+
+An Apple Developer account is **$99/year** for anything past 7-day provisioning, on every route
+that produces an app.
+
+### The constraint worth knowing before buying the phone
+
+**iOS is far stricter than Android about background microphone access.** The Android client
+already omits always-on listening (Stage 14's own note), and on iOS it is harder still: it needs
+specific background audio modes and attracts App Store review scrutiny. For a personal sideloaded
+app it is workable — it is simply not free, and it is the one capability that does not port
+across by writing the same code again.
+
+### Where to start when the phone arrives
+
+Not with Swift. **Start with the third route** — open the face in Safari over Tailscale and find
+out what is actually missing. That costs an afternoon, needs no Mac and no account, and answers
+whether a native app is worth six hundred pounds of hardware or is mostly wanted for the wake
+word. The Android client's own Stage 0 made the same argument and was right.
 ```

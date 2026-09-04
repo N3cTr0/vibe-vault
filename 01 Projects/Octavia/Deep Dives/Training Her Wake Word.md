@@ -144,7 +144,12 @@ false positives without recovering the misses.
 
 **Two words, not one.** *"Hey Octavia"* has a far stronger acoustic signature than *"Octavia"*, and that was the single biggest factor in model quality across every configuration the author tested. A one-word wake phrase fires on everything.
 
-**More examples is the main quality lever.** The default 1,000 produces a working model; 30,000–50,000 is where it gets good. That costs hours rather than one, so it is worth doing once the 1,000-sample model has proved the pipeline works end to end.
+**More examples is NOT the main quality lever, whatever the author's notes say.** That claim
+sent most of 09/04/2026 after the wrong variable: 1,000 → 10,000 moved benchmark recall *down*,
+0.506 → 0.440, and the owner's voice was unaffected either way. The lever was
+`slerp_weights` — see *What finally worked* at the end of this note. Raise the sample count only
+after the distribution is right, and never as a first response to a model that cannot hear
+somebody.
 
 ---
 
