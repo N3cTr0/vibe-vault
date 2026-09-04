@@ -118,6 +118,7 @@ public partial class SettingsWindow : Window
 
         RoomHourBox.Text = _config.RoomHour.ToString();
         ShowStatsBox.IsChecked = _config.ShowStats;
+        ShowCaptionBox.IsChecked = _config.ShowCaption;
         CameraBox.IsChecked = _config.Camera;
 
         RoundsEnabledBox.IsChecked = _config.Rounds.Enabled;
@@ -354,6 +355,7 @@ public partial class SettingsWindow : Window
         _config.AvatarFile = AvatarBox.SelectedItem is string chosen && chosen != "Plaster bust" ? chosen : "";
         _config.RoomHour = Number(RoomHourBox.Text, _config.RoomHour, "room hour", trouble);
         _config.ShowStats = ShowStatsBox.IsChecked == true;
+        _config.ShowCaption = ShowCaptionBox.IsChecked == true;
         _config.Camera = CameraBox.IsChecked == true;
 
         _config.Rounds.Enabled = RoundsEnabledBox.IsChecked == true;

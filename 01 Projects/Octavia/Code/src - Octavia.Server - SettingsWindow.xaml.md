@@ -168,6 +168,7 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
             <TextBlock Style="{StaticResource Hint}" Text="0–23 pins the light. Negative follows the real clock." />
 
             <CheckBox x:Name="ShowStatsBox" Content="Show the status readout over her corner" />
+            <CheckBox x:Name="ShowCaptionBox" Content="Show the captions over the room" />
             <CheckBox x:Name="CameraBox" Content="Allow her to open a camera when a question needs eyes" />
             <TextBlock Style="{StaticResource Hint}"
                        Text="Off by default, and the only sense that is: a microphone in a room is expected, a camera is not. One still, never a watch." />

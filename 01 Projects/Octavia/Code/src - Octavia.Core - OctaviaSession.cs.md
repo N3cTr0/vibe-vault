@@ -708,6 +708,12 @@ internal sealed class OctaviaSession : IDisposable
                 pending.Waiting.TrySetResult(string.IsNullOrWhiteSpace(frame) ? null : frame);
                 break;
 
+            case "setCaption":
+                _config.ShowCaption = !message.TryGetProperty("value", out var c) || c.ValueKind != JsonValueKind.False;
+                _config.Save();
+                Announce();
+                break;
+
             case "setStats":
                 _config.ShowStats = !message.TryGetProperty("value", out var s) || s.ValueKind != JsonValueKind.False;
                 _config.Save();
@@ -862,6 +868,7 @@ internal sealed class OctaviaSession : IDisposable
         musicAvailable = _musicHere.Known,
         camera = room.Camera,
         stats = _config.ShowStats,
+        caption = _config.ShowCaption,
 
         /* The two facts from the status readout that actually change, kept when the rest of
            it went off by default. A face draws them small in a corner rather than as a panel.

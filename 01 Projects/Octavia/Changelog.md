@@ -16,6 +16,42 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.52.5 — 2026-09-04
+
+**A switch for the captions.** *"add a setting to switch off the chat overlay that comes up when
+she speaks or i talk to her"* — `ShowCaption`, on by default, in her settings window and in the
+face's own drawer beside the status readout.
+
+It hides the **whole placard**, not only the text: the speaker name and the `overheard` notices
+live in it too, and hiding one without the others leaves a label over an empty line. The
+`overheard` notices going with it is deliberate — they are the same overlay, and keeping them
+while hiding the rest would have her narrating her own silence.
+
+Nothing changes about what she hears or says. A caption is a view of the conversation, not part
+of it — which is also the argument for keeping it on by default: it is how you tell a misheard
+word from a bad answer.
+
+### The hair, which is not this
+
+Reported in the same breath as the setting, with the caption change as the suspect: her hair
+sometimes renders as a hard-edged sliver over her shirt. **It is not the overlay, and it is not
+anything from today.**
+
+- The canvas is in `#stage` and the caption in `#placard` — **separate DOM subtrees**, so no
+  style on one can change how the other rasterises.
+- The caption change added no `filter`, `backdrop-filter`, `mix-blend-mode`, `will-change` or
+  `isolation` — nothing that forces a compositing layer.
+- **`vrm-avatar.js` and `environment.js` have not been touched since 09/02/2026**, before every
+  version of the caption work.
+
+What it actually is: `vrm-avatar.js` sets no `renderOrder`, no `depthWrite` and no `alphaTest`,
+so transparent hair is left to three.js's default distance sort — which is view-dependent, and
+therefore intermittent exactly as described. The room layer also puts additive-blended dust
+motes at `renderOrder = 2`, above her. Recorded in `ROADMAP.md`; not fixed here, because a
+transparency-sorting pass is its own change and this release is a checkbox.
+
+---
+
 ## 0.52.4 — 2026-09-04
 
 **A documentation pass, because half of what was written today was superseded by the end of

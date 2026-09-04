@@ -257,6 +257,7 @@ const cameraSel = el('cameraDevice');
 const keyIn = el('key');
 const keyRow = el('keyrow');
 const statsChk = el('stats');
+const captionChk = el('showCaption');
 const stampEl = el('stamp');
 const textIn = el('text');
 const hushBtn = el('hush');
@@ -870,6 +871,14 @@ function applyHello(msg) {
 
   if (msg.whisperCompute) computeSel.value = msg.whisperCompute;
 
+  /* The captions, which are a view of the conversation rather than part of it. Hiding them
+     takes the `overheard` notices with them deliberately: they live in the same placard, and
+     leaving those visible would have her narrating her own silence. */
+  if (msg.caption !== undefined) {
+    captionChk.checked = !!msg.caption;
+    document.body.classList.toggle("no-caption", !msg.caption);
+  }
+
   if (msg.stats !== undefined) {
     statsChk.checked = !!msg.stats;
     document.body.classList.toggle("no-stats", !msg.stats);
@@ -1371,6 +1380,7 @@ outSel.addEventListener('change', () => send({ type: 'setOutput', value: outSel.
 computeSel.addEventListener('change', () => send({ type: 'setWhisperCompute', value: computeSel.value }));
 musicChk.addEventListener('change', () => send({ type: 'setMusic', value: musicChk.checked }));
 statsChk.addEventListener('change', () => send({ type: 'setStats', value: statsChk.checked }));
+captionChk.addEventListener('change', () => send({ type: 'setCaption', value: captionChk.checked }));
 hourSel.addEventListener('change', () => {
   const hour = Number(hourSel.value);
   // Applied here as well as sent, so the room changes while the click is still warm

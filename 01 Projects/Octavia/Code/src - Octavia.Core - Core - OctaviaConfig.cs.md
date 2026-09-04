@@ -156,6 +156,19 @@ internal sealed class OctaviaConfig
     /// faded line in the corner now. See `index.html`.
     public bool ShowStats { get; set; } = false;
 
+    /// Whether her captions are drawn over the room — what she is saying, and what was heard.
+    ///
+    /// **On by default, because a caption is how you tell a misheard word from a bad answer.**
+    /// Off is for looking at her: the placard sits over the room like a subtitle, and once the
+    /// recognition is trusted it is five lines of text in front of the thing it is describing.
+    /// The `overheard` notices go with it — they are the same overlay, and keeping them while
+    /// hiding the rest would leave her narrating her own silence.
+    ///
+    /// Hiding it changes nothing about what she hears or says; the caption is a view of the
+    /// conversation, not part of it.
+    public bool ShowCaption { get; set; } = true;
+
+
     /// Whether the face offers its dev panel, which drives every performance she can
     /// give by hand. Null follows the profile — on for `dev`, off for `live` — which is
     /// the right answer often enough that setting this is the exception.

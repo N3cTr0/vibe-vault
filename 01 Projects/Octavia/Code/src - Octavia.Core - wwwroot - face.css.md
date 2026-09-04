@@ -356,6 +356,11 @@ body.busy #text{padding-right:98px}
 }
 /* Off entirely, for when you just want to look at her. */
 body.no-stats .meta{opacity:0;visibility:hidden}
+
+/* The whole placard, not just the text: the speaker name and the "overheard" notices sit in
+   it too, and hiding one without the others leaves a label over an empty line. `visibility`
+   as well as `opacity` so it cannot take a click meant for her. */
+body.no-caption #placard{opacity:0;visibility:hidden}
 .pill{
   display:flex;gap:7px;align-items:center;
   font-family:var(--mono);font-size:var(--t-meta);letter-spacing:.1em;text-transform:uppercase;

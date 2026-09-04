@@ -205,6 +205,12 @@ source-path: src\Octavia.Core\wwwroot\index.html
         <span class="hint">Pick the real sound card. A virtual endpoint &mdash; streaming software, remote audio &mdash; flattens the sound to full scale and leaves no beat to find.</span>
       </label>
 
+      <label class="field-row check" for="showCaption">
+        <span class="label">Show the captions</span>
+        <input id="showCaption" type="checkbox">
+        <span class="hint">What she is saying, and what was heard, over the room like a subtitle. Off is for looking at her — it takes the "overheard" notices with it.</span>
+      </label>
+
       <label class="field-row check" for="stats">
         <span class="label">Show the status readout</span>
         <input id="stats" type="checkbox">

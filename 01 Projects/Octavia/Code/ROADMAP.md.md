@@ -627,6 +627,23 @@ building. The `ready { faceBuilt: false }` signal from Stage 3 is what surfaced 
 
 ### Still to do
 
+### Her hair sorts badly against her shirt *(reported 09/04/2026, not fixed)*
+
+Intermittently a strand renders as a hard-edged sliver over the white shirt, with a halo. It was
+suspected to be the caption overlay and **is not**: the canvas lives in `#stage`, the caption in
+`#placard`, they are separate DOM subtrees, and `vrm-avatar.js` and `environment.js` have not
+changed since 09/02/2026 — before every version of the caption work.
+
+**`vrm-avatar.js` sets no `renderOrder`, no `depthWrite` and no `alphaTest`.** Transparent MToon
+hair is therefore left to three.js's default back-to-front distance sort, which is view-dependent
+— so the artefact comes and goes with her head position, which is what "sometimes" means here.
+`environment.js` also puts additive-blended dust motes at `renderOrder = 2`, above her.
+
+Worth doing as its own change: give the hair materials an explicit render order, and consider
+`transparentWithZWrite` on the MToon materials the VRM declares. **Check the dust motes at the
+same time** — two layers both relying on default ordering is why it is hard to reason about from
+a screenshot.
+
 1. **The VRM's textures never load.** This is the real reason her eyes, brows and mouth
    are hard to see, and it is *not* the lighting — the lighting fix above was worth
    making but is not the cause. The face materials report `hasMap: false` and the
