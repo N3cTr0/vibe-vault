@@ -318,6 +318,12 @@ number_of_examples       = 30000   # was 1000
 recall_target            = 0.6     # was 0.25   <- the one that matters most
 false_activation_penalty = 500     # was 1500
 number_of_training_steps = 20000   # was 10000; 30x the data wants more passes
+
+# Throughput only -- it changes nothing about the model, just how fast the clips are made.
+# Negatives are generated at tts_batch_size//7 and there are as many of them as positives,
+# so they are roughly seven times the cost of the positives and they dominate the run.
+# generate_samples catches OOM and reduces the batch itself, so aiming high is cheap.
+tts_batch_size = 100               # default 50 -> negatives at 7; try 200 on an L4 or A100
 # -----------------------------------------------------------------------------
 
 # Colab exports MPLBACKEND=module://matplotlib_inline..., which only exists in the
@@ -331,6 +337,7 @@ config["model_name"] = config["target_phrase"][0].replace(" ", "_")
 config["n_samples"] = number_of_examples
 config["n_samples_val"] = max(500, number_of_examples // 10)
 config["steps"] = number_of_training_steps
+config["tts_batch_size"] = tts_batch_size
 config["target_accuracy"] = 0.5
 config["target_recall"] = recall_target
 config["output_dir"] = "./my_custom_model"
@@ -618,3 +625,65 @@ and fetch AudioSet from parquet because the `.tar` the notebook wants is gone.
 
 As above under *Cell 3, the retrain*. Four cells rather than one, because at 30,000 samples the
 run is hours and a failure in the last step should not cost the first.
+
+## What the GPU actually does, and what the run costs
+
+*Read out of `train.py` and `generate_samples.py` on 09/04/2026, rather than estimated.*
+
+**The GPU is used, and nothing needs configuring.** `generate_samples.py` does
+`if torch.cuda.is_available(): torch_model.cuda()` — it auto-detects. What matters is that the
+torch inside the **3.11 venv** sees CUDA, not the kernel's: cell 1 installs
+`torch==2.5.0 --index-url .../cu121`, which is a CUDA build, so it does. Cell 3a prints the card
+name; if it says `NO GPU`, stop there.
+
+### Negatives dominate the run, and it is not obvious why
+
+`train.py` generates **as many adversarial negatives as positives** — `max_samples` is
+`config["n_samples"]` for both. But:
+
+```python
+generate_samples(text=config["target_phrase"], ..., batch_size=config["tts_batch_size"])       # positives
+generate_samples(text=adversarial_texts,       ..., batch_size=config["tts_batch_size"]//7)    # negatives
+```
+
+**Same count, one seventh the batch.** That is the 20 batches versus 142 in the first run's log,
+and it means negatives are roughly seven times the cost of positives. Anyone budgeting from the
+positive count alone will be out by a factor of eight.
+
+At 30,000, generation is about **22x the first run** — call it the better part of a day, not an
+afternoon.
+
+### The knob that helps
+
+`tts_batch_size` (default 50) is throughput only. It changes the speed of generation and nothing
+about the model. Because negatives use `//7`, raising it moves the number that dominates:
+
+| `tts_batch_size` | negatives batch |
+|---|---|
+| 50 (default) | 7 |
+| **100** | 14 |
+| 200 | 28 |
+
+`generate_samples` is called with `auto_reduce_batch_size=True` and catches
+`torch.cuda.OutOfMemoryError` itself, so aiming high costs a retry rather than a crash. 100 on a
+T4; try 200 on an L4 or A100.
+
+**Do not raise `augmentation_batch_size`.** Its own comment says it should stay small "to ensure
+that there is enough variety in the augmentation" — that one is quality, not throughput.
+
+### Generation is resumable, and that is the safety net
+
+```python
+n_current_samples = len(os.listdir(positive_train_output_dir))
+if n_current_samples <= 0.95 * config["n_samples"]:
+    generate_samples(..., max_samples=config["n_samples"] - n_current_samples, ...)
+else:
+    logging.warning("Skipping generation ... as ~N already exist")
+```
+
+It counts what is on disk and makes up the shortfall. **So cell 3b can be re-run after a
+failure and it continues rather than starting again**, and the `Skipping generation` line is
+success, not a warning to chase.
+
+This is why the four-cell split earns its place. It does not survive a *runtime reset* — that
+takes `/content` with it — but it survives everything short of one.
