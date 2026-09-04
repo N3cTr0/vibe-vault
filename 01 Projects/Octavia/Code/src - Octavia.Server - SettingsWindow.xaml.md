@@ -132,7 +132,7 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
             <TextBlock Text="Wake phrase" Style="{StaticResource Head}" />
             <TextBox x:Name="WakePhraseBox" />
             <TextBlock Style="{StaticResource Hint}"
-                       Text="Empty means no wake word. Deliberately empty until hers is trained — pointing it at somebody else's phrase means she answers to a name that is not hers." />
+                       Text="Hers is trained: Hey Octavia. Empty means no wake word at all, and any phrase openWakeWord does not ship is looked up as a file in the data folder, under models\wake." />
 
             <TextBlock Text="Wake threshold" Style="{StaticResource Head}" />
             <TextBox x:Name="WakeThresholdBox" Width="120" HorizontalAlignment="Left" />
@@ -177,6 +177,7 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
 
             <TextBlock Text="Dashboard name" Style="{StaticResource Head}" />
             <TextBox x:Name="DashboardNameBox" />
+
             <CheckBox x:Name="CameraBox" Content="Allow her to open a camera when a question needs eyes" />
             <TextBlock Style="{StaticResource Hint}"
                        Text="Off by default, and the only sense that is: a microphone in a room is expected, a camera is not. One still, never a watch." />
@@ -216,6 +217,21 @@ source-path: src\Octavia.Server\SettingsWindow.xaml
           <StackPanel>
             <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,10"
                        Text="Each of these is a separate process she starts and calls. Settings live in the environment it is given; passwords are sealed to your Windows account and are never written into config.json." />
+            <TextBlock Text="Home Assistant" Style="{StaticResource Head}" Margin="0,0,0,2" />
+            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,6"
+                       Text="Where it answers, for the integration rather than the dashboard on the Voice and face tab — usually the same host. Nothing calls it yet; this is here so the token has somewhere to live before the integration is built." />
+            <TextBox x:Name="HomeAssistantUrlBox" />
+
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+              <TextBlock Text="HA_TOKEN" Width="170" VerticalAlignment="Center" Foreground="DimGray" />
+              <PasswordBox x:Name="HaTokenBox" Width="220" Padding="4,3,4,3" />
+              <Button x:Name="HaTokenStore" Content="Store" Padding="10,3,10,3" Margin="8,0,0,0" Click="StoreHaToken" />
+              <Button x:Name="HaTokenClear" Content="Clear" Padding="10,3,10,3" Margin="6,0,0,0" Click="ClearHaToken" />
+              <TextBlock x:Name="HaTokenState" VerticalAlignment="Center" Margin="8,0,0,0" />
+            </StackPanel>
+            <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,16"
+                       Text="Home Assistant → your profile → Security → Long-lived access tokens → Create token. Sealed to this Windows account, never written to config.json, and not shown again once stored." />
+
             <StackPanel x:Name="IntegrationsPanel" />
           </StackPanel>
         </ScrollViewer>

@@ -164,6 +164,8 @@ public partial class SettingsWindow : Window
         ShowCaptionBox.IsChecked = _config.ShowCaption;
         DashboardUrlBox.Text = _config.DashboardUrl;
         DashboardNameBox.Text = _config.DashboardName;
+        HomeAssistantUrlBox.Text = _config.HomeAssistantUrl;
+        ShowHaTokenState();
         CameraBox.IsChecked = _config.Camera;
 
         RoundsEnabledBox.IsChecked = _config.Rounds.Enabled;
@@ -213,6 +215,47 @@ public partial class SettingsWindow : Window
     /// One block per configured tool server: whether it is on, the values it is given, and a
     /// button per secret. Built rather than declared, because the set of integrations is
     /// whatever `config.json` holds and grows without this window being touched.
+
+    /* ---- the Home Assistant token ---------------------------------------------------
+       Stored under the same name the integration will read tomorrow —
+       `SecretStore.WriteFor("homeassistant", "HA_TOKEN")` seals it to this Windows account
+       as `secret-homeassistant-HA_TOKEN.dat`, which is the same path an MCP server entry
+       named `homeassistant` with `Secrets: ["HA_TOKEN"]` resolves to. So the transport can be
+       built later without moving the secret, and without it ever passing through
+       `config.json` — the mistake made once with the UniFi key and left standing for eighteen
+       versions. */
+    private const string HaServer = "homeassistant";
+    private const string HaSecret = "HA_TOKEN";
+
+    private void ShowHaTokenState()
+    {
+        var held = SecretStore.HasFor(HaServer, HaSecret);
+        HaTokenState.Text = held ? "stored" : "not set";
+        HaTokenState.Foreground = held
+            ? System.Windows.Media.Brushes.SeaGreen
+            : System.Windows.Media.Brushes.Crimson;
+    }
+
+    private void StoreHaToken(object sender, RoutedEventArgs e)
+    {
+        // A blank box is somebody who clicked the wrong button, not somebody asking for the
+        // token to be emptied. Clearing is its own button and says so.
+        if (HaTokenBox.Password.Length == 0) return;
+
+        SecretStore.WriteFor(HaServer, HaSecret, HaTokenBox.Password);
+        HaTokenBox.Clear();
+        ShowHaTokenState();
+        SaveNote.Text = "Home Assistant token stored. Restart her for it to be used.";
+    }
+
+    private void ClearHaToken(object sender, RoutedEventArgs e)
+    {
+        SecretStore.ClearFor(HaServer, HaSecret);
+        HaTokenBox.Clear();
+        ShowHaTokenState();
+        SaveNote.Text = "Home Assistant token cleared.";
+    }
+
     private void BuildIntegrations()
     {
         if (_config.McpServers.Count == 0)
@@ -403,6 +446,7 @@ public partial class SettingsWindow : Window
         _config.ShowCaption = ShowCaptionBox.IsChecked == true;
         _config.DashboardUrl = DashboardUrlBox.Text.Trim();
         _config.DashboardName = DashboardNameBox.Text.Trim() is { Length: > 0 } named ? named : "Dashboard";
+        _config.HomeAssistantUrl = HomeAssistantUrlBox.Text.Trim();
         _config.Camera = CameraBox.IsChecked == true;
 
         _config.Rounds.Enabled = RoundsEnabledBox.IsChecked == true;

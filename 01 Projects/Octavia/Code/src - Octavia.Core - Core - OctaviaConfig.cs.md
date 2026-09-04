@@ -190,6 +190,20 @@ internal sealed class OctaviaConfig
     /// What to call it on the button and in its title bar.
     public string DashboardName { get; set; } = "Dashboard";
 
+    /// Where Home Assistant answers, for the integration rather than the dashboard.
+    ///
+    /// **Separate from `DashboardUrl` on purpose.** That one is a page to show somebody; this
+    /// is an API root to call. They are usually the same host and are not the same setting —
+    /// a dashboard can point at a particular view, or at something that is not Home Assistant
+    /// at all.
+    ///
+    /// The token that goes with it is **not here**. It is sealed under
+    /// `secret-homeassistant-HA_TOKEN.dat` by `SecretStore`, because a long-lived access token
+    /// in `config.json` is the fault this project already made once with the UniFi key and
+    /// left standing for eighteen versions.
+    public string HomeAssistantUrl { get; set; } = "";
+
+
 
 
     /// Whether the face offers its dev panel, which drives every performance she can

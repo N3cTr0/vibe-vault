@@ -18,6 +18,47 @@ dates, which are `MM/DD/YYYY`.
 
 ---
 
+## 0.54.1 — 2026-09-04
+
+**Somewhere to put the Home Assistant token, before there is anything to do with it.** Asked
+for so the credential can be saved tonight and the integration built tomorrow.
+
+`HomeAssistantUrl` in config, and the token sealed by `SecretStore` under
+`secret-homeassistant-HA_TOKEN.dat` — **the same path an `McpServers` entry named
+`homeassistant` with `Secrets: ["HA_TOKEN"]` already resolves to.** So tomorrow's transport
+reads it without the secret moving, and it never passes through `config.json`: the fault made
+once with the UniFi key, which sat in `Env` in plain text for eighteen versions.
+
+It says out loud that nothing calls it yet. A settings field that implies a working integration
+is worse than an absent one.
+
+### On the Integrations tab, where it belongs
+
+It went on *Voice and face* first, beside the dashboard URL, on the reasoning that they share a
+host. The owner asked why — *"im curious why your in voice and face when HA is a integration"* —
+and he is right: a shared hostname is not a shared concern. It sits above `unifi` now and uses
+the same shape as the secrets that panel already builds, so the two read as one list rather than
+as a special case and a general mechanism.
+
+### Two stale sentences
+
+The Wake phrase hint still said the wake word was *"deliberately empty until hers is trained"*.
+Hers was trained this morning.
+
+### And a bug that was not one
+
+The settings window appeared to show a speaking rate of −10 against a config of 0, then −7
+against 7, then −10 against 3 — no consistent function, which is what made it worth checking
+rather than reporting. **The inspection was moving the control it was inspecting**: the script
+driving the window sent `PageDown` to scroll a tab, and `PageDown` on a focused WPF `Slider`
+decrements it. Opened with no keystrokes at all it reads 3 for 3.
+
+Nothing was wrong and nothing was changed. It is recorded because the shape is this week's
+recurring one from the opposite direction: a measurement that reported a fault that did not
+exist, rather than success for a question it had not asked.
+
+---
+
 ## 0.54.0 — 2026-09-04
 
 **A dashboard over the room, on a button.** *"since HA runs in a browser, add another thing if
