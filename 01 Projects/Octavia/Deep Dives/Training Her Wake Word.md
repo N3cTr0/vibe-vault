@@ -11,12 +11,53 @@ See [[Roadmap]] Stage 17 for why the wake word matters: it moves the always-on c
 
 ## Why Colab at all
 
-The training pipeline is pinned to 2022-era PyTorch and TensorFlow, and needs a GPU. This machine has a **GeForce GT 730** — a 2014 Kepler card that modern CUDA dropped support for entirely. So it cannot be done here at any price, and Colab Pro (~$10/month, cancel after) is the path.
+**Corrected 09/04/2026.** This section used to say the GPU was the reason. The GPU is the
+*second* reason, and on this machine it is not even the binding one.
+
+**1. The phonemiser has no Windows build.** `piper-phonemize` and `piper-phonemize-cross` ship
+`manylinux` and `macosx` wheels only — no `win_amd64` at any Python version — and neither has an
+sdist. So on Windows pip has nothing to install and nothing to compile. This is the same brick
+wall as Colab's Python 3.13, arriving from a different direction, and the upstream notebook says
+so in a comment that is easy to read past: *"currently only supports linux systems."*
+
+**2. Any Linux removes that, and then the GPU binds.** Under WSL2 or a container the manylinux
+wheels install and the stack works. But sample generation is TTS inference — a T4 runs a batch of
+fifty utterances at once, a CPU runs a handful. On the Ryzen 7 3700X (8 cores, 16 threads, 32 GB)
+30,000 samples is **days rather than hours**. Possible; a bad trade.
+
+**3. The GT 730 cannot take over.** Kepler, compute 3.5, 2 GB. CUDA 12 dropped it and modern
+PyTorch needs sm_50 or better, so `torch.cuda.is_available()` is `False` whatever is installed.
+It is not a slow GPU for this, it is not a usable one.
+
+**Not everything wants the GPU, though.** `train.py` builds `AudioFeatures(device='cpu', ncpu=4)`
+with no `inference_framework`, so the whole `--augment_clips` feature pass is CPU-bound *by
+design* — the GPU idles through it on Colab too. Worth knowing before assuming a faster card
+would fix a slow run.
+
+### Docker is the better local option, and most of the ten faults vanish in it
+
+Half the mess in this note exists **only because Colab forces Python 3.13 on a stack that needs
+3.11**. Give the stack a 3.11 base image and those problems do not need solving:
+
+| fault | in Colab | in a `python:3.11` container |
+|---|---|---|
+| 1 — no cp313 phonemiser wheel | the wall everything follows from | gone; 3.11 is the interpreter |
+| 3 — a runtime reset wipes `/content` | every cell must be idempotent | gone; a volume is a volume |
+| 4 — `onnx_tf` swaps numpy live | forced a restart mid-notebook | gone; never installed |
+| 7 — `MPLBACKEND` inherited | subprocess cannot start matplotlib | gone; nothing to inherit |
+| 2, 9 — `pkg_resources` missing | `uv venv` ships no setuptools | install `setuptools<82` once |
+
+What still needs handling: `scipy<1.17` (fault 8, `acoustics` imports the removed
+`sph_harm`), the `torchaudio.set_audio_backend` stub (fault 6), and AudioSet having moved to
+parquet (fault 5). Three, not ten.
+
+**So the trade is not Docker versus Colab on difficulty — Docker is easier.** It is CPU speed
+versus about ten dollars. Measure before choosing: generate fifty samples in the container, time
+it, multiply. Five minutes of work turns the guess into a number.
 
 **The notebook:** `https://colab.research.google.com/drive/1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb` — the author's "minimal development experience" version. The full one is `notebooks/automatic_model_training.ipynb` in `github.com/dscripka/openWakeWord`, which is the same project `WakeWordStore` already downloads its models from.
 
 **Copy to Drive first**, or you are looking at a read-only copy that cannot write files.
-
 ## The wall everything else follows from
 
 **Colab runs Python 3.13. The Piper phonemiser has no build for it, and no source to compile.**
