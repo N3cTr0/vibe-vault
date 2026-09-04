@@ -145,3 +145,74 @@ false positives without recovering the misses.
 **Two words, not one.** *"Hey Octavia"* has a far stronger acoustic signature than *"Octavia"*, and that was the single biggest factor in model quality across every configuration the author tested. A one-word wake phrase fires on everything.
 
 **More examples is the main quality lever.** The default 1,000 produces a working model; 30,000–50,000 is where it gets good. That costs hours rather than one, so it is worth doing once the 1,000-sample model has proved the pipeline works end to end.
+
+---
+
+# Training it locally instead (09/04/2026)
+
+*`tools/wake-training` in the repo: a `python:3.11-slim` container that runs the same pipeline.
+Built and run end to end — it produces an `.onnx`. This section is what that proved.*
+
+## The estimate was wrong twice, in the same direction
+
+| said | basis | out by |
+|---|---|---|
+| "days rather than hours" | CPU-versus-GPU intuition | ~10x |
+| "~8.1 hours" | measured positives, **guessed** the negative multiplier as 7x | ~3x |
+| **~2.6 hours** | measured both paths | — |
+
+`train.py` generates as many adversarial negatives as positives, at `tts_batch_size//7`. It is
+very tempting to call that seven times the cost. On a CPU it is **1.8x**: batch size buys far
+less here than on a GPU, and the `//7` is a VRAM limit rather than a statement about work.
+
+Measured on the Ryzen 7 3700X, 8 cores / 16 threads:
+
+| | per clip | 30,000 |
+|---|---|---|
+| positives, batch 50 | 0.100s | ~0.8 h |
+| negatives, batch 7 | 0.180s | ~1.5 h |
+| validation | | ~0.2 h |
+| **generation** | | **~2.6 h** |
+
+Augmentation is **not** slower locally — `AudioFeatures(device='cpu', ncpu=4)` means that pass is
+CPU-bound on Colab too.
+
+> **The lesson is the one this project keeps writing down.** Both wrong numbers came from
+> reasoning about the machine instead of running it on the machine, and `bench.sh` takes two
+> minutes. See [[Lessons Learned]].
+
+## Three things Colab was hiding
+
+The notebook silently depends on its base image for these. None is written down anywhere, and
+all three will bite whoever rebuilds it after Colab next changes that image — **the pins exist
+there by luck, not by decision.**
+
+| | what happens | fix |
+|---|---|---|
+| `webrtcvad` | C extension, no manylinux wheel; a slim image ships no compiler, so pip tries to build and fails | `webrtcvad-wheels`, the same module prebuilt |
+| `pyarrow` | `datasets` 2.14.6 subclasses `pa.PyExtensionType`, removed in 15 — so `import datasets` fails outright, not the parquet read | `pyarrow<15` |
+| `/dev/shm` | Docker allows 64 MB; torch passes DataLoader tensors through it and the workers die **at the start of `--train_model`** with an error naming no cause | `--shm-size=2g` |
+
+**The third is the one to remember.** It surfaced for free because the smoke test ran at 60
+samples; at 30,000 it would have appeared two and a half hours in, after everything expensive
+was already done. `run.sh` now checks `/dev/shm` in its first second and refuses.
+
+## And the check lied a second time
+
+The image build ends with an import assertion, written specifically to avoid fault 10 — it uses
+submodules, never bare `openwakeword`, because from `/work` that name matches the *directory* as
+an empty namespace package and passes while importing nothing.
+
+**It then passed cleanly while `import datasets` was completely broken**, because it did not
+import `datasets`.
+
+Same failure, third disguise, and this time in a check written *by* the note warning about it. A
+check is worth exactly what it imports and no more — the list is now the union of what
+`train.py` and the data step actually use.
+
+## Which to use
+
+Local wins on everything except the first hour of setup: no disconnects, no runtime resets that
+wipe `/content`, nothing to pay, and an environment that is a file rather than a browser tab.
+Colab is still the faster wall-clock for a single run, and the notebook cells above stay
+current for it.
